@@ -1,7 +1,12 @@
 # project_nomad
 
-#MVP 
- 
+## Project
+
+this project is a typescript react component that acts as a GUI for fire modelling systems like WISE and FireStarr. It is a map based interface using free mapBox features and capabilites. 
+
+
+## MVP
+
 Default mode:
 National Fuels
 National DEM

@@ -1,0 +1,58 @@
+{
+    "dataSources": {
+        "weather": {
+            "suppressDefault": false,
+            "Sources": [
+                {
+                    "name": "NWT Weather Data API",
+                    "url": [
+                        "https://nwt-weather-api.gov.nt.ca"
+                    ],
+                    "type": "API",
+                    "kind": "REST"
+                },
+                {
+                    "name": "NWT Historical Weather Data Archive",
+                    "url": [
+                        "https://nwt-archive/geoserver/weather/wfs"
+                    ],
+                    "type": "OWS",
+                    "kind": "WFS"
+                }
+            ]
+        },
+        "wildfirePoints": {
+            "suppressDefault": false,
+            "Sources": [
+                {
+                    "name": "NWT Wildfire Points API",
+                    "url": [
+                        "https://nwt-wildfire-api.gov.nt.ca"
+                    ],
+                    "type": "API",
+                    "kind": "REST"
+                },
+                {
+                    "name": "NWT Wildfire Polygon Data WFS",
+                    "url": [
+                        "https://nwt-geoserver.gov.nt.ca/geoserver/wildfire/polygon/wfs"
+                    ],
+                    "type": "OWS",
+                    "kind": "WFS"
+                }
+            ]
+        },
+        "fuelTypes": {
+            "suppressDefault": false,
+            "Sources": [
+                {
+                    "name": "NWT Fuel Types WCS",
+                    "url": [
+                        "https://nwt-geoserver.gov.nt.ca/geoserver/fueltypes/WCS"
+                    ],
+                    "type": "OWS",
+                    "kind": "WCS"
+                }
+            ]
+        }
+    },
