@@ -1,0 +1,26 @@
+# FireSTARR data directories (large binary files)
+firestarr_data/
+firestarr_config/
+
+# Node modules (when we add backend)
+node_modules/
+npm-debug.log*
+
+# Build outputs
+dist/
+build/
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

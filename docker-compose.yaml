@@ -1,0 +1,14 @@
+services:
+  firestarr:
+    image: ghcr.io/cwfmf/firestarr:dev-0.9.5.4
+    volumes:
+      # Configuration files
+      - ./firestarr_config:/appl/firestarr
+      # Fuel and DEM grids
+      - ./firestarr_data/grids:/appl/data/generated/grid
+      # Simulation working directories
+      - ./firestarr_data/sims:/appl/data/sims
+    working_dir: /appl/firestarr
+    # Don't use restart - FireSTARR is a one-shot command, not a daemon
+    # Run with: docker compose run --rm firestarr /appl/firestarr/firestarr <args>
+    command: /bin/bash
