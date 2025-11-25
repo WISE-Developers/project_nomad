@@ -27,3 +27,5 @@ Thumbs.db
 
 #temp files
 temp/
+.gitmodules
+Documentation/persist/
