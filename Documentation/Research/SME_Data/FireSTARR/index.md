@@ -51,9 +51,9 @@ Quick-reference materials.
 
 ## Related Documentation
 
-- [FireSTARR I/O Reference](../Onboarding/firestarr_io.md) - Detailed input/output specifications
-- [FireSTARR Tech Summary](../Onboarding/firestarr_tech_summary.md) - Technical architecture overview
-- [WISE Documentation](../Onboarding/wise_tech_summary.md) - Comparative fire modeling system
+- [FireSTARR I/O Reference](../../Onboarding/firestarr_io.md) - Detailed input/output specifications
+- [FireSTARR Tech Summary](../../Onboarding/firestarr_tech_summary.md) - Technical architecture overview
+- [WISE Documentation](../../Onboarding/wise_tech_summary.md) - Comparative fire modeling system
 
 ## Version Information
 
