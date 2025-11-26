@@ -223,18 +223,54 @@ run_test() {
     fi
 }
 
-# Test 1: Help check
+# Test 1: Help check (--help may return non-zero, so check for output instead)
 test_help() {
-    run_test 1 "Help Check (basic executable)" \
-        docker compose -f "$PROJECT_DIR/docker-compose.yaml" run --rm firestarr-app \
-        /appl/firestarr/firestarr --help
+    echo ""
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}Test 1: Help Check (basic executable)${NC}"
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    local output
+    output=$(docker compose -f "$PROJECT_DIR/docker-compose.yaml" run --rm firestarr-app \
+        /appl/firestarr/firestarr --help 2>&1)
+
+    echo "$output"
+
+    if echo "$output" | grep -q "Usage:"; then
+        echo ""
+        print_success "Test 1 PASSED"
+        return 0
+    else
+        echo ""
+        print_error "Test 1 FAILED"
+        return 1
+    fi
 }
 
-# Test 2: Test function help
+# Test 2: Test function help (--help may return non-zero, so check for output instead)
 test_function_help() {
-    run_test 2 "Test Function Help (multi-argument support)" \
-        docker compose -f "$PROJECT_DIR/docker-compose.yaml" run --rm firestarr-app \
-        /appl/firestarr/firestarr test --help
+    echo ""
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}Test 2: Test Function Help (multi-argument support)${NC}"
+    echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    local output
+    output=$(docker compose -f "$PROJECT_DIR/docker-compose.yaml" run --rm firestarr-app \
+        /appl/firestarr/firestarr test --help 2>&1)
+
+    echo "$output"
+
+    if echo "$output" | grep -q "Usage:"; then
+        echo ""
+        print_success "Test 2 PASSED"
+        return 0
+    else
+        echo ""
+        print_error "Test 2 FAILED"
+        return 1
+    fi
 }
 
 # Test 3: Simple 1hr test
