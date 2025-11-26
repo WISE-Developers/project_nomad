@@ -43,6 +43,7 @@ function App() {
     <div className="app">
       <header>
         <h1>Project Nomad</h1>
+        <img src="/nomad-logo.png" alt="Nomad Logo" className="logo" />
         <p className="subtitle">Fire Modeling System</p>
       </header>
 

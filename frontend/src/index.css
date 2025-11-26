@@ -41,6 +41,12 @@ header h1 {
   color: transparent;
 }
 
+.logo {
+  max-width: 200px;
+  height: auto;
+  margin: 1.5rem 0;
+}
+
 .subtitle {
   color: var(--color-text-muted);
   margin-top: 0.5rem;

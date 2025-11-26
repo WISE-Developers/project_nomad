@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../../../assets/logo/nomad-logo.png" alt="Project Nomad Logo" width="200"/>
+</p>
+
 # Project Nomad Development Plan
 
 ## Overview
