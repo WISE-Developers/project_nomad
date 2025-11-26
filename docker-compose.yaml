@@ -32,7 +32,7 @@ services:
   # ===========================================
   firestarr-app:
     container_name: firestarr-app
-    image: ghcr.io/cwfmf/firestarr:dev-${VERSION}
+    image: ${FIRESTARR_IMAGE:-ghcr.io/cwfmf/firestarr:dev-${VERSION}}
     volumes:
       - /etc/ssl/certs:/etc/ssl/certs
       - ${FIRESTARR_DATASET_PATH}:/appl/data
