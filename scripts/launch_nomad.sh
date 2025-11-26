@@ -151,15 +151,29 @@ install_dataset() {
     fi
 }
 
-# Pull Docker image
+# Check/pull Docker image
 pull_image() {
-    print_step "Pulling Docker image..."
+    print_step "Checking Docker images..."
 
+    # If using a custom local image, check if it exists
+    if [ -n "$FIRESTARR_IMAGE" ]; then
+        if docker image inspect "$FIRESTARR_IMAGE" &> /dev/null; then
+            print_success "Local image found: $FIRESTARR_IMAGE"
+            return 0
+        else
+            print_error "Local image not found: $FIRESTARR_IMAGE"
+            echo "Build it with: docker compose build firestarr-app"
+            return 1
+        fi
+    fi
+
+    # Default: try to pull from registry
+    print_step "Pulling Docker images from registry..."
     if docker compose -f "$PROJECT_DIR/docker-compose.yaml" pull; then
-        print_success "Docker image ready"
+        print_success "Docker images ready"
         return 0
     else
-        print_error "Failed to pull Docker image"
+        print_error "Failed to pull Docker images"
         return 1
     fi
 }
