@@ -308,10 +308,10 @@ run_all_tests() {
     echo ""
     echo -e "${BLUE}Running all tests...${NC}"
 
-    if test_help; then ((passed++)); else ((failed++)); fi
-    if test_function_help; then ((passed++)); else ((failed++)); fi
-    if test_simple; then ((passed++)); else ((failed++)); fi
-    if test_external; then ((passed++)); else ((failed++)); fi
+    if test_help; then ((passed++)) || true; else ((failed++)) || true; fi
+    if test_function_help; then ((passed++)) || true; else ((failed++)) || true; fi
+    if test_simple; then ((passed++)) || true; else ((failed++)) || true; fi
+    if test_external; then ((passed++)) || true; else ((failed++)) || true; fi
 
     echo ""
     echo -e "${BLUE}═══════════════════════════════════════════════════════════${NC}"
