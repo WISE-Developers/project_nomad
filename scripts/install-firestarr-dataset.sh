@@ -119,6 +119,53 @@ download_file() {
     fi
 }
 
+# Clean up Mac artifacts and flatten nested root folder
+cleanup_and_flatten() {
+    local target_dir="$1"
+
+    # Remove Mac artifacts
+    if [ -d "$target_dir/__MACOSX" ]; then
+        rm -rf "$target_dir/__MACOSX"
+        print_success "Removed Mac artifacts (__MACOSX)"
+    fi
+    find "$target_dir" -name ".DS_Store" -delete 2>/dev/null || true
+
+    # Check for single nested root folder (excluding sims which we create)
+    local nested_dirs=()
+    for dir in "$target_dir"/*/; do
+        [ -d "$dir" ] || continue
+        local dirname=$(basename "$dir")
+        # Skip our sims directory
+        if [ "$dirname" != "sims" ]; then
+            nested_dirs+=("$dir")
+        fi
+    done
+
+    # If exactly one directory found, check if it contains the actual data
+    if [ ${#nested_dirs[@]} -eq 1 ]; then
+        local nested="${nested_dirs[0]}"
+        local nested_name=$(basename "$nested")
+
+        # Check if this looks like a version folder (contains generated/ or other expected content)
+        if [ -d "$nested/generated" ] || [ -f "$nested/README.txt" ] || [ -f "$nested/METADATA.txt" ]; then
+            print_step "Flattening nested folder: $nested_name"
+
+            # Move all contents up (including hidden files)
+            shopt -s dotglob
+            mv "$nested"/* "$target_dir/" 2>/dev/null || true
+            shopt -u dotglob
+
+            # Remove the now-empty nested folder
+            rmdir "$nested" 2>/dev/null || rm -rf "$nested"
+
+            # Clean any .DS_Store that came with the move
+            find "$target_dir" -name ".DS_Store" -delete 2>/dev/null || true
+
+            print_success "Flattened to $target_dir"
+        fi
+    fi
+}
+
 # Main installation
 main() {
     print_header
@@ -191,6 +238,10 @@ main() {
     if [ "$CLEANUP_TEMP" = true ]; then
         rm -f "$TEMP_FILE"
     fi
+
+    # Clean Mac artifacts and flatten nested root folder if present
+    print_step "Cleaning up extraction..."
+    cleanup_and_flatten "$FIRESTARR_DATASET_PATH"
 
     # Create sims directory for simulation outputs
     print_step "Creating sims directory..."
