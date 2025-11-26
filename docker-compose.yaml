@@ -1,11 +1,11 @@
 services:
   firestarr-app:
     container_name: firestarr-app
-    image: ghcr.io/cwfmf/firestarr:dev-0.9.5.4
+    image: ghcr.io/cwfmf/firestarr:dev-${VERSION}
 
     volumes:
       - /etc/ssl/certs:/etc/ssl/certs
-      - ./firestarr_data:/appl/data
-      - ./firestarr_data/sims:/appl/data/sims
+      - ${FIRESTARR_DATASET_PATH}:/appl/data
+      - ${FIRESTARR_DATASET_PATH}/sims:/appl/data/sims
     env_file:
       - .env
