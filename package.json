@@ -1,11 +1,28 @@
 {
   "name": "project_nomad",
-  "version": "1.0.0",
-  "description": "## Project",
-  "main": "index.js",
+  "version": "0.1.0",
+  "description": "Project Nomad - Fire Modeling System",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
   "scripts": {
+    "launch": "bash scripts/launch_nomad.sh",
+    "dev": "npm run dev:backend & npm run dev:frontend",
+    "dev:backend": "npm run dev --workspace=@nomad/backend",
+    "dev:frontend": "npm run dev --workspace=@nomad/frontend",
+    "build": "npm run build --workspaces",
+    "build:backend": "npm run build --workspace=@nomad/backend",
+    "build:frontend": "npm run build --workspace=@nomad/frontend",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "install:all": "npm install",
     "SYM:MemSave": "bash documentation/persist/saveMemory.sh"
   },
-  "author": "",
-  "license": "ISC"
+  "author": "Franco Nogarin",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  }
 }

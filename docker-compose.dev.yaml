@@ -1,0 +1,23 @@
+# Development overrides - use with:
+# docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up
+services:
+  nomad-backend:
+    build:
+      target: builder
+    command: npm run dev
+    volumes:
+      - ./backend/src:/app/src
+    environment:
+      - NODE_ENV=development
+
+  nomad-frontend:
+    image: node:22-alpine
+    working_dir: /app
+    command: npm run dev -- --host 0.0.0.0
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development

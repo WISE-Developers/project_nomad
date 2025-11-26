@@ -1,0 +1,97 @@
+:root {
+  --color-primary: #e85d04;
+  --color-primary-dark: #d00000;
+  --color-bg: #1a1a2e;
+  --color-bg-light: #16213e;
+  --color-text: #eee;
+  --color-text-muted: #aaa;
+  --color-success: #4ade80;
+  --color-error: #f87171;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+header h1 {
+  font-size: 2.5rem;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.subtitle {
+  color: var(--color-text-muted);
+  margin-top: 0.5rem;
+}
+
+.status-card {
+  background: var(--color-bg-light);
+  border-radius: 12px;
+  padding: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.status-card h2 {
+  margin-bottom: 1.5rem;
+  font-size: 1.25rem;
+}
+
+.info-block {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.info-block h3 {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.info-block p {
+  margin: 0.25rem 0;
+}
+
+.status-ok {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.error {
+  color: var(--color-error);
+  padding: 1rem;
+  background: rgba(248, 113, 113, 0.1);
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 0.875rem;
+}
+
+.loading {
+  color: var(--color-text-muted);
+  font-style: italic;
+}

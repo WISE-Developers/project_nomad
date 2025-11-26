@@ -1,8 +1,38 @@
 services:
+  # ===========================================
+  # Nomad Services
+  # ===========================================
+  nomad-backend:
+    container_name: nomad-backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  nomad-frontend:
+    container_name: nomad-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - nomad-backend
+    restart: unless-stopped
+
+  # ===========================================
+  # FireSTARR Model Engine
+  # ===========================================
   firestarr-app:
     container_name: firestarr-app
     image: ghcr.io/cwfmf/firestarr:dev-${VERSION}
-
     volumes:
       - /etc/ssl/certs:/etc/ssl/certs
       - ${FIRESTARR_DATASET_PATH}:/appl/data
