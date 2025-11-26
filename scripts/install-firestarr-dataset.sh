@@ -7,7 +7,7 @@
 #   ./scripts/install-firestarr-dataset.sh
 #
 # Configuration is read from .env file:
-#   FIRESTARR_DATASET_SOURCE - URL to download dataset from
+#   FIRESTARR_DATASET_SOURCE - URL or local path to dataset zip file
 #   FIRESTARR_DATASET_PATH   - Local path to install dataset to
 #
 
@@ -79,12 +79,21 @@ load_config() {
     fi
 }
 
+# Check if source is a URL or local path
+is_url() {
+    local source="$1"
+    [[ "$source" =~ ^https?:// ]] || [[ "$source" =~ ^ftp:// ]]
+}
+
 # Check for required tools
 check_dependencies() {
     local missing=()
 
-    if ! command -v curl &> /dev/null && ! command -v wget &> /dev/null; then
-        missing+=("curl or wget")
+    # Only need curl/wget if source is a URL
+    if is_url "$FIRESTARR_DATASET_SOURCE"; then
+        if ! command -v curl &> /dev/null && ! command -v wget &> /dev/null; then
+            missing+=("curl or wget")
+        fi
     fi
 
     if ! command -v unzip &> /dev/null; then
@@ -146,27 +155,42 @@ main() {
     mkdir -p "$FIRESTARR_DATASET_PATH"
     print_success "Directory ready: $FIRESTARR_DATASET_PATH"
 
-    # Download dataset
-    print_step "Downloading FireSTARR dataset..."
-    echo "    This may take a while depending on your connection..."
-    echo ""
+    # Get dataset (download if URL, use directly if local)
+    if is_url "$FIRESTARR_DATASET_SOURCE"; then
+        print_step "Downloading FireSTARR dataset..."
+        echo "    This may take a while depending on your connection..."
+        echo ""
 
-    TEMP_FILE=$(mktemp)
-    if download_file "$FIRESTARR_DATASET_SOURCE" "$TEMP_FILE"; then
-        print_success "Download complete"
+        TEMP_FILE=$(mktemp)
+        if download_file "$FIRESTARR_DATASET_SOURCE" "$TEMP_FILE"; then
+            print_success "Download complete"
+        else
+            print_error "Download failed"
+            rm -f "$TEMP_FILE"
+            exit 1
+        fi
+        SOURCE_FILE="$TEMP_FILE"
+        CLEANUP_TEMP=true
     else
-        print_error "Download failed"
-        rm -f "$TEMP_FILE"
-        exit 1
+        print_step "Using local dataset file..."
+        if [ ! -f "$FIRESTARR_DATASET_SOURCE" ]; then
+            print_error "Local file not found: $FIRESTARR_DATASET_SOURCE"
+            exit 1
+        fi
+        print_success "Found: $FIRESTARR_DATASET_SOURCE"
+        SOURCE_FILE="$FIRESTARR_DATASET_SOURCE"
+        CLEANUP_TEMP=false
     fi
 
     # Extract dataset
     print_step "Extracting dataset..."
-    unzip -q -o "$TEMP_FILE" -d "$FIRESTARR_DATASET_PATH"
+    unzip -q -o "$SOURCE_FILE" -d "$FIRESTARR_DATASET_PATH"
     print_success "Extraction complete"
 
-    # Clean up
-    rm -f "$TEMP_FILE"
+    # Clean up temp file if we downloaded
+    if [ "$CLEANUP_TEMP" = true ]; then
+        rm -f "$TEMP_FILE"
+    fi
 
     # Create sims directory for simulation outputs
     print_step "Creating sims directory..."

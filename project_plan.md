@@ -53,6 +53,123 @@ The system supports all major fire management operational needs:
 - **Model Engines**: WISE, FireSTARR (executed via shell scripts)
 - **PWA Features**: Offline capability, installable, push notifications
 
+### Architecture Principles
+
+All code in Project Nomad **must** conform to Uncle Bob's Clean Architecture and SOLID principles. These are non-negotiable requirements that govern how every component is structured.
+
+#### Clean Architecture
+
+The codebase follows a layered architecture with strict dependency rules:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Frameworks & Drivers                      │
+│  (React, MapBox GL, Express, SpatiaLite/PostGIS, Docker)    │
+├─────────────────────────────────────────────────────────────┤
+│                    Interface Adapters                        │
+│  (Controllers, Presenters, Gateways, API Routes)            │
+├─────────────────────────────────────────────────────────────┤
+│                       Use Cases                              │
+│  (Application Business Rules - Workflows, Model Execution)  │
+├─────────────────────────────────────────────────────────────┤
+│                        Entities                              │
+│  (Enterprise Business Rules - Fire Models, Spatial Data)    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**The Dependency Rule**: Source code dependencies must point **inward only**. Nothing in an inner circle can know anything about something in an outer circle. This means:
+
+- Entities know nothing about Use Cases, Adapters, or Frameworks
+- Use Cases know about Entities, but nothing about Adapters or Frameworks
+- Interface Adapters know about Use Cases and Entities, but not Framework specifics
+- Frameworks & Drivers are the outermost layer and can know about everything inward
+
+**Practical Application in Nomad**:
+
+| Layer | Nomad Components |
+|-------|------------------|
+| Entities | `FireModel`, `SpatialGeometry`, `WeatherData`, `FuelType`, `ModelResult` |
+| Use Cases | `ExecuteModelUseCase`, `ExportResultsUseCase`, `ConfigureWeatherUseCase` |
+| Interface Adapters | API controllers, MapBox adapters, database repositories, presenter classes |
+| Frameworks | React components, Express routes, MapBox GL, SpatiaLite/PostGIS drivers |
+
+#### SOLID Principles
+
+**S - Single Responsibility Principle**
+> A class should have one, and only one, reason to change.
+
+Each module handles one concern. A `WeatherService` fetches weather data - it doesn't also validate geometries or format exports. When requirements change for weather fetching, only weather-related code changes.
+
+**O - Open/Closed Principle**
+> Software entities should be open for extension, but closed for modification.
+
+New fire modeling engines (beyond WISE/FireSTARR) are added by implementing the `FireModelingEngine` interface, not by modifying existing engine code. New export formats extend the export system without changing existing exporters.
+
+**L - Liskov Substitution Principle**
+> Subtypes must be substitutable for their base types.
+
+Any implementation of `FireModelingEngine` (WISE, FireSTARR, future engines) must be usable interchangeably. Code that works with the base interface must work correctly with any implementation without knowing which specific engine it's using.
+
+**I - Interface Segregation Principle**
+> Clients should not be forced to depend on interfaces they do not use.
+
+Small, focused interfaces over large monolithic ones. A component that only needs to read model results shouldn't depend on an interface that also includes model execution methods. Split into `ModelReader` and `ModelExecutor` interfaces.
+
+**D - Dependency Inversion Principle**
+> High-level modules should not depend on low-level modules. Both should depend on abstractions.
+
+The `ExecuteModelUseCase` doesn't depend on `WISEEngine` directly - it depends on the `FireModelingEngine` abstraction. The concrete engine is injected at runtime. This enables:
+- Swapping engines without changing business logic
+- Testing use cases with mock engines
+- Supporting SAN vs ACN database implementations transparently
+
+#### Directory Structure (Clean Architecture)
+
+```
+src/
+├── domain/                    # Entities - innermost layer
+│   ├── entities/
+│   │   ├── FireModel.ts
+│   │   ├── SpatialGeometry.ts
+│   │   └── WeatherData.ts
+│   └── value-objects/
+│       ├── Coordinates.ts
+│       └── TimeRange.ts
+├── application/               # Use Cases
+│   ├── use-cases/
+│   │   ├── execute-model/
+│   │   ├── export-results/
+│   │   └── configure-weather/
+│   └── interfaces/            # Abstractions for outer layers
+│       ├── IFireModelingEngine.ts
+│       ├── IWeatherRepository.ts
+│       └── ISpatialRepository.ts
+├── infrastructure/            # Interface Adapters & Frameworks
+│   ├── adapters/
+│   │   ├── mapbox/
+│   │   ├── spatialite/
+│   │   └── postgis/
+│   ├── engines/
+│   │   ├── wise/
+│   │   └── firestarr/
+│   └── api/
+│       ├── controllers/
+│       └── routes/
+└── presentation/              # React UI (Framework layer)
+    ├── components/
+    ├── pages/
+    └── hooks/
+```
+
+#### Testing Strategy (Clean Architecture)
+
+- **Entities**: Pure unit tests, no mocks needed
+- **Use Cases**: Unit tests with mocked repository/engine interfaces
+- **Adapters**: Integration tests with real databases/services
+- **Frameworks**: E2E tests for React components and API routes
+
+This separation allows testing business logic independently of frameworks, databases, and external services.
+
 ### Configuration System
 
 External JSON-based configuration with Git submodule support:

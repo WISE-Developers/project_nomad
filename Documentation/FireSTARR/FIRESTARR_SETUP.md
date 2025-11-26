@@ -60,15 +60,21 @@ firestarr_data/grids/100m/default/
 
 Create a weather file: `./firestarr_data/sims/fire_001/weather.csv`
 
+**⚠️ Column names are case-sensitive and order matters!**
+
 ```csv
-datetime,temp,rh,ws,wd,prec,ffmc,dmc,dc,isi,bui,fwi
-2024-07-15T12:00:00Z,28.5,25,15,270,0.0,92.1,48.3,325.6,12.4,68.2,28.5
-2024-07-15T13:00:00Z,29.2,23,18,265,0.0,92.8,48.3,325.6,15.1,68.2,32.1
-2024-07-15T14:00:00Z,30.1,21,20,260,0.0,93.2,48.3,325.6,17.3,68.2,35.8
-2024-07-15T15:00:00Z,30.8,19,22,255,0.0,93.5,48.3,325.6,19.2,68.2,38.9
+Scenario,Date,PREC,TEMP,RH,WS,WD,FFMC,DMC,DC,ISI,BUI,FWI
+0,2024-07-15 12:00:00,0.0,28.5,25.0,15.0,270.0,92.1,48.3,325.6,12.4,68.2,28.5
+0,2024-07-15 13:00:00,0.0,29.2,23.0,18.0,265.0,92.8,48.3,325.6,15.1,68.2,32.1
+0,2024-07-15 14:00:00,0.0,30.1,21.0,20.0,260.0,93.2,48.3,325.6,17.3,68.2,35.8
+0,2024-07-15 15:00:00,0.0,30.8,19.0,22.0,255.0,93.5,48.3,325.6,19.2,68.2,38.9
 ```
 
-**Note:** FWI indices (FFMC, DMC, DC, ISI, BUI, FWI) must be pre-calculated. FireSTARR doesn't compute them from raw weather.
+**Notes:**
+- `Scenario` column is required - use `0` for single scenario runs
+- Column names are ALL CAPS (except `Scenario` and `Date`)
+- Date format: `YYYY-MM-DD HH:MM:SS` (no `T` separator, no timezone)
+- FWI indices (FFMC, DMC, DC, ISI, BUI, FWI) must be pre-calculated. FireSTARR doesn't compute them from raw weather.
 
 ### Run Real Simulation
 
@@ -104,9 +110,11 @@ ls -lh ./firestarr_data/sims/fire_001/
 ```
 
 Expected outputs:
-- `probability_1day.tif` - Burn probability at day 1
-- `probability_2day.tif` - Burn probability at day 2
-- `probability_3day.tif` - Burn probability at day 3
+- `probability_001_<date>.tif` - Burn probability at day 1
+- `probability_002_<date>.tif` - Burn probability at day 2
+- `probability_003_<date>.tif` - Burn probability at day 3
+
+Where `<date>` is the actual calendar date (e.g., `2024-06-15`).
 - `firestarr.log` - Execution log
 
 ## Common Issues

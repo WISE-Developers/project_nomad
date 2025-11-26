@@ -135,23 +135,27 @@ azure-storage-blob (optional)
 #### 1. Weather Data (CSV)
 **File:** `{fire_name}_wx.csv`
 
+**⚠️ Column names are case-sensitive and order matters!**
+
 | Column | Type | Description | Units |
 |--------|------|-------------|-------|
-| `datetime` | ISO 8601 | Timestamp (hourly) | UTC |
-| `temp` | float | Temperature | °C |
-| `rh` | float | Relative Humidity | % |
-| `ws` | float | Wind Speed | km/h |
-| `wd` | float | Wind Direction | degrees |
-| `prec` | float | Precipitation (1hr) | mm |
-| `ffmc` | float | Fine Fuel Moisture Code | 0-101 |
-| `dmc` | float | Duff Moisture Code | 0+ |
-| `dc` | float | Drought Code | 0+ |
-| `isi` | float | Initial Spread Index | 0+ |
-| `bui` | float | Build-up Index | 0+ |
-| `fwi` | float | Fire Weather Index | 0+ |
+| `Scenario` | integer | Scenario ID (use 0 for single runs) | - |
+| `Date` | string | Timestamp (hourly) | `YYYY-MM-DD HH:MM:SS` |
+| `PREC` | float | Precipitation (1hr) | mm |
+| `TEMP` | float | Temperature | °C |
+| `RH` | float | Relative Humidity | % |
+| `WS` | float | Wind Speed | km/h |
+| `WD` | float | Wind Direction | degrees |
+| `FFMC` | float | Fine Fuel Moisture Code | 0-101 |
+| `DMC` | float | Duff Moisture Code | 0+ |
+| `DC` | float | Drought Code | 0+ |
+| `ISI` | float | Initial Spread Index | 0+ |
+| `BUI` | float | Build-up Index | 0+ |
+| `FWI` | float | Fire Weather Index | 0+ |
 
 **Notes:**
 - Hourly data required for simulation duration
+- Column order must match exactly as shown above
 - Startup indices (FFMC, DMC, DC) from previous day required for initialization
 - Previous day precipitation (`apcp_prev`) required for FFMC calculation
 
@@ -683,10 +687,12 @@ const PROBABILITY_COLOR_RAMP = [
 
 ### Performance Concerns
 
-**Typical Runtimes (100m grid, 1000 simulations):**
-- Small fire (<1000 ha): 5-15 minutes
-- Medium fire (1000-10000 ha): 15-60 minutes  
-- Large fire (>10000 ha): 60+ minutes
+**⚠️ Note:** The estimates below are conservative upper bounds. Actual runtimes are typically much faster.
+
+**Typical Runtimes (100m grid, convergence-based):**
+- Small fire (<1000 ha): 1-5 minutes
+- Medium fire (1000-10000 ha): 5-15 minutes
+- Large fire (>10000 ha): 15-45 minutes
 
 **Factors Affecting Performance:**
 - Grid resolution (100m default; 50m doubles computation)
@@ -885,11 +891,13 @@ export interface SimulationResults {
 
 **Weather CSV Example:**
 
+⚠️ Column names are case-sensitive and order matters!
+
 ```csv
-datetime,temp,rh,ws,wd,prec,ffmc,dmc,dc,isi,bui,fwi
-2024-07-15T12:00:00Z,28.5,25,15,270,0,92.1,48.3,325.6,12.4,68.2,28.5
-2024-07-15T13:00:00Z,29.2,23,18,265,0,92.8,48.3,325.6,15.1,68.2,32.1
-2024-07-15T14:00:00Z,30.1,21,20,260,0,93.2,48.3,325.6,17.3,68.2,35.8
+Scenario,Date,PREC,TEMP,RH,WS,WD,FFMC,DMC,DC,ISI,BUI,FWI
+0,2024-07-15 12:00:00,0.0,28.5,25.0,15.0,270.0,92.1,48.3,325.6,12.4,68.2,28.5
+0,2024-07-15 13:00:00,0.0,29.2,23.0,18.0,265.0,92.8,48.3,325.6,15.1,68.2,32.1
+0,2024-07-15 14:00:00,0.0,30.1,21.0,20.0,260.0,93.2,48.3,325.6,17.3,68.2,35.8
 ...
 ```
 

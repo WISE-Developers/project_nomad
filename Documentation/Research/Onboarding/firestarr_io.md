@@ -55,7 +55,7 @@ ZONE = 15 + (longitude + 93.0) / 6.0
 |-----------|--------|---------|
 | **Start date** | `yyyy-mm-dd` | `2024-07-15` |
 | **Start time** | `HH:MM` | `14:00` |
-| **Weather datetime** | ISO 8601 | `2024-07-15T14:00:00Z` |
+| **Weather Date column** | `YYYY-MM-DD HH:MM:SS` | `2024-07-15 14:00:00` |
 
 **Time handling:**
 - Start time is **local solar time** (used for sunrise/sunset calculations)
@@ -68,33 +68,40 @@ ZONE = 15 + (longitude + 93.0) / 6.0
 
 **Format:** CSV with specific column headers
 
-**Required columns:**
+**⚠️ CRITICAL: Column names are case-sensitive and order matters!**
+
+**Required columns (EXACT order and case):**
 
 | Column | Type | Units | Description |
 |--------|------|-------|-------------|
-| `datetime` | string | ISO 8601 | Hourly timestamp |
-| `temp` | float | °C | Temperature |
-| `rh` | float | % | Relative Humidity (0-100) |
-| `ws` | float | km/h | Wind Speed |
-| `wd` | float | degrees | Wind Direction (0-360, from) |
-| `prec` | float | mm | Precipitation (1-hour accumulation) |
-| `ffmc` | float | 0-101 | Fine Fuel Moisture Code |
-| `dmc` | float | 0+ | Duff Moisture Code |
-| `dc` | float | 0+ | Drought Code |
-| `isi` | float | 0+ | Initial Spread Index |
-| `bui` | float | 0+ | Build-up Index |
-| `fwi` | float | 0+ | Fire Weather Index |
+| `Scenario` | integer | - | Scenario ID (use `0` for single scenario runs) |
+| `Date` | string | `YYYY-MM-DD HH:MM:SS` | Hourly timestamp (local time) |
+| `PREC` | float | mm | Precipitation (1-hour accumulation) |
+| `TEMP` | float | °C | Temperature |
+| `RH` | float | % | Relative Humidity (0-100) |
+| `WS` | float | km/h | Wind Speed |
+| `WD` | float | degrees | Wind Direction (0-360, from) |
+| `FFMC` | float | 0-101 | Fine Fuel Moisture Code |
+| `DMC` | float | 0+ | Duff Moisture Code |
+| `DC` | float | 0+ | Drought Code |
+| `ISI` | float | 0+ | Initial Spread Index |
+| `BUI` | float | 0+ | Build-up Index |
+| `FWI` | float | 0+ | Fire Weather Index |
 
 **Sample weather.csv:**
 ```csv
-datetime,temp,rh,ws,wd,prec,ffmc,dmc,dc,isi,bui,fwi
-2024-07-15T12:00:00Z,28.5,25,15,270,0.0,92.1,48.3,325.6,12.4,68.2,28.5
-2024-07-15T13:00:00Z,29.2,23,18,265,0.0,92.8,48.3,325.6,15.1,68.2,32.1
-2024-07-15T14:00:00Z,30.1,21,20,260,0.0,93.2,48.3,325.6,17.3,68.2,35.8
-2024-07-15T15:00:00Z,30.8,19,22,255,0.0,93.5,48.3,325.6,19.2,68.2,38.9
+Scenario,Date,PREC,TEMP,RH,WS,WD,FFMC,DMC,DC,ISI,BUI,FWI
+0,2024-06-03 00:00:00,0.0,16.3,35.0,10.0,88.0,89.9,59.5,450.9,6.99,89.48,23.31
+0,2024-06-03 01:00:00,0.0,16.3,35.0,10.0,88.0,89.9,59.5,450.9,6.99,89.48,23.31
+0,2024-06-03 02:00:00,0.0,14.3,41.0,11.0,86.0,89.86,59.5,450.9,7.31,89.48,24.05
+0,2024-06-03 03:00:00,0.0,14.3,41.0,11.0,86.0,89.82,59.5,450.9,7.27,89.48,23.96
 ```
 
 **Key notes:**
+- **Capitalization matters!** Use exact column names as shown
+- **Column order matters!** Follow the exact sequence above
+- `Scenario` column is **required** - use `0` for deterministic runs
+- Date format is `YYYY-MM-DD HH:MM:SS` (no `T` separator, no timezone suffix)
 - Hourly data required for entire simulation duration
 - FWI indices (FFMC, DMC, DC, ISI, BUI, FWI) must be pre-calculated
 - The C++ binary does NOT calculate daily FWI from raw weather - expects it in CSV
@@ -158,29 +165,41 @@ firestarr /output 2024-07-15 49.5 -117.2 14:00 \
 
 **Fuel Lookup Table (.lut):**
 
-Prometheus-compatible CSV format:
+**⚠️ All columns are required - FireSTARR matches fuels based on full text descriptions!**
+
+CSV format with 10 columns:
 ```csv
-grid_value,export_value,descriptive_name
-1,1,C-1
-2,2,C-2
-3,3,C-3
-4,4,C-4
-5,5,C-5
-6,6,C-6
-7,7,C-7
-11,11,D-1
-21,21,M-1
-22,22,M-2
-31,31,M-3
-32,32,M-4
-40,40,S-1
-41,41,S-2
-42,42,S-3
-50,50,O-1a
-51,51,O-1b
-101,101,Non-fuel
-102,102,Water
+grid_value, export_value, descriptive_name, fuel_type, r, g, b, h, s, l
+1,1,Spruce-Lichen Woodland,C-1,209,255,115,57,255,185
+2,2,Boreal Spruce,C-2,34,102,51,95,128,68
+3,3,Mature Jack or Lodgepole Pine,C-3,131,199,149,96,96,165
+4,4,Immature Jack or Lodgepole Pine,C-4,112,168,0,57,255,84
+5,5,Red and White Pine,C-5,223,184,230,206,122,207
+6,6,Conifer Plantation,C-6,172,102,237,192,201,170
+7,7,Ponderosa Pine - Douglas-Fir,C-7,112,12,242,188,231,127
+11,11,Leafless Aspen,D-1,196,189,151,35,70,174
+12,12,Green Aspen (with BUI Thresholding),D-2,137,112,68,27,86,103
+21,21,Jack or Lodgepole Pine Slash,S-1,251,190,185,3,227,218
+22,22,White Spruce - Balsam Slash,S-2,247,104,161,-272,229,176
+23,23,Coastal Cedar - Hemlock - Douglas-Fir Slash,S-3,174,1,126,-285,252,88
+31,31,Matted Grass,O-1a,255,255,190,42,255,223
+32,32,Standing Grass,O-1b,230,230,0,42,255,115
+40,40,Boreal Mixedwood - Leafless,M-1,255,211,127,28,255,191
+50,50,Boreal Mixedwood - Green,M-2,255,170,0,28,255,128
+70,70,Dead Balsam Fir Mixedwood - Leafless,M-3,99,0,0,0,255,50
+80,80,Dead Balsam Fir Mixedwood - Green,M-4,170,0,0,0,255,85
+101,101,Non-fuel,D-2,130,130,130,170,0,130
+102,102,Water,Non-fuel,115,223,255,138,255,185
 ```
+
+| Column | Description |
+|--------|-------------|
+| `grid_value` | Raster cell value |
+| `export_value` | Value for exported outputs |
+| `descriptive_name` | Full text description (used for internal matching!) |
+| `fuel_type` | FBP fuel code (C-1, M-2, etc.) |
+| `r, g, b` | RGB color values for display |
+| `h, s, l` | HSL color values for display |
 
 **Location:** Specified in `settings.ini`:
 ```ini
@@ -189,11 +208,13 @@ RASTER_ROOT = ../data/generated/grid/100m
 ```
 
 **How fuel grid is found:**
-```cpp
-// From Environment.cpp - searches for fuel grid matching UTM zone
-// Pattern: {RASTER_ROOT}/{year}/fuel_{zone}.tif
-// Fallback: {RASTER_ROOT}/default/fuel_{zone}.tif
-```
+
+Search order (first match wins):
+1. `{RASTER_ROOT}/{year}/fuel_{zone}.tif` - Year-specific override
+2. `{RASTER_ROOT}/default/fuel_{zone}.tif` - Default fallback
+3. `{RASTER_ROOT}/fuel_{zone}.tif` - Direct in raster root (no subfolder)
+
+This means fuel grids can work without subfolders if placed directly in the raster root.
 
 ---
 
@@ -226,12 +247,16 @@ RASTER_ROOT = ../data/generated/grid/100m
 |-----------|---------|---------|
 | Simulation duration | Length of weather CSV | Until weather ends |
 | Output snapshots | `--output_date_offsets` | [1,2,3,7,14] days |
-| Maximum runtime | `MAXIMUM_TIME` in settings.ini | 36000 seconds (10 hours) |
+| Maximum runtime | `MAXIMUM_TIME` in settings.ini | 36000 seconds (10 hours) - soft limit* |
+
+**\*MAXIMUM_TIME is a soft limit:** FireSTARR will always complete at least 1 simulation per weather scenario before stopping. After that minimum is met, it stops adding more probabilistic scenarios if the time limit is reached. This ensures you always get at least basic results.
 
 **Output date offsets:**
+
 ```bash
 --output_date_offsets [1,2,3,7,14]
-# Produces: probability_1day.tif, probability_2day.tif, etc.
+# Produces: probability_<julian_day>_<yyyy-mm-dd>.tif
+# Example: probability_001_2024-06-15.tif, probability_002_2024-06-16.tif, etc.
 ```
 
 **To run for specific duration:**
@@ -337,14 +362,16 @@ firestarr test <output_dir> --hours 5 [--fuel C-2] [--ffmc 90] [--ws 20]
 
 ### Execution Time
 
+**⚠️ Note:** These are conservative estimates. Actual runtimes are typically faster.
+
 **Typical runtimes (100m grid, convergence at 10%):**
 
 | Fire Size | Duration | Simulations | Runtime |
 |-----------|----------|-------------|---------|
-| < 100 ha | 3 days | ~500-1000 | 2-5 min |
-| 100-1000 ha | 7 days | ~1000-3000 | 5-15 min |
-| 1000-5000 ha | 14 days | ~3000-5000 | 15-45 min |
-| > 5000 ha | 14 days | ~5000-10000 | 45-120 min |
+| < 100 ha | 3 days | ~500-1000 | 1-3 min |
+| 100-1000 ha | 7 days | ~1000-3000 | 3-10 min |
+| 1000-5000 ha | 14 days | ~3000-5000 | 10-30 min |
+| > 5000 ha | 14 days | ~5000-10000 | 30-60 min |
 
 **Factors affecting runtime:**
 - Number of Monte Carlo iterations (max 10,000 default)
@@ -354,12 +381,15 @@ firestarr test <output_dir> --hours 5 [--fuel C-2] [--ffmc 90] [--ws 20]
 - Weather variability (more variable = more iterations needed)
 
 **Runtime limits (settings.ini):**
+
 ```ini
-MAXIMUM_TIME = 36000          # 10 hours max wall-clock time
+MAXIMUM_TIME = 36000          # Soft limit - completes at least 1 sim per wx scenario
 MAXIMUM_SIMULATIONS = 10000   # Max Monte Carlo iterations
 CONFIDENCE_LEVEL = 0.1        # Stop when stats stable within 10%
 INTERIM_OUTPUT_INTERVAL = 240 # Write interim results every 4 min
 ```
+
+**Note:** `MAXIMUM_TIME` is NOT a hard cutoff. The simulation will always complete at least one run per weather scenario, then stops adding more probabilistic iterations if time is exceeded.
 
 ---
 
@@ -443,26 +473,26 @@ fi
 
 ### Output File Names
 
-**Predictable naming pattern:**
+**Naming pattern:** `probability_<julian_day>_<yyyy-mm-dd>.tif`
 
 | Output | Filename Pattern | Example |
 |--------|------------------|---------|
-| Final probability | `probability_{N}day.tif` | `probability_1day.tif` |
-| Interim probability | `interim_probability_{N}day.tif` | `interim_probability_1day.tif` |
-| Fire perimeter | `{fire_name}_{N}day.tif` | `fire_001_1day.tif` |
+| Final probability | `probability_{JD}_{date}.tif` | `probability_001_2024-06-15.tif` |
+| Interim probability | `interim_probability_{JD}.tif` | `interim_probability_001.tif` |
 | Log file | `firestarr.log` | `firestarr.log` |
 
+Where `{JD}` is the zero-padded julian day offset (001, 002, 003, 007, 014, etc.) and `{date}` is the actual calendar date.
+
 **Output directory contents after successful run:**
-```
+
+```text
 /output/
 ├── firestarr.log
-├── probability_1day.tif
-├── probability_2day.tif
-├── probability_3day.tif
-├── probability_7day.tif
-├── probability_14day.tif
-├── fire_001_1day.tif      # If perimeter output enabled
-├── fire_001_2day.tif
+├── probability_001_2024-06-15.tif
+├── probability_002_2024-06-16.tif
+├── probability_003_2024-06-17.tif
+├── probability_007_2024-06-21.tif
+├── probability_014_2024-06-28.tif
 └── ...
 ```
 
