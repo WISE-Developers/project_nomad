@@ -1,4 +1,28 @@
-import { useMeasurement } from '../hooks/useMeasurement';
+import React, { useCallback, useState, useEffect } from 'react';
+import { useDraw } from '../context/DrawContext';
+import {
+  calculateLineLength,
+  calculatePolygonArea,
+  calculatePolygonPerimeter,
+  formatDistance,
+  formatArea,
+} from '../../../shared/utils/geometry';
+import type { DrawnFeature, LineFeature, PolygonFeature } from '../types/geometry';
+
+/**
+ * Measurement mode
+ */
+type MeasurementMode = 'distance' | 'area' | 'none';
+
+/**
+ * Measurement result
+ */
+interface MeasurementResult {
+  type: MeasurementMode;
+  value: number;
+  formatted: string;
+  perimeter?: string;
+}
 
 /**
  * Props for MeasurementTool component
@@ -14,33 +38,86 @@ interface MeasurementToolProps {
  * Position style mapping
  */
 const POSITION_STYLES: Record<string, React.CSSProperties> = {
-  'top-left': { top: '10px', left: '200px' },
+  'top-left': { top: '200px', left: '10px' },
   'top-right': { top: '10px', right: '10px' },
-  'bottom-left': { bottom: '30px', left: '200px' },
+  'bottom-left': { bottom: '30px', left: '10px' },
   'bottom-right': { bottom: '30px', right: '10px' },
 };
 
 /**
  * MeasurementTool provides UI for measuring distances and areas on the map.
  *
- * Features:
- * - Distance measurement (draw a line)
- * - Area measurement (draw a polygon)
- * - Results displayed in metric units
- * - Clear button to reset
+ * Uses the shared DrawContext so it works alongside DrawingToolbar.
  *
  * @example
  * ```tsx
  * <MapContainer>
- *   <MeasurementTool position="top-left" />
+ *   <MeasurementTool position="bottom-left" />
  * </MapContainer>
  * ```
  */
 export function MeasurementTool({
-  position = 'top-left',
+  position = 'bottom-left',
   className = '',
 }: MeasurementToolProps) {
-  const { mode, result, measureDistance, measureArea, clear, isActive } = useMeasurement();
+  const { setMode, deleteAll, isReady, onCreateSubscribe } = useDraw();
+  const [measureMode, setMeasureMode] = useState<MeasurementMode>('none');
+  const [result, setResult] = useState<MeasurementResult | null>(null);
+
+  // Handle feature creation for measurements
+  const handleCreate = useCallback((features: DrawnFeature[]) => {
+    if (features.length === 0 || measureMode === 'none') return;
+
+    const feature = features[0];
+
+    if (feature.geometry.type === 'LineString' && measureMode === 'distance') {
+      const length = calculateLineLength(feature as LineFeature);
+      setResult({
+        type: 'distance',
+        value: length,
+        formatted: formatDistance(length),
+      });
+    } else if (feature.geometry.type === 'Polygon' && measureMode === 'area') {
+      const area = calculatePolygonArea(feature as PolygonFeature);
+      const perimeter = calculatePolygonPerimeter(feature as PolygonFeature);
+      setResult({
+        type: 'area',
+        value: area,
+        formatted: formatArea(area),
+        perimeter: formatDistance(perimeter),
+      });
+    }
+  }, [measureMode]);
+
+  // Subscribe to create events
+  useEffect(() => {
+    return onCreateSubscribe(handleCreate);
+  }, [onCreateSubscribe, handleCreate]);
+
+  const measureDistance = useCallback(() => {
+    setMeasureMode('distance');
+    setResult(null);
+    deleteAll();
+    setMode('line');
+  }, [setMode, deleteAll]);
+
+  const measureArea = useCallback(() => {
+    setMeasureMode('area');
+    setResult(null);
+    deleteAll();
+    setMode('polygon');
+  }, [setMode, deleteAll]);
+
+  const clear = useCallback(() => {
+    setMeasureMode('none');
+    setResult(null);
+    deleteAll();
+    setMode('none');
+  }, [setMode, deleteAll]);
+
+  if (!isReady) {
+    return null;
+  }
 
   const containerStyle: React.CSSProperties = {
     position: 'absolute',
@@ -115,17 +192,17 @@ export function MeasurementTool({
     <div className={`measurement-tool ${className}`} style={containerStyle}>
       <div style={buttonContainerStyle}>
         <button
-          style={mode === 'distance' ? activeButtonStyle : buttonStyle}
+          style={measureMode === 'distance' ? activeButtonStyle : buttonStyle}
           onClick={measureDistance}
-          title="Measure distance"
+          title="Measure distance (double-click to finish)"
         >
           <span style={{ fontSize: '16px' }}>📏</span>
           <span>Distance</span>
         </button>
         <button
-          style={mode === 'area' ? activeButtonStyle : buttonStyle}
+          style={measureMode === 'area' ? activeButtonStyle : buttonStyle}
           onClick={measureArea}
-          title="Measure area"
+          title="Measure area (double-click to finish)"
         >
           <span style={{ fontSize: '16px' }}>⬛</span>
           <span>Area</span>
@@ -146,17 +223,17 @@ export function MeasurementTool({
         </div>
       )}
 
-      {isActive && (
+      {measureMode !== 'none' && (
         <button style={clearButtonStyle} onClick={clear}>
           Clear Measurement
         </button>
       )}
 
-      {mode !== 'none' && !result && (
+      {measureMode !== 'none' && !result && (
         <div style={{ ...resultLabelStyle, marginTop: '8px', textAlign: 'center' }}>
-          {mode === 'distance'
-            ? 'Click points to measure distance'
-            : 'Click points to draw area'}
+          {measureMode === 'distance'
+            ? 'Click points, double-click to finish'
+            : 'Click points, double-click to close'}
         </div>
       )}
     </div>

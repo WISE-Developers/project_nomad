@@ -15,6 +15,7 @@ export { TerrainControl } from './components/TerrainControl';
 
 // Context
 export { MapProvider, useMap } from './context/MapContext';
+export { DrawProvider, useDraw } from './context/DrawContext';
 
 // Hooks
 export { useDrawing } from './hooks/useDrawing';

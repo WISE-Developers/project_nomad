@@ -1,4 +1,5 @@
-import { useDrawing } from '../hooks/useDrawing';
+import React from 'react';
+import { useDraw } from '../context/DrawContext';
 import type { DrawingMode, DrawnFeature } from '../types/geometry';
 
 /**
@@ -26,9 +27,9 @@ interface ToolButton {
 }
 
 const TOOLS: ToolButton[] = [
-  { mode: 'point', label: 'Point', icon: '📍', title: 'Draw a point' },
-  { mode: 'line', label: 'Line', icon: '📏', title: 'Draw a line' },
-  { mode: 'polygon', label: 'Polygon', icon: '⬡', title: 'Draw a polygon' },
+  { mode: 'point', label: 'Point', icon: '📍', title: 'Draw a point (click on map)' },
+  { mode: 'line', label: 'Line', icon: '📏', title: 'Draw a line (double-click to finish)' },
+  { mode: 'polygon', label: 'Polygon', icon: '⬡', title: 'Draw a polygon (double-click to finish)' },
 ];
 
 /**
@@ -44,8 +45,7 @@ const POSITION_STYLES: Record<string, React.CSSProperties> = {
 /**
  * DrawingToolbar provides UI controls for map drawing operations.
  *
- * Includes buttons for point, line, and polygon drawing modes,
- * plus a delete button for removing selected features.
+ * Uses the shared DrawContext so it doesn't conflict with MeasurementTool.
  *
  * @example
  * ```tsx
@@ -63,10 +63,18 @@ export function DrawingToolbar({
   position = 'top-left',
   className = '',
 }: DrawingToolbarProps) {
-  const { state, setMode, deleteSelected, deleteAll, isReady } = useDrawing({
-    onCreate,
-    onDelete,
-  });
+  const { state, setMode, deleteSelected, deleteAll, isReady, onCreateSubscribe, onDeleteSubscribe } = useDraw();
+
+  // Subscribe to events
+  React.useEffect(() => {
+    if (!onCreate) return;
+    return onCreateSubscribe(onCreate);
+  }, [onCreate, onCreateSubscribe]);
+
+  React.useEffect(() => {
+    if (!onDelete) return;
+    return onDeleteSubscribe(onDelete);
+  }, [onDelete, onDeleteSubscribe]);
 
   if (!isReady) {
     return null;
