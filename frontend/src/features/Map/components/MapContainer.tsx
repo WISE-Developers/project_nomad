@@ -2,6 +2,7 @@ import { useEffect, useRef, ReactNode } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useMapInternal } from '../context/MapContext';
+import { DrawProvider } from '../context/DrawContext';
 import { MapOptions, DEFAULT_MAP_OPTIONS } from '../types';
 
 /**
@@ -135,7 +136,9 @@ export function MapContainer({
   return (
     <div className={`map-container ${className}`} style={containerStyle}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-      {children}
+      <DrawProvider>
+        {children}
+      </DrawProvider>
     </div>
   );
 }
