@@ -51,3 +51,6 @@ export {
   type EngineConfig,
   type ApplicationConfig,
 } from './IConfigurationService.js';
+
+// Environment Service
+export { type IEnvironmentService } from './IEnvironmentService.js';

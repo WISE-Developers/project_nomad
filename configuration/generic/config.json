@@ -1,0 +1,51 @@
+{
+  "agencyId": "generic",
+  "agencyName": "Project Nomad",
+  "deploymentMode": "SAN",
+  "branding": {
+    "displayName": "Project Nomad",
+    "primaryColor": "#2563eb",
+    "secondaryColor": "#1e40af"
+  },
+  "engines": [
+    {
+      "engineType": "firestarr",
+      "enabled": true,
+      "settings": {}
+    }
+  ],
+  "dataSources": {
+    "weather": [],
+    "wildfirePoints": [],
+    "fuelTypes": []
+  },
+  "roles": [
+    {
+      "internalRole": "admin",
+      "permissions": ["*"]
+    },
+    {
+      "internalRole": "fban",
+      "permissions": ["model:create", "model:view", "model:export", "model:delete"]
+    },
+    {
+      "internalRole": "modeler",
+      "permissions": ["model:create", "model:view", "model:export"]
+    },
+    {
+      "internalRole": "user",
+      "permissions": ["model:view"]
+    },
+    {
+      "internalRole": "anonymous",
+      "permissions": []
+    }
+  ],
+  "exportOptions": {
+    "allowZipDownload": true,
+    "allowShareableLink": true,
+    "allowAgencyStorage": false,
+    "availableFormats": ["geojson", "kml", "shapefile"]
+  },
+  "suppressDefaultSources": false
+}
