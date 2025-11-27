@@ -1,0 +1,147 @@
+import { useDrawing } from '../hooks/useDrawing';
+import type { DrawingMode, DrawnFeature } from '../types/geometry';
+
+/**
+ * Props for DrawingToolbar component
+ */
+interface DrawingToolbarProps {
+  /** Callback when features are created */
+  onCreate?: (features: DrawnFeature[]) => void;
+  /** Callback when features are deleted */
+  onDelete?: (features: DrawnFeature[]) => void;
+  /** Position on the map */
+  position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  /** CSS class for additional styling */
+  className?: string;
+}
+
+/**
+ * Tool button configuration
+ */
+interface ToolButton {
+  mode: DrawingMode;
+  label: string;
+  icon: string;
+  title: string;
+}
+
+const TOOLS: ToolButton[] = [
+  { mode: 'point', label: 'Point', icon: '📍', title: 'Draw a point' },
+  { mode: 'line', label: 'Line', icon: '📏', title: 'Draw a line' },
+  { mode: 'polygon', label: 'Polygon', icon: '⬡', title: 'Draw a polygon' },
+];
+
+/**
+ * Position style mapping
+ */
+const POSITION_STYLES: Record<string, React.CSSProperties> = {
+  'top-left': { top: '10px', left: '10px' },
+  'top-right': { top: '10px', right: '60px' },
+  'bottom-left': { bottom: '30px', left: '10px' },
+  'bottom-right': { bottom: '30px', right: '10px' },
+};
+
+/**
+ * DrawingToolbar provides UI controls for map drawing operations.
+ *
+ * Includes buttons for point, line, and polygon drawing modes,
+ * plus a delete button for removing selected features.
+ *
+ * @example
+ * ```tsx
+ * <MapContainer>
+ *   <DrawingToolbar
+ *     position="top-left"
+ *     onCreate={(features) => handleNewGeometry(features)}
+ *   />
+ * </MapContainer>
+ * ```
+ */
+export function DrawingToolbar({
+  onCreate,
+  onDelete,
+  position = 'top-left',
+  className = '',
+}: DrawingToolbarProps) {
+  const { state, setMode, deleteSelected, deleteAll, isReady } = useDrawing({
+    onCreate,
+    onDelete,
+  });
+
+  if (!isReady) {
+    return null;
+  }
+
+  const containerStyle: React.CSSProperties = {
+    position: 'absolute',
+    zIndex: 1,
+    backgroundColor: 'white',
+    borderRadius: '4px',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+    padding: '8px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    ...POSITION_STYLES[position],
+  };
+
+  const buttonStyle: React.CSSProperties = {
+    padding: '8px 12px',
+    border: '1px solid #ccc',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '14px',
+    backgroundColor: 'white',
+    transition: 'background-color 0.2s',
+  };
+
+  const activeButtonStyle: React.CSSProperties = {
+    ...buttonStyle,
+    backgroundColor: '#e3f2fd',
+    borderColor: '#2196f3',
+  };
+
+  const deleteButtonStyle: React.CSSProperties = {
+    ...buttonStyle,
+    color: '#d32f2f',
+    borderColor: '#ffcdd2',
+  };
+
+  return (
+    <div className={`drawing-toolbar ${className}`} style={containerStyle}>
+      {TOOLS.map((tool) => (
+        <button
+          key={tool.mode}
+          style={state.mode === tool.mode ? activeButtonStyle : buttonStyle}
+          onClick={() => setMode(state.mode === tool.mode ? 'none' : tool.mode)}
+          title={tool.title}
+        >
+          <span>{tool.icon}</span>
+          <span>{tool.label}</span>
+        </button>
+      ))}
+      <hr style={{ margin: '4px 0', border: 'none', borderTop: '1px solid #eee' }} />
+      <button
+        style={deleteButtonStyle}
+        onClick={deleteSelected}
+        disabled={state.selectedIds.length === 0}
+        title="Delete selected features"
+      >
+        <span>🗑️</span>
+        <span>Delete</span>
+      </button>
+      <button
+        style={deleteButtonStyle}
+        onClick={deleteAll}
+        disabled={state.features.length === 0}
+        title="Clear all features"
+      >
+        <span>🧹</span>
+        <span>Clear All</span>
+      </button>
+    </div>
+  );
+}
