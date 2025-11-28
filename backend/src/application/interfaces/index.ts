@@ -54,3 +54,13 @@ export {
 
 // Environment Service
 export { type IEnvironmentService } from './IEnvironmentService.js';
+
+// Job Queue
+export { type IJobQueue } from './IJobQueue.js';
+
+// Model Execution Service
+export {
+  type IModelExecutionService,
+  type ExecutionStatus as JobExecutionStatus,
+  type ExecutionOptions as JobExecutionOptions,
+} from './IModelExecutionService.js';

@@ -52,3 +52,12 @@ export {
   type ResultMetadata,
   type ModelResultProps,
 } from './ModelResult.js';
+
+// Job - execution job tracking
+export {
+  Job,
+  JobId,
+  createJobId,
+  JobStatus,
+  type JobProps,
+} from './Job.js';

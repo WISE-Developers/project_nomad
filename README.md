@@ -2,6 +2,10 @@
   <img src="assets/logo/nomad-logo.png" alt="Project Nomad Logo" width="200"/>
 </p>
 
+<p align="center">
+  <img src="assets/screenshots/Screenshot_mvp_v0.png" alt="Screenshot" width="1200"/>
+</p>
+
 # Project Nomad
 
 A national fire modeling GUI system for Canadian wildfire management.
