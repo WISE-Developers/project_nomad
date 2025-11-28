@@ -24,10 +24,12 @@ import {
   GeometryType,
 } from '../../domain/entities/index.js';
 import { Coordinates } from '../../domain/value-objects/index.js';
-import { FireSTARRParams } from './types.js';
+import { FireSTARRParams, WeatherHourlyData } from './types.js';
 import { getDockerExecutor } from '../docker/index.js';
 import { FireSTARRInputGenerator, createFireSTARRInputGenerator } from './FireSTARRInputGenerator.js';
 import { FireSTARROutputParser, getFireSTARROutputParser } from './FireSTARROutputParser.js';
+import { getWeatherService } from '../weather/index.js';
+import type { WeatherDataPoint } from '../weather/types.js';
 
 /** FireSTARR Docker service name */
 const FIRESTARR_SERVICE = 'firestarr-app';
@@ -43,6 +45,7 @@ interface ExecutionState {
   inputResult?: InputGenerationResult;
   params?: FireSTARRParams;
   startTime?: Date;
+  completedTime?: Date;
 }
 
 /**
@@ -88,7 +91,7 @@ export class FireSTARREngine implements IFireModelingEngine {
     console.log(`[FireSTARREngine] Initializing model ${model.id}`);
 
     // Convert ExecutionOptions to FireSTARRParams
-    const params = this.buildParams(model, options);
+    const params = await this.buildParams(model, options);
 
     // Generate input files
     const inputResult = await this.inputGenerator.generate(model.id, params);
@@ -119,12 +122,14 @@ export class FireSTARREngine implements IFireModelingEngine {
     console.log(`[FireSTARREngine] Starting execution for model ${modelId}`);
 
     // Update status
+    const startTime = new Date();
+    state.startTime = startTime;
     state.status = {
       state: 'initializing',
       message: 'Starting Docker container',
-      updatedAt: new Date(),
+      startedAt: startTime,
+      updatedAt: startTime,
     };
-    state.startTime = new Date();
 
     // Build command
     const command = this.buildCommand(state.params, state.inputResult);
@@ -143,6 +148,7 @@ export class FireSTARREngine implements IFireModelingEngine {
           state: 'running',
           progress,
           message: `Running scenario ${current} of ${total}`,
+          startedAt: state.startTime,
           updatedAt: new Date(),
         };
       }
@@ -167,11 +173,15 @@ export class FireSTARREngine implements IFireModelingEngine {
 
     // Update status based on result
     if (!result.success) {
+      const failedAt = new Date();
+      state.completedTime = failedAt;
       state.status = {
         state: 'failed',
         error: result.error.message,
         message: 'Docker execution failed',
-        updatedAt: new Date(),
+        startedAt: state.startTime,
+        completedAt: failedAt,
+        updatedAt: failedAt,
       };
       console.error(`[FireSTARREngine] Execution failed:`, result.error.message);
       return;
@@ -180,11 +190,15 @@ export class FireSTARREngine implements IFireModelingEngine {
     const containerResult = result.value;
 
     if (containerResult.exitCode !== 0) {
+      const failedAt = new Date();
+      state.completedTime = failedAt;
       state.status = {
         state: 'failed',
         error: `Process exited with code ${containerResult.exitCode}`,
         message: 'FireSTARR execution failed',
-        updatedAt: new Date(),
+        startedAt: state.startTime,
+        completedAt: failedAt,
+        updatedAt: failedAt,
       };
       console.error(`[FireSTARREngine] Exit code ${containerResult.exitCode}`);
       return;
@@ -194,12 +208,17 @@ export class FireSTARREngine implements IFireModelingEngine {
     const logPath = join(state.inputResult.workingDir, 'firestarr.log');
     const summary = await (this.outputParser as FireSTARROutputParser).parseLog(logPath);
 
+    const completedTime = new Date();
+    state.completedTime = completedTime;
+
     if (summary.success) {
       state.status = {
         state: 'completed',
         progress: 100,
         message: `Completed in ${summary.durationSeconds?.toFixed(1)}s`,
-        updatedAt: new Date(),
+        startedAt: state.startTime,
+        completedAt: completedTime,
+        updatedAt: completedTime,
       };
       console.log(`[FireSTARREngine] Execution completed successfully`);
     } else {
@@ -207,7 +226,9 @@ export class FireSTARREngine implements IFireModelingEngine {
         state: 'failed',
         error: summary.errors.join('; '),
         message: 'Execution did not complete successfully',
-        updatedAt: new Date(),
+        startedAt: state.startTime,
+        completedAt: completedTime,
+        updatedAt: completedTime,
       };
       console.error(`[FireSTARREngine] Execution failed:`, summary.errors);
     }
@@ -326,7 +347,7 @@ export class FireSTARREngine implements IFireModelingEngine {
   /**
    * Builds FireSTARR parameters from model and execution options.
    */
-  private buildParams(_model: FireModel, options: ExecutionOptions): FireSTARRParams {
+  private async buildParams(_model: FireModel, options: ExecutionOptions): Promise<FireSTARRParams> {
     // Extract coordinates from ignition geometry
     const ignition = options.ignitionGeometry;
     let latitude: number;
@@ -344,22 +365,95 @@ export class FireSTARREngine implements IFireModelingEngine {
       latitude = centroid[1];
     }
 
-    // TODO: Get actual weather data
-    // For now, create placeholder params - real implementation would
-    // fetch weather from API or use provided data
+    // Resolve weather data
+    let weatherPoints: WeatherDataPoint[];
+
+    if (options.weatherData && options.weatherData.length > 0) {
+      // Use pre-resolved weather data
+      weatherPoints = options.weatherData;
+    } else if (options.weatherConfig) {
+      // Resolve weather from config
+      const weatherService = getWeatherService();
+      weatherPoints = await weatherService.resolveWeather(
+        options.weatherConfig,
+        { latitude, longitude },
+        { start: options.timeRange.start, end: options.timeRange.end }
+      );
+    } else {
+      throw new Error('Weather data or weatherConfig required for model execution');
+    }
+
+    // Convert WeatherDataPoint[] to WeatherHourlyData[]
+    const weatherData: WeatherHourlyData[] = weatherPoints.map((wp) => ({
+      date: wp.datetime,
+      temp: wp.temperature,
+      rh: wp.humidity,
+      ws: wp.windSpeed,
+      wd: wp.windDirection,
+      precip: wp.precipitation,
+      ffmc: wp.ffmc,
+      dmc: wp.dmc,
+      dc: wp.dc,
+      isi: wp.isi ?? 0,
+      bui: wp.bui ?? 0,
+      fwi: wp.fwi ?? 0,
+    }));
+
+    // Extract previous day indices from first weather point
+    const firstPoint = weatherPoints[0];
+
+    // Calculate output date offsets based on simulation duration
+    const durationMs = options.timeRange.end.getTime() - options.timeRange.start.getTime();
+    const durationDays = Math.ceil(durationMs / (24 * 60 * 60 * 1000));
+    const outputDateOffsets = this.calculateOutputOffsets(durationDays);
 
     return {
       latitude,
       longitude,
       startDate: options.timeRange.start,
       startTime: this.formatTime(options.timeRange.start),
-      weatherData: [], // TODO: Fetch weather data
-      previousFFMC: 85, // TODO: Get from weather service
-      previousDMC: 30,
-      previousDC: 200,
-      outputDateOffsets: options.outputTimeOffsets?.map((h) => Math.ceil(h / 24)) ?? [1, 2, 3, 7, 14],
+      weatherData,
+      previousFFMC: firstPoint.ffmc,
+      previousDMC: firstPoint.dmc,
+      previousDC: firstPoint.dc,
+      previousPrecip: firstPoint.precipitation,
+      outputDateOffsets,
       perimeter: ignition.type === GeometryType.Polygon ? ignition : undefined,
     };
+  }
+
+  /**
+   * Calculate output date offsets based on simulation duration.
+   *
+   * Logic:
+   * - For 1-3 days: output each day
+   * - For 4-7 days: output days 1, 2, 3, then final day
+   * - For 8+ days: output days 1, 2, 3, then weekly, plus final day
+   */
+  private calculateOutputOffsets(durationDays: number): number[] {
+    if (durationDays <= 0) {
+      return [1]; // Minimum 1 day output
+    }
+
+    const offsets: number[] = [];
+
+    // First 3 days if within duration
+    for (let d = 1; d <= Math.min(durationDays, 3); d++) {
+      offsets.push(d);
+    }
+
+    // Weekly intervals for longer durations
+    if (durationDays > 3) {
+      for (let d = 7; d < durationDays; d += 7) {
+        offsets.push(d);
+      }
+      // Always include final day
+      if (!offsets.includes(durationDays)) {
+        offsets.push(durationDays);
+      }
+    }
+
+    return offsets;
   }
 
   /**

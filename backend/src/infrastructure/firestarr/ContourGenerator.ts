@@ -46,76 +46,72 @@ export async function generateContours(
     return cached;
   }
 
-  // Try to load GDAL
-  let gdal: typeof import('gdal-async') | undefined;
+  // Load GDAL - fail fast if not available
+  let gdal: typeof import('gdal-async');
   try {
     gdal = await import('gdal-async');
-  } catch {
-    console.warn('[ContourGenerator] GDAL not available, returning mock contours');
-    return generateMockContours(thresholds);
+  } catch (err) {
+    throw new Error(`GDAL not available - required for contour generation: ${err}`);
   }
 
-  try {
-    // Open the raster dataset
-    const dataset = await gdal.openAsync(filePath);
-    const band = dataset.bands.get(1);
+  // Open the raster dataset
+  const dataset = await gdal.openAsync(filePath);
+  const band = dataset.bands.get(1);
 
-    if (!band) {
-      throw new Error('No band found in raster');
-    }
-
-    // Get raster info
-    const { x: width, y: height } = dataset.rasterSize;
-    const geoTransform = dataset.geoTransform;
-
-    if (!geoTransform) {
-      throw new Error('No geotransform found in raster');
-    }
-
-    // Read all pixels
-    const data = band.pixels.read(0, 0, width, height) as Float32Array;
-
-    // Generate contours for each threshold
-    const features: Feature<Polygon | MultiPolygon>[] = [];
-
-    for (const threshold of thresholds.sort((a, b) => b - a)) {
-      // Create binary mask for this threshold
-      const contourFeatures = generateContourForThreshold(
-        data,
-        width,
-        height,
-        geoTransform,
-        threshold
-      );
-
-      for (const feature of contourFeatures) {
-        features.push({
-          type: 'Feature',
-          properties: {
-            probability: threshold,
-            color: PROBABILITY_COLORS[threshold] ?? '#888888',
-            label: `${(threshold * 100).toFixed(0)}%`,
-          },
-          geometry: feature,
-        });
-      }
-    }
-
+  if (!band) {
     dataset.close();
-
-    const result: FeatureCollection = {
-      type: 'FeatureCollection',
-      features,
-    };
-
-    // Cache result
-    contourCache.set(cacheKey, result);
-
-    return result;
-  } catch (error) {
-    console.error('[ContourGenerator] Failed to generate contours:', error);
-    return generateMockContours(thresholds);
+    throw new Error(`No band found in raster: ${filePath}`);
   }
+
+  // Get raster info
+  const { x: width, y: height } = dataset.rasterSize;
+  const geoTransform = dataset.geoTransform;
+
+  if (!geoTransform) {
+    dataset.close();
+    throw new Error(`No geotransform found in raster: ${filePath}`);
+  }
+
+  // Read all pixels
+  const data = band.pixels.read(0, 0, width, height) as Float32Array;
+
+  // Generate contours for each threshold
+  const features: Feature<Polygon | MultiPolygon>[] = [];
+
+  for (const threshold of thresholds.sort((a, b) => b - a)) {
+    // Create binary mask for this threshold
+    const contourFeatures = generateContourForThreshold(
+      data,
+      width,
+      height,
+      geoTransform,
+      threshold
+    );
+
+    for (const feature of contourFeatures) {
+      features.push({
+        type: 'Feature',
+        properties: {
+          probability: threshold,
+          color: PROBABILITY_COLORS[threshold] ?? '#888888',
+          label: `${(threshold * 100).toFixed(0)}%`,
+        },
+        geometry: feature,
+      });
+    }
+  }
+
+  dataset.close();
+
+  const result: FeatureCollection = {
+    type: 'FeatureCollection',
+    features,
+  };
+
+  // Cache result
+  contourCache.set(cacheKey, result);
+
+  return result;
 }
 
 /**
@@ -237,39 +233,6 @@ function regionToPolygon(
   return {
     type: 'Polygon',
     coordinates: [coords],
-  };
-}
-
-/**
- * Generate mock contours when GDAL is not available
- */
-function generateMockContours(thresholds: number[]): FeatureCollection {
-  // Return sample contours for testing
-  // These would be replaced with real data in production
-  const features: Feature<Polygon>[] = thresholds.map((threshold, i) => ({
-    type: 'Feature',
-    properties: {
-      probability: threshold,
-      color: PROBABILITY_COLORS[threshold] ?? '#888888',
-      label: `${(threshold * 100).toFixed(0)}%`,
-      mock: true,
-    },
-    geometry: {
-      type: 'Polygon',
-      coordinates: [[
-        // Simple square polygon offset by threshold
-        [-115.0 + i * 0.01, 55.0 + i * 0.01],
-        [-114.9 + i * 0.01, 55.0 + i * 0.01],
-        [-114.9 + i * 0.01, 55.1 + i * 0.01],
-        [-115.0 + i * 0.01, 55.1 + i * 0.01],
-        [-115.0 + i * 0.01, 55.0 + i * 0.01],
-      ]],
-    },
-  }));
-
-  return {
-    type: 'FeatureCollection',
-    features,
   };
 }
 

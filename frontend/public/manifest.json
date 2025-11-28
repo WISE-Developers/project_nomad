@@ -1,0 +1,21 @@
+{
+  "name": "Project Nomad - Fire Modeling",
+  "short_name": "Nomad",
+  "description": "National fire modeling GUI for wildfire prediction and analysis",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#ff6b35",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "screenshots": [],
+  "prefer_related_applications": false
+}
