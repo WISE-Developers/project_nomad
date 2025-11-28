@@ -64,3 +64,25 @@ export {
   type ExecutionStatus as JobExecutionStatus,
   type ExecutionOptions as JobExecutionOptions,
 } from './IModelExecutionService.js';
+
+// Container Executor (Docker)
+export {
+  type IContainerExecutor,
+  type ContainerRunOptions,
+  type ContainerResult,
+  type VolumeMount,
+  type OutputCallback,
+} from './IContainerExecutor.js';
+
+// Input Generator
+export {
+  type IInputGenerator,
+  type InputGenerationResult,
+} from './IInputGenerator.js';
+
+// Output Parser
+export {
+  type IOutputParser,
+  type ParsedOutput,
+  type ExecutionSummary,
+} from './IOutputParser.js';
