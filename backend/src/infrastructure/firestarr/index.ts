@@ -39,6 +39,12 @@ export {
   type RasterizeResult,
 } from './PerimeterRasterizer.js';
 
+// Contour Generation
+export {
+  generateContours,
+  clearContourCache,
+} from './ContourGenerator.js';
+
 // Types
 export {
   type WeatherHourlyData,

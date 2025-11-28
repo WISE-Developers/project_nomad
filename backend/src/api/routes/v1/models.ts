@@ -5,9 +5,12 @@ import {
   createFireModelId,
   EngineType,
   ModelStatus,
+  type FireModelId,
 } from '../../../domain/entities/index.js';
 import { NotFoundError, ValidationError } from '../../../domain/errors/index.js';
 import { getModelExecutionService } from '../../../infrastructure/services/index.js';
+import { getFireSTARREngine } from '../../../infrastructure/firestarr/index.js';
+import { getModelResultsService } from '../../../application/services/index.js';
 
 const router = Router();
 
@@ -229,6 +232,118 @@ router.post(
       jobId: jobResult.value,
       message: 'Model execution started',
     });
+  })
+);
+
+/**
+ * @openapi
+ * /models/{id}/results:
+ *   get:
+ *     summary: Get model results
+ *     description: Returns execution results and output files for a completed model
+ *     tags: [Models]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Model ID
+ *     responses:
+ *       200:
+ *         description: Model results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 modelId:
+ *                   type: string
+ *                 modelName:
+ *                   type: string
+ *                 engineType:
+ *                   type: string
+ *                 executionSummary:
+ *                   type: object
+ *                   properties:
+ *                     status:
+ *                       type: string
+ *                     progress:
+ *                       type: number
+ *                     startedAt:
+ *                       type: string
+ *                     completedAt:
+ *                       type: string
+ *                     durationSeconds:
+ *                       type: number
+ *                 outputs:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       type:
+ *                         type: string
+ *                       format:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       previewUrl:
+ *                         type: string
+ *                       downloadUrl:
+ *                         type: string
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
+router.get(
+  '/models/:id/results',
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const model = tempModels.get(id);
+    if (!model) {
+      throw new NotFoundError('Model', id);
+    }
+
+    // Try to get results service - engine may not be configured
+    try {
+      const engine = getFireSTARREngine();
+      const resultsService = getModelResultsService(engine);
+
+      // Get results
+      const result = await resultsService.getResults(
+        id as FireModelId,
+        model.name,
+        model.engineType
+      );
+
+      if (!result.success) {
+        throw result.error;
+      }
+
+      res.json(result.value);
+    } catch (error) {
+      // Engine not configured - return empty results
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[ModelsRoute] Engine not available for results: ${message}`);
+
+      res.json({
+        modelId: id,
+        modelName: model.name,
+        engineType: model.engineType,
+        executionSummary: {
+          startedAt: null,
+          completedAt: null,
+          durationSeconds: null,
+          status: 'queued',
+          progress: 0,
+          error: message,
+        },
+        outputs: [],
+      });
+    }
   })
 );
 
