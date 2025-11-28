@@ -38,7 +38,7 @@ const TOOLS: ToolButton[] = [
 const POSITION_STYLES: Record<string, React.CSSProperties> = {
   'top-left': { top: '10px', left: '10px' },
   'top-right': { top: '10px', right: '60px' },
-  'bottom-left': { bottom: '30px', left: '10px' },
+  'bottom-left': { bottom: '80px', left: '10px' },
   'bottom-right': { bottom: '30px', right: '10px' },
 };
 

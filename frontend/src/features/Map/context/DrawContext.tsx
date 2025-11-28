@@ -84,6 +84,80 @@ export function DrawProvider({ children }: DrawProviderProps) {
       displayControlsDefault: false,
       controls: {},
       defaultMode: 'simple_select',
+      styles: [
+        // Polygon fill - transparent yellow
+        {
+          id: 'gl-draw-polygon-fill',
+          type: 'fill',
+          filter: ['all', ['==', '$type', 'Polygon'], ['!=', 'mode', 'static']],
+          paint: {
+            'fill-color': '#FFD700',
+            'fill-opacity': 0.2,
+          },
+        },
+        // Polygon outline - solid yellow
+        {
+          id: 'gl-draw-polygon-stroke',
+          type: 'line',
+          filter: ['all', ['==', '$type', 'Polygon'], ['!=', 'mode', 'static']],
+          paint: {
+            'line-color': '#FFD700',
+            'line-width': 4,
+          },
+        },
+        // Line - solid yellow
+        {
+          id: 'gl-draw-line',
+          type: 'line',
+          filter: ['all', ['==', '$type', 'LineString'], ['!=', 'mode', 'static']],
+          paint: {
+            'line-color': '#FFD700',
+            'line-width': 4,
+          },
+        },
+        // Point (outer circle) - solid yellow
+        {
+          id: 'gl-draw-point-outer',
+          type: 'circle',
+          filter: ['all', ['==', '$type', 'Point'], ['!=', 'mode', 'static']],
+          paint: {
+            'circle-radius': 10,
+            'circle-color': '#FFD700',
+          },
+        },
+        // Point (inner circle for selection)
+        {
+          id: 'gl-draw-point-inner',
+          type: 'circle',
+          filter: ['all', ['==', '$type', 'Point'], ['!=', 'mode', 'static']],
+          paint: {
+            'circle-radius': 5,
+            'circle-color': '#FFFFFF',
+          },
+        },
+        // Vertex points (for editing)
+        {
+          id: 'gl-draw-vertex',
+          type: 'circle',
+          filter: ['all', ['==', 'meta', 'vertex'], ['!=', 'mode', 'static']],
+          paint: {
+            'circle-radius': 6,
+            'circle-color': '#FFFFFF',
+            'circle-stroke-color': '#FFD700',
+            'circle-stroke-width': 2,
+          },
+        },
+        // Midpoint vertices
+        {
+          id: 'gl-draw-midpoint',
+          type: 'circle',
+          filter: ['all', ['==', 'meta', 'midpoint']],
+          paint: {
+            'circle-radius': 4,
+            'circle-color': '#FFD700',
+          },
+        },
+      ],
     });
 
     map.addControl(draw as unknown as mapboxgl.IControl);

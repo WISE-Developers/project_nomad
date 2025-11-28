@@ -179,10 +179,10 @@ export function WeatherStep() {
             }}
           >
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>🌤️</div>
-            <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '8px' }}>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '8px', color: '#333' }}>
               SpotWX Integration
             </div>
-            <div style={{ fontSize: '14px', color: '#666' }}>
+            <div style={{ fontSize: '14px', color: '#555' }}>
               Automatic weather data from SpotWX forecast models is coming soon. This will
               automatically fetch weather data based on your selected location and time range.
             </div>
@@ -198,6 +198,7 @@ export function WeatherStep() {
           borderRadius: '4px',
           borderLeft: '4px solid #ffc107',
           fontSize: '13px',
+          color: '#333',
         }}
       >
         <strong>Tip:</strong> If you don't have current FWI values, you can use the "Spring Startup
