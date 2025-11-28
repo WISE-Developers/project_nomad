@@ -106,11 +106,17 @@ export class ModelResultsService {
       });
     }
 
-    // Build execution summary
+    // Build execution summary with timestamps
+    const startedAt = status.startedAt ? status.startedAt.toISOString() : null;
+    const completedAt = status.completedAt ? status.completedAt.toISOString() : null;
+    const durationSeconds = status.startedAt && status.completedAt
+      ? (status.completedAt.getTime() - status.startedAt.getTime()) / 1000
+      : null;
+
     const executionSummary: ExecutionSummary = {
-      startedAt: null,
-      completedAt: null,
-      durationSeconds: null,
+      startedAt,
+      completedAt,
+      durationSeconds,
       status: status.state,
       progress: status.progress ?? 0,
       error: status.error,

@@ -7,6 +7,93 @@ const router = Router();
 
 /**
  * @openapi
+ * /jobs/{id}/stream:
+ *   get:
+ *     summary: Stream job status updates (SSE)
+ *     description: Server-Sent Events endpoint for real-time job status updates
+ *     tags: [Jobs]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Job ID
+ *     responses:
+ *       200:
+ *         description: SSE stream of job status updates
+ *         content:
+ *           text/event-stream:
+ *             schema:
+ *               type: string
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ */
+router.get(
+  '/jobs/:id/stream',
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const jobId = createJobId(id);
+    const jobQueue = getJobQueue();
+
+    // Verify job exists
+    const initialResult = await jobQueue.getJob(jobId);
+    if (!initialResult.success) {
+      throw initialResult.error;
+    }
+
+    // Set up SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+    res.flushHeaders();
+
+    // Send initial status
+    const sendStatus = (job: { toJSON(): unknown }) => {
+      res.write(`data: ${JSON.stringify(job.toJSON())}\n\n`);
+    };
+
+    sendStatus(initialResult.value);
+
+    // If job is already terminal, close connection
+    if (initialResult.value.isTerminal()) {
+      res.write('event: complete\ndata: {}\n\n');
+      res.end();
+      return;
+    }
+
+    // Poll for updates
+    const pollInterval = setInterval(async () => {
+      const result = await jobQueue.getJob(jobId);
+      if (!result.success) {
+        clearInterval(pollInterval);
+        res.write(`event: error\ndata: ${JSON.stringify({ error: 'Job not found' })}\n\n`);
+        res.end();
+        return;
+      }
+
+      const job = result.value;
+      sendStatus(job);
+
+      // Check if job is terminal
+      if (job.isTerminal()) {
+        clearInterval(pollInterval);
+        res.write('event: complete\ndata: {}\n\n');
+        res.end();
+      }
+    }, 1000); // Poll every second
+
+    // Clean up on client disconnect
+    req.on('close', () => {
+      clearInterval(pollInterval);
+    });
+  })
+);
+
+/**
+ * @openapi
  * /jobs/{id}:
  *   get:
  *     summary: Get job status

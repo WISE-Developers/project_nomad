@@ -1,6 +1,7 @@
 import { FireModel, FireModelId, ModelResult, EngineType } from '../../domain/entities/index.js';
 import { SpatialGeometry } from '../../domain/entities/SpatialGeometry.js';
 import { Coordinates, TimeRange } from '../../domain/value-objects/index.js';
+import type { WeatherDataPoint, WeatherConfig } from '../../infrastructure/weather/types.js';
 
 /**
  * Status of a model execution job
@@ -14,6 +15,10 @@ export interface ExecutionStatus {
   readonly message?: string;
   /** Error details if failed */
   readonly error?: string;
+  /** When execution started */
+  readonly startedAt?: Date;
+  /** When execution completed (success or failure) */
+  readonly completedAt?: Date;
   /** Timestamp of last status update */
   readonly updatedAt: Date;
 }
@@ -34,6 +39,10 @@ export interface ExecutionOptions {
   readonly probabilistic?: boolean;
   /** Number of simulations for probabilistic runs */
   readonly simulationCount?: number;
+  /** Weather data configuration */
+  readonly weatherConfig?: WeatherConfig;
+  /** Pre-resolved weather data (if weather has been fetched already) */
+  readonly weatherData?: WeatherDataPoint[];
 }
 
 /**

@@ -3,11 +3,33 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="manifest" href="/manifest.json" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ff6b35" />
+    <meta name="description" content="National fire modeling GUI for wildfire prediction and analysis" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Nomad" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
     <title>Project Nomad - Fire Modeling</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Register service worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker
+            .register('/sw.js')
+            .then((registration) => {
+              console.log('[App] SW registered:', registration.scope);
+            })
+            .catch((error) => {
+              console.log('[App] SW registration failed:', error);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

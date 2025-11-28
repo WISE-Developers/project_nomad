@@ -19,32 +19,10 @@ interface OutputListProps {
   onDownload: (output: OutputItem) => void;
   /** Called when add to map is requested */
   onAddToMap: (output: OutputItem) => void;
+  /** Called when export is requested */
+  onExport?: () => void;
   /** Currently selected output */
   selectedOutput?: OutputItem | null;
-}
-
-/**
- * Get icon for output type
- */
-function getOutputIcon(type: OutputType): string {
-  switch (type) {
-    case 'burn_probability':
-      return '\uD83D\uDD25'; // fire
-    case 'fire_intensity':
-      return '\uD83C\uDF21'; // thermometer
-    case 'arrival_time':
-      return '\u23F1'; // stopwatch
-    case 'fire_perimeter':
-      return '\u2B55'; // circle
-    case 'ember_density':
-      return '\u2728'; // sparkles
-    case 'weather_grid':
-      return '\uD83C\uDF26'; // cloud
-    case 'fuel_grid':
-      return '\uD83C\uDF32'; // tree
-    default:
-      return '\uD83D\uDCC4'; // document
-  }
 }
 
 /**
@@ -99,12 +77,12 @@ export function OutputList({
   onPreview,
   onDownload,
   onAddToMap,
+  onExport,
   selectedOutput,
 }: OutputListProps) {
   if (outputs.length === 0) {
     return (
       <div style={emptyStyle}>
-        <div style={emptyIconStyle}>\uD83D\uDCC2</div>
         <div style={emptyTextStyle}>No outputs available</div>
         <div style={emptySubtextStyle}>
           Outputs will appear here when the model completes
@@ -115,7 +93,26 @@ export function OutputList({
 
   return (
     <div style={containerStyle}>
-      <h3 style={headerStyle}>Model Outputs</h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h3 style={{ ...headerStyle, margin: 0 }}>Model Outputs</h3>
+        {onExport && outputs.length > 0 && (
+          <button
+            onClick={onExport}
+            style={{
+              padding: '6px 12px',
+              fontSize: '13px',
+              fontWeight: 500,
+              backgroundColor: '#ff6b35',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            Export All
+          </button>
+        )}
+      </div>
       <div style={listStyle}>
         {outputs.map((output) => (
           <OutputListItem
@@ -163,17 +160,13 @@ function OutputListItem({
     border: isSelected ? '2px solid #1976d2' : '1px solid #e0e0e0',
     cursor: 'pointer',
     transition: 'all 0.2s',
-  };
-
-  const iconStyle: React.CSSProperties = {
-    fontSize: '24px',
-    width: '32px',
-    textAlign: 'center',
+    flexWrap: 'nowrap',
   };
 
   const infoStyle: React.CSSProperties = {
-    flex: 1,
-    minWidth: 0,
+    flex: '1 1 auto',
+    minWidth: '100px',
+    overflow: 'hidden',
   };
 
   const nameStyle: React.CSSProperties = {
@@ -210,6 +203,7 @@ function OutputListItem({
   const actionsStyle: React.CSSProperties = {
     display: 'flex',
     gap: '4px',
+    flexShrink: 0,
   };
 
   const buttonStyle: React.CSSProperties = {
@@ -232,7 +226,6 @@ function OutputListItem({
 
   return (
     <div style={itemStyle} onClick={canPreview ? onPreview : undefined}>
-      <span style={iconStyle}>{getOutputIcon(output.type)}</span>
       <div style={infoStyle}>
         <div style={nameStyle} title={output.name}>
           {output.name}
@@ -252,7 +245,7 @@ function OutputListItem({
             onClick={onPreview}
             title="Preview on map"
           >
-            \uD83D\uDC41
+            View
           </button>
         )}
         <button
@@ -260,7 +253,7 @@ function OutputListItem({
           onClick={onDownload}
           title="Download file"
         >
-          \u2B07
+          DL
         </button>
         {canPreview && (
           <button
@@ -303,11 +296,6 @@ const emptyStyle: React.CSSProperties = {
   border: '1px solid #e0e0e0',
   padding: '40px 20px',
   textAlign: 'center',
-};
-
-const emptyIconStyle: React.CSSProperties = {
-  fontSize: '48px',
-  marginBottom: '16px',
 };
 
 const emptyTextStyle: React.CSSProperties = {

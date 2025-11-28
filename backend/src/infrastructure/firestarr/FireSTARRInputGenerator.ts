@@ -166,17 +166,25 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
  * Creates a FireSTARR input generator from environment configuration.
  */
 export function createFireSTARRInputGenerator(): FireSTARRInputGenerator {
+  // Use FIRESTARR_DATASET_PATH from environment (must match docker-compose.yaml volume mount)
   const datasetPath = process.env.FIRESTARR_DATASET_PATH;
   if (!datasetPath) {
-    throw new Error('FIRESTARR_DATASET_PATH environment variable not set');
+    throw new Error('FIRESTARR_DATASET_PATH environment variable not set. Check your .env file.');
   }
+
+  // Resolve relative paths from project root (parent of backend dir)
+  // This matches where docker-compose.yaml resolves paths from
+  const projectRoot = join(process.cwd(), '..');
+  const resolvedPath = datasetPath.startsWith('/')
+    ? datasetPath
+    : join(projectRoot, datasetPath);
 
   // Look for fuel grid in expected locations
   // The fuel grid path depends on UTM zone, so we'll configure this dynamically
   // For now, just set up the base config
 
   return new FireSTARRInputGenerator({
-    simsBasePath: join(datasetPath, 'sims'),
+    simsBasePath: join(resolvedPath, 'sims'),
     // Fuel grid template will be determined per-model based on coordinates
   });
 }

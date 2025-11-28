@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { resolve } from 'path';
 import {
   apiRouter,
   setupSwagger,
@@ -9,7 +10,8 @@ import {
   errorHandler,
 } from './api/index.js';
 
-dotenv.config();
+// Load .env from project root (parent directory)
+dotenv.config({ path: resolve(process.cwd(), '..', '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3001;

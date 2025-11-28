@@ -10,6 +10,7 @@ import { ResultsSummary } from './ResultsSummary';
 import { OutputList } from './OutputList';
 import { OutputPreviewModal } from './OutputPreviewModal';
 import { useModelResults } from '../hooks/useModelResults';
+import { ExportPanel } from '../../Export';
 import type { OutputItem } from '../types';
 
 /**
@@ -39,6 +40,7 @@ export function ModelReviewPanel({
 }: ModelReviewPanelProps) {
   const { results, isLoading, error, refetch } = useModelResults(modelId);
   const [previewOutput, setPreviewOutput] = useState<OutputItem | null>(null);
+  const [showExportPanel, setShowExportPanel] = useState(false);
 
   /**
    * Handle preview request
@@ -83,6 +85,20 @@ export function ModelReviewPanel({
    */
   const handleClosePreview = useCallback(() => {
     setPreviewOutput(null);
+  }, []);
+
+  /**
+   * Open export panel
+   */
+  const handleExport = useCallback(() => {
+    setShowExportPanel(true);
+  }, []);
+
+  /**
+   * Close export panel
+   */
+  const handleCloseExport = useCallback(() => {
+    setShowExportPanel(false);
   }, []);
 
   // Loading state
@@ -167,6 +183,7 @@ export function ModelReviewPanel({
             onPreview={handlePreview}
             onDownload={handleDownload}
             onAddToMap={handleAddToMap}
+            onExport={handleExport}
           />
         </div>
       </div>
@@ -179,9 +196,39 @@ export function ModelReviewPanel({
           onAddToMap={handleAddToMap}
         />
       )}
+
+      {/* Export panel modal */}
+      {showExportPanel && results && (
+        <div style={exportModalOverlayStyle}>
+          <ExportPanel
+            modelId={modelId}
+            modelName={results.modelName}
+            outputs={results.outputs.map((o) => ({
+              resultId: o.id,
+              name: o.name,
+              format: o.format,
+              type: o.type,
+            }))}
+            onClose={handleCloseExport}
+          />
+        </div>
+      )}
     </>
   );
 }
+
+const exportModalOverlayStyle: React.CSSProperties = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 2000,
+};
 
 // Styles
 const panelStyle: React.CSSProperties = {
