@@ -7,7 +7,6 @@ import {
   BasemapSwitcher,
   MeasurementTool,
   TerrainControl,
-  DrawProvider,
   useDraw,
 } from './features/Map';
 import { ModelSetupWizard } from './features/ModelSetup';
@@ -99,9 +98,7 @@ function App() {
             zoom: 6,
           }}
         >
-          <DrawProvider>
-            <AppContent />
-          </DrawProvider>
+          <AppContent />
         </MapContainer>
       </MapProvider>
     </div>

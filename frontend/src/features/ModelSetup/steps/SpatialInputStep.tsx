@@ -31,7 +31,7 @@ const tabsStyle: React.CSSProperties = {
 const tabStyle: React.CSSProperties = {
   padding: '8px 16px',
   border: 'none',
-  background: 'none',
+  backgroundColor: 'transparent',
   cursor: 'pointer',
   fontSize: '14px',
   color: '#666',
