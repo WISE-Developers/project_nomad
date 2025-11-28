@@ -119,6 +119,26 @@ project_nomad/
 └── demo.json                 # Configuration example
 ```
 
+## System Requirements
+
+### Backend
+- **Node.js** >= 20.0.0
+- **GDAL** native libraries (for raster processing)
+
+#### Installing GDAL
+
+**macOS (Homebrew):**
+```bash
+brew install gdal
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get install gdal-bin libgdal-dev
+```
+
+**Docker:** The backend Dockerfile includes GDAL automatically.
+
 ## Development
 
 ```bash

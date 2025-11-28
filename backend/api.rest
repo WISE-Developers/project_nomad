@@ -143,3 +143,101 @@ GET http://localhost:3001/api/openapi.json
 
 ### Swagger UI (open in browser)
 # http://localhost:3001/api/docs
+
+### ============================================
+### Exports (Phase 9)
+### ============================================
+
+### Get Available Export Formats
+GET {{baseUrl}}/exports/formats
+
+###
+
+### Create Export Bundle
+### First create a model and get results, then use result IDs here
+# @name createExport
+POST {{baseUrl}}/exports
+Content-Type: application/json
+
+{
+  "modelId": "{{modelId}}",
+  "modelName": "Export Test Model",
+  "items": [
+    { "resultId": "result-1" }
+  ]
+}
+
+###
+
+### Get Export ID from response
+@exportId = {{createExport.response.body.exportId}}
+
+### Download Export as ZIP
+### Note: This returns binary data - best tested in browser
+GET {{baseUrl}}/exports/{{exportId}}/download
+
+###
+
+### Create Shareable Link
+# @name createShareLink
+POST {{baseUrl}}/exports/{{exportId}}/share
+Content-Type: application/json
+
+{
+  "expiresInHours": 24,
+  "maxDownloads": 10
+}
+
+###
+
+### Get Share Token from response
+@shareToken = {{createShareLink.response.body.token}}
+
+### Download via Share Link (public URL)
+### Note: This returns binary data - best tested in browser
+GET {{baseUrl}}/share/{{shareToken}}
+
+###
+
+### Export Error Cases
+### ============================================
+
+### Export with non-existent bundle (404)
+GET {{baseUrl}}/exports/does-not-exist/download
+
+###
+
+### Share non-existent export (404)
+POST {{baseUrl}}/exports/does-not-exist/share
+Content-Type: application/json
+
+{
+  "expiresInHours": 24
+}
+
+###
+
+### Invalid share token (404)
+GET {{baseUrl}}/share/invalid-token
+
+###
+
+### Create export with missing modelId (400)
+POST {{baseUrl}}/exports
+Content-Type: application/json
+
+{
+  "items": [{ "resultId": "test" }]
+}
+
+###
+
+### Create export with empty items (400)
+POST {{baseUrl}}/exports
+Content-Type: application/json
+
+{
+  "modelId": "test-model",
+  "modelName": "Test",
+  "items": []
+}
