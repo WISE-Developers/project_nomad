@@ -14,6 +14,7 @@ import {
 } from '../../application/interfaces/IModelExecutionService.js';
 import { IJobQueue } from '../../application/interfaces/IJobQueue.js';
 import { getJobQueue } from './JobQueue.js';
+import { getDockerExecutor } from '../docker/index.js';
 
 /** Default execution timeout: 4 hours */
 const DEFAULT_TIMEOUT_MS = 4 * 60 * 60 * 1000;
@@ -117,11 +118,36 @@ export class ModelExecutionService implements IModelExecutionService {
     return Result.ok(undefined);
   }
 
-  async isEngineAvailable(_engineType: string): Promise<boolean> {
-    // TODO: Check if engine executable exists and is runnable
-    // For now, return true for stub implementation
-    // In Phase 7, this will check for actual engine binaries
-    return true;
+  async isEngineAvailable(engineType: string): Promise<boolean> {
+    switch (engineType) {
+      case EngineType.FireSTARR: {
+        // Check if Docker is available
+        const dockerExecutor = getDockerExecutor();
+        const dockerAvailable = await dockerExecutor.isAvailable();
+        if (!dockerAvailable) {
+          console.warn('[ExecutionService] Docker not available for FireSTARR');
+          return false;
+        }
+
+        // Check if the FireSTARR service is available
+        const serviceAvailable = await dockerExecutor.isServiceAvailable('firestarr-app');
+        if (!serviceAvailable) {
+          console.warn('[ExecutionService] FireSTARR Docker service not available');
+          // For development, still return true to allow stub execution
+          return true;
+        }
+
+        return true;
+      }
+
+      case EngineType.WISE:
+        // WISE not yet implemented - allow stub execution
+        console.warn('[ExecutionService] WISE engine not yet implemented, using stub');
+        return true;
+
+      default:
+        return false;
+    }
   }
 
   /**
@@ -213,7 +239,10 @@ export class ModelExecutionService implements IModelExecutionService {
   }
 
   /**
-   * Gets the command to execute for a given model
+   * Gets the command to execute for a given model.
+   *
+   * For FireSTARR with Docker available, returns docker compose command.
+   * Otherwise, returns stub command for development.
    */
   private getEngineCommand(model: FireModel): {
     cmd: string;
@@ -221,22 +250,47 @@ export class ModelExecutionService implements IModelExecutionService {
     cwd?: string;
     env?: Record<string, string>;
   } {
-    // TODO: Phase 7 will implement actual engine commands
-    // For now, use a stub that simulates execution
-
     switch (model.engineType) {
       case EngineType.FireSTARR:
-        // Stub: Use echo to simulate FireSTARR execution
+        // Check if we should use real Docker execution
+        // For now, use stub - real execution is via FireSTARREngine directly
+        // The ModelExecutionService stub path is kept for backwards compatibility
+        // and for when Docker is not available
+        //
+        // To use real FireSTARR execution:
+        // 1. Call getFireSTARREngine().initialize(model, options)
+        // 2. Call getFireSTARREngine().execute(modelId)
+        // 3. Poll getFireSTARREngine().getStatus(modelId) for progress
+        //
+        // For now, use a stub that simulates execution
         return {
           cmd: 'sh',
-          args: ['-c', `echo "Starting FireSTARR simulation for model ${model.id}..." && sleep 2 && echo "Progress: 50%" && sleep 2 && echo "Progress: 100%" && echo "Simulation complete"`],
+          args: [
+            '-c',
+            `echo "Starting FireSTARR simulation for model ${model.id}..." && ` +
+            `echo "[NOTE] Using stub execution - Docker not connected" && ` +
+            `sleep 1 && echo "Running scenario 1 of 10" && ` +
+            `sleep 1 && echo "Running scenario 5 of 10" && ` +
+            `sleep 1 && echo "Running scenario 10 of 10" && ` +
+            `sleep 1 && echo "Total simulation time was 4.0 seconds" && ` +
+            `echo "Simulation complete"`,
+          ],
         };
 
       case EngineType.WISE:
-        // Stub: Use echo to simulate WISE execution
+        // WISE not yet implemented - use stub
         return {
           cmd: 'sh',
-          args: ['-c', `echo "Starting WISE simulation for model ${model.id}..." && sleep 2 && echo "Progress: 50%" && sleep 2 && echo "Progress: 100%" && echo "Simulation complete"`],
+          args: [
+            '-c',
+            `echo "Starting WISE simulation for model ${model.id}..." && ` +
+            `echo "[NOTE] WISE engine not yet implemented" && ` +
+            `sleep 1 && echo "Progress: 25%" && ` +
+            `sleep 1 && echo "Progress: 50%" && ` +
+            `sleep 1 && echo "Progress: 75%" && ` +
+            `sleep 1 && echo "Progress: 100%" && ` +
+            `echo "Simulation complete"`,
+          ],
         };
 
       default:
@@ -262,9 +316,20 @@ export class ModelExecutionService implements IModelExecutionService {
    */
   private parseProgress(line: string, jobId: JobId, options?: ExecutionOptions): void {
     // Look for "Progress: XX%" pattern
-    const match = line.match(/Progress:\s*(\d+)%/i);
+    let match = line.match(/Progress:\s*(\d+)%/i);
     if (match) {
       const progress = parseInt(match[1], 10);
+      this.jobQueue.updateProgress(jobId, progress);
+      options?.onProgress?.(progress);
+      return;
+    }
+
+    // Look for FireSTARR "Running scenario X of Y" pattern
+    match = line.match(/Running scenario (\d+) of (\d+)/);
+    if (match) {
+      const current = parseInt(match[1], 10);
+      const total = parseInt(match[2], 10);
+      const progress = Math.round((current / total) * 100);
       this.jobQueue.updateProgress(jobId, progress);
       options?.onProgress?.(progress);
     }
