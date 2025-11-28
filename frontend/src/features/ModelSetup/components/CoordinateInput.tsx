@@ -62,8 +62,22 @@ export function CoordinateInput({ onSubmit, initialLat, initialLng }: Coordinate
       e.preventDefault();
       setError('');
 
-      const latNum = parseFloat(lat);
-      const lngNum = parseFloat(lng);
+      // Debug logging
+      console.log('[CoordinateInput] Submit - lat:', lat, 'lng:', lng);
+
+      // Check for empty inputs first
+      const latTrimmed = lat.trim();
+      const lngTrimmed = lng.trim();
+
+      console.log('[CoordinateInput] Trimmed - lat:', latTrimmed, 'lng:', lngTrimmed);
+
+      if (!latTrimmed || !lngTrimmed) {
+        setError('Please enter both latitude and longitude values');
+        return;
+      }
+
+      const latNum = parseFloat(latTrimmed);
+      const lngNum = parseFloat(lngTrimmed);
 
       // Validate numbers
       if (isNaN(latNum) || isNaN(lngNum)) {
@@ -117,24 +131,32 @@ export function CoordinateInput({ onSubmit, initialLat, initialLng }: Coordinate
         <label style={labelStyle}>
           Latitude (°N)
           <input
-            type="number"
-            step="any"
+            type="text"
+            inputMode="decimal"
             value={lat}
-            onChange={(e) => setLat(e.target.value)}
-            placeholder="54.5"
+            onChange={(e) => {
+              console.log('[CoordinateInput] lat onChange:', e.target.value);
+              setLat(e.target.value);
+            }}
+            placeholder="e.g. 54.5"
             style={inputStyle}
+            autoComplete="off"
           />
         </label>
 
         <label style={labelStyle}>
           Longitude (°W)
           <input
-            type="number"
-            step="any"
+            type="text"
+            inputMode="decimal"
             value={lng}
-            onChange={(e) => setLng(e.target.value)}
-            placeholder="-115.5"
+            onChange={(e) => {
+              console.log('[CoordinateInput] lng onChange:', e.target.value);
+              setLng(e.target.value);
+            }}
+            placeholder="e.g. -115.5"
             style={inputStyle}
+            autoComplete="off"
           />
         </label>
 

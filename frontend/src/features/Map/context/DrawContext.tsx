@@ -249,6 +249,8 @@ export function DrawProvider({ children }: DrawProviderProps) {
     if (!drawRef.current) return;
     features.forEach((f) => drawRef.current!.add(f));
     setState((prev) => ({ ...prev, features: [...prev.features, ...features] }));
+    // Notify create subscribers so useGeometrySync picks up the change
+    createSubscribers.current.forEach((cb) => cb(features));
   }, []);
 
   const onCreateSubscribe = useCallback((callback: (features: DrawnFeature[]) => void) => {

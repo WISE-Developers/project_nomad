@@ -44,7 +44,7 @@ const optionCardStyle: React.CSSProperties = {
 
 const selectedCardStyle: React.CSSProperties = {
   ...optionCardStyle,
-  borderColor: '#ff6b35',
+  border: '2px solid #ff6b35',
   backgroundColor: 'rgba(255, 107, 53, 0.05)',
 };
 
