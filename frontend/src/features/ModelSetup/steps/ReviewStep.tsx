@@ -66,6 +66,7 @@ const checkboxStyle: React.CSSProperties = {
 const checkboxLabelStyle: React.CSSProperties = {
   fontSize: '14px',
   cursor: 'pointer',
+  color: '#333',
 };
 
 const notesStyle: React.CSSProperties = {
@@ -92,6 +93,7 @@ const warningStyle: React.CSSProperties = {
   borderRadius: '4px',
   borderLeft: '4px solid #ffc107',
   fontSize: '13px',
+  color: '#333',
 };
 
 /**
@@ -230,7 +232,7 @@ export function ReviewStep() {
       <div
         style={{
           fontSize: '12px',
-          color: '#666',
+          color: '#555',
           textAlign: 'center',
           padding: '8px',
         }}

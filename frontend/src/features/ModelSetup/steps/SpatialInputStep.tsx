@@ -8,7 +8,6 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useWizardData } from '../../Wizard';
 import { useDraw } from '../../Map/context/DrawContext';
 import { useMap } from '../../Map/context/MapContext';
-import { DrawingToolbar } from '../../Map/components/DrawingToolbar';
 import { CoordinateInput } from '../components/CoordinateInput';
 import { GeometryUpload } from '../components/GeometryUpload';
 import { useGeometrySync } from '../hooks/useGeometrySync';
@@ -54,9 +53,11 @@ const contentStyle: React.CSSProperties = {
 
 const drawInstructionStyle: React.CSSProperties = {
   padding: '16px',
-  backgroundColor: 'rgba(255, 107, 53, 0.1)',
+  backgroundColor: '#fff8f5',
+  border: '1px solid #ffccbb',
   borderRadius: '4px',
   fontSize: '14px',
+  color: '#333',
 };
 
 const featureListStyle: React.CSSProperties = {
@@ -222,17 +223,14 @@ export function SpatialInputStep() {
       {/* Tab content */}
       <div style={contentStyle}>
         {activeTab === 'draw' && (
-          <div>
-            <div style={drawInstructionStyle}>
-              <strong>Draw on the map:</strong>
-              <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
-                <li>Use the drawing tools in the top-left corner of the map</li>
-                <li>Draw a <strong>point</strong> for an ignition location</li>
-                <li>Draw a <strong>line</strong> for a fire front</li>
-                <li>Draw a <strong>polygon</strong> for a fire perimeter</li>
-              </ul>
-            </div>
-            <DrawingToolbar position="top-left" />
+          <div style={drawInstructionStyle}>
+            <strong>Draw on the map:</strong>
+            <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
+              <li>Use the drawing tools on the left side of the map</li>
+              <li>Draw a <strong>point</strong> for an ignition location</li>
+              <li>Draw a <strong>line</strong> for a fire front</li>
+              <li>Draw a <strong>polygon</strong> for a fire perimeter</li>
+            </ul>
           </div>
         )}
 

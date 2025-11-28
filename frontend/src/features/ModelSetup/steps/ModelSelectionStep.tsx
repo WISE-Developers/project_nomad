@@ -62,6 +62,7 @@ const optionTitleStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: '8px',
+  color: '#333',
 };
 
 const optionDescStyle: React.CSSProperties = {
@@ -272,6 +273,7 @@ export function ModelSelectionStep() {
             borderRadius: '4px',
             fontSize: '13px',
             borderLeft: '4px solid #3498db',
+            color: '#333',
           }}
         >
           <strong>Note:</strong> Probabilistic runs execute multiple simulations (typically 100+) to

@@ -17,7 +17,8 @@
     "@turf/turf": "^7.3.1",
     "mapbox-gl": "^3.16.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-rnd": "^10.5.2"
   },
   "devDependencies": {
     "@types/mapbox__mapbox-gl-draw": "^1.4.9",

@@ -180,7 +180,7 @@ export function FWIInput({ values, onChange, errors = {} }: FWIInputProps) {
 
       {/* Fire Danger Rating Display */}
       <div style={{ ...ratingBoxStyle, backgroundColor: `${ratingColor}20`, border: `2px solid ${ratingColor}` }}>
-        <span style={{ fontSize: '14px' }}>
+        <span style={{ fontSize: '14px', color: '#333' }}>
           <strong>Fire Danger Rating:</strong>
         </span>
         <span
@@ -198,8 +198,8 @@ export function FWIInput({ values, onChange, errors = {} }: FWIInputProps) {
       </div>
 
       {/* FWI explanation */}
-      <div style={{ fontSize: '12px', color: '#666', lineHeight: 1.5 }}>
-        <strong>About FWI System:</strong> The Canadian Fire Weather Index (FWI) System rates fire
+      <div style={{ fontSize: '12px', color: '#555', lineHeight: 1.5 }}>
+        <strong style={{ color: '#333' }}>About FWI System:</strong> The Canadian Fire Weather Index (FWI) System rates fire
         danger using six components. FFMC, DMC, and DC track moisture content in fine fuels, duff,
         and deep organic layers. ISI and BUI rate fire spread and fuel consumption potential. FWI is
         the overall fire intensity indicator.

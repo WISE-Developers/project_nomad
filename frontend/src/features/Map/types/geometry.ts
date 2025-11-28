@@ -55,12 +55,12 @@ export interface DrawingStyles {
 }
 
 /**
- * Default drawing styles (fire theme)
+ * Default drawing styles (yellow - visible on all map backgrounds)
  */
 export const DEFAULT_DRAWING_STYLES: Required<DrawingStyles> = {
-  pointRadius: 8,
-  lineWidth: 3,
-  strokeColor: '#ff6b35',
-  fillColor: '#ff6b35',
+  pointRadius: 10,
+  lineWidth: 4,
+  strokeColor: '#FFD700',
+  fillColor: '#FFD700',
   fillOpacity: 0.2,
 };

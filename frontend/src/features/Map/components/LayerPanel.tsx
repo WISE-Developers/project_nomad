@@ -66,6 +66,7 @@ export function LayerPanel({
     borderBottom: '1px solid #eee',
     fontWeight: 600,
     fontSize: '14px',
+    color: '#333',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',

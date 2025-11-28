@@ -76,6 +76,7 @@ const infoBoxStyle: React.CSSProperties = {
   backgroundColor: '#f5f5f5',
   borderRadius: '4px',
   fontSize: '14px',
+  color: '#333',
 };
 
 const forecastBadgeStyle: React.CSSProperties = {

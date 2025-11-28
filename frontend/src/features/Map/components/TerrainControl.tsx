@@ -69,6 +69,7 @@ export function TerrainControl({
     gap: '8px',
     fontSize: '14px',
     fontWeight: 500,
+    color: '#333',
   };
 
   const toggleStyle: React.CSSProperties = {

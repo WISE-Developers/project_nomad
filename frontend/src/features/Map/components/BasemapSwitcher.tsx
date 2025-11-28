@@ -107,6 +107,7 @@ export function BasemapSwitcher({
     gap: '8px',
     fontSize: '14px',
     fontWeight: 500,
+    color: '#333',
   };
 
   const dropdownStyle: React.CSSProperties = {
@@ -128,6 +129,7 @@ export function BasemapSwitcher({
     alignItems: 'center',
     gap: '8px',
     fontSize: '14px',
+    color: '#333',
     borderBottom: '1px solid #eee',
   };
 

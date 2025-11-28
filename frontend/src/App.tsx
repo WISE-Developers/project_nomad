@@ -8,6 +8,7 @@ import {
   MeasurementTool,
   TerrainControl,
   DrawProvider,
+  useDraw,
 } from './features/Map';
 import { ModelSetupWizard } from './features/ModelSetup';
 import type { ModelSetupData } from './features/ModelSetup';
@@ -29,8 +30,12 @@ const newModelButtonStyle: React.CSSProperties = {
   zIndex: 1000,
 };
 
-function App() {
+/**
+ * Inner component that has access to DrawContext
+ */
+function AppContent() {
   const [showWizard, setShowWizard] = useState(false);
+  const { deleteAll } = useDraw();
 
   const handleNewModel = useCallback(() => {
     setShowWizard(true);
@@ -41,12 +46,50 @@ function App() {
     // TODO: In Phase 6, submit to backend API
     alert(`Model setup complete!\n\nEngine: ${data.model.engine}\nRun Type: ${data.model.runType}\nDuration: ${data.temporal.durationHours} hours`);
     setShowWizard(false);
+    // Keep geometry on complete - it becomes part of the model
   }, []);
 
   const handleWizardCancel = useCallback(() => {
+    deleteAll(); // Clear drawn geometry on cancel
     setShowWizard(false);
-  }, []);
+  }, [deleteAll]);
 
+  return (
+    <>
+      {/* New Model button */}
+      {!showWizard && (
+        <button style={newModelButtonStyle} onClick={handleNewModel}>
+          🔥 New Fire Model
+        </button>
+      )}
+
+      {/* Model Setup Wizard */}
+      {showWizard && (
+        <>
+          <ModelSetupWizard
+            onComplete={handleWizardComplete}
+            onCancel={handleWizardCancel}
+          />
+          {/* Drawing toolbar on bottom-left when wizard is open (out of the way) */}
+          <DrawingToolbar position="bottom-left" />
+        </>
+      )}
+
+      {/* Map tools (visible when wizard is closed) */}
+      {!showWizard && (
+        <>
+          <DrawingToolbar position="top-left" />
+          <MeasurementTool position="bottom-left" />
+          <LayerPanel position="top-right" />
+          <BasemapSwitcher position="bottom-right" />
+          <TerrainControl position="top-right" />
+        </>
+      )}
+    </>
+  );
+}
+
+function App() {
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
       <MapProvider>
@@ -57,31 +100,7 @@ function App() {
           }}
         >
           <DrawProvider>
-            {/* New Model button */}
-            {!showWizard && (
-              <button style={newModelButtonStyle} onClick={handleNewModel}>
-                🔥 New Fire Model
-              </button>
-            )}
-
-            {/* Model Setup Wizard */}
-            {showWizard && (
-              <ModelSetupWizard
-                onComplete={handleWizardComplete}
-                onCancel={handleWizardCancel}
-              />
-            )}
-
-            {/* Map tools (visible when wizard is closed) */}
-            {!showWizard && (
-              <>
-                <DrawingToolbar position="top-left" />
-                <MeasurementTool position="bottom-left" />
-                <LayerPanel position="top-right" />
-                <BasemapSwitcher position="bottom-right" />
-                <TerrainControl position="top-right" />
-              </>
-            )}
+            <AppContent />
           </DrawProvider>
         </MapContainer>
       </MapProvider>
