@@ -57,7 +57,7 @@ router.get(
     const resultsService = getModelResultsService(engine);
 
     // Get result
-    const stored = resultsService.getResultById(typedResultId);
+    const stored = await resultsService.getResultById(typedResultId);
     if (!stored) {
       throw new NotFoundError('Result', resultId);
     }
@@ -111,7 +111,7 @@ router.get(
     const resultsService = getModelResultsService(engine);
 
     // Get result
-    const stored = resultsService.getResultById(typedResultId);
+    const stored = await resultsService.getResultById(typedResultId);
     if (!stored) {
       throw new NotFoundError('Result', resultId);
     }

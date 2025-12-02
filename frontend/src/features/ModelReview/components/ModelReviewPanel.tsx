@@ -27,7 +27,7 @@ interface ModelReviewPanelProps {
   /** Called when panel is closed */
   onClose: () => void;
   /** Called when output is added to main map */
-  onAddToMap?: (output: OutputItem, geoJson: GeoJSON.GeoJSON) => void;
+  onAddToMap?: (output: OutputItem, geoJson: GeoJSON.GeoJSON, modelInfo?: { modelId: string; modelName: string; engineType: string }) => void;
 }
 
 /**
@@ -71,13 +71,19 @@ export function ModelReviewPanel({
           throw new Error(`Failed to fetch GeoJSON: ${response.status}`);
         }
         const geoJson = await response.json();
-        onAddToMap(output, geoJson);
+        // Pass model info for better layer naming
+        const modelInfo = results ? {
+          modelId: results.modelId,
+          modelName: results.modelName,
+          engineType: results.engineType,
+        } : undefined;
+        onAddToMap(output, geoJson, modelInfo);
       } catch (err) {
         console.error('Failed to add to map:', err);
         alert('Failed to load output data for map');
       }
     },
-    [onAddToMap]
+    [onAddToMap, results]
   );
 
   /**
@@ -100,6 +106,34 @@ export function ModelReviewPanel({
   const handleCloseExport = useCallback(() => {
     setShowExportPanel(false);
   }, []);
+
+  /**
+   * Handle adding ignition geometry to map
+   */
+  const handleAddIgnitionToMap = useCallback(() => {
+    if (!onAddToMap || !results?.inputs?.ignition) return;
+
+    // Create a fake OutputItem for the ignition
+    const ignitionOutput: OutputItem = {
+      id: `ignition-${results.modelId}`,
+      type: 'fire_perimeter' as OutputItem['type'],
+      format: 'geojson',
+      name: 'Ignition',
+      timeOffsetHours: null,
+      filePath: null,
+      previewUrl: '',
+      downloadUrl: '',
+      metadata: {},
+    };
+
+    const modelInfo = {
+      modelId: results.modelId,
+      modelName: results.modelName,
+      engineType: results.engineType,
+    };
+
+    onAddToMap(ignitionOutput, results.inputs.ignition.geojson as GeoJSON.GeoJSON, modelInfo);
+  }, [onAddToMap, results]);
 
   // Loading state
   if (isLoading && !results) {
@@ -171,10 +205,13 @@ export function ModelReviewPanel({
         <div style={contentStyle}>
           {/* Summary */}
           <ResultsSummary
+            modelId={results.modelId}
             modelName={results.modelName}
             engineType={results.engineType}
             summary={results.executionSummary}
             outputCount={results.outputs.length}
+            inputs={results.inputs}
+            onAddIgnitionToMap={handleAddIgnitionToMap}
           />
 
           {/* Output list */}
@@ -234,7 +271,7 @@ const exportModalOverlayStyle: React.CSSProperties = {
 const panelStyle: React.CSSProperties = {
   position: 'absolute',
   top: '16px',
-  right: '16px',
+  left: '250px',
   width: '400px',
   maxHeight: 'calc(100vh - 32px)',
   backgroundColor: 'white',

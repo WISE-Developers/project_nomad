@@ -202,12 +202,12 @@ export function TemporalStep() {
           Start Date & Time
           {temporal.isForecast && (
             <span style={{ ...forecastBadgeStyle, backgroundColor: '#3498db', color: 'white' }}>
-              Forecast Mode
+              Predictive Modelling
             </span>
           )}
           {temporal.startDate && !temporal.isForecast && (
             <span style={{ ...forecastBadgeStyle, backgroundColor: '#2ecc71', color: 'white' }}>
-              Historical Mode
+              Retroactive Modelling
             </span>
           )}
         </label>
@@ -280,18 +280,18 @@ export function TemporalStep() {
       <div style={{ ...infoBoxStyle, backgroundColor: temporal.isForecast ? '#ebf5fb' : '#eafaf1' }}>
         {temporal.isForecast ? (
           <>
-            <strong>Forecast Mode:</strong> The simulation starts in the future. Weather data will be
-            sourced from forecast models.
+            <strong>Predictive Modelling (forecast):</strong> The simulation starts in the future.
+            Weather data will be sourced from forecast models via SpotWX.
           </>
         ) : temporal.startDate ? (
           <>
-            <strong>Historical Mode:</strong> The simulation starts in the past. Weather data will be
-            sourced from historical records.
+            <strong>Retroactive Modelling (historical):</strong> The simulation starts in the past.
+            You will need to provide historical weather data via file upload.
           </>
         ) : (
           <>
-            Select a start date. If the date is in the past, historical weather data will be used. If
-            it's in the future, forecast data will be used.
+            Select a start date. Past dates enable retroactive modelling with uploaded weather data.
+            Future dates enable predictive modelling with SpotWX forecasts.
           </>
         )}
       </div>

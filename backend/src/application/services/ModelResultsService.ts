@@ -3,8 +3,11 @@
  *
  * Retrieves and manages model execution results.
  * Bridges the FireSTARR engine output parsing with the API layer.
+ * Results are persisted to SQLite for survival across restarts.
  */
 
+import * as fs from 'fs';
+import * as path from 'path';
 import { Result } from '../common/index.js';
 import { DomainError, NotFoundError } from '../../domain/errors/index.js';
 import {
@@ -15,6 +18,9 @@ import {
   OutputFormat,
 } from '../../domain/entities/index.js';
 import { IFireModelingEngine, ExecutionStatus } from '../interfaces/IFireModelingEngine.js';
+import { getResultRepository, getJobRepository } from '../../infrastructure/database/index.js';
+import type { IResultRepository, IJobRepository } from '../interfaces/index.js';
+import { createFireModelId } from '../../domain/entities/FireModel.js';
 
 /**
  * Execution summary for API response
@@ -45,6 +51,27 @@ export interface OutputItem {
 }
 
 /**
+ * Ignition geometry for display on map
+ */
+export interface IgnitionGeometry {
+  type: 'point' | 'polygon';
+  coordinates: [number, number] | [number, number][][];
+  geojson: GeoJSON.Feature | GeoJSON.FeatureCollection;
+}
+
+/**
+ * Model inputs for download/display
+ */
+export interface ModelInputs {
+  /** Ignition geometry */
+  ignition?: IgnitionGeometry;
+  /** Weather CSV file path (for download) */
+  weatherCsvPath?: string;
+  /** Weather CSV download URL */
+  weatherDownloadUrl?: string;
+}
+
+/**
  * Full results response for API
  */
 export interface ModelResultsResponse {
@@ -52,25 +79,31 @@ export interface ModelResultsResponse {
   modelName: string;
   engineType: string;
   executionSummary: ExecutionSummary;
+  inputs?: ModelInputs;
   outputs: OutputItem[];
 }
 
 /**
- * In-memory result store
- * Maps resultId -> { modelId, result, filePath }
+ * Stored result interface for API compatibility
  */
 interface StoredResult {
   modelId: FireModelId;
   result: ModelResult;
 }
 
-const resultStore: Map<string, StoredResult> = new Map();
-
 /**
  * Service for managing model results
  */
 export class ModelResultsService {
   constructor(private engine: IFireModelingEngine) {}
+
+  private get resultRepo(): IResultRepository {
+    return getResultRepository();
+  }
+
+  private get jobRepo(): IJobRepository {
+    return getJobRepository();
+  }
 
   /**
    * Get all results for a model
@@ -82,28 +115,48 @@ export class ModelResultsService {
   ): Promise<Result<ModelResultsResponse, DomainError>> {
     // Get execution status - handle engine not being configured
     let status: ExecutionStatus;
+    let useDatabase = false;
+
     try {
       status = await this.engine.getStatus(modelId);
     } catch (error) {
-      // Engine not configured or model not found
+      // Engine not configured or model not found in current session
+      // Fall back to database for jobs that completed before restart
       const message = error instanceof Error ? error.message : String(error);
-      console.warn(`[ModelResultsService] Failed to get status for ${modelId}: ${message}`);
+      console.warn(`[ModelResultsService] Engine doesn't have ${modelId}, checking database: ${message}`);
 
-      // Return a "not started" status
-      return Result.ok({
-        modelId,
-        modelName,
-        engineType,
-        executionSummary: {
-          startedAt: null,
-          completedAt: null,
-          durationSeconds: null,
-          status: 'queued',
-          progress: 0,
-          error: 'Engine not configured or model not initialized',
-        },
-        outputs: [],
-      });
+      // Check job repository for status
+      const jobs = await this.jobRepo.findByModelId(createFireModelId(modelId));
+      const latestJob = jobs[0]; // Jobs are sorted by createdAt DESC
+
+      if (latestJob) {
+        useDatabase = true;
+        status = {
+          state: latestJob.status as ExecutionStatus['state'],
+          progress: latestJob.progress,
+          startedAt: latestJob.startedAt,
+          completedAt: latestJob.completedAt,
+          updatedAt: latestJob.completedAt ?? latestJob.startedAt ?? latestJob.createdAt,
+          error: latestJob.error,
+        };
+        console.log(`[ModelResultsService] Found job in database: ${latestJob.status}`);
+      } else {
+        // No job found in database either
+        return Result.ok({
+          modelId,
+          modelName,
+          engineType,
+          executionSummary: {
+            startedAt: null,
+            completedAt: null,
+            durationSeconds: null,
+            status: 'queued',
+            progress: 0,
+            error: 'Model has not been executed',
+          },
+          outputs: [],
+        });
+      }
     }
 
     // Build execution summary with timestamps
@@ -133,15 +186,39 @@ export class ModelResultsService {
       });
     }
 
-    // Get results from engine
+    // Get results - from engine or database
     try {
-      const results = await this.engine.getResults(modelId);
+      let results: ModelResult[];
 
-      // Store results and build output items
+      if (useDatabase) {
+        // Get results from database (for models that ran before restart)
+        results = await this.resultRepo.findByModelId(createFireModelId(modelId));
+        console.log(`[ModelResultsService] Found ${results.length} results in database for ${modelId}`);
+      } else {
+        // Get results from engine (for models running in current session)
+        results = await this.engine.getResults(modelId);
+
+        // Check if results already exist in database (avoid duplicates)
+        const existingResults = await this.resultRepo.findByModelId(createFireModelId(modelId));
+        if (existingResults.length === 0) {
+          // Only save if no results exist yet
+          for (const result of results) {
+            try {
+              await this.resultRepo.save(result);
+            } catch (e) {
+              console.log(`[ModelResultsService] Result ${result.id} save error: ${e}`);
+            }
+          }
+          console.log(`[ModelResultsService] Saved ${results.length} results for ${modelId}`);
+        } else {
+          // Use existing results from database instead
+          results = existingResults;
+          console.log(`[ModelResultsService] Using ${results.length} existing results for ${modelId}`);
+        }
+      }
+
+      // Build output items
       const outputs: OutputItem[] = results.map((result) => {
-        // Store result for later retrieval
-        resultStore.set(result.id, { modelId, result });
-
         // Get file path from metadata
         const filePath = (result.metadata.filePath as string) ?? null;
 
@@ -162,11 +239,63 @@ export class ModelResultsService {
         };
       });
 
+      // Build model inputs (ignition + weather)
+      let inputs: ModelInputs | undefined;
+      if (outputs.length > 0 && outputs[0].filePath) {
+        const simDir = path.dirname(outputs[0].filePath);
+        inputs = {};
+
+        // Try to load ignition geometry
+        const ignitionPath = path.join(simDir, 'ignition.geojson');
+        try {
+          if (fs.existsSync(ignitionPath)) {
+            const geojsonContent = fs.readFileSync(ignitionPath, 'utf-8');
+            const geojson = JSON.parse(geojsonContent) as GeoJSON.Feature | GeoJSON.FeatureCollection;
+
+            // Extract geometry type and coordinates
+            const feature = 'features' in geojson ? geojson.features[0] : geojson;
+            const geomType = feature?.geometry?.type;
+
+            if (geomType === 'Point') {
+              const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+              inputs.ignition = {
+                type: 'point',
+                coordinates: coords,
+                geojson,
+              };
+            } else if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+              const coords = (feature.geometry as GeoJSON.Polygon).coordinates as [number, number][][];
+              inputs.ignition = {
+                type: 'polygon',
+                coordinates: coords,
+                geojson,
+              };
+            }
+            console.log(`[ModelResultsService] Loaded ignition geometry from ${ignitionPath}`);
+          }
+        } catch (e) {
+          console.warn(`[ModelResultsService] Failed to load ignition.geojson:`, e);
+        }
+
+        // Check for weather.csv
+        const weatherPath = path.join(simDir, 'weather.csv');
+        if (fs.existsSync(weatherPath)) {
+          inputs.weatherCsvPath = weatherPath;
+          inputs.weatherDownloadUrl = `/api/v1/models/${modelId}/inputs/weather`;
+        }
+
+        // Only include inputs if we found something
+        if (!inputs.ignition && !inputs.weatherCsvPath) {
+          inputs = undefined;
+        }
+      }
+
       return Result.ok({
         modelId,
         modelName,
         engineType,
         executionSummary,
+        inputs,
         outputs,
       });
     } catch (error) {
@@ -176,19 +305,25 @@ export class ModelResultsService {
   }
 
   /**
-   * Get a specific result by ID
+   * Get a specific result by ID (from database)
    */
-  getResultById(resultId: ModelResultId): StoredResult | undefined {
-    return resultStore.get(resultId);
+  async getResultById(resultId: ModelResultId): Promise<StoredResult | undefined> {
+    const result = await this.resultRepo.findById(resultId);
+    if (!result) return undefined;
+
+    return {
+      modelId: result.fireModelId,
+      result,
+    };
   }
 
   /**
    * Get file path for a result
    */
-  getResultFilePath(resultId: ModelResultId): string | null {
-    const stored = resultStore.get(resultId);
-    if (!stored) return null;
-    return (stored.result.metadata.filePath as string) ?? null;
+  async getResultFilePath(resultId: ModelResultId): Promise<string | null> {
+    const result = await this.resultRepo.findById(resultId);
+    if (!result) return null;
+    return (result.metadata.filePath as string) ?? null;
   }
 }
 

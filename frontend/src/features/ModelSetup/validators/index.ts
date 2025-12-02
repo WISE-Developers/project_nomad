@@ -155,71 +155,69 @@ export const weatherValidator: StepValidator<ModelSetupData> = (data): Validatio
     return { isValid: false, errors };
   }
 
-  if (data.weather.source === 'manual') {
-    if (!data.weather.fwi) {
+  if (data.weather.source === 'firestarr_csv') {
+    // Validate that a FireSTARR CSV has been uploaded
+    if (!data.weather.firestarrCsvFile) {
       errors.push({
-        message: 'Please enter FWI values',
+        message: 'Please upload a FireSTARR weather CSV file',
         type: 'error',
       });
-      return { isValid: false, errors };
-    }
-
-    const { ffmc, dmc, dc, isi, bui, fwi } = data.weather.fwi;
-
-    // FFMC validation (0-101)
-    if (ffmc === undefined || ffmc === null || isNaN(ffmc)) {
-      errors.push({ field: 'ffmc', message: 'FFMC is required', type: 'error' });
-    } else if (ffmc < 0 || ffmc > 101) {
-      errors.push({ field: 'ffmc', message: 'FFMC must be between 0 and 101', type: 'error' });
-    }
-
-    // DMC validation (0+)
-    if (dmc === undefined || dmc === null || isNaN(dmc)) {
-      errors.push({ field: 'dmc', message: 'DMC is required', type: 'error' });
-    } else if (dmc < 0) {
-      errors.push({ field: 'dmc', message: 'DMC cannot be negative', type: 'error' });
-    }
-
-    // DC validation (0+)
-    if (dc === undefined || dc === null || isNaN(dc)) {
-      errors.push({ field: 'dc', message: 'DC is required', type: 'error' });
-    } else if (dc < 0) {
-      errors.push({ field: 'dc', message: 'DC cannot be negative', type: 'error' });
-    }
-
-    // ISI validation (0+)
-    if (isi === undefined || isi === null || isNaN(isi)) {
-      errors.push({ field: 'isi', message: 'ISI is required', type: 'error' });
-    } else if (isi < 0) {
-      errors.push({ field: 'isi', message: 'ISI cannot be negative', type: 'error' });
-    }
-
-    // BUI validation (0+)
-    if (bui === undefined || bui === null || isNaN(bui)) {
-      errors.push({ field: 'bui', message: 'BUI is required', type: 'error' });
-    } else if (bui < 0) {
-      errors.push({ field: 'bui', message: 'BUI cannot be negative', type: 'error' });
-    }
-
-    // FWI validation (0+)
-    if (fwi === undefined || fwi === null || isNaN(fwi)) {
-      errors.push({ field: 'fwi', message: 'FWI is required', type: 'error' });
-    } else if (fwi < 0) {
-      errors.push({ field: 'fwi', message: 'FWI cannot be negative', type: 'error' });
     }
   }
 
-  if (data.weather.source === 'upload' && !data.weather.uploadedFile) {
-    errors.push({
-      message: 'Please upload a weather data file',
-      type: 'error',
-    });
+  if (data.weather.source === 'raw_weather') {
+    // Validate that a raw weather file has been uploaded
+    if (!data.weather.rawWeatherFile) {
+      errors.push({
+        message: 'Please upload a raw weather CSV file',
+        type: 'error',
+      });
+    }
+
+    // Validate starting codes
+    if (!data.weather.startingCodes) {
+      errors.push({
+        message: 'Please enter FWI starting codes',
+        type: 'error',
+      });
+    } else {
+      const { ffmc, dmc, dc } = data.weather.startingCodes;
+
+      // FFMC validation (0-101)
+      if (ffmc === undefined || ffmc === null || isNaN(ffmc)) {
+        errors.push({ field: 'ffmc', message: 'FFMC is required', type: 'error' });
+      } else if (ffmc < 0 || ffmc > 101) {
+        errors.push({ field: 'ffmc', message: 'FFMC must be between 0 and 101', type: 'error' });
+      }
+
+      // DMC validation (0+)
+      if (dmc === undefined || dmc === null || isNaN(dmc)) {
+        errors.push({ field: 'dmc', message: 'DMC is required', type: 'error' });
+      } else if (dmc < 0) {
+        errors.push({ field: 'dmc', message: 'DMC cannot be negative', type: 'error' });
+      }
+
+      // DC validation (0+)
+      if (dc === undefined || dc === null || isNaN(dc)) {
+        errors.push({ field: 'dc', message: 'DC is required', type: 'error' });
+      } else if (dc < 0) {
+        errors.push({ field: 'dc', message: 'DC cannot be negative', type: 'error' });
+      }
+    }
   }
 
   if (data.weather.source === 'spotwx') {
+    // SpotWX is only valid for forecast/predictive modelling
+    if (!data.temporal?.isForecast) {
+      errors.push({
+        message: 'SpotWX is only available for Predictive Modelling (future dates)',
+        type: 'error',
+      });
+    }
+    // Note: SpotWX integration is still in development
     errors.push({
-      message: 'SpotWX integration is coming soon. Please use manual entry for now.',
-      type: 'error',
+      message: 'SpotWX integration is under development. Please use file upload for now.',
+      type: 'warning',
     });
   }
 

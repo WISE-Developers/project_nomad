@@ -5,12 +5,14 @@
  */
 
 import React from 'react';
-import type { ExecutionSummary, ExecutionState } from '../types';
+import type { ExecutionSummary, ExecutionState, ModelInputs } from '../types';
 
 /**
  * Props for ResultsSummary
  */
 interface ResultsSummaryProps {
+  /** Model ID */
+  modelId: string;
   /** Model name */
   modelName: string;
   /** Engine type used */
@@ -19,6 +21,10 @@ interface ResultsSummaryProps {
   summary: ExecutionSummary;
   /** Number of output files */
   outputCount: number;
+  /** Model inputs (ignition, weather) */
+  inputs?: ModelInputs;
+  /** Callback to add ignition to map */
+  onAddIgnitionToMap?: () => void;
 }
 
 /**
@@ -71,11 +77,15 @@ function formatTime(timestamp: string | null): string {
  * ResultsSummary displays execution status and timing information.
  */
 export function ResultsSummary({
+  modelId,
   modelName,
   engineType,
   summary,
   outputCount,
+  inputs,
+  onAddIgnitionToMap,
 }: ResultsSummaryProps) {
+  const ignition = inputs?.ignition;
   const statusInfo = getStatusInfo(summary.status);
   const isInProgress = ['queued', 'initializing', 'running'].includes(summary.status);
 
@@ -193,9 +203,14 @@ export function ResultsSummary({
       <div style={headerStyle}>
         <div style={titleSectionStyle}>
           <h2 style={titleStyle}>{modelName}</h2>
-          <span style={engineTagStyle}>
-            {engineType.toUpperCase()}
-          </span>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+            <span style={engineTagStyle}>
+              {engineType.toUpperCase()}
+            </span>
+            <span style={{ ...engineTagStyle, fontFamily: 'monospace', fontSize: '11px' }}>
+              {modelId}
+            </span>
+          </div>
         </div>
         <div style={statusBadgeStyle}>
           {isInProgress && (
@@ -240,6 +255,122 @@ export function ResultsSummary({
           </div>
         )}
       </div>
+
+      {/* Model Inputs section */}
+      {inputs && (inputs.ignition || inputs.weatherDownloadUrl) && (
+        <div style={{
+          marginTop: '16px',
+          border: '1px solid #e0e0e0',
+          borderRadius: '6px',
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            padding: '10px 12px',
+            backgroundColor: '#fafafa',
+            borderBottom: '1px solid #e0e0e0',
+            fontWeight: 500,
+            fontSize: '14px',
+            color: '#333',
+          }}>
+            Model Inputs
+          </div>
+
+          {/* Weather input */}
+          {inputs.weatherDownloadUrl && (
+            <div style={{
+              padding: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderBottom: ignition ? '1px solid #e0e0e0' : 'none',
+            }}>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 500, color: '#1565c0' }}>
+                  Weather Data
+                </div>
+                <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                  Hourly weather CSV with FWI indices
+                </div>
+              </div>
+              <a
+                href={inputs.weatherDownloadUrl}
+                download
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  backgroundColor: '#1565c0',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  textDecoration: 'none',
+                }}
+              >
+                Download
+              </a>
+            </div>
+          )}
+
+          {/* Ignition geometry */}
+          {ignition && (
+            <div style={{
+              padding: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 500, color: '#e65100' }}>
+                  Ignition {ignition.type === 'point' ? 'Point' : 'Polygon'}
+                </div>
+                <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                  {ignition.type === 'point'
+                    ? `${(ignition.coordinates as [number, number])[1].toFixed(4)}°N, ${(ignition.coordinates as [number, number])[0].toFixed(4)}°W`
+                    : 'Fire perimeter polygon'
+                  }
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <a
+                  href={`/api/v1/models/${modelId}/inputs/ignition`}
+                  download
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    backgroundColor: '#e65100',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    textDecoration: 'none',
+                  }}
+                >
+                  Download
+                </a>
+                {onAddIgnitionToMap && (
+                  <button
+                    onClick={onAddIgnitionToMap}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      backgroundColor: '#43a047',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    + Map
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Error message */}
       {summary.error && (

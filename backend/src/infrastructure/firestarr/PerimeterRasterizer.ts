@@ -82,10 +82,11 @@ export async function rasterizePerimeter(
   }
 
   try {
-    // Dynamic import of gdal-async
-    const gdal = await import('gdal-async');
+    // Dynamic import of gdal-async (ESM wraps exports in .default)
+    const gdalModule = await import('gdal-async');
+    const gdal = gdalModule.default;
 
-    // Open template raster to get extent and projection
+    // Open template raster to get extent and projection info
     const templateDs = await gdal.openAsync(templatePath);
     const geoTransform = templateDs.geoTransform;
     const projection = templateDs.srs?.toWKT() ?? '';
@@ -97,40 +98,58 @@ export async function rasterizePerimeter(
       return Result.fail(new ValidationError('Template raster has no geotransform'));
     }
 
-    // Create output raster
-    const driver = gdal.drivers.get('GTiff');
-    const outputDs = driver.create(outputPath, width, height, 1, gdal.GDT_Byte);
+    // Calculate extent from geotransform
+    const minX = geoTransform[0];
+    const maxY = geoTransform[3];
+    const pixelWidth = geoTransform[1];
+    const pixelHeight = geoTransform[5]; // negative
+    const maxX = minX + width * pixelWidth;
+    const minY = maxY + height * pixelHeight;
 
-    // Set projection and geotransform to match template
-    outputDs.geoTransform = geoTransform;
-    if (projection) {
-      outputDs.srs = gdal.SpatialReference.fromWKT(projection);
-    }
+    templateDs.close();
 
-    // Get the band and fill with 0
-    const band = outputDs.bands.get(1);
-    band.fill(0);
-    band.noDataValue = 0;
-
-    // Create memory layer with the polygon
+    // Create memory dataset with the polygon
     const memDriver = gdal.drivers.get('Memory');
     const memDs = memDriver.create('');
-    const layer = memDs.layers.create('perimeter', gdal.SpatialReference.fromWKT(projection), gdal.wkbPolygon);
 
-    // Create feature from WKT
+    // Create layer in target CRS (UTM from fuel grid)
+    const targetSrs = gdal.SpatialReference.fromWKT(projection);
+    const layer = memDs.layers.create('perimeter', targetSrs, gdal.wkbPolygon);
+
+    // Create geometry from WKT (coordinates are in WGS84)
     const wkt = geometryToWKT(geometry);
     const gdalGeom = gdal.Geometry.fromWKT(wkt);
+
+    // Transform polygon from WGS84 to target CRS (UTM)
+    const wgs84 = gdal.SpatialReference.fromProj4('+proj=longlat +datum=WGS84 +no_defs');
+    const transform = new gdal.CoordinateTransformation(wgs84, targetSrs);
+    gdalGeom.transform(transform);
+
+    // Create feature with transformed geometry
     const feature = new gdal.Feature(layer);
     feature.setGeometry(gdalGeom);
     layer.features.add(feature);
 
-    // Rasterize the layer
-    await gdal.rasterizeAsync(outputDs, memDs, [layer.name], {
-      bands: [1],
-      burnValues: [burnValue],
-    });
+    console.log(`[PerimeterRasterizer] Rasterizing polygon to ${outputPath}`);
+    console.log(`[PerimeterRasterizer] Template: ${width}x${height}, extent: [${minX}, ${minY}, ${maxX}, ${maxY}]`);
+
+    // Use gdal_rasterize CLI-style API to create output raster
+    // -te: target extent, -tr: target resolution, -burn: value, -init: initial value
+    // -co TILED=YES: FireSTARR requires tiled TIFF, not striped
+    const resultDs = await gdal.rasterizeAsync(outputPath, memDs, [
+      '-burn', String(burnValue),
+      '-init', '0',
+      '-a_nodata', '0',
+      '-te', String(minX), String(minY), String(maxX), String(maxY),
+      '-tr', String(Math.abs(pixelWidth)), String(Math.abs(pixelHeight)),
+      '-ot', 'Byte',
+      '-of', 'GTiff',
+      '-co', 'TILED=YES',
+      '-l', 'perimeter'
+    ]);
 
     // Count burned cells
+    const band = resultDs.bands.get(1);
     const data = band.pixels.read(0, 0, width, height);
     let burnedCells = 0;
     for (let i = 0; i < data.length; i++) {
@@ -138,9 +157,7 @@ export async function rasterizePerimeter(
     }
 
     // Clean up
-    outputDs.flush();
-    outputDs.close();
-    templateDs.close();
+    resultDs.close();
     memDs.close();
 
     console.log(`[PerimeterRasterizer] Created ${outputPath}: ${width}x${height}, ${burnedCells} burned cells`);
@@ -177,7 +194,8 @@ export async function rasterizePerimeter(
  */
 export async function isGDALAvailable(): Promise<boolean> {
   try {
-    const gdal = await import('gdal-async');
+    const gdalModule = await import('gdal-async');
+    const gdal = gdalModule.default;
     // Try to access a GDAL function to verify it's working
     const drivers = gdal.drivers.getNames();
     return drivers.length > 0;

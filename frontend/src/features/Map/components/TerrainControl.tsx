@@ -15,7 +15,7 @@ interface TerrainControlProps {
  */
 const POSITION_STYLES: Record<string, React.CSSProperties> = {
   'top-left': { top: '10px', left: '10px' },
-  'top-right': { top: '120px', right: '10px' },
+  'top-right': { top: '10px', right: '50px' }, // Leave space for zoom controls on the right
   'bottom-left': { bottom: '30px', left: '10px' },
   'bottom-right': { bottom: '80px', right: '10px' },
 };
@@ -52,7 +52,7 @@ export function TerrainControl({
     borderRadius: '4px',
     boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
     padding: '8px',
-    minWidth: '140px',
+    minWidth: '240px',
     ...POSITION_STYLES[position],
   };
 

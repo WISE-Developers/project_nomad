@@ -37,14 +37,16 @@ export interface GeoJSONLayerConfig extends BaseLayerConfig {
   type: 'geojson';
   /** GeoJSON data */
   data: FeatureCollection;
-  /** Fill color (for polygons) */
+  /** Fill color (for polygons) - ignored if useFeatureColors is true */
   fillColor?: string;
-  /** Stroke/line color */
+  /** Stroke/line color - ignored if useFeatureColors is true */
   strokeColor?: string;
   /** Stroke width */
   strokeWidth?: number;
   /** Fill opacity */
   fillOpacity?: number;
+  /** Use color from feature properties instead of single color */
+  useFeatureColors?: boolean;
 }
 
 /**

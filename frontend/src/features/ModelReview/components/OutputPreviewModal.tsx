@@ -135,21 +135,46 @@ export function OutputPreviewModal({
           },
         });
 
-        // Fit map to data bounds
+        // Fit map to data bounds after source is added
         if (geoJsonData.features.length > 0) {
           const bounds = new mapboxgl.LngLatBounds();
+          let hasValidCoords = false;
+
           geoJsonData.features.forEach((feature) => {
             if (feature.geometry.type === 'Polygon') {
               const coords = feature.geometry.coordinates as [number, number][][];
-              coords[0].forEach((coord) => bounds.extend(coord));
+              if (coords[0] && coords[0].length > 0) {
+                coords[0].forEach((coord) => {
+                  if (Array.isArray(coord) && coord.length >= 2) {
+                    bounds.extend(coord);
+                    hasValidCoords = true;
+                  }
+                });
+              }
             } else if (feature.geometry.type === 'MultiPolygon') {
               const coords = feature.geometry.coordinates as [number, number][][][];
               coords.forEach((polygon) => {
-                polygon[0].forEach((coord) => bounds.extend(coord));
+                if (polygon[0] && polygon[0].length > 0) {
+                  polygon[0].forEach((coord) => {
+                    if (Array.isArray(coord) && coord.length >= 2) {
+                      bounds.extend(coord);
+                      hasValidCoords = true;
+                    }
+                  });
+                }
               });
             }
           });
-          map.fitBounds(bounds, { padding: 50 });
+
+          if (hasValidCoords && !bounds.isEmpty()) {
+            console.log('[Preview] Fitting bounds:', bounds.toArray());
+            // Wait for map to be idle before fitting bounds
+            map.once('idle', () => {
+              map.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+            });
+          } else {
+            console.warn('[Preview] No valid bounds to fit, using default view');
+          }
         }
 
         // Add navigation controls

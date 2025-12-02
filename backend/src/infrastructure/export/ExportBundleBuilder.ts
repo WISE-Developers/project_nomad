@@ -82,7 +82,7 @@ export class ExportBundleBuilder {
 
     for (const request of this.itemRequests) {
       const typedResultId = createModelResultId(request.resultId);
-      const stored = resultsService.getResultById(typedResultId);
+      const stored = await resultsService.getResultById(typedResultId);
 
       if (!stored) {
         throw new Error(`Result not found: ${request.resultId}`);

@@ -7,8 +7,9 @@
  * - Working directory structure
  */
 
-import { mkdir, rm, access } from 'fs/promises';
+import { mkdir, rm, access, writeFile, readdir } from 'fs/promises';
 import { join } from 'path';
+import { existsSync } from 'fs';
 import { IInputGenerator, InputGenerationResult } from '../../application/interfaces/IInputGenerator.js';
 import { Result } from '../../application/common/index.js';
 import { DomainError, ValidationError } from '../../domain/errors/index.js';
@@ -23,8 +24,8 @@ import { rasterizePerimeter, isGDALAvailable } from './PerimeterRasterizer.js';
 export interface FireSTARRInputConfig {
   /** Base path for simulations (e.g., /path/to/data/sims) */
   readonly simsBasePath: string;
-  /** Path to fuel grid template (for perimeter rasterization) */
-  readonly fuelGridTemplatePath?: string;
+  /** Root path for fuel grids (e.g., /path/to/data/generated/grid/100m) */
+  readonly gridRoot?: string;
 }
 
 /**
@@ -39,6 +40,110 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
 
   constructor(config: FireSTARRInputConfig) {
     this.config = config;
+  }
+
+  /**
+   * Finds the fuel grid that contains the given coordinates.
+   * Uses year-based lookup with fallback:
+   *   1. First checks {gridRoot}/{modelYear}/ for year-specific fuel grids
+   *   2. Falls back to {gridRoot}/default/
+   *
+   * @param latitude - WGS84 latitude
+   * @param longitude - WGS84 longitude
+   * @param modelYear - Model year for year-specific fuel lookup
+   * @returns Path to matching fuel grid, or undefined if not found
+   */
+  async findFuelGridForCoordinates(
+    latitude: number,
+    longitude: number,
+    modelYear: number
+  ): Promise<string | undefined> {
+    if (!this.config.gridRoot || !existsSync(this.config.gridRoot)) {
+      console.warn('[FireSTARRInputGenerator] No gridRoot configured or path does not exist');
+      return undefined;
+    }
+
+    // Try year-specific directory first, then fall back to default
+    const dirsToCheck = [
+      join(this.config.gridRoot, String(modelYear)),
+      join(this.config.gridRoot, 'default'),
+    ];
+
+    try {
+      // Dynamic import of gdal-async
+      const gdalModule = await import('gdal-async');
+      const gdal = gdalModule.default;
+
+      for (const gridDir of dirsToCheck) {
+        if (!existsSync(gridDir)) {
+          continue;
+        }
+
+        // Scan for fuel_*.tif files in this directory
+        const entries = await readdir(gridDir, { withFileTypes: true });
+        const fuelFiles = entries.filter(
+          e => e.isFile() && e.name.startsWith('fuel_') && e.name.endsWith('.tif')
+        );
+
+        for (const fuelFile of fuelFiles) {
+          const tifPath = join(gridDir, fuelFile.name);
+
+          // Open raster and check extent
+          const ds = await gdal.openAsync(tifPath);
+          const gt = ds.geoTransform;
+          const srs = ds.srs;
+
+          if (!gt || !srs) {
+            ds.close();
+            continue;
+          }
+
+          // Get raster extent in native CRS
+          const width = ds.rasterSize.x;
+          const height = ds.rasterSize.y;
+          const minX = gt[0];
+          const maxY = gt[3];
+          const maxX = minX + width * gt[1];
+          const minY = maxY + height * gt[5]; // gt[5] is negative
+
+          // Transform point from WGS84 to raster CRS
+          // Note: fromEPSG(4326) doesn't work correctly with transformPoint, use proj4 string
+          const wgs84 = gdal.SpatialReference.fromProj4('+proj=longlat +datum=WGS84 +no_defs');
+          const transform = new gdal.CoordinateTransformation(wgs84, srs);
+
+          // Log what we're transforming
+          console.log(`[FireSTARRInputGenerator] Checking ${fuelFile.name}: lon=${longitude}, lat=${latitude}`);
+
+          // Transform coordinates directly (lon, lat -> x, y in target CRS)
+          let px: number, py: number;
+          try {
+            const transformed = transform.transformPoint(longitude, latitude);
+            px = transformed.x;
+            py = transformed.y;
+            console.log(`[FireSTARRInputGenerator] Transformed to: x=${px}, y=${py}`);
+          } catch (transformErr) {
+            console.error(`[FireSTARRInputGenerator] Transform failed for ${fuelFile.name}:`, transformErr);
+            ds.close();
+            continue;
+          }
+
+          ds.close();
+
+          // Check if point is within extent
+          if (px >= minX && px <= maxX && py >= minY && py <= maxY) {
+            console.log(`[FireSTARRInputGenerator] Found fuel grid for (${latitude}, ${longitude}) year ${modelYear}: ${tifPath}`);
+            return tifPath;
+          }
+        }
+      }
+
+      console.warn(`[FireSTARRInputGenerator] No fuel grid found containing coordinates (${latitude}, ${longitude})`);
+      return undefined;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[FireSTARRInputGenerator] Error finding fuel grid: ${message}`);
+      return undefined;
+    }
   }
 
   async generate(
@@ -66,6 +171,22 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
         scenarioId: params.scenarioId ?? 0,
       });
 
+      // Write ignition geometry as GeoJSON Feature
+      if (params.ignitionGeometry) {
+        const ignitionFile = join(workingDir, 'ignition.geojson');
+        const geometry = params.ignitionGeometry.toGeoJSON();
+        const feature: GeoJSON.Feature = {
+          type: 'Feature',
+          properties: {
+            name: 'Ignition',
+            geometryType: params.ignitionGeometry.type,
+          },
+          geometry: geometry as GeoJSON.Geometry,
+        };
+        await writeFile(ignitionFile, JSON.stringify(feature, null, 2), 'utf-8');
+        console.log(`[FireSTARRInputGenerator] Saved ignition geometry to ${ignitionFile}`);
+      }
+
       // Handle perimeter if provided
       let perimeterFile: string | undefined;
       if (params.perimeter) {
@@ -80,19 +201,24 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
         if (!gdalAvailable) {
           console.warn('[FireSTARRInputGenerator] GDAL not available, skipping perimeter rasterization');
           console.warn('[FireSTARRInputGenerator] Install gdal-async for polygon perimeter support');
-        } else if (!this.config.fuelGridTemplatePath) {
-          console.warn('[FireSTARRInputGenerator] No fuel grid template configured for perimeter rasterization');
         } else {
-          perimeterFile = join(workingDir, 'perimeter.tif');
-          const rasterResult = await rasterizePerimeter({
-            geometry: params.perimeter,
-            templatePath: this.config.fuelGridTemplatePath,
-            outputPath: perimeterFile,
-          });
+          // Find fuel grid that contains the ignition coordinates
+          const modelYear = params.startDate.getFullYear();
+          const fuelGridPath = await this.findFuelGridForCoordinates(params.latitude, params.longitude, modelYear);
+          if (!fuelGridPath) {
+            console.warn('[FireSTARRInputGenerator] No fuel grid found for coordinates, skipping perimeter rasterization');
+          } else {
+            perimeterFile = join(workingDir, 'perimeter.tif');
+            const rasterResult = await rasterizePerimeter({
+              geometry: params.perimeter,
+              templatePath: fuelGridPath,
+              outputPath: perimeterFile,
+            });
 
-          if (!rasterResult.success) {
-            console.warn(`[FireSTARRInputGenerator] Perimeter rasterization failed: ${rasterResult.error.message}`);
-            perimeterFile = undefined;
+            if (!rasterResult.success) {
+              console.warn(`[FireSTARRInputGenerator] Perimeter rasterization failed: ${rasterResult.error.message}`);
+              perimeterFile = undefined;
+            }
           }
         }
       }
@@ -179,12 +305,8 @@ export function createFireSTARRInputGenerator(): FireSTARRInputGenerator {
     ? datasetPath
     : join(projectRoot, datasetPath);
 
-  // Look for fuel grid in expected locations
-  // The fuel grid path depends on UTM zone, so we'll configure this dynamically
-  // For now, just set up the base config
-
   return new FireSTARRInputGenerator({
     simsBasePath: join(resolvedPath, 'sims'),
-    // Fuel grid template will be determined per-model based on coordinates
+    gridRoot: join(resolvedPath, 'generated/grid/100m'),
   });
 }

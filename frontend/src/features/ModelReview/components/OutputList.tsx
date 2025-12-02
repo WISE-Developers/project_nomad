@@ -152,7 +152,7 @@ function OutputListItem({
 
   const itemStyle: React.CSSProperties = {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: '12px',
     padding: '12px 16px',
     backgroundColor: isSelected ? '#e3f2fd' : 'white',
@@ -160,7 +160,6 @@ function OutputListItem({
     border: isSelected ? '2px solid #1976d2' : '1px solid #e0e0e0',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    flexWrap: 'nowrap',
   };
 
   const infoStyle: React.CSSProperties = {
@@ -173,9 +172,6 @@ function OutputListItem({
     fontSize: '14px',
     fontWeight: 500,
     color: '#333',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
   };
 
   const metaStyle: React.CSSProperties = {

@@ -58,6 +58,12 @@ export { type IEnvironmentService } from './IEnvironmentService.js';
 // Job Queue
 export { type IJobQueue } from './IJobQueue.js';
 
+// Job Repository
+export { type IJobRepository } from './IJobRepository.js';
+
+// Result Repository
+export { type IResultRepository } from './IResultRepository.js';
+
 // Model Execution Service
 export {
   type IModelExecutionService,

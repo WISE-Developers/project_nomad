@@ -1,4 +1,4 @@
-import { useLayers } from '../hooks/useLayers';
+import { useLayers } from '../context/LayerContext';
 import { LayerItem } from './LayerItem';
 
 /**
@@ -18,7 +18,7 @@ interface LayerPanelProps {
  */
 const POSITION_STYLES: Record<string, React.CSSProperties> = {
   'top-left': { top: '10px', left: '10px' },
-  'top-right': { top: '10px', right: '10px' },
+  'top-right': { top: '100px', right: '10px' },
   'bottom-left': { bottom: '30px', left: '10px' },
   'bottom-right': { bottom: '30px', right: '10px' },
 };
@@ -53,7 +53,8 @@ export function LayerPanel({
     backgroundColor: 'white',
     borderRadius: '4px',
     boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-    minWidth: '250px',
+    minWidth: '280px',
+    maxWidth: '350px',
     maxHeight: '400px',
     overflow: 'hidden',
     display: 'flex',

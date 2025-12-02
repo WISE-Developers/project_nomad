@@ -1,22 +1,50 @@
 /**
  * Weather Service
  *
- * Handles weather data resolution from manual input or external APIs.
+ * Handles weather data resolution from CSV uploads or external APIs.
+ * Uses the cffdrs library for proper FWI calculation from raw weather data.
  */
 
+import { ffmc, dmc, dc, isi, bui, fwi } from 'cffdrs';
 import type {
   WeatherConfig,
-  ManualWeatherInput,
+  FWIStartingCodes,
   WeatherDataPoint,
   WeatherLocation,
   WeatherDateRange,
 } from './types.js';
 
 /**
+ * Raw weather record parsed from CSV (without FWI columns)
+ */
+interface RawWeatherRecord {
+  scenario: number;
+  datetime: Date;
+  prec: number;
+  temp: number;
+  rh: number;
+  ws: number;
+  wd: number;
+}
+
+/**
+ * FireSTARR weather record parsed from CSV (with FWI columns)
+ */
+interface FirestarrWeatherRecord extends RawWeatherRecord {
+  ffmc: number;
+  dmc: number;
+  dc: number;
+  isi: number;
+  bui: number;
+  fwi: number;
+}
+
+/**
  * Weather service for resolving weather data.
  *
  * Supports:
- * - Manual FWI index input (creates hourly data from provided values)
+ * - FireSTARR CSV: Pre-calculated weather with all FWI columns
+ * - Raw Weather CSV: Weather without FWI + starting codes -> calculates using cffdrs
  * - SpotWX API integration (future)
  */
 export class WeatherService {
@@ -24,8 +52,8 @@ export class WeatherService {
    * Resolves weather data based on configuration.
    *
    * @param config - Weather source configuration
-   * @param location - Location for weather query
-   * @param dateRange - Date range for weather data
+   * @param location - Location for weather query (provides latitude for raw_weather)
+   * @param dateRange - Date range for weather data (used for SpotWX)
    * @returns Array of hourly weather data points
    */
   async resolveWeather(
@@ -33,11 +61,25 @@ export class WeatherService {
     location: WeatherLocation,
     dateRange: WeatherDateRange
   ): Promise<WeatherDataPoint[]> {
-    if (config.source === 'manual') {
-      if (!config.manual) {
-        throw new Error('Manual weather data required when source is "manual"');
+    if (config.source === 'firestarr_csv') {
+      if (!config.firestarrCsvContent) {
+        throw new Error('FireSTARR CSV content required when source is "firestarr_csv"');
       }
-      return this.createWeatherFromManual(config.manual, dateRange);
+      return this.parseFirestarrCsv(config.firestarrCsvContent);
+    }
+
+    if (config.source === 'raw_weather') {
+      if (!config.rawWeatherContent) {
+        throw new Error('Raw weather CSV content required when source is "raw_weather"');
+      }
+      if (!config.startingCodes) {
+        throw new Error('Starting codes required when source is "raw_weather"');
+      }
+      const latitude = config.latitude ?? location.latitude;
+      if (!latitude) {
+        throw new Error('Latitude required for CFFDRS calculation');
+      }
+      return this.processRawWeather(config.rawWeatherContent, config.startingCodes, latitude);
     }
 
     if (config.source === 'spotwx') {
@@ -53,55 +95,192 @@ export class WeatherService {
   }
 
   /**
-   * Creates hourly weather data from manual FWI input.
+   * Parses a FireSTARR-ready CSV file.
+   * Expected format: Scenario,Date,PREC,TEMP,RH,WS,WD,FFMC,DMC,DC,ISI,BUI,FWI
    *
-   * For manual input, we assume constant weather conditions throughout
-   * the simulation period. This is suitable for short-term simulations
-   * or when detailed forecast data is not available.
-   *
-   * @param manual - Manual weather input with FWI indices
-   * @param dateRange - Date range to generate data for
-   * @returns Array of hourly weather points
+   * @param content - CSV file content
+   * @returns Array of weather data points
    */
-  private createWeatherFromManual(
-    manual: ManualWeatherInput,
-    dateRange: WeatherDateRange
-  ): WeatherDataPoint[] {
-    const points: WeatherDataPoint[] = [];
-    const current = new Date(dateRange.start);
-    const end = new Date(dateRange.end);
-
-    // Generate hourly data points
-    while (current <= end) {
-      // Calculate ISI, BUI, FWI from base indices
-      const { isi, bui, fwi } = this.calculateFWI(
-        manual.ffmc,
-        manual.dmc,
-        manual.dc,
-        manual.windSpeed
-      );
-
-      points.push({
-        datetime: new Date(current),
-        temperature: manual.temperature,
-        humidity: manual.humidity,
-        windSpeed: manual.windSpeed,
-        windDirection: manual.windDirection,
-        precipitation: manual.precipitation ?? 0,
-        ffmc: manual.ffmc,
-        dmc: manual.dmc,
-        dc: manual.dc,
-        isi,
-        bui,
-        fwi,
-      });
-
-      // Advance by 1 hour
-      current.setTime(current.getTime() + 60 * 60 * 1000);
+  private parseFirestarrCsv(content: string): WeatherDataPoint[] {
+    const lines = content.trim().split('\n');
+    if (lines.length < 2) {
+      throw new Error('FireSTARR CSV must have header and at least one data row');
     }
 
-    console.log(`[WeatherService] Generated ${points.length} hourly weather points from manual input`);
-    return points;
+    const header = lines[0].toLowerCase().split(',').map((h) => h.trim());
+    const records = this.parseFirestarrRecords(lines.slice(1), header);
+
+    console.log(`[WeatherService] Parsed ${records.length} records from FireSTARR CSV`);
+
+    return records.map((r) => ({
+      datetime: r.datetime,
+      temperature: r.temp,
+      humidity: r.rh,
+      windSpeed: r.ws,
+      windDirection: r.wd,
+      precipitation: r.prec,
+      ffmc: r.ffmc,
+      dmc: r.dmc,
+      dc: r.dc,
+      isi: r.isi,
+      bui: r.bui,
+      fwi: r.fwi,
+    }));
+  }
+
+  /**
+   * Parses FireSTARR CSV records
+   */
+  private parseFirestarrRecords(lines: string[], header: string[]): FirestarrWeatherRecord[] {
+    const getIndex = (name: string): number => {
+      const idx = header.indexOf(name.toLowerCase());
+      if (idx === -1) {
+        throw new Error(`Required column "${name}" not found in CSV`);
+      }
+      return idx;
+    };
+
+    // Get column indices (handle optional Scenario column)
+    const hasScenario = header.includes('scenario');
+    const scenarioIdx = hasScenario ? getIndex('scenario') : -1;
+    const dateIdx = getIndex('date');
+    const precIdx = getIndex('prec');
+    const tempIdx = getIndex('temp');
+    const rhIdx = getIndex('rh');
+    const wsIdx = getIndex('ws');
+    const wdIdx = getIndex('wd');
+    const ffmcIdx = getIndex('ffmc');
+    const dmcIdx = getIndex('dmc');
+    const dcIdx = getIndex('dc');
+    const isiIdx = getIndex('isi');
+    const buiIdx = getIndex('bui');
+    const fwiIdx = getIndex('fwi');
+
+    return lines.map((line, lineNum) => {
+      const parts = line.split(',').map((p) => p.trim());
+      try {
+        return {
+          scenario: hasScenario ? parseInt(parts[scenarioIdx], 10) : 0,
+          datetime: new Date(parts[dateIdx]),
+          prec: parseFloat(parts[precIdx]),
+          temp: parseFloat(parts[tempIdx]),
+          rh: parseFloat(parts[rhIdx]),
+          ws: parseFloat(parts[wsIdx]),
+          wd: parseFloat(parts[wdIdx]),
+          ffmc: parseFloat(parts[ffmcIdx]),
+          dmc: parseFloat(parts[dmcIdx]),
+          dc: parseFloat(parts[dcIdx]),
+          isi: parseFloat(parts[isiIdx]),
+          bui: parseFloat(parts[buiIdx]),
+          fwi: parseFloat(parts[fwiIdx]),
+        };
+      } catch (e) {
+        throw new Error(`Error parsing line ${lineNum + 2}: ${e}`);
+      }
+    });
+  }
+
+  /**
+   * Processes raw weather CSV and calculates FWI using cffdrs library.
+   *
+   * @param content - Raw weather CSV content
+   * @param startingCodes - Initial FFMC, DMC, DC values
+   * @param latitude - Location latitude for DMC/DC calculation
+   * @returns Array of weather data points with calculated FWI
+   */
+  private processRawWeather(
+    content: string,
+    startingCodes: FWIStartingCodes,
+    latitude: number
+  ): WeatherDataPoint[] {
+    const lines = content.trim().split('\n');
+    if (lines.length < 2) {
+      throw new Error('Raw weather CSV must have header and at least one data row');
+    }
+
+    const header = lines[0].toLowerCase().split(',').map((h) => h.trim());
+    const rawRecords = this.parseRawWeatherRecords(lines.slice(1), header);
+
+    console.log(`[WeatherService] Processing ${rawRecords.length} raw weather records with cffdrs`);
+
+    // Progressive FWI calculation
+    let prevFFMC = startingCodes.ffmc;
+    let prevDMC = startingCodes.dmc;
+    let prevDC = startingCodes.dc;
+
+    return rawRecords.map((record) => {
+      const month = record.datetime.getMonth() + 1; // JavaScript months are 0-indexed
+
+      // Calculate new moisture codes using cffdrs
+      const newFFMC = ffmc(prevFFMC, record.temp, record.rh, record.ws, record.prec);
+      const newDMC = dmc(prevDMC, record.temp, record.rh, record.prec, latitude, month);
+      const newDC = dc(prevDC, record.temp, record.rh, record.prec, latitude, month);
+
+      // Calculate derived indices
+      const newISI = isi(newFFMC, record.ws);
+      const newBUI = bui(newDMC, newDC);
+      const newFWI = fwi(newISI, newBUI);
+
+      // Update previous values for next iteration
+      prevFFMC = newFFMC;
+      prevDMC = newDMC;
+      prevDC = newDC;
+
+      return {
+        datetime: record.datetime,
+        temperature: record.temp,
+        humidity: record.rh,
+        windSpeed: record.ws,
+        windDirection: record.wd,
+        precipitation: record.prec,
+        ffmc: Math.round(newFFMC * 10) / 10,
+        dmc: Math.round(newDMC * 10) / 10,
+        dc: Math.round(newDC * 10) / 10,
+        isi: Math.round(newISI * 100) / 100,
+        bui: Math.round(newBUI * 100) / 100,
+        fwi: Math.round(newFWI * 100) / 100,
+      };
+    });
+  }
+
+  /**
+   * Parses raw weather CSV records (without FWI columns)
+   */
+  private parseRawWeatherRecords(lines: string[], header: string[]): RawWeatherRecord[] {
+    const getIndex = (name: string): number => {
+      const idx = header.indexOf(name.toLowerCase());
+      if (idx === -1) {
+        throw new Error(`Required column "${name}" not found in CSV`);
+      }
+      return idx;
+    };
+
+    // Get column indices
+    const hasScenario = header.includes('scenario');
+    const scenarioIdx = hasScenario ? getIndex('scenario') : -1;
+    const dateIdx = getIndex('date');
+    const precIdx = getIndex('prec');
+    const tempIdx = getIndex('temp');
+    const rhIdx = getIndex('rh');
+    const wsIdx = getIndex('ws');
+    const wdIdx = getIndex('wd');
+
+    return lines.map((line, lineNum) => {
+      const parts = line.split(',').map((p) => p.trim());
+      try {
+        return {
+          scenario: hasScenario ? parseInt(parts[scenarioIdx], 10) : 0,
+          datetime: new Date(parts[dateIdx]),
+          prec: parseFloat(parts[precIdx]),
+          temp: parseFloat(parts[tempIdx]),
+          rh: parseFloat(parts[rhIdx]),
+          ws: parseFloat(parts[wsIdx]),
+          wd: parseFloat(parts[wdIdx]),
+        };
+      } catch (e) {
+        throw new Error(`Error parsing line ${lineNum + 2}: ${e}`);
+      }
+    });
   }
 
   /**
@@ -117,10 +296,6 @@ export class WeatherService {
     location: WeatherLocation,
     dateRange: WeatherDateRange
   ): Promise<WeatherDataPoint[]> {
-    // SpotWX API integration
-    // API: https://spotwx.io/api/v2.1/data
-    //
-    // For now, throw an error - this will be implemented when SpotWX access is available
     console.log(`[WeatherService] SpotWX fetch requested for ${location.latitude}, ${location.longitude}`);
     console.log(`[WeatherService] Date range: ${dateRange.start.toISOString()} to ${dateRange.end.toISOString()}`);
 
@@ -128,73 +303,43 @@ export class WeatherService {
     // The API returns hourly forecast data including:
     // - Temperature, humidity, wind speed/direction
     // - Precipitation
-    // - Optionally FWI indices (if available for the model)
     //
-    // For now, throw an informative error
+    // We will need to use cffdrs to calculate FWI from SpotWX data as well
     throw new Error(
-      'SpotWX integration not yet implemented. Please use manual weather input.'
+      'SpotWX integration not yet implemented. Please use file upload for now.'
     );
   }
 
   /**
-   * Calculates FWI system indices from base components.
+   * Converts weather data points to FireSTARR CSV format.
    *
-   * Simplified calculation - for accurate FWI, use a proper
-   * implementation of the Canadian FWI System equations.
-   *
-   * @param ffmc - Fine Fuel Moisture Code
-   * @param dmc - Duff Moisture Code
-   * @param dc - Drought Code
-   * @param windSpeed - Wind speed in km/h
-   * @returns ISI, BUI, and FWI values
+   * @param points - Array of weather data points
+   * @returns CSV string in FireSTARR format
    */
-  private calculateFWI(
-    ffmc: number,
-    dmc: number,
-    dc: number,
-    windSpeed: number
-  ): { isi: number; bui: number; fwi: number } {
-    // Calculate moisture content from FFMC
-    const m = 147.2 * (101 - ffmc) / (59.5 + ffmc);
+  toFirestarrCsv(points: WeatherDataPoint[]): string {
+    const header = 'Scenario,Date,PREC,TEMP,RH,WS,WD,FFMC,DMC,DC,ISI,BUI,FWI';
+    const lines = [header];
 
-    // Calculate wind function
-    const fW = windSpeed >= 40
-      ? 12 * (1 - Math.exp(-0.0818 * (windSpeed - 28)))
-      : Math.exp(0.05039 * windSpeed);
-
-    // Calculate fine fuel moisture function
-    const fF = 91.9 * Math.exp(-0.1386 * m) * (1 + Math.pow(m, 5.31) / 49300000);
-
-    // Initial Spread Index
-    const isi = 0.208 * fW * fF;
-
-    // Buildup Index
-    let bui: number;
-    if (dmc <= 0.4 * dc) {
-      bui = (0.8 * dmc * dc) / (dmc + 0.4 * dc);
-    } else {
-      bui = dmc - (1 - 0.8 * dc / (dmc + 0.4 * dc)) * (0.92 + Math.pow(0.0114 * dmc, 1.7));
-    }
-    bui = Math.max(0, bui);
-
-    // Fire Weather Index
-    let fwi: number;
-    if (bui <= 80) {
-      fwi = 0.1 * isi * (0.626 * Math.pow(bui, 0.809) + 2);
-    } else {
-      fwi = 0.1 * isi * (1000 / (25 + 108.64 * Math.exp(-0.023 * bui)));
+    for (const point of points) {
+      const dateStr = this.formatDate(point.datetime);
+      lines.push(
+        `0,${dateStr},${point.precipitation.toFixed(1)},${point.temperature.toFixed(1)},` +
+        `${point.humidity.toFixed(1)},${point.windSpeed.toFixed(1)},${point.windDirection.toFixed(1)},` +
+        `${point.ffmc.toFixed(1)},${point.dmc.toFixed(1)},${point.dc.toFixed(1)},` +
+        `${(point.isi ?? 0).toFixed(2)},${(point.bui ?? 0).toFixed(2)},${(point.fwi ?? 0).toFixed(2)}`
+      );
     }
 
-    // Apply log scaling if FWI > 1
-    if (fwi > 1) {
-      fwi = Math.exp(2.72 * Math.pow(0.434 * Math.log(fwi), 0.647));
-    }
+    return lines.join('\n');
+  }
 
-    return {
-      isi: Math.round(isi * 10) / 10,
-      bui: Math.round(bui * 10) / 10,
-      fwi: Math.round(fwi * 10) / 10,
-    };
+  /**
+   * Format date for FireSTARR CSV
+   */
+  private formatDate(date: Date): string {
+    const pad = (n: number): string => n.toString().padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
+      `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
   }
 }
 
