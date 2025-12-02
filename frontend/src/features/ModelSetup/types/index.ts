@@ -29,7 +29,7 @@ export type RunType = 'deterministic' | 'probabilistic';
 /**
  * Weather data source
  */
-export type WeatherSource = 'manual' | 'upload' | 'spotwx';
+export type WeatherSource = 'firestarr_csv' | 'raw_weather' | 'spotwx';
 
 /**
  * Fire danger rating based on FWI
@@ -37,7 +37,7 @@ export type WeatherSource = 'manual' | 'upload' | 'spotwx';
 export type FireDangerRating = 'Low' | 'Moderate' | 'High' | 'Very High' | 'Extreme';
 
 /**
- * FWI indices for manual weather input
+ * FWI indices for manual weather input (legacy - kept for compatibility)
  */
 export interface FWIValues {
   /** Fine Fuel Moisture Code (0-101) */
@@ -52,6 +52,19 @@ export interface FWIValues {
   bui: number;
   /** Fire Weather Index (0+) */
   fwi: number;
+}
+
+/**
+ * FWI starting codes for progressive calculation
+ * These are the initial values used to begin CFFDRS calculations
+ */
+export interface FWIStartingCodes {
+  /** Fine Fuel Moisture Code (0-101) */
+  ffmc: number;
+  /** Duff Moisture Code (0+) */
+  dmc: number;
+  /** Drought Code (0+) */
+  dc: number;
 }
 
 /**
@@ -95,15 +108,39 @@ export interface ModelData {
 }
 
 /**
+ * Parsed weather CSV data for validation preview
+ */
+export interface ParsedWeatherCSV {
+  /** Column headers found in the file */
+  headers: string[];
+  /** Number of data rows */
+  rowCount: number;
+  /** First few rows for preview */
+  previewRows: string[][];
+  /** Whether Scenario column is present */
+  hasScenarioColumn: boolean;
+  /** Whether all FWI columns are present (FFMC, DMC, DC, ISI, BUI, FWI) */
+  hasFWIColumns: boolean;
+}
+
+/**
  * Weather step data
  */
 export interface WeatherData {
   /** Weather data source */
   source: WeatherSource;
-  /** Manual FWI values (when source is 'manual') */
+  /** For firestarr_csv: Complete weather file with FWI columns */
+  firestarrCsvFile?: File;
+  firestarrCsvFileName?: string;
+  firestarrCsvParsed?: ParsedWeatherCSV;
+  /** For raw_weather: Weather file without FWI columns */
+  rawWeatherFile?: File;
+  rawWeatherFileName?: string;
+  rawWeatherParsed?: ParsedWeatherCSV;
+  /** Starting codes for raw_weather source (used by backend for CFFDRS calculation) */
+  startingCodes?: FWIStartingCodes;
+  /** Legacy: Manual FWI values (kept for compatibility) */
   fwi?: FWIValues;
-  /** Uploaded file name (when source is 'upload') */
-  uploadedFile?: string;
 }
 
 /**
@@ -208,7 +245,7 @@ export const DEFAULT_MODEL_SETUP_DATA: ModelSetupData = {
     runType: 'deterministic',
   },
   weather: {
-    source: 'manual',
+    source: 'firestarr_csv',
   },
 };
 
@@ -222,6 +259,16 @@ export const SPRING_STARTUP_FWI: FWIValues = {
   isi: 0,
   bui: 0,
   fwi: 0,
+};
+
+/**
+ * Spring startup starting codes (typical Canadian spring conditions)
+ * Used to initialize CFFDRS progressive calculations
+ */
+export const SPRING_STARTUP_CODES: FWIStartingCodes = {
+  ffmc: 85,
+  dmc: 6,
+  dc: 15,
 };
 
 /**

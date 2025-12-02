@@ -31,3 +31,4 @@ temp/
 Documentation/persist/
 temp_firestarr_data
 frontend/tsconfig.tsbuildinfo
+firestarr_test_data/

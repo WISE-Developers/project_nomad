@@ -61,6 +61,27 @@ export interface OutputItem {
 }
 
 /**
+ * Ignition geometry for display on map
+ */
+export interface IgnitionGeometry {
+  type: 'point' | 'polygon';
+  coordinates: [number, number] | [number, number][][];
+  geojson: GeoJSON.Feature | GeoJSON.FeatureCollection;
+}
+
+/**
+ * Model inputs (weather, ignition) for download/display
+ */
+export interface ModelInputs {
+  /** Ignition geometry */
+  ignition?: IgnitionGeometry;
+  /** Weather CSV file path (for reference) */
+  weatherCsvPath?: string;
+  /** Weather CSV download URL */
+  weatherDownloadUrl?: string;
+}
+
+/**
  * Full model results response from API
  */
 export interface ModelResultsResponse {
@@ -68,6 +89,7 @@ export interface ModelResultsResponse {
   modelName: string;
   engineType: string;
   executionSummary: ExecutionSummary;
+  inputs?: ModelInputs;
   outputs: OutputItem[];
 }
 

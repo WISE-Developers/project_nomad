@@ -118,6 +118,8 @@ export function useJobNotifications(
     }
     jobIdRef.current = null;
     setIsConnected(false);
+    setStatus(null); // Clear status so toast disappears
+    setError(null);
   }, []);
 
   // Start watching a job

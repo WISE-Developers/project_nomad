@@ -53,6 +53,10 @@ export enum OutputFormat {
 export interface ResultMetadata {
   /** Time offset from simulation start (hours) */
   readonly timeOffsetHours?: number;
+  /** Simulation date for this output (YYYY-MM-DD) */
+  readonly simulationDate?: string;
+  /** Julian day number */
+  readonly julianDay?: number;
   /** Probability threshold used for contour generation */
   readonly probabilityThreshold?: number;
   /** Coordinate reference system (EPSG code) */
@@ -182,6 +186,13 @@ export class ModelResult {
     };
 
     let name = typeNames[this.outputType];
+
+    // Add simulation date if available (check both new and legacy formats)
+    const simulationDate = this.metadata.simulationDate
+      ?? (this.metadata.parameters as Record<string, unknown>)?.date as string | undefined;
+    if (simulationDate) {
+      name += ` - ${simulationDate}`;
+    }
 
     if (this.metadata.timeOffsetHours !== undefined) {
       name += ` (${this.metadata.timeOffsetHours}h)`;

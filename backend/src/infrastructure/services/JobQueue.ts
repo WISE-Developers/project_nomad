@@ -8,16 +8,31 @@ import {
 } from '../../domain/entities/index.js';
 import { DomainError, NotFoundError, ValidationError } from '../../domain/errors/index.js';
 import { Result } from '../../application/common/index.js';
-import { IJobQueue } from '../../application/interfaces/IJobQueue.js';
+import { IJobQueue, IJobRepository } from '../../application/interfaces/index.js';
+import { getJobRepository } from '../database/index.js';
 
 /**
- * In-memory job queue implementation.
+ * Database-backed job queue implementation.
  *
- * Suitable for MVP/single-server deployment.
- * For production, consider replacing with Redis-backed queue (e.g., Bull/BullMQ).
+ * Jobs are persisted via IJobRepository, surviving backend restarts.
+ * The repository implementation is determined by deployment mode (SQLite for SAN, PostgreSQL for ACN).
+ * For high-volume production, consider Redis-backed queue (e.g., Bull/BullMQ).
  */
 export class JobQueue implements IJobQueue {
-  private jobs: Map<JobId, Job> = new Map();
+  private get repo(): IJobRepository {
+    return getJobRepository();
+  }
+
+  /**
+   * Initialize the job queue, recovering from any incomplete state
+   */
+  async initialize(): Promise<void> {
+    // Mark any running jobs as failed (they were interrupted by restart)
+    const failedCount = await this.repo.markRunningAsFailed();
+    if (failedCount > 0) {
+      console.log(`[JobQueue] Marked ${failedCount} interrupted jobs as failed`);
+    }
+  }
 
   async enqueue(modelId: FireModelId): Promise<Result<Job, DomainError>> {
     const jobId = createJobId(uuidv4());
@@ -27,14 +42,14 @@ export class JobQueue implements IJobQueue {
       status: JobStatus.Pending,
     });
 
-    this.jobs.set(jobId, job);
+    await this.repo.save(job);
     console.log(`[JobQueue] Job ${jobId} created for model ${modelId}`);
 
     return Result.ok(job);
   }
 
   async getJob(jobId: JobId): Promise<Result<Job, NotFoundError>> {
-    const job = this.jobs.get(jobId);
+    const job = await this.repo.findById(jobId);
     if (!job) {
       return Result.fail(new NotFoundError('Job', jobId));
     }
@@ -46,7 +61,7 @@ export class JobQueue implements IJobQueue {
     status: JobStatus,
     data?: Partial<{ progress: number; error: string }>
   ): Promise<Result<Job, DomainError>> {
-    const existing = this.jobs.get(jobId);
+    const existing = await this.repo.findById(jobId);
     if (!existing) {
       return Result.fail(new NotFoundError('Job', jobId));
     }
@@ -71,26 +86,26 @@ export class JobQueue implements IJobQueue {
       });
     }
 
-    this.jobs.set(jobId, updated);
+    await this.repo.update(updated);
     console.log(`[JobQueue] Job ${jobId} status updated to ${status}`);
 
     return Result.ok(updated);
   }
 
   async updateProgress(jobId: JobId, progress: number): Promise<Result<Job, DomainError>> {
-    const existing = this.jobs.get(jobId);
+    const existing = await this.repo.findById(jobId);
     if (!existing) {
       return Result.fail(new NotFoundError('Job', jobId));
     }
 
     const updated = existing.withProgress(progress);
-    this.jobs.set(jobId, updated);
+    await this.repo.update(updated);
 
     return Result.ok(updated);
   }
 
   async cancel(jobId: JobId): Promise<Result<Job, DomainError>> {
-    const existing = this.jobs.get(jobId);
+    const existing = await this.repo.findById(jobId);
     if (!existing) {
       return Result.fail(new NotFoundError('Job', jobId));
     }
@@ -104,72 +119,57 @@ export class JobQueue implements IJobQueue {
     }
 
     const cancelled = existing.withStatus(JobStatus.Cancelled);
-    this.jobs.set(jobId, cancelled);
+    await this.repo.update(cancelled);
     console.log(`[JobQueue] Job ${jobId} cancelled`);
 
     return Result.ok(cancelled);
   }
 
   async fail(jobId: JobId, error: string): Promise<Result<Job, DomainError>> {
-    const existing = this.jobs.get(jobId);
+    const existing = await this.repo.findById(jobId);
     if (!existing) {
       return Result.fail(new NotFoundError('Job', jobId));
     }
 
     const failed = existing.withError(error);
-    this.jobs.set(jobId, failed);
+    await this.repo.update(failed);
     console.log(`[JobQueue] Job ${jobId} failed: ${error}`);
 
     return Result.ok(failed);
   }
 
   async complete(jobId: JobId): Promise<Result<Job, DomainError>> {
-    const existing = this.jobs.get(jobId);
+    const existing = await this.repo.findById(jobId);
     if (!existing) {
       return Result.fail(new NotFoundError('Job', jobId));
     }
 
     const completed = existing.withStatus(JobStatus.Completed).withProgress(100);
-    this.jobs.set(jobId, completed);
+    await this.repo.update(completed);
     console.log(`[JobQueue] Job ${jobId} completed`);
 
     return Result.ok(completed);
   }
 
   async getQueuedJobs(): Promise<Job[]> {
-    return Array.from(this.jobs.values()).filter(
-      (job) => job.status === JobStatus.Pending
-    );
+    return this.repo.findByStatus(JobStatus.Pending);
   }
 
   async getRunningJobs(): Promise<Job[]> {
-    return Array.from(this.jobs.values()).filter(
-      (job) => job.status === JobStatus.Running
-    );
+    return this.repo.findByStatus(JobStatus.Running);
   }
 
   async getJobsForModel(modelId: FireModelId): Promise<Job[]> {
-    return Array.from(this.jobs.values()).filter(
-      (job) => job.modelId === modelId
-    );
+    return this.repo.findByModelId(modelId);
   }
 
   async cleanup(olderThan: Date): Promise<number> {
-    let removed = 0;
-    for (const [jobId, job] of this.jobs.entries()) {
-      if (job.isTerminal() && job.completedAt && job.completedAt < olderThan) {
-        this.jobs.delete(jobId);
-        removed++;
-      }
-    }
-    if (removed > 0) {
-      console.log(`[JobQueue] Cleaned up ${removed} old jobs`);
-    }
-    return removed;
+    return this.repo.deleteOlderThan(olderThan);
   }
 
   async getQueueLength(): Promise<number> {
-    return this.jobs.size;
+    const jobs = await this.repo.findAll();
+    return jobs.length;
   }
 }
 

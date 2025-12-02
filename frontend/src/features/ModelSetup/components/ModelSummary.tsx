@@ -107,9 +107,10 @@ function formatDate(dateStr: string, timeStr: string): string {
  * Model Summary component
  */
 export function ModelSummary({ data }: ModelSummaryProps) {
-  const fwi = data.weather?.fwi;
-  const rating = fwi ? getFireDangerRating(fwi.fwi) : null;
-  const ratingColor = rating ? getFireDangerColor(rating) : '#666';
+  const startingCodes = data.weather?.startingCodes;
+  // Note: Fire danger rating functions kept for future use when we calculate FWI
+  void getFireDangerRating;
+  void getFireDangerColor;
 
   return (
     <div style={containerStyle}>
@@ -220,36 +221,57 @@ export function ModelSummary({ data }: ModelSummaryProps) {
         <div style={rowStyle}>
           <span style={labelStyle}>Source:</span>
           <span style={valueStyle}>
-            {data.weather?.source === 'manual'
-              ? 'Manual FWI Entry'
-              : data.weather?.source === 'upload'
-                ? 'Uploaded File'
+            {data.weather?.source === 'firestarr_csv'
+              ? 'FireSTARR CSV'
+              : data.weather?.source === 'raw_weather'
+                ? 'Raw Weather + Codes'
                 : data.weather?.source === 'spotwx'
                   ? 'SpotWX Forecast'
                   : 'Not set'}
           </span>
         </div>
-        {fwi && (
-          <>
-            <div style={rowStyle}>
-              <span style={labelStyle}>FWI Indices:</span>
-              <span style={valueStyle}>
-                FFMC: {fwi.ffmc}, DMC: {fwi.dmc}, DC: {fwi.dc}
-              </span>
-            </div>
-            <div style={rowStyle}>
-              <span style={labelStyle}>Behavior Indices:</span>
-              <span style={valueStyle}>
-                ISI: {fwi.isi}, BUI: {fwi.bui}, FWI: {fwi.fwi}
-              </span>
-            </div>
-            <div style={rowStyle}>
-              <span style={labelStyle}>Fire Danger:</span>
-              <span style={{ ...valueStyle, color: ratingColor, fontWeight: 'bold' }}>
-                {rating}
-              </span>
-            </div>
-          </>
+        {/* FireSTARR CSV source */}
+        {data.weather?.source === 'firestarr_csv' && data.weather.firestarrCsvFileName && (
+          <div style={rowStyle}>
+            <span style={labelStyle}>File:</span>
+            <span style={valueStyle}>{data.weather.firestarrCsvFileName}</span>
+          </div>
+        )}
+        {data.weather?.source === 'firestarr_csv' && data.weather.firestarrCsvParsed && (
+          <div style={rowStyle}>
+            <span style={labelStyle}>Records:</span>
+            <span style={valueStyle}>{data.weather.firestarrCsvParsed.rowCount} hourly records</span>
+          </div>
+        )}
+
+        {/* Raw Weather source */}
+        {data.weather?.source === 'raw_weather' && data.weather.rawWeatherFileName && (
+          <div style={rowStyle}>
+            <span style={labelStyle}>File:</span>
+            <span style={valueStyle}>{data.weather.rawWeatherFileName}</span>
+          </div>
+        )}
+        {data.weather?.source === 'raw_weather' && data.weather.rawWeatherParsed && (
+          <div style={rowStyle}>
+            <span style={labelStyle}>Records:</span>
+            <span style={valueStyle}>{data.weather.rawWeatherParsed.rowCount} hourly records</span>
+          </div>
+        )}
+        {data.weather?.source === 'raw_weather' && startingCodes && (
+          <div style={rowStyle}>
+            <span style={labelStyle}>Starting Codes:</span>
+            <span style={valueStyle}>
+              FFMC: {startingCodes.ffmc}, DMC: {startingCodes.dmc}, DC: {startingCodes.dc}
+            </span>
+          </div>
+        )}
+
+        {/* SpotWX source */}
+        {data.weather?.source === 'spotwx' && (
+          <div style={rowStyle}>
+            <span style={labelStyle}>Status:</span>
+            <span style={valueStyle}>Will fetch forecast data automatically</span>
+          </div>
         )}
       </div>
     </div>

@@ -40,10 +40,11 @@ async function request<T>(
 
   if (!response.ok) {
     let details: unknown;
+    const text = await response.text();
     try {
-      details = await response.json();
+      details = JSON.parse(text);
     } catch {
-      details = await response.text();
+      details = text;
     }
     throw new ApiError(
       `API request failed: ${response.statusText}`,
@@ -75,24 +76,27 @@ export interface CreateModelResponse {
 export interface ExecuteModelRequest {
   ignition: {
     type: 'point' | 'polygon';
-    coordinates: [number, number] | [number, number][];
+    /** Point: [lng, lat], Polygon: [[[lng, lat], ...ring positions...]] */
+    coordinates: [number, number] | [number, number][][];
   };
   timeRange: {
     start: string;
     end: string;
   };
   weather: {
-    source: 'manual' | 'spotwx';
-    manual?: {
+    source: 'firestarr_csv' | 'raw_weather' | 'spotwx';
+    /** For firestarr_csv: Pre-calculated weather CSV content */
+    firestarrCsvContent?: string;
+    /** For raw_weather: Raw weather CSV content (without FWI columns) */
+    rawWeatherContent?: string;
+    /** For raw_weather: Starting codes for CFFDRS calculation */
+    startingCodes?: {
       ffmc: number;
       dmc: number;
       dc: number;
-      windSpeed: number;
-      windDirection: number;
-      temperature: number;
-      humidity: number;
-      precipitation?: number;
     };
+    /** For raw_weather: Latitude for CFFDRS calculation */
+    latitude?: number;
   };
   scenarios?: number;
 }
@@ -139,6 +143,73 @@ export async function executeModel(
  */
 export async function getModel(modelId: string): Promise<ModelResponse> {
   return request<ModelResponse>(`/models/${modelId}`);
+}
+
+export interface GetModelsResponse {
+  models: ModelResponse[];
+  total: number;
+}
+
+/**
+ * Get all models
+ */
+export async function getModels(): Promise<GetModelsResponse> {
+  return request<GetModelsResponse>('/models');
+}
+
+export interface DeleteModelResponse {
+  message: string;
+  deletedResults: number;
+}
+
+/**
+ * Delete a model and its results
+ */
+export async function deleteModel(modelId: string): Promise<DeleteModelResponse> {
+  return request<DeleteModelResponse>(`/models/${modelId}`, {
+    method: 'DELETE',
+  });
+}
+
+export interface RunModelRequest {
+  name: string;
+  engineType: 'firestarr' | 'wise';
+  ignition: {
+    type: 'point' | 'polygon';
+    coordinates: [number, number] | [number, number][][];
+  };
+  timeRange: {
+    start: string;
+    end: string;
+  };
+  weather: {
+    source: 'firestarr_csv' | 'raw_weather' | 'spotwx';
+    firestarrCsvContent?: string;
+    rawWeatherContent?: string;
+    startingCodes?: {
+      ffmc: number;
+      dmc: number;
+      dc: number;
+    };
+    latitude?: number;
+  };
+  scenarios?: number;
+}
+
+export interface RunModelResponse {
+  modelId: string;
+  jobId: string;
+  message: string;
+}
+
+/**
+ * Create and run a model in one atomic operation (no orphaned drafts)
+ */
+export async function runModel(data: RunModelRequest): Promise<RunModelResponse> {
+  return request<RunModelResponse>('/models/run', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }
 
 // ============================================================================

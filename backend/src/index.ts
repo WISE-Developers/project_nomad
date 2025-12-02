@@ -9,9 +9,30 @@ import {
   notFoundHandler,
   errorHandler,
 } from './api/index.js';
+import { initDatabase, initializeRepositories, getJobRepository } from './infrastructure/database/index.js';
 
 // Load .env from project root (parent directory)
 dotenv.config({ path: resolve(process.cwd(), '..', '.env') });
+
+// ============================================
+// Database Initialization
+// ============================================
+console.log('[Startup] Initializing database...');
+initDatabase();
+
+// Initialize repositories (database-agnostic layer)
+initializeRepositories();
+console.log('[Startup] Repositories initialized');
+
+// Startup recovery: mark interrupted jobs as failed
+const jobRepo = getJobRepository();
+jobRepo.markRunningAsFailed().then((count) => {
+  if (count > 0) {
+    console.log(`[Startup] Marked ${count} interrupted jobs as failed`);
+  }
+});
+
+console.log('[Startup] Database ready');
 
 const app = express();
 const PORT = process.env.PORT || 3001;

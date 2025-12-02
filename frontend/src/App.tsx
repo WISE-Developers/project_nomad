@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   MapProvider,
   MapContainer,
@@ -9,6 +9,8 @@ import {
   TerrainControl,
   useDraw,
   useMap,
+  useLayers,
+  LayerProvider,
 } from './features/Map';
 import type { OutputItem } from './features/ModelReview/types';
 import { ModelSetupWizard } from './features/ModelSetup';
@@ -19,22 +21,85 @@ import {
   JobStatusToast,
   NotificationPermissionBanner,
 } from './features/Notifications';
-import { createModel, executeModel } from './services/api';
+import { runModel, getModels, deleteModel } from './services/api';
 
-const newModelButtonStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '16px',
-  left: '50%',
-  transform: 'translateX(-50%)',
+interface ModelSummary {
+  id: string;
+  name: string;
+  status: string;
+  engineType: string;
+  createdAt: string;
+}
+
+/**
+ * Calculate bounding box from GeoJSON
+ */
+function getBoundsFromGeoJSON(geoJson: GeoJSON.GeoJSON): [[number, number], [number, number]] | null {
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+
+  function processCoords(coords: number[]): void {
+    const [lng, lat] = coords;
+    if (lng < minLng) minLng = lng;
+    if (lng > maxLng) maxLng = lng;
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
+  }
+
+  function processCoordArray(arr: unknown): void {
+    if (!Array.isArray(arr)) return;
+    if (typeof arr[0] === 'number' && typeof arr[1] === 'number' && arr.length >= 2) {
+      processCoords(arr as number[]);
+    } else {
+      arr.forEach(processCoordArray);
+    }
+  }
+
+  function processGeometry(geom: GeoJSON.Geometry): void {
+    if ('coordinates' in geom) {
+      processCoordArray(geom.coordinates);
+    } else if (geom.type === 'GeometryCollection') {
+      geom.geometries.forEach(processGeometry);
+    }
+  }
+
+  const geoType = (geoJson as { type: string }).type;
+  if (geoType === 'FeatureCollection') {
+    (geoJson as GeoJSON.FeatureCollection).features.forEach((f) => {
+      if (f.geometry) processGeometry(f.geometry);
+    });
+  } else if (geoType === 'Feature') {
+    const feature = geoJson as GeoJSON.Feature;
+    if (feature.geometry) processGeometry(feature.geometry);
+  } else {
+    // It's a raw geometry
+    processGeometry(geoJson as GeoJSON.Geometry);
+  }
+
+  if (minLng === Infinity) return null;
+  return [[minLng, minLat], [maxLng, maxLat]];
+}
+
+const headerButtonStyle: React.CSSProperties = {
   padding: '12px 24px',
   fontSize: '16px',
   fontWeight: 'bold',
-  backgroundColor: '#ff6b35',
   color: 'white',
   border: 'none',
   borderRadius: '8px',
   cursor: 'pointer',
   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+};
+
+const headerContainerStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: '16px',
+  left: '50%',
+  transform: 'translateX(-50%)',
+  display: 'flex',
+  gap: '8px',
   zIndex: 1000,
 };
 
@@ -46,9 +111,32 @@ function AppContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [reviewModelId, setReviewModelId] = useState<string | null>(null);
+  const [showModelsList, setShowModelsList] = useState(false);
+  const [models, setModels] = useState<ModelSummary[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
   const { deleteAll } = useDraw();
   const { map, isLoaded } = useMap();
+  const { addGeoJSONLayer } = useLayers();
   const layerCounter = useRef(0);
+
+  // Fetch models when list is opened
+  const fetchModels = useCallback(async () => {
+    setModelsLoading(true);
+    try {
+      const data = await getModels();
+      setModels(data.models);
+    } catch (error) {
+      console.error('Failed to fetch models:', error);
+    } finally {
+      setModelsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showModelsList) {
+      fetchModels();
+    }
+  }, [showModelsList, fetchModels]);
 
   // Job notifications
   const {
@@ -79,17 +167,8 @@ function AppContent() {
       // Request notification permission
       await requestPermission();
 
-      // 1. Create the model
-      const modelName = `Fire Model - ${data.temporal.startDate}`;
-      const createResult = await createModel({
-        name: modelName,
-        engineType: data.model.engine,
-      });
-
-      console.log('Model created:', createResult);
-
-      // 2. Extract coordinates from geometry
-      let coordinates: [number, number] | [number, number][] = [0, 0];
+      // Extract coordinates from geometry
+      let coordinates: [number, number] | [number, number][][] = [0, 0];
       let ignitionType: 'point' | 'polygon' = 'point';
 
       if (data.geometry.features.length > 0) {
@@ -98,17 +177,73 @@ function AppContent() {
           coordinates = feature.geometry.coordinates as [number, number];
           ignitionType = 'point';
         } else if (feature.geometry.type === 'Polygon') {
-          coordinates = feature.geometry.coordinates[0] as [number, number][];
+          coordinates = feature.geometry.coordinates as [number, number][][];
           ignitionType = 'polygon';
         }
       }
 
-      // 3. Build time range
+      // Build time range
       const startDateTime = new Date(`${data.temporal.startDate}T${data.temporal.startTime}`);
       const endDateTime = new Date(startDateTime.getTime() + data.temporal.durationHours * 60 * 60 * 1000);
 
-      // 4. Execute the model
-      const executeResult = await executeModel(createResult.id, {
+      // Helper to read file content
+      const readFileContent = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.readAsText(file);
+        });
+      };
+
+      // Build weather configuration based on source
+      let weatherConfig: {
+        source: 'firestarr_csv' | 'raw_weather' | 'spotwx';
+        firestarrCsvContent?: string;
+        rawWeatherContent?: string;
+        startingCodes?: { ffmc: number; dmc: number; dc: number };
+        latitude?: number;
+      };
+
+      switch (data.weather.source) {
+        case 'firestarr_csv':
+          if (!data.weather.firestarrCsvFile) {
+            throw new Error('FireSTARR CSV file is required');
+          }
+          weatherConfig = {
+            source: 'firestarr_csv',
+            firestarrCsvContent: await readFileContent(data.weather.firestarrCsvFile),
+          };
+          break;
+        case 'raw_weather':
+          if (!data.weather.rawWeatherFile) {
+            throw new Error('Raw weather file is required');
+          }
+          if (!data.weather.startingCodes) {
+            throw new Error('Starting codes are required');
+          }
+          weatherConfig = {
+            source: 'raw_weather',
+            rawWeatherContent: await readFileContent(data.weather.rawWeatherFile),
+            startingCodes: data.weather.startingCodes,
+            latitude: data.geometry.features[0]?.geometry?.type === 'Point'
+              ? (data.geometry.features[0].geometry.coordinates as [number, number])[1]
+              : data.geometry.bounds?.[1],
+          };
+          break;
+        case 'spotwx':
+        default:
+          weatherConfig = {
+            source: 'spotwx',
+          };
+          break;
+      }
+
+      // Create and run model in single atomic call (no orphaned drafts)
+      const engineName = data.model.engine === 'firestarr' ? 'FireSTARR' : 'WISE';
+      const result = await runModel({
+        name: `${engineName} - ${data.temporal.startDate}`,
+        engineType: data.model.engine,
         ignition: {
           type: ignitionType,
           coordinates,
@@ -117,25 +252,14 @@ function AppContent() {
           start: startDateTime.toISOString(),
           end: endDateTime.toISOString(),
         },
-        weather: {
-          source: data.weather.source === 'manual' ? 'manual' : 'spotwx',
-          manual: data.weather.fwi ? {
-            ffmc: data.weather.fwi.ffmc,
-            dmc: data.weather.fwi.dmc,
-            dc: data.weather.fwi.dc,
-            windSpeed: 15, // Default values - TODO: add to UI
-            windDirection: 270,
-            temperature: 20,
-            humidity: 40,
-          } : undefined,
-        },
+        weather: weatherConfig,
         scenarios: data.model.runType === 'probabilistic' ? 100 : 1,
       });
 
-      console.log('Execution started:', executeResult);
+      console.log('Model created and execution started:', result);
 
-      // 5. Start watching job status
-      watchJob(executeResult.jobId);
+      // Start watching job status
+      watchJob(result.jobId);
 
       setShowWizard(false);
     } catch (error) {
@@ -168,72 +292,75 @@ function AppContent() {
     setReviewModelId(null);
   }, []);
 
-  const handleAddToMap = useCallback((output: OutputItem, geoJson: GeoJSON.GeoJSON) => {
+  const handleAddToMap = useCallback((output: OutputItem, geoJson: GeoJSON.GeoJSON, modelInfo?: { modelId: string; modelName: string; engineType: string }) => {
     if (!map || !isLoaded) {
       console.warn('Map not ready');
       return;
     }
 
     const layerId = `model-output-${++layerCounter.current}`;
-    const sourceId = `${layerId}-source`;
 
-    // Add source
-    map.addSource(sourceId, {
-      type: 'geojson',
-      data: geoJson,
-    });
+    // Build layer name with model context
+    let layerName = output.name;
+    if (modelInfo) {
+      const shortId = modelInfo.modelId.slice(0, 8);
+      layerName = `${modelInfo.modelName} [${shortId}] - ${output.name}`;
+    }
 
-    // Determine layer type based on geometry
-    const geomType = (geoJson as GeoJSON.FeatureCollection).features?.[0]?.geometry?.type
-      || (geoJson as GeoJSON.Feature).geometry?.type;
+    // Determine if this is ignition (dark red) or model output (use feature colors)
+    const isIgnition = output.id.startsWith('ignition-');
 
-    if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
-      // Add fill layer
-      map.addLayer({
-        id: `${layerId}-fill`,
-        type: 'fill',
-        source: sourceId,
-        paint: {
-          'fill-color': '#ff6b35',
-          'fill-opacity': 0.4,
-        },
-      });
-      // Add outline
-      map.addLayer({
-        id: `${layerId}-outline`,
-        type: 'line',
-        source: sourceId,
-        paint: {
-          'line-color': '#ff6b35',
-          'line-width': 2,
-        },
-      });
-    } else if (geomType === 'Point' || geomType === 'MultiPoint') {
-      map.addLayer({
+    // Use the layer management hook to add the layer
+    // This registers it with the LayerPanel
+    // Wrap single features in a FeatureCollection if needed
+    const featureCollection: GeoJSON.FeatureCollection = 'features' in geoJson
+      ? geoJson as GeoJSON.FeatureCollection
+      : {
+          type: 'FeatureCollection',
+          features: [geoJson as GeoJSON.Feature],
+        };
+
+    if (isIgnition) {
+      // Ignition: dark red, static color
+      addGeoJSONLayer({
         id: layerId,
-        type: 'circle',
-        source: sourceId,
-        paint: {
-          'circle-radius': 6,
-          'circle-color': '#ff6b35',
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#ffffff',
-        },
+        name: layerName,
+        data: featureCollection,
+        fillColor: '#8B0000',
+        strokeColor: '#8B0000',
+        opacity: 1.0,
+        fillOpacity: 0.3,
+        visible: true,
+        zIndex: layerCounter.current,
       });
-    } else if (geomType === 'LineString' || geomType === 'MultiLineString') {
-      map.addLayer({
+    } else {
+      // Model output: use colors from feature properties (quantile gradient)
+      addGeoJSONLayer({
         id: layerId,
-        type: 'line',
-        source: sourceId,
-        paint: {
-          'line-color': '#ff6b35',
-          'line-width': 3,
-        },
+        name: layerName,
+        data: featureCollection,
+        useFeatureColors: true,  // Use 'color' property from each feature
+        fillColor: '#FFD700',    // Fallback if no color property
+        strokeColor: '#FFD700',
+        opacity: 1.0,
+        fillOpacity: 0.5,
+        visible: true,
+        zIndex: layerCounter.current,
       });
     }
 
-    console.log(`Added layer ${layerId} for output ${output.name}`);
-  }, [map, isLoaded]);
+    // Zoom to the added feature
+    const bounds = getBoundsFromGeoJSON(geoJson);
+    if (bounds) {
+      map.fitBounds(bounds, {
+        padding: 50,
+        maxZoom: 14,
+        duration: 1000,
+      });
+    }
+
+    console.log(`Added layer ${layerId} for output ${layerName}`);
+  }, [map, isLoaded, addGeoJSONLayer]);
 
   return (
     <>
@@ -247,11 +374,143 @@ function AppContent() {
         onViewResults={handleViewResults}
       />
 
-      {/* New Model button */}
+      {/* Header buttons */}
       {!showWizard && (
-        <button style={newModelButtonStyle} onClick={handleNewModel}>
-          🔥 New Fire Model
-        </button>
+        <div style={headerContainerStyle}>
+          <button
+            style={{ ...headerButtonStyle, backgroundColor: '#ff6b35' }}
+            onClick={handleNewModel}
+          >
+            🔥 New Fire Model
+          </button>
+          <button
+            style={{ ...headerButtonStyle, backgroundColor: '#3b82f6' }}
+            onClick={() => setShowModelsList(!showModelsList)}
+          >
+            📋 My Models
+          </button>
+        </div>
+      )}
+
+      {/* Models List Panel */}
+      {showModelsList && !showWizard && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '80px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: '#1f2937',
+            borderRadius: '8px',
+            padding: '16px',
+            minWidth: '400px',
+            maxWidth: '600px',
+            maxHeight: '60vh',
+            overflowY: 'auto',
+            zIndex: 1000,
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0, color: 'white' }}>My Models</h3>
+            <button
+              onClick={() => setShowModelsList(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#9ca3af',
+                fontSize: '20px',
+                cursor: 'pointer',
+              }}
+            >
+              ✕
+            </button>
+          </div>
+          {modelsLoading ? (
+            <div style={{ color: '#9ca3af', textAlign: 'center', padding: '20px' }}>Loading...</div>
+          ) : models.length === 0 ? (
+            <div style={{ color: '#9ca3af', textAlign: 'center', padding: '20px' }}>No models yet</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {models.map((model) => (
+                <div
+                  key={model.id}
+                  style={{
+                    backgroundColor: '#374151',
+                    padding: '12px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div>
+                    <div style={{ color: 'white', fontWeight: 500 }}>{model.name}</div>
+                    <div style={{ color: '#9ca3af', fontSize: '12px' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '2px 6px',
+                        borderRadius: '3px',
+                        backgroundColor: model.status === 'completed' ? '#065f46' :
+                                         model.status === 'draft' ? '#4b5563' :
+                                         model.status === 'running' ? '#1e40af' : '#7f1d1d',
+                        marginRight: '8px',
+                      }}>
+                        {model.status}
+                      </span>
+                      {new Date(model.createdAt).toLocaleString()}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {model.status === 'completed' && (
+                      <button
+                        onClick={() => {
+                          setReviewModelId(model.id);
+                          setShowModelsList(false);
+                        }}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: '#10b981',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                        }}
+                      >
+                        View Results
+                      </button>
+                    )}
+                    <button
+                      onClick={async () => {
+                        if (confirm(`Delete "${model.name}"? This will also delete all results.`)) {
+                          try {
+                            await deleteModel(model.id);
+                            fetchModels();
+                          } catch (err) {
+                            console.error('Failed to delete model:', err);
+                            alert('Failed to delete model');
+                          }
+                        }
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: '#dc2626',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Model Setup Wizard */}
@@ -349,7 +608,9 @@ function App() {
             zoom: 6,
           }}
         >
-          <AppContent />
+          <LayerProvider>
+            <AppContent />
+          </LayerProvider>
         </MapContainer>
       </MapProvider>
     </div>

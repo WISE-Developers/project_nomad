@@ -69,6 +69,8 @@ export interface FireSTARRParams {
   readonly previousPrecip?: number;
   /** Fire perimeter polygon (will be rasterized to TIF) */
   readonly perimeter?: SpatialGeometry;
+  /** Original ignition geometry (point or polygon, saved as GeoJSON) */
+  readonly ignitionGeometry?: SpatialGeometry;
   /** Initial fire size in hectares (default: ~0.01) */
   readonly initialSize?: number;
   /** Output date offsets in days (default: [1,2,3,7,14]) */

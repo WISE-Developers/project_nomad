@@ -56,7 +56,7 @@ export const BASEMAP_STYLES: Record<BasemapStyle, BasemapConfig> = {
   streets: {
     id: 'streets',
     name: 'Streets',
-    url: 'mapbox://styles/mapbox/streets-v12',
+    url: 'mapbox://styles/mapbox/streets-v11',
   },
   satellite: {
     id: 'satellite',

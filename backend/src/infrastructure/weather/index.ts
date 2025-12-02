@@ -7,6 +7,7 @@
 export { WeatherService, getWeatherService, resetWeatherService } from './WeatherService.js';
 export type {
   WeatherConfig,
+  FWIStartingCodes,
   ManualWeatherInput,
   SpotWXConfig,
   WeatherDataPoint,

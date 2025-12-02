@@ -237,11 +237,8 @@ export class FireSTARREngine implements IFireModelingEngine {
   async getStatus(modelId: FireModelId): Promise<ExecutionStatus> {
     const state = this.executions.get(modelId);
     if (!state) {
-      return {
-        state: 'failed',
-        error: 'Model not found',
-        updatedAt: new Date(),
-      };
+      // Throw error so callers can fall back to database
+      throw new Error(`Model ${modelId} not found in engine (may have run in previous session)`);
     }
     return state.status;
   }
@@ -419,41 +416,22 @@ export class FireSTARREngine implements IFireModelingEngine {
       previousPrecip: firstPoint.precipitation,
       outputDateOffsets,
       perimeter: ignition.type === GeometryType.Polygon ? ignition : undefined,
+      ignitionGeometry: ignition, // Save original ignition geometry for export
     };
   }
 
   /**
    * Calculate output date offsets based on simulation duration.
    *
-   * Logic:
-   * - For 1-3 days: output each day
-   * - For 4-7 days: output days 1, 2, 3, then final day
-   * - For 8+ days: output days 1, 2, 3, then weekly, plus final day
+   * FBANs expect an output raster for every day of the simulation.
+   * Returns [1, 2, 3, ..., durationDays]
    */
   private calculateOutputOffsets(durationDays: number): number[] {
     if (durationDays <= 0) {
       return [1]; // Minimum 1 day output
     }
-
-    const offsets: number[] = [];
-
-    // First 3 days if within duration
-    for (let d = 1; d <= Math.min(durationDays, 3); d++) {
-      offsets.push(d);
-    }
-
-    // Weekly intervals for longer durations
-    if (durationDays > 3) {
-      for (let d = 7; d < durationDays; d += 7) {
-        offsets.push(d);
-      }
-      // Always include final day
-      if (!offsets.includes(durationDays)) {
-        offsets.push(durationDays);
-      }
-    }
-
-    return offsets;
+    // Output every day from 1 to durationDays
+    return Array.from({ length: durationDays }, (_, i) => i + 1);
   }
 
   /**

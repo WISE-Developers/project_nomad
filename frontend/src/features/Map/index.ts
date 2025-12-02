@@ -16,10 +16,10 @@ export { TerrainControl } from './components/TerrainControl';
 // Context
 export { MapProvider, useMap } from './context/MapContext';
 export { DrawProvider, useDraw } from './context/DrawContext';
+export { LayerProvider, useLayers } from './context/LayerContext';
 
 // Hooks
 export { useDrawing } from './hooks/useDrawing';
-export { useLayers } from './hooks/useLayers';
 export { useMeasurement } from './hooks/useMeasurement';
 export { useTerrain } from './hooks/useTerrain';
 

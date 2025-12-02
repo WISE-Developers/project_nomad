@@ -40,12 +40,9 @@ export class FireSTARROutputParser implements IOutputParser<ParsedOutput[]> {
 
           const metadata: ResultMetadata = {
             generatedAt: stats.mtime,
-            engineVersion: '0.1.0', // TODO: Parse from log
-            parameters: {
-              julianDay,
-              date: dateStr,
-              type: 'probability',
-            },
+            engineVersion: '0.1.0',
+            simulationDate: dateStr,
+            julianDay,
           };
 
           outputs.push({
@@ -67,11 +64,8 @@ export class FireSTARROutputParser implements IOutputParser<ParsedOutput[]> {
           const metadata: ResultMetadata = {
             generatedAt: stats.mtime,
             engineVersion: '0.1.0',
-            parameters: {
-              julianDay,
-              type: 'interim_probability',
-              interim: true,
-            },
+            julianDay,
+            interim: true,
           };
 
           outputs.push({
@@ -83,12 +77,10 @@ export class FireSTARROutputParser implements IOutputParser<ParsedOutput[]> {
         }
       }
 
-      // Sort by julian day (stored in metadata custom properties)
+      // Sort by julian day
       outputs.sort((a, b) => {
-        const paramsA = a.metadata as Record<string, unknown>;
-        const paramsB = b.metadata as Record<string, unknown>;
-        const dayA = ((paramsA.parameters as Record<string, unknown>)?.julianDay as number) ?? 0;
-        const dayB = ((paramsB.parameters as Record<string, unknown>)?.julianDay as number) ?? 0;
+        const dayA = (a.metadata.julianDay as number) ?? 0;
+        const dayB = (b.metadata.julianDay as number) ?? 0;
         return dayA - dayB;
       });
 

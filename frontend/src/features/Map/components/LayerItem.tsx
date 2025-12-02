@@ -45,17 +45,26 @@ export function LayerItem({
 
   const headerStyle: React.CSSProperties = {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
+    gap: '8px',
     marginBottom: '8px',
   };
 
   const nameStyle: React.CSSProperties = {
     display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontSize: '14px',
+    alignItems: 'flex-start',
+    gap: '6px',
+    flex: 1,
+    minWidth: 0, // Allow text to shrink
+  };
+
+  const nameTextStyle: React.CSSProperties = {
+    fontSize: '13px',
     fontWeight: 500,
+    color: '#333',
+    wordBreak: 'break-word',
+    lineHeight: '1.3',
   };
 
   const buttonStyle: React.CSSProperties = {
@@ -88,7 +97,7 @@ export function LayerItem({
       <div style={headerStyle}>
         <div style={nameStyle}>
           <button
-            style={buttonStyle}
+            style={{ ...buttonStyle, flexShrink: 0 }}
             onClick={(e) => {
               e.stopPropagation();
               onToggleVisibility();
@@ -97,11 +106,11 @@ export function LayerItem({
           >
             {layer.visible ? '👁️' : '👁️‍🗨️'}
           </button>
-          <span>{typeIcon}</span>
-          <span>{layer.name}</span>
+          <span style={{ flexShrink: 0 }}>{typeIcon}</span>
+          <span style={nameTextStyle}>{layer.name}</span>
         </div>
         <button
-          style={{ ...buttonStyle, color: '#d32f2f' }}
+          style={{ ...buttonStyle, color: '#d32f2f', flexShrink: 0 }}
           onClick={(e) => {
             e.stopPropagation();
             onRemove();
