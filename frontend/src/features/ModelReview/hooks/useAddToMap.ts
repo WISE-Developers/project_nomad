@@ -13,9 +13,12 @@ import type { OutputItem, OutputType } from '../types';
  */
 const OUTPUT_TYPE_COLORS: Record<OutputType, { fill: string; stroke: string }> = {
   burn_probability: { fill: '#ff6b35', stroke: '#d94e1f' },
+  probability: { fill: '#ff6b35', stroke: '#d94e1f' }, // Backend actual value
   fire_intensity: { fill: '#ff0000', stroke: '#cc0000' },
+  intensity: { fill: '#ff0000', stroke: '#cc0000' }, // Backend actual value
   arrival_time: { fill: '#9c27b0', stroke: '#7b1fa2' },
   fire_perimeter: { fill: '#ff9800', stroke: '#f57c00' },
+  perimeter: { fill: '#ff9800', stroke: '#f57c00' }, // Backend actual value
   ember_density: { fill: '#ffeb3b', stroke: '#fbc02d' },
   weather_grid: { fill: '#2196f3', stroke: '#1976d2' },
   fuel_grid: { fill: '#4caf50', stroke: '#388e3c' },

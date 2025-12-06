@@ -5,12 +5,8 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
+import { API_BASE_URL } from '../../../services/api';
 import type { ModelResultsResponse, OutputItem } from '../types';
-
-/**
- * API configuration
- */
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 /**
  * Hook state

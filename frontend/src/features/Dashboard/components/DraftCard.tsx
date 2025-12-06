@@ -40,18 +40,18 @@ function getTypeName(type: DraftType): string {
 }
 
 /**
- * Get icon for draft type
+ * Get icon class for draft type
  */
-function getTypeIcon(type: DraftType): string {
+function getTypeIconClass(type: DraftType): string {
   switch (type) {
     case 'model-setup':
-      return '🔥';
+      return 'fa-fire';
     case 'model-review':
-      return '📊';
+      return 'fa-chart-bar';
     case 'model-export':
-      return '📤';
+      return 'fa-file-export';
     default:
-      return '📝';
+      return 'fa-file-pen';
   }
 }
 
@@ -224,7 +224,7 @@ export function DraftCard({
           />
         )}
         <div style={titleSectionStyle}>
-          <span style={iconStyle}>{getTypeIcon(draft.type)}</span>
+          <i className={`fa-solid ${getTypeIconClass(draft.type)}`} style={iconStyle} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <h3 style={titleStyle}>{draft.name}</h3>
             {draft.description && (
@@ -264,7 +264,7 @@ export function DraftCard({
           onClick={handleDelete}
           aria-label={`Delete ${draft.name}`}
         >
-          🗑️
+          <i className="fa-solid fa-trash" />
         </button>
       </div>
     </div>

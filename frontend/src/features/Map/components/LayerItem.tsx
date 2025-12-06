@@ -8,6 +8,10 @@ interface LayerItemProps {
   layer: LayerConfig;
   /** Whether this layer is selected */
   isSelected: boolean;
+  /** Whether this layer is being dragged */
+  isDragging?: boolean;
+  /** Whether another layer is being dragged over this one */
+  isDragOver?: boolean;
   /** Toggle visibility callback */
   onToggleVisibility: () => void;
   /** Opacity change callback */
@@ -16,6 +20,14 @@ interface LayerItemProps {
   onRemove: () => void;
   /** Select layer callback */
   onSelect: () => void;
+  /** Drag start callback */
+  onDragStart?: (e: React.DragEvent) => void;
+  /** Drag over callback */
+  onDragOver?: (e: React.DragEvent) => void;
+  /** Drop callback */
+  onDrop?: (e: React.DragEvent) => void;
+  /** Drag end callback */
+  onDragEnd?: () => void;
 }
 
 /**
@@ -29,18 +41,26 @@ interface LayerItemProps {
 export function LayerItem({
   layer,
   isSelected,
+  isDragging = false,
+  isDragOver = false,
   onToggleVisibility,
   onOpacityChange,
   onRemove,
   onSelect,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: LayerItemProps) {
   const containerStyle: React.CSSProperties = {
     padding: '8px',
     marginBottom: '4px',
     borderRadius: '4px',
-    border: isSelected ? '2px solid #2196f3' : '1px solid #eee',
-    backgroundColor: isSelected ? '#e3f2fd' : 'white',
-    cursor: 'pointer',
+    border: isDragOver ? '2px dashed #2196f3' : isSelected ? '2px solid #2196f3' : '1px solid #eee',
+    backgroundColor: isDragging ? '#f5f5f5' : isSelected ? '#e3f2fd' : 'white',
+    cursor: 'grab',
+    opacity: isDragging ? 0.5 : 1,
+    transition: 'border 0.15s, background-color 0.15s, opacity 0.15s',
   };
 
   const headerStyle: React.CSSProperties = {
@@ -90,10 +110,42 @@ export function LayerItem({
     cursor: 'pointer',
   };
 
-  const typeIcon = layer.type === 'geojson' ? '🗺️' : '🖼️';
+  const typeIcon = layer.type === 'geojson'
+    ? <i className="fa-solid fa-bezier-curve" title="Vector layer" style={{ color: '#42a5f5' }} />
+    : <i className="fa-solid fa-table-cells" title="Raster layer" style={{ color: '#42a5f5' }} />;
+
+  // Breaks mode indicator for probability layers
+  const breaksModeIndicator = layer.breaksMode ? (
+    <span
+      style={{
+        fontSize: '10px',
+        padding: '1px 4px',
+        borderRadius: '3px',
+        backgroundColor: layer.breaksMode === 'static' ? '#e3f2fd' : '#fff3e0',
+        color: layer.breaksMode === 'static' ? '#1565c0' : '#e65100',
+        fontWeight: 500,
+        flexShrink: 0,
+      }}
+      title={
+        layer.breaksMode === 'static'
+          ? 'Static breaks: Fixed 10% intervals for consistent comparison'
+          : 'Dynamic breaks: Quantile breaks from this output'
+      }
+    >
+      {layer.breaksMode === 'static' ? <i className="fa-solid fa-ruler" /> : <i className="fa-solid fa-chart-bar" />}
+    </span>
+  ) : null;
 
   return (
-    <div style={containerStyle} onClick={onSelect}>
+    <div
+      style={containerStyle}
+      onClick={onSelect}
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+    >
       <div style={headerStyle}>
         <div style={nameStyle}>
           <button
@@ -104,9 +156,10 @@ export function LayerItem({
             }}
             title={layer.visible ? 'Hide layer' : 'Show layer'}
           >
-            {layer.visible ? '👁️' : '👁️‍🗨️'}
+            <i className={`fa-solid ${layer.visible ? 'fa-eye' : 'fa-eye-slash'}`} />
           </button>
           <span style={{ flexShrink: 0 }}>{typeIcon}</span>
+          {breaksModeIndicator}
           <span style={nameTextStyle}>{layer.name}</span>
         </div>
         <button

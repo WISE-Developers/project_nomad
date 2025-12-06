@@ -4,6 +4,13 @@
  * HTTP client for backend API communication.
  */
 
+/**
+ * Base URL for API requests that need absolute URLs (e.g., tile URLs, downloads).
+ * Uses VITE_API_BASE_URL from environment, defaulting to localhost:3001 for development.
+ */
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+
+/** Relative API path for proxied requests */
 const API_BASE = '/api/v1';
 
 /**

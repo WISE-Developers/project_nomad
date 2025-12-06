@@ -293,13 +293,13 @@ export function ExportPanel({
                 style={delivery === 'download' ? toggleButtonActiveStyle : toggleButtonStyle}
                 onClick={() => setDelivery('download')}
               >
-                📥 Download ZIP
+                <i className="fa-solid fa-download" style={{ marginRight: '8px' }} />Download ZIP
               </button>
               <button
                 style={delivery === 'share' ? toggleButtonActiveStyle : toggleButtonStyle}
                 onClick={() => setDelivery('share')}
               >
-                🔗 Get Share Link
+                <i className="fa-solid fa-link" style={{ marginRight: '8px' }} />Get Share Link
               </button>
             </div>
           </div>
@@ -318,7 +318,7 @@ export function ExportPanel({
       {/* Complete State */}
       {isComplete && (
         <div style={successBoxStyle}>
-          <div style={{ fontSize: '48px', marginBottom: '12px' }}>✓</div>
+          <div style={{ fontSize: '48px', marginBottom: '12px' }}><i className="fa-solid fa-check" style={{ color: '#4caf50' }} /></div>
           <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px', color: '#333' }}>
             Export Ready!
           </div>

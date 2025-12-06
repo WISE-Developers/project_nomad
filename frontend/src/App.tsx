@@ -7,6 +7,8 @@ import {
   BasemapSwitcher,
   MeasurementTool,
   TerrainControl,
+  MapInfoControl,
+  MapContextMenu,
   useDraw,
   useMap,
   useLayers,
@@ -116,7 +118,7 @@ function AppContent() {
   const [modelsLoading, setModelsLoading] = useState(false);
   const { deleteAll } = useDraw();
   const { map, isLoaded } = useMap();
-  const { addGeoJSONLayer } = useLayers();
+  const { addGeoJSONLayer, addRasterLayer } = useLayers();
   const layerCounter = useRef(0);
 
   // Fetch models when list is opened
@@ -292,7 +294,7 @@ function AppContent() {
     setReviewModelId(null);
   }, []);
 
-  const handleAddToMap = useCallback((output: OutputItem, geoJson: GeoJSON.GeoJSON, modelInfo?: { modelId: string; modelName: string; engineType: string }) => {
+  const handleAddToMap = useCallback((output: OutputItem, geoJson: GeoJSON.GeoJSON, modelInfo?: { modelId: string; modelName: string; engineType: string; breaksMode?: 'static' | 'dynamic' }) => {
     if (!map || !isLoaded) {
       console.warn('Map not ready');
       return;
@@ -335,6 +337,7 @@ function AppContent() {
       });
     } else {
       // Model output: use colors from feature properties (quantile gradient)
+      // Include resultId and metadata for layer persistence/reload
       addGeoJSONLayer({
         id: layerId,
         name: layerName,
@@ -346,6 +349,10 @@ function AppContent() {
         fillOpacity: 0.5,
         visible: true,
         zIndex: layerCounter.current,
+        // Persistence metadata
+        resultId: modelInfo?.modelId,
+        outputType: output.type,
+        breaksMode: modelInfo?.breaksMode,
       });
     }
 
@@ -361,6 +368,53 @@ function AppContent() {
 
     console.log(`Added layer ${layerId} for output ${layerName}`);
   }, [map, isLoaded, addGeoJSONLayer]);
+
+  const handleAddRasterToMap = useCallback((
+    output: OutputItem,
+    bounds: [number, number, number, number],
+    tileUrl: string,
+    modelInfo?: { modelId: string; modelName: string; engineType: string }
+  ) => {
+    if (!map || !isLoaded) {
+      console.warn('Map not ready');
+      return;
+    }
+
+    const layerId = `raster-output-${++layerCounter.current}`;
+
+    // Build layer name with model context
+    let layerName = `${output.name} (Raster)`;
+    if (modelInfo) {
+      const shortId = modelInfo.modelId.slice(0, 8);
+      layerName = `${modelInfo.modelName} [${shortId}] - ${output.name} (Raster)`;
+    }
+
+    // Add the raster layer
+    addRasterLayer({
+      id: layerId,
+      name: layerName,
+      url: tileUrl,
+      bounds,
+      tileSize: 256,
+      opacity: 0.8,
+      visible: true,
+      zIndex: layerCounter.current,
+      resultId: modelInfo?.modelId,
+      outputType: output.type,
+    });
+
+    // Zoom to the raster bounds
+    map.fitBounds(
+      [[bounds[0], bounds[1]], [bounds[2], bounds[3]]],
+      {
+        padding: 50,
+        maxZoom: 14,
+        duration: 1000,
+      }
+    );
+
+    console.log(`Added raster layer ${layerId} for output ${layerName}`);
+  }, [map, isLoaded, addRasterLayer]);
 
   return (
     <>
@@ -381,13 +435,13 @@ function AppContent() {
             style={{ ...headerButtonStyle, backgroundColor: '#ff6b35' }}
             onClick={handleNewModel}
           >
-            🔥 New Fire Model
+            <i className="fa-solid fa-fire" style={{ marginRight: '8px' }} />New Fire Model
           </button>
           <button
             style={{ ...headerButtonStyle, backgroundColor: '#3b82f6' }}
             onClick={() => setShowModelsList(!showModelsList)}
           >
-            📋 My Models
+            <i className="fa-solid fa-clipboard-list" style={{ marginRight: '8px' }} />My Models
           </button>
         </div>
       )}
@@ -548,7 +602,7 @@ function AppContent() {
                   textAlign: 'center',
                 }}
               >
-                <div style={{ fontSize: '24px', marginBottom: '8px' }}>🔥</div>
+                <div style={{ fontSize: '24px', marginBottom: '8px' }}><i className="fa-solid fa-fire" /></div>
                 <div>Submitting model...</div>
               </div>
             </div>
@@ -583,6 +637,8 @@ function AppContent() {
           <LayerPanel position="top-right" />
           <BasemapSwitcher position="bottom-right" />
           <TerrainControl position="top-right" />
+          <MapInfoControl />
+          <MapContextMenu />
         </>
       )}
 
@@ -592,6 +648,7 @@ function AppContent() {
           modelId={reviewModelId}
           onClose={handleCloseReview}
           onAddToMap={handleAddToMap}
+          onAddRasterToMap={handleAddRasterToMap}
         />
       )}
     </>

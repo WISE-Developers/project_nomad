@@ -4,8 +4,9 @@
  * Displays a list of model outputs with view and download actions.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import type { OutputItem, OutputType, OutputFormat } from '../types';
+import { BreaksSelectionModal, type BreaksMode } from './BreaksSelectionModal';
 
 /**
  * Props for OutputList
@@ -17,13 +18,18 @@ interface OutputListProps {
   onPreview: (output: OutputItem) => void;
   /** Called when download is requested */
   onDownload: (output: OutputItem) => void;
-  /** Called when add to map is requested */
-  onAddToMap: (output: OutputItem) => void;
+  /** Called when add to map is requested (with optional breaks mode) */
+  onAddToMap: (output: OutputItem, mode?: BreaksMode) => void;
+  /** Called when add raster to map is requested */
+  onAddRasterToMap?: (output: OutputItem) => void;
   /** Called when export is requested */
   onExport?: () => void;
   /** Currently selected output */
   selectedOutput?: OutputItem | null;
 }
+
+// Re-export BreaksMode for consumers
+export type { BreaksMode } from './BreaksSelectionModal';
 
 /**
  * Get human readable output type name
@@ -77,9 +83,33 @@ export function OutputList({
   onPreview,
   onDownload,
   onAddToMap,
+  onAddRasterToMap,
   onExport,
   selectedOutput,
 }: OutputListProps) {
+  // State for breaks selection modal
+  const [pendingAddOutput, setPendingAddOutput] = useState<OutputItem | null>(null);
+
+  // Handle add to map click - show modal for probability, direct add for others
+  const handleAddToMapClick = (output: OutputItem) => {
+    // Check for probability type (backend returns 'probability', frontend type may say 'burn_probability')
+    if (output.type === 'burn_probability' || output.type === 'probability') {
+      // Show modal for probability outputs
+      setPendingAddOutput(output);
+    } else {
+      // Direct add for other output types
+      onAddToMap(output);
+    }
+  };
+
+  // Handle modal confirmation
+  const handleBreaksModeConfirm = (mode: BreaksMode) => {
+    if (pendingAddOutput) {
+      onAddToMap(pendingAddOutput, mode);
+      setPendingAddOutput(null);
+    }
+  };
+
   if (outputs.length === 0) {
     return (
       <div style={emptyStyle}>
@@ -92,40 +122,51 @@ export function OutputList({
   }
 
   return (
-    <div style={containerStyle}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h3 style={{ ...headerStyle, margin: 0 }}>Model Outputs</h3>
-        {onExport && outputs.length > 0 && (
-          <button
-            onClick={onExport}
-            style={{
-              padding: '6px 12px',
-              fontSize: '13px',
-              fontWeight: 500,
-              backgroundColor: '#ff6b35',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            Export All
-          </button>
-        )}
+    <>
+      <div style={containerStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h3 style={{ ...headerStyle, margin: 0 }}>Model Outputs</h3>
+          {onExport && outputs.length > 0 && (
+            <button
+              onClick={onExport}
+              style={{
+                padding: '6px 12px',
+                fontSize: '13px',
+                fontWeight: 500,
+                backgroundColor: '#ff6b35',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
+            >
+              Export All
+            </button>
+          )}
+        </div>
+        <div style={listStyle}>
+          {outputs.map((output) => (
+            <OutputListItem
+              key={output.id}
+              output={output}
+              isSelected={selectedOutput?.id === output.id}
+              onPreview={() => onPreview(output)}
+              onDownload={() => onDownload(output)}
+              onAddToMap={() => handleAddToMapClick(output)}
+              onAddRasterToMap={onAddRasterToMap ? () => onAddRasterToMap(output) : undefined}
+            />
+          ))}
+        </div>
       </div>
-      <div style={listStyle}>
-        {outputs.map((output) => (
-          <OutputListItem
-            key={output.id}
-            output={output}
-            isSelected={selectedOutput?.id === output.id}
-            onPreview={() => onPreview(output)}
-            onDownload={() => onDownload(output)}
-            onAddToMap={() => onAddToMap(output)}
-          />
-        ))}
-      </div>
-    </div>
+
+      {/* Breaks selection modal for probability outputs */}
+      <BreaksSelectionModal
+        isOpen={pendingAddOutput !== null}
+        outputName={pendingAddOutput?.name ?? ''}
+        onConfirm={handleBreaksModeConfirm}
+        onCancel={() => setPendingAddOutput(null)}
+      />
+    </>
   );
 }
 
@@ -138,6 +179,7 @@ interface OutputListItemProps {
   onPreview: () => void;
   onDownload: () => void;
   onAddToMap: () => void;
+  onAddRasterToMap?: () => Promise<void> | void;
 }
 
 function OutputListItem({
@@ -146,9 +188,21 @@ function OutputListItem({
   onPreview,
   onDownload,
   onAddToMap,
+  onAddRasterToMap,
 }: OutputListItemProps) {
+  const [isLoadingRaster, setIsLoadingRaster] = useState(false);
   const formatColor = getFormatColor(output.format);
   const canPreview = ['geotiff', 'geojson'].includes(output.format);
+
+  const handleRasterClick = async () => {
+    if (!onAddRasterToMap || isLoadingRaster) return;
+    setIsLoadingRaster(true);
+    try {
+      await onAddRasterToMap();
+    } finally {
+      setIsLoadingRaster(false);
+    }
+  };
 
   const itemStyle: React.CSSProperties = {
     display: 'flex',
@@ -251,13 +305,38 @@ function OutputListItem({
         >
           DL
         </button>
+
         {canPreview && (
+
           <button
             style={primaryButtonStyle}
             onClick={onAddToMap}
-            title="Add to main map"
+            title="Add contours to main map"
           >
             + Map
+          </button>
+        )}
+
+        {output.format === 'geotiff' && onAddRasterToMap && (
+          <button
+            style={{
+              ...buttonStyle,
+              backgroundColor: '#7b1fa2',
+              
+              borderColor: '#7b1fa2',
+              color: 'white',
+              opacity: isLoadingRaster ? 0.7 : 1,
+              cursor: isLoadingRaster ? 'wait' : 'pointer',
+            }}
+            onClick={handleRasterClick}
+            disabled={isLoadingRaster}
+            title="Add raster tiles to main map"
+          >
+            <i
+              className={isLoadingRaster ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-table-cells'}
+              style={{ marginRight: '4px' }}
+            />
+            {isLoadingRaster ? 'Loading...' : 'Raster'}
           </button>
         )}
       </div>

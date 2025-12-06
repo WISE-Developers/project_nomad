@@ -136,7 +136,7 @@ export async function rasterizePerimeter(
     // Use gdal_rasterize CLI-style API to create output raster
     // -te: target extent, -tr: target resolution, -burn: value, -init: initial value
     // -co TILED=YES: FireSTARR requires tiled TIFF, not striped
-    const resultDs = await gdal.rasterizeAsync(outputPath, memDs, [
+    await gdal.rasterizeAsync(outputPath, memDs, [
       '-burn', String(burnValue),
       '-init', '0',
       '-a_nodata', '0',
@@ -148,17 +148,18 @@ export async function rasterizePerimeter(
       '-l', 'perimeter'
     ]);
 
-    // Count burned cells
+    // Clean up memory dataset
+    memDs.close();
+
+    // Open the result to count burned cells
+    const resultDs = await gdal.openAsync(outputPath);
     const band = resultDs.bands.get(1);
     const data = band.pixels.read(0, 0, width, height);
     let burnedCells = 0;
     for (let i = 0; i < data.length; i++) {
       if (data[i] === burnValue) burnedCells++;
     }
-
-    // Clean up
     resultDs.close();
-    memDs.close();
 
     console.log(`[PerimeterRasterizer] Created ${outputPath}: ${width}x${height}, ${burnedCells} burned cells`);
 

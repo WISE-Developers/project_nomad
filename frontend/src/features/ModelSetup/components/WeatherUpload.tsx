@@ -53,7 +53,7 @@ const comingSoonStyle: React.CSSProperties = {
 export function WeatherUpload(_props: WeatherUploadProps) {
   return (
     <div style={containerStyle}>
-      <div style={iconStyle}>📊</div>
+      <div style={iconStyle}><i className="fa-solid fa-chart-bar" /></div>
       <div style={titleStyle}>Weather Data Upload</div>
       <div style={descStyle}>
         Upload hourly weather data in CSV format with temperature, humidity, wind speed, and

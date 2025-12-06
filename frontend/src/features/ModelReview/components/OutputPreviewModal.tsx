@@ -7,12 +7,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { API_BASE_URL } from '../../../services/api';
 import type { OutputItem } from '../types';
-
-/**
- * API configuration
- */
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 /**
  * Props for OutputPreviewModal

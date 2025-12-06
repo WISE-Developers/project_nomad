@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useMap } from '../context/MapContext';
 import { BasemapStyle, BASEMAP_STYLES } from '../types';
 
@@ -27,8 +27,8 @@ const STORAGE_KEY = 'nomad-basemap-style';
 const POSITION_STYLES: Record<string, React.CSSProperties> = {
   'top-left': { top: '10px', left: '10px' },
   'top-right': { top: '60px', right: '10px' },
-  'bottom-left': { bottom: '30px', left: '10px' },
-  'bottom-right': { bottom: '30px', right: '10px' },
+  'bottom-left': { bottom: '150px', left: '10px' },
+  'bottom-right': { bottom: '150px', right: '10px' },
 };
 
 /**
@@ -57,7 +57,7 @@ export function BasemapSwitcher({
   onChange,
   className = '',
 }: BasemapSwitcherProps) {
-  const { map, isLoaded } = useMap();
+  const { map } = useMap();
   const [activeStyle, setActiveStyle] = useState<BasemapStyle>(() => {
     if (initialStyle) return initialStyle;
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -65,16 +65,8 @@ export function BasemapSwitcher({
   });
   const [isOpen, setIsOpen] = useState(false);
 
-  // Apply initial style from localStorage
-  useEffect(() => {
-    if (!map || !isLoaded) return;
-
-    const stored = localStorage.getItem(STORAGE_KEY) as BasemapStyle;
-    if (stored && stored !== activeStyle) {
-      map.setStyle(BASEMAP_STYLES[stored].url);
-      setActiveStyle(stored);
-    }
-  }, [map, isLoaded]);
+  // Note: Initial style is now applied in MapContainer from localStorage
+  // This component only handles user-initiated style changes
 
   const handleStyleChange = (style: BasemapStyle) => {
     if (!map || style === activeStyle) {
@@ -139,10 +131,10 @@ export function BasemapSwitcher({
     fontWeight: 500,
   };
 
-  const styleIcons: Record<BasemapStyle, string> = {
-    streets: '🛣️',
-    satellite: '🛰️',
-    outdoors: '🏔️',
+  const styleIcons: Record<BasemapStyle, React.ReactNode> = {
+    streets: <i className="fa-solid fa-road" />,
+    satellite: <i className="fa-solid fa-satellite" />,
+    outdoors: <i className="fa-solid fa-mountain" />,
   };
 
   return (
@@ -157,7 +149,7 @@ export function BasemapSwitcher({
             >
               <span>{styleIcons[key as BasemapStyle]}</span>
               <span>{config.name}</span>
-              {key === activeStyle && <span>✓</span>}
+              {key === activeStyle && <i className="fa-solid fa-check" />}
             </div>
           ))}
         </div>

@@ -125,6 +125,12 @@ declare module 'gdal-async' {
         burnValues?: number[];
       }
     ): Promise<void>;
+    // CLI-style overload (gdal_rasterize command-line args)
+    rasterizeAsync(
+      outputPath: string,
+      sourceDataset: Dataset,
+      args: string[]
+    ): Promise<void>;
   }
 
   // ESM default export
@@ -149,5 +155,11 @@ declare module 'gdal-async' {
       bands?: number[];
       burnValues?: number[];
     }
+  ): Promise<void>;
+  // CLI-style overload (gdal_rasterize command-line args)
+  export function rasterizeAsync(
+    outputPath: string,
+    sourceDataset: Dataset,
+    args: string[]
   ): Promise<void>;
 }

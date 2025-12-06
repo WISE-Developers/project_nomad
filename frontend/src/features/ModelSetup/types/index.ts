@@ -196,31 +196,31 @@ export const MODEL_SETUP_STEPS = [
     id: 'spatial' as const,
     name: 'Location',
     description: 'Define the fire ignition or perimeter location',
-    icon: '📍',
+    icon: 'location-dot',
   },
   {
     id: 'temporal' as const,
     name: 'Time Range',
     description: 'Set the simulation start time and duration',
-    icon: '🕐',
+    icon: 'clock',
   },
   {
     id: 'model' as const,
     name: 'Model',
     description: 'Select the fire modeling engine and run type',
-    icon: '🔥',
+    icon: 'fire',
   },
   {
     id: 'weather' as const,
     name: 'Weather',
     description: 'Provide fire weather index values',
-    icon: '🌤️',
+    icon: 'cloud-sun',
   },
   {
     id: 'review' as const,
     name: 'Review',
     description: 'Review settings and start the model',
-    icon: '✅',
+    icon: 'circle-check',
   },
 ] as const;
 

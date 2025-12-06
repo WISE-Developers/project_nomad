@@ -131,6 +131,13 @@ export class ModelResultsService {
 
       if (latestJob) {
         useDatabase = true;
+        console.log(`[ModelResultsService] Job from database:`, {
+          id: latestJob.id,
+          status: latestJob.status,
+          startedAt: latestJob.startedAt?.toISOString() ?? 'NULL',
+          completedAt: latestJob.completedAt?.toISOString() ?? 'NULL',
+          createdAt: latestJob.createdAt.toISOString(),
+        });
         status = {
           state: latestJob.status as ExecutionStatus['state'],
           progress: latestJob.progress,
