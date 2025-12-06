@@ -1,9 +1,9 @@
 /**
  * Database Infrastructure
  *
- * Persistence layer with pluggable backends:
+ * Persistence layer using Knex.js for cross-database support:
  * - SAN mode: SQLite (better-sqlite3)
- * - ACN mode: PostgreSQL (future)
+ * - ACN mode: PostgreSQL, MySQL, SQL Server, Oracle
  *
  * Use the repository provider for database-agnostic access.
  */
@@ -27,11 +27,34 @@ export {
   type DeploymentMode,
 } from './RepositoryProvider.js';
 
-// Legacy function-based repositories (for backward compatibility)
-// These will be deprecated in favor of the repository provider
-export * from './ModelRepository.js';
-export * from './JobRepository.js';
-export * from './ResultRepository.js';
+// Knex connection management
+export {
+  initKnex,
+  getKnex,
+  closeKnex,
+  resetKnex,
+  isKnexInitialized,
+  getDatabaseClient,
+  isSqlite,
+  testConnection,
+  type DatabaseConfig,
+  type DatabaseClient,
+} from './knex/index.js';
 
-// SQLite implementations (direct access if needed)
-export * from './sqlite/index.js';
+// Knex repositories
+export {
+  KnexModelRepository,
+  KnexJobRepository,
+  KnexResultRepository,
+} from './knex/index.js';
+
+// Migrations
+export {
+  runMigrations,
+  rollbackMigrations,
+  getMigrationStatus,
+} from './migrations/index.js';
+
+// Note: Legacy function-based repositories (ModelRepository.ts, JobRepository.ts, ResultRepository.ts)
+// and SQLite implementations (sqlite/) are no longer exported.
+// Use the Knex repositories via getModelRepository(), getJobRepository(), getResultRepository() instead.
