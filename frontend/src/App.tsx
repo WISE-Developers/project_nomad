@@ -93,6 +93,7 @@ const headerButtonStyle: React.CSSProperties = {
   borderRadius: '8px',
   cursor: 'pointer',
   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+  textShadow: '1.5px 1.5px 3px rgba(0, 0, 0, 0.6)',
 };
 
 const headerContainerStyle: React.CSSProperties = {
@@ -175,12 +176,22 @@ function AppContent() {
 
       if (data.geometry.features.length > 0) {
         const feature = data.geometry.features[0];
-        if (feature.geometry.type === 'Point') {
+        const geomType = feature.geometry.type;
+        console.log('[App] Ignition geometry type:', geomType, 'Feature:', feature);
+
+        if (geomType === 'Point') {
           coordinates = feature.geometry.coordinates as [number, number];
           ignitionType = 'point';
-        } else if (feature.geometry.type === 'Polygon') {
+        } else if (geomType === 'Polygon') {
           coordinates = feature.geometry.coordinates as [number, number][][];
           ignitionType = 'polygon';
+          console.log('[App] Using polygon ignition with coordinates:', coordinates);
+        } else if (geomType === 'LineString') {
+          // LineString treated as polygon for fire line ignition
+          // Wrap in array to match polygon coordinate structure
+          coordinates = [feature.geometry.coordinates as [number, number][]];
+          ignitionType = 'polygon';
+          console.log('[App] Using line ignition (as polygon) with coordinates:', coordinates);
         }
       }
 

@@ -178,7 +178,7 @@ interface OutputListItemProps {
   isSelected: boolean;
   onPreview: () => void;
   onDownload: () => void;
-  onAddToMap: () => void;
+  onAddToMap: () => Promise<void> | void;
   onAddRasterToMap?: () => Promise<void> | void;
 }
 
@@ -191,8 +191,19 @@ function OutputListItem({
   onAddRasterToMap,
 }: OutputListItemProps) {
   const [isLoadingRaster, setIsLoadingRaster] = useState(false);
+  const [isLoadingContours, setIsLoadingContours] = useState(false);
   const formatColor = getFormatColor(output.format);
   const canPreview = ['geotiff', 'geojson'].includes(output.format);
+
+  const handleContoursClick = async () => {
+    if (isLoadingContours) return;
+    setIsLoadingContours(true);
+    try {
+      await onAddToMap();
+    } finally {
+      setIsLoadingContours(false);
+    }
+  };
 
   const handleRasterClick = async () => {
     if (!onAddRasterToMap || isLoadingRaster) return;
@@ -307,13 +318,21 @@ function OutputListItem({
         </button>
 
         {canPreview && (
-
           <button
-            style={primaryButtonStyle}
-            onClick={onAddToMap}
+            style={{
+              ...primaryButtonStyle,
+              opacity: isLoadingContours ? 0.7 : 1,
+              cursor: isLoadingContours ? 'wait' : 'pointer',
+            }}
+            onClick={handleContoursClick}
+            disabled={isLoadingContours}
             title="Add contours to main map"
           >
-            + Map
+            <i
+              className={isLoadingContours ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-layer-group'}
+              style={{ marginRight: '4px' }}
+            />
+            {isLoadingContours ? 'Loading...' : '+ Map'}
           </button>
         )}
 
