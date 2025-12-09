@@ -1,119 +1,73 @@
 /**
  * Database Module
  *
- * SQLite database for persisting models, jobs, and results.
- * Uses better-sqlite3 for synchronous, simple operations.
+ * Database initialization using Knex.js for cross-database support.
+ * - SAN mode: SQLite with better-sqlite3
+ * - ACN mode: PostgreSQL, MySQL, SQL Server, or Oracle
  */
 
-import Database from 'better-sqlite3';
-import { join } from 'path';
-import { mkdirSync, existsSync } from 'fs';
-
-let db: Database.Database | null = null;
+import { Knex } from 'knex';
+import {
+  initKnex,
+  getKnex,
+  closeKnex,
+  isKnexInitialized,
+  testConnection,
+} from './knex/index.js';
+import { runMigrations } from './migrations/index.js';
 
 /**
- * Get the database path from environment or use default
+ * Initialize the database and run migrations.
+ *
+ * This is the main entry point for database setup.
+ * It initializes Knex and runs any pending migrations.
  */
-function getDatabasePath(): string {
-  const dataPath = process.env.NOMAD_DATA_PATH || process.env.FIRESTARR_DATASET_PATH || './data';
+export async function initDatabase(): Promise<Knex> {
+  // Initialize Knex connection
+  const knex = initKnex();
 
-  // Ensure directory exists
-  if (!existsSync(dataPath)) {
-    mkdirSync(dataPath, { recursive: true });
+  // Test connection
+  const connected = await testConnection();
+  if (!connected) {
+    throw new Error('Failed to connect to database');
   }
 
-  return join(dataPath, 'nomad.db');
+  // Run migrations
+  const ranMigrations = await runMigrations();
+  if (ranMigrations.length > 0) {
+    console.log(`[Database] Ran ${ranMigrations.length} migration(s)`);
+  }
+
+  return knex;
 }
 
 /**
- * Initialize the database and create tables
+ * Get the Knex instance.
+ * Initializes if not already done.
  */
-export function initDatabase(): Database.Database {
-  if (db) {
-    return db;
-  }
-
-  const dbPath = getDatabasePath();
-  console.log(`[Database] Initializing SQLite database at: ${dbPath}`);
-
-  db = new Database(dbPath);
-
-  // Enable foreign keys
-  db.pragma('foreign_keys = ON');
-
-  // Create tables
-  db.exec(`
-    -- Fire models
-    CREATE TABLE IF NOT EXISTS fire_models (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      engine_type TEXT NOT NULL,
-      status TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    -- Jobs
-    CREATE TABLE IF NOT EXISTS jobs (
-      id TEXT PRIMARY KEY,
-      model_id TEXT NOT NULL,
-      status TEXT NOT NULL,
-      progress INTEGER DEFAULT 0,
-      created_at TEXT NOT NULL,
-      started_at TEXT,
-      completed_at TEXT,
-      error TEXT,
-      FOREIGN KEY (model_id) REFERENCES fire_models(id)
-    );
-
-    -- Model results (references to output files)
-    CREATE TABLE IF NOT EXISTS model_results (
-      id TEXT PRIMARY KEY,
-      model_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      output_type TEXT NOT NULL,
-      format TEXT NOT NULL,
-      file_path TEXT NOT NULL,
-      metadata TEXT,
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (model_id) REFERENCES fire_models(id)
-    );
-
-    -- Create indexes for common queries
-    CREATE INDEX IF NOT EXISTS idx_jobs_model_id ON jobs(model_id);
-    CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
-    CREATE INDEX IF NOT EXISTS idx_results_model_id ON model_results(model_id);
-  `);
-
-  console.log('[Database] Tables initialized successfully');
-
-  return db;
+export function getDatabase(): Knex {
+  return getKnex();
 }
 
 /**
- * Get the database instance (must call initDatabase first)
+ * Close the database connection.
  */
-export function getDatabase(): Database.Database {
-  if (!db) {
-    return initDatabase();
-  }
-  return db;
+export async function closeDatabase(): Promise<void> {
+  await closeKnex();
 }
 
 /**
- * Close the database connection
- */
-export function closeDatabase(): void {
-  if (db) {
-    db.close();
-    db = null;
-    console.log('[Database] Connection closed');
-  }
-}
-
-/**
- * Check if database is initialized
+ * Check if database is initialized.
  */
 export function isDatabaseInitialized(): boolean {
-  return db !== null;
+  return isKnexInitialized();
+}
+
+/**
+ * Legacy synchronous init for backwards compatibility.
+ * @deprecated Use initDatabase() instead
+ */
+export function initDatabaseSync(): Knex {
+  console.warn('[Database] initDatabaseSync is deprecated, use initDatabase() instead');
+  return initKnex();
 }

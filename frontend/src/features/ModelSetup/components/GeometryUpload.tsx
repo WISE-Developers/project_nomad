@@ -269,7 +269,7 @@ export function GeometryUpload({ onUpload }: GeometryUploadProps) {
           onChange={handleFileChange}
           style={{ display: 'none' }}
         />
-        <div style={{ fontSize: '24px', marginBottom: '8px' }}>📁</div>
+        <div style={{ fontSize: '24px', marginBottom: '8px' }}><i className="fa-solid fa-folder-open" /></div>
         <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
           {isDragActive ? 'Drop file here' : 'Click or drag file to upload'}
         </div>

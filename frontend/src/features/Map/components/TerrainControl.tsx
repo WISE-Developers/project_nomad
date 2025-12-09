@@ -52,7 +52,7 @@ export function TerrainControl({
     borderRadius: '4px',
     boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
     padding: '8px',
-    minWidth: '240px',
+    minWidth: '310px',
     ...POSITION_STYLES[position],
   };
 
@@ -117,7 +117,7 @@ export function TerrainControl({
     <div className={`terrain-control ${className}`} style={containerStyle}>
       <div style={headerStyle}>
         <div style={labelStyle}>
-          <span>🏔️</span>
+          <i className="fa-solid fa-mountain" />
           <span>3D Terrain</span>
         </div>
         <div style={toggleStyle} onClick={toggle}>

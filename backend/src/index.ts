@@ -14,28 +14,29 @@ import { initDatabase, initializeRepositories, getJobRepository } from './infras
 // Load .env from project root (parent directory)
 dotenv.config({ path: resolve(process.cwd(), '..', '.env') });
 
-// ============================================
-// Database Initialization
-// ============================================
-console.log('[Startup] Initializing database...');
-initDatabase();
+const app = express();
+const PORT = process.env.PORT || 3001;
 
-// Initialize repositories (database-agnostic layer)
-initializeRepositories();
-console.log('[Startup] Repositories initialized');
+/**
+ * Initialize database and repositories
+ */
+async function initializeDatabaseLayer(): Promise<void> {
+  console.log('[Startup] Initializing database...');
+  await initDatabase();
 
-// Startup recovery: mark interrupted jobs as failed
-const jobRepo = getJobRepository();
-jobRepo.markRunningAsFailed().then((count) => {
+  // Initialize repositories (database-agnostic layer)
+  initializeRepositories();
+  console.log('[Startup] Repositories initialized');
+
+  // Startup recovery: mark interrupted jobs as failed
+  const jobRepo = getJobRepository();
+  const count = await jobRepo.markRunningAsFailed();
   if (count > 0) {
     console.log(`[Startup] Marked ${count} interrupted jobs as failed`);
   }
-});
 
-console.log('[Startup] Database ready');
-
-const app = express();
-const PORT = process.env.PORT || 3001;
+  console.log('[Startup] Database ready');
+}
 
 // ============================================
 // Middleware (order matters!)
@@ -79,8 +80,14 @@ app.use(errorHandler);
 // Server Startup
 // ============================================
 
-app.listen(PORT, () => {
-  console.log(`
+async function startServer(): Promise<void> {
+  try {
+    // Initialize database first
+    await initializeDatabaseLayer();
+
+    // Start listening
+    app.listen(PORT, () => {
+      console.log(`
 ╔════════════════════════════════════════════╗
 ║         Project Nomad Backend              ║
 ╠════════════════════════════════════════════╣
@@ -88,5 +95,13 @@ app.listen(PORT, () => {
 ║  API:     http://localhost:${PORT}/api/v1      ║
 ║  Docs:    http://localhost:${PORT}/api/docs    ║
 ╚════════════════════════════════════════════╝
-  `);
-});
+      `);
+    });
+  } catch (error) {
+    console.error('[Startup] Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+// Start the server
+startServer();

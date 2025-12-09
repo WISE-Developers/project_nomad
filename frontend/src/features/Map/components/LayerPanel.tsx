@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useLayers } from '../context/LayerContext';
 import { LayerItem } from './LayerItem';
 
@@ -45,7 +46,42 @@ export function LayerPanel({
   className = '',
 }: LayerPanelProps) {
   // Note: _initialExpanded reserved for future collapsible panel feature
-  const { state, setOpacity, toggleVisibility, removeLayer, selectLayer } = useLayers();
+  const { state, setOpacity, toggleVisibility, removeLayer, selectLayer, reorderLayer } = useLayers();
+
+  // Drag and drop state
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, layerId: string) => {
+    setDraggedId(layerId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', layerId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, layerId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedId && layerId !== draggedId) {
+      setDragOverId(layerId);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (draggedId && draggedId !== targetId) {
+      const targetIndex = state.layers.findIndex(l => l.id === targetId);
+      if (targetIndex >= 0) {
+        reorderLayer(draggedId, targetIndex);
+      }
+    }
+    setDraggedId(null);
+    setDragOverId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedId(null);
+    setDragOverId(null);
+  };
 
   const containerStyle: React.CSSProperties = {
     position: 'absolute',
@@ -90,7 +126,7 @@ export function LayerPanel({
     return (
       <div className={`layer-panel ${className}`} style={containerStyle}>
         <div style={headerStyle}>
-          <span>Layers</span>
+          <span><i className="fa-solid fa-layer-group" style={{ marginRight: '8px' }} />Layers</span>
           <span style={{ fontSize: '12px', color: '#999' }}>0</span>
         </div>
         <div style={emptyStyle}>
@@ -103,7 +139,7 @@ export function LayerPanel({
   return (
     <div className={`layer-panel ${className}`} style={containerStyle}>
       <div style={headerStyle}>
-        <span>Layers</span>
+        <span><i className="fa-solid fa-layer-group" style={{ marginRight: '8px' }} />Layers</span>
         <span style={{ fontSize: '12px', color: '#999' }}>{state.layers.length}</span>
       </div>
       <div style={listStyle}>
@@ -112,10 +148,16 @@ export function LayerPanel({
             key={layer.id}
             layer={layer}
             isSelected={state.selectedLayerId === layer.id}
+            isDragging={draggedId === layer.id}
+            isDragOver={dragOverId === layer.id}
             onToggleVisibility={() => toggleVisibility(layer.id)}
             onOpacityChange={(opacity) => setOpacity(layer.id, opacity)}
             onRemove={() => removeLayer(layer.id)}
             onSelect={() => selectLayer(layer.id)}
+            onDragStart={(e) => handleDragStart(e, layer.id)}
+            onDragOver={(e) => handleDragOver(e, layer.id)}
+            onDrop={(e) => handleDrop(e, layer.id)}
+            onDragEnd={handleDragEnd}
           />
         ))}
       </div>

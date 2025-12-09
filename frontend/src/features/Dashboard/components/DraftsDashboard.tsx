@@ -320,7 +320,7 @@ export function DraftsDashboard({
 
       {isEmpty ? (
         <div style={emptyStateStyle}>
-          <div style={emptyIconStyle}>📝</div>
+          <div style={emptyIconStyle}><i className="fa-solid fa-file-pen" /></div>
           <h2 style={emptyTitleStyle}>No Drafts Yet</h2>
           <p style={emptyTextStyle}>
             Your in-progress fire models will appear here.

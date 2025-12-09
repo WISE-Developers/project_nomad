@@ -26,10 +26,11 @@ interface ToolButton {
   title: string;
 }
 
+
 const TOOLS: ToolButton[] = [
-  { mode: 'point', label: 'Point', icon: '📍', title: 'Draw a point (click on map)' },
-  { mode: 'line', label: 'Line', icon: '📏', title: 'Draw a line (double-click to finish)' },
-  { mode: 'polygon', label: 'Polygon', icon: '⬡', title: 'Draw a polygon (double-click to finish)' },
+  { mode: 'point', label: 'Point', icon: 'location-dot', title: 'Draw a point (click on map)' },
+  { mode: 'line', label: 'Line', icon: 'arrow-trend-up', title: 'Draw a line (double-click to finish)' },
+  { mode: 'polygon', label: 'Polygon', icon: 'draw-polygon', title: 'Draw a polygon (double-click to finish)' },
 ];
 
 /**
@@ -127,7 +128,7 @@ export function DrawingToolbar({
           onClick={() => setMode(state.mode === tool.mode ? 'none' : tool.mode)}
           title={tool.title}
         >
-          <span>{tool.icon}</span>
+          <i className={`fa-solid fa-${tool.icon}`} />
           <span>{tool.label}</span>
         </button>
       ))}
@@ -138,7 +139,7 @@ export function DrawingToolbar({
         disabled={state.selectedIds.length === 0}
         title="Delete selected features"
       >
-        <span>🗑️</span>
+        <i className="fa-solid fa-trash" />
         <span>Delete</span>
       </button>
       <button
@@ -147,7 +148,7 @@ export function DrawingToolbar({
         disabled={state.features.length === 0}
         title="Clear all features"
       >
-        <span>🧹</span>
+        <i className="fa-solid fa-delete-left" />
         <span>Clear All</span>
       </button>
     </div>

@@ -1,10 +1,11 @@
 /**
- * SQLite Model Repository
+ * Knex Model Repository
  *
- * SQLite implementation of IModelRepository for SAN mode.
+ * Database-agnostic implementation of IModelRepository using Knex.js.
+ * Supports SQLite, PostgreSQL, MySQL, SQL Server, and Oracle.
  */
 
-import Database from 'better-sqlite3';
+import { Knex } from 'knex';
 import {
   FireModel,
   FireModelId,
@@ -47,33 +48,37 @@ function rowToModel(row: ModelRow): FireModel {
 }
 
 /**
- * SQLite implementation of model repository
+ * Knex implementation of model repository
  */
-export class SqliteModelRepository implements IModelRepository {
-  constructor(private db: Database.Database) {}
+export class KnexModelRepository implements IModelRepository {
+  private readonly tableName = 'fire_models';
+
+  constructor(private knex: Knex) {}
 
   async save(model: FireModel): Promise<FireModel> {
-    // Use INSERT OR REPLACE for upsert behavior
-    const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO fire_models (id, name, engine_type, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
+    const data = {
+      id: model.id,
+      name: model.name,
+      engine_type: model.engineType,
+      status: model.status,
+      created_at: model.createdAt.toISOString(),
+      updated_at: model.updatedAt.toISOString(),
+    };
 
-    stmt.run(
-      model.id,
-      model.name,
-      model.engineType,
-      model.status,
-      model.createdAt.toISOString(),
-      model.updatedAt.toISOString()
-    );
+    // Use onConflict().merge() for upsert behavior (works across databases)
+    await this.knex(this.tableName)
+      .insert(data)
+      .onConflict('id')
+      .merge();
 
     return model;
   }
 
   async findById(id: FireModelId): Promise<FireModel | null> {
-    const stmt = this.db.prepare(`SELECT * FROM fire_models WHERE id = ?`);
-    const row = stmt.get(id) as ModelRow | undefined;
+    const row = await this.knex(this.tableName)
+      .where({ id })
+      .first<ModelRow>();
+
     return row ? rowToModel(row) : null;
   }
 
@@ -86,36 +91,32 @@ export class SqliteModelRepository implements IModelRepository {
   }
 
   async find(filter: ModelFilter, options?: ModelQueryOptions): Promise<ModelQueryResult> {
-    let query = 'SELECT * FROM fire_models WHERE 1=1';
-    const params: unknown[] = [];
+    let query = this.knex(this.tableName);
 
     // Apply filters
     if (filter.status) {
       const statuses = Array.isArray(filter.status) ? filter.status : [filter.status];
-      query += ` AND status IN (${statuses.map(() => '?').join(', ')})`;
-      params.push(...statuses);
+      query = query.whereIn('status', statuses);
     }
 
     if (filter.engineType) {
-      query += ' AND engine_type = ?';
-      params.push(filter.engineType);
+      query = query.where('engine_type', filter.engineType);
     }
 
     if (filter.nameContains) {
-      query += ' AND name LIKE ?';
-      params.push(`%${filter.nameContains}%`);
+      query = query.where('name', 'like', `%${filter.nameContains}%`);
     }
 
     if (filter.createdBetween) {
-      query += ' AND created_at >= ? AND created_at <= ?';
-      params.push(filter.createdBetween.start.toISOString());
-      params.push(filter.createdBetween.end.toISOString());
+      query = query
+        .where('created_at', '>=', filter.createdBetween.start.toISOString())
+        .where('created_at', '<=', filter.createdBetween.end.toISOString());
     }
 
-    // Get total count
-    const countStmt = this.db.prepare(query.replace('SELECT *', 'SELECT COUNT(*) as count'));
-    const countResult = countStmt.get(...params) as { count: number };
-    const totalCount = countResult.count;
+    // Get total count (clone query before pagination)
+    const countQuery = query.clone();
+    const [{ count: totalCount }] = await countQuery.count('* as count');
+    const total = Number(totalCount);
 
     // Apply sorting
     const sortBy = options?.sortBy ?? 'createdAt';
@@ -126,34 +127,31 @@ export class SqliteModelRepository implements IModelRepository {
       name: 'name',
       status: 'status',
     };
-    query += ` ORDER BY ${columnMap[sortBy] ?? 'created_at'} ${sortOrder.toUpperCase()}`;
+    query = query.orderBy(columnMap[sortBy] ?? 'created_at', sortOrder);
 
     // Apply pagination
     if (options?.limit) {
-      query += ' LIMIT ?';
-      params.push(options.limit);
+      query = query.limit(options.limit);
     }
     if (options?.offset) {
-      query += ' OFFSET ?';
-      params.push(options.offset);
+      query = query.offset(options.offset);
     }
 
-    const stmt = this.db.prepare(query);
-    const rows = stmt.all(...params) as ModelRow[];
+    const rows = await query.select<ModelRow[]>('*');
     const models = rows.map(rowToModel);
 
     const hasMore = options?.limit
-      ? (options.offset ?? 0) + models.length < totalCount
+      ? (options.offset ?? 0) + models.length < total
       : false;
 
-    return { models, totalCount, hasMore };
+    return { models, totalCount: total, hasMore };
   }
 
   async findSpatial(_filter: SpatialModelFilter, _options?: ModelQueryOptions): Promise<ModelQueryResult> {
-    // SQLite doesn't support spatial queries natively
-    // For SAN mode, fall back to non-spatial find
-    // In ACN mode with PostGIS, this would use ST_Distance, ST_Within, etc.
-    console.warn('[SqliteModelRepository] Spatial queries not supported in SQLite, falling back to basic find');
+    // Spatial queries require PostGIS/SpatiaLite extensions
+    // For now, fall back to non-spatial find
+    // TODO: Implement spatial queries when spatial extensions are added
+    console.warn('[KnexModelRepository] Spatial queries not yet implemented, falling back to basic find');
     return this.find(_filter, _options);
   }
 
@@ -161,20 +159,22 @@ export class SqliteModelRepository implements IModelRepository {
     const model = await this.getById(id);
     const updated = model.withStatus(status);
 
-    const stmt = this.db.prepare(`
-      UPDATE fire_models
-      SET status = ?, updated_at = ?
-      WHERE id = ?
-    `);
+    await this.knex(this.tableName)
+      .where({ id })
+      .update({
+        status: updated.status,
+        updated_at: updated.updatedAt.toISOString(),
+      });
 
-    stmt.run(updated.status, updated.updatedAt.toISOString(), id);
     return updated;
   }
 
   async delete(id: FireModelId): Promise<boolean> {
-    const stmt = this.db.prepare(`DELETE FROM fire_models WHERE id = ?`);
-    const result = stmt.run(id);
-    return result.changes > 0;
+    const deleted = await this.knex(this.tableName)
+      .where({ id })
+      .delete();
+
+    return deleted > 0;
   }
 
   async saveResult(_result: ModelResult): Promise<ModelResult> {
@@ -199,9 +199,8 @@ export class SqliteModelRepository implements IModelRepository {
 
   async count(filter?: ModelFilter): Promise<number> {
     if (!filter) {
-      const stmt = this.db.prepare(`SELECT COUNT(*) as count FROM fire_models`);
-      const result = stmt.get() as { count: number };
-      return result.count;
+      const [{ count }] = await this.knex(this.tableName).count('* as count');
+      return Number(count);
     }
 
     const queryResult = await this.find(filter);
@@ -209,25 +208,22 @@ export class SqliteModelRepository implements IModelRepository {
   }
 
   async exists(id: FireModelId): Promise<boolean> {
-    const stmt = this.db.prepare(`SELECT 1 FROM fire_models WHERE id = ?`);
-    const row = stmt.get(id);
+    const row = await this.knex(this.tableName)
+      .where({ id })
+      .select(this.knex.raw('1'))
+      .first();
+
     return row !== undefined;
   }
 
   async findStaleModels(maxAgeMinutes: number): Promise<FireModel[]> {
     const cutoff = new Date(Date.now() - maxAgeMinutes * 60 * 1000);
-    const stmt = this.db.prepare(`
-      SELECT * FROM fire_models
-      WHERE status IN (?, ?)
-      AND updated_at < ?
-      ORDER BY updated_at ASC
-    `);
 
-    const rows = stmt.all(
-      ModelStatus.Queued,
-      ModelStatus.Running,
-      cutoff.toISOString()
-    ) as ModelRow[];
+    const rows = await this.knex(this.tableName)
+      .whereIn('status', [ModelStatus.Queued, ModelStatus.Running])
+      .where('updated_at', '<', cutoff.toISOString())
+      .orderBy('updated_at', 'asc')
+      .select<ModelRow[]>('*');
 
     return rows.map(rowToModel);
   }

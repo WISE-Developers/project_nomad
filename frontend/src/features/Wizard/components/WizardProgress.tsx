@@ -121,13 +121,15 @@ function StepIndicator({
   const getStatusIcon = () => {
     switch (status) {
       case 'completed':
-        return '✓';
+        return <i className="fa-solid fa-check" />;
       case 'error':
-        return '!';
+        return <i className="fa-solid fa-exclamation" />;
       case 'skipped':
-        return '−';
+        return <i className="fa-solid fa-minus" />;
       default:
-        return showNumber ? String(index + 1) : step.icon || '';
+        if (showNumber) return String(index + 1);
+        if (step.icon) return <i className={`fa-solid fa-${step.icon}`} />;
+        return '';
     }
   };
 

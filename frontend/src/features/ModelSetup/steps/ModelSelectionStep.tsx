@@ -101,7 +101,7 @@ const engines: EngineOption[] = [
   {
     id: 'firestarr',
     name: 'FireSTARR',
-    icon: '🔥',
+    icon: 'fire',
     description:
       'Stochastic fire spread model optimized for Canadian boreal forests. Provides probability-based fire perimeters and intensity predictions.',
     available: true,
@@ -109,7 +109,7 @@ const engines: EngineOption[] = [
   {
     id: 'wise',
     name: 'WISE',
-    icon: '🌲',
+    icon: 'tree',
     description:
       'Wildfire Intelligence Simulation Engine. Advanced physics-based fire behavior modeling with detailed fire intensity outputs.',
     available: false,
@@ -120,14 +120,14 @@ const runTypes: RunTypeOption[] = [
   {
     id: 'deterministic',
     name: 'Deterministic',
-    icon: '➡️',
+    icon: 'arrow-right',
     description:
       'Single simulation run with fixed parameters. Faster execution, produces a single fire perimeter prediction.',
   },
   {
     id: 'probabilistic',
     name: 'Probabilistic',
-    icon: '📊',
+    icon: 'chart-bar',
     description:
       'Multiple simulation runs with varied parameters. Longer execution time, produces burn probability maps showing fire likelihood.',
   },
@@ -203,7 +203,7 @@ export function ModelSelectionStep() {
                   style={radioStyle}
                 />
                 <div style={optionTitleStyle}>
-                  <span>{engine.icon}</span>
+                  <i className={`fa-solid fa-${engine.icon}`} />
                   <span>{engine.name}</span>
                   {!engine.available && (
                     <span style={{ ...badgeStyle, backgroundColor: '#95a5a6', color: 'white' }}>
@@ -249,7 +249,7 @@ export function ModelSelectionStep() {
                   style={radioStyle}
                 />
                 <div style={optionTitleStyle}>
-                  <span>{runType.icon}</span>
+                  <i className={`fa-solid fa-${runType.icon}`} />
                   <span>{runType.name}</span>
                   {isSelected && (
                     <span style={{ ...badgeStyle, backgroundColor: '#ff6b35', color: 'white' }}>

@@ -3,7 +3,21 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useMapInternal } from '../context/MapContext';
 import { DrawProvider } from '../context/DrawContext';
-import { MapOptions, DEFAULT_MAP_OPTIONS } from '../types';
+import { MapOptions, DEFAULT_MAP_OPTIONS, BASEMAP_STYLES, BasemapStyle } from '../types';
+
+/** Local storage key for persisting basemap selection (shared with BasemapSwitcher) */
+const BASEMAP_STORAGE_KEY = 'nomad-basemap-style';
+
+/** Local storage key for persisting map view position */
+const VIEW_STORAGE_KEY = 'nomad-map-view';
+
+/** Saved map view state */
+interface SavedMapView {
+  center: [number, number];
+  zoom: number;
+  pitch: number;
+  bearing: number;
+}
 
 /**
  * Props for MapContainer component
@@ -64,17 +78,42 @@ export function MapContainer({
     // Merge options with defaults
     const mergedOptions = { ...DEFAULT_MAP_OPTIONS, ...options };
 
+    // Get saved basemap style from localStorage or use default
+    const savedStyle = localStorage.getItem(BASEMAP_STORAGE_KEY) as BasemapStyle | null;
+    const initialStyle = savedStyle && BASEMAP_STYLES[savedStyle]
+      ? BASEMAP_STYLES[savedStyle].url
+      : mergedOptions.style;
+
+    // Get saved map view position from localStorage
+    let initialCenter = mergedOptions.center;
+    let initialZoom = mergedOptions.zoom;
+    let initialPitch = mergedOptions.pitch;
+    let initialBearing = mergedOptions.bearing;
+
+    const savedView = localStorage.getItem(VIEW_STORAGE_KEY);
+    if (savedView) {
+      try {
+        const view: SavedMapView = JSON.parse(savedView);
+        initialCenter = view.center;
+        initialZoom = view.zoom;
+        initialPitch = view.pitch;
+        initialBearing = view.bearing;
+      } catch {
+        // Invalid saved view, use defaults
+      }
+    }
+
     try {
       setIsLoading(true);
       setError(null);
 
       const map = new mapboxgl.Map({
         container: containerRef.current,
-        style: mergedOptions.style,
-        center: mergedOptions.center,
-        zoom: mergedOptions.zoom,
-        pitch: mergedOptions.pitch,
-        bearing: mergedOptions.bearing,
+        style: initialStyle,
+        center: initialCenter,
+        zoom: initialZoom,
+        pitch: initialPitch,
+        bearing: initialBearing,
         attributionControl: true,
         preserveDrawingBuffer: true, // Needed for export/screenshots
       });
@@ -103,6 +142,18 @@ export function MapContainer({
         // Add navigation controls
         map.addControl(new mapboxgl.NavigationControl(), 'top-right');
         map.addControl(new mapboxgl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+      });
+
+      // Save map view position on move end
+      map.on('moveend', () => {
+        const center = map.getCenter();
+        const view: SavedMapView = {
+          center: [center.lng, center.lat],
+          zoom: map.getZoom(),
+          pitch: map.getPitch(),
+          bearing: map.getBearing(),
+        };
+        localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify(view));
       });
 
       map.on('error', (e) => {

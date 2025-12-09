@@ -30,6 +30,24 @@ interface LayerContextValue {
 
 const LayerContext = createContext<LayerContextValue | null>(null);
 
+/** Local storage key for layer persistence */
+const LAYERS_STORAGE_KEY = 'nomad-layers';
+
+/**
+ * Layer metadata for persistence (excludes large GeoJSON data)
+ */
+interface PersistedLayerMeta {
+  id: string;
+  name: string;
+  type: 'geojson' | 'raster';
+  resultId?: string;
+  outputType?: string;
+  breaksMode?: 'static' | 'dynamic';
+  visible: boolean;
+  opacity: number;
+  zIndex: number;
+}
+
 /**
  * Provider for shared layer state
  */
@@ -41,8 +59,17 @@ export function LayerProvider({ children }: { children: ReactNode }) {
     selectedLayerId: null,
   });
 
+  // Track if we've already restored from localStorage
+  const hasRestoredRef = useRef(false);
+
   // Popup for hover tooltips
   const popupRef = useRef<mapboxgl.Popup | null>(null);
+
+  // Track current layers state for style.load handler (avoids stale closure)
+  const layersRef = useRef(state.layers);
+  useEffect(() => {
+    layersRef.current = state.layers;
+  }, [state.layers]);
 
   // Initialize popup
   useEffect(() => {
@@ -59,6 +86,117 @@ export function LayerProvider({ children }: { children: ReactNode }) {
       }
     };
   }, []);
+
+  // Restore layers when map style changes (e.g., basemap switch)
+  useEffect(() => {
+    if (!map) return;
+
+    const handleStyleLoad = () => {
+      const layers = layersRef.current;
+      if (layers.length === 0) return;
+
+      console.log(`[LayerContext] Style loaded, restoring ${layers.length} layers`);
+
+      layers.forEach((layer) => {
+        // Skip if layer already exists (style.load can fire on initial load too)
+        if (map.getSource(layer.id)) return;
+
+        if (layer.type === 'geojson') {
+          const gjLayer = layer as GeoJSONLayerConfig;
+
+          // Re-add source
+          map.addSource(layer.id, {
+            type: 'geojson',
+            data: gjLayer.data,
+          });
+
+          // Determine color expressions
+          const fillColorExpr = gjLayer.useFeatureColors
+            ? ['coalesce', ['get', 'color'], gjLayer.fillColor || '#3388ff']
+            : gjLayer.fillColor || '#3388ff';
+          const strokeColorExpr = gjLayer.useFeatureColors
+            ? ['coalesce', ['get', 'color'], gjLayer.strokeColor || '#3388ff']
+            : gjLayer.strokeColor || '#3388ff';
+
+          // Re-add fill layer
+          map.addLayer({
+            id: `${layer.id}-fill`,
+            type: 'fill',
+            source: layer.id,
+            paint: {
+              'fill-color': fillColorExpr as string,
+              'fill-opacity': (gjLayer.opacity ?? 1) * (gjLayer.fillOpacity ?? 0.5),
+            },
+            filter: ['==', '$type', 'Polygon'],
+            layout: {
+              visibility: gjLayer.visible ? 'visible' : 'none',
+            },
+          });
+
+          // Re-add line layer
+          map.addLayer({
+            id: `${layer.id}-line`,
+            type: 'line',
+            source: layer.id,
+            paint: {
+              'line-color': strokeColorExpr as string,
+              'line-width': gjLayer.strokeWidth || 2,
+              'line-opacity': gjLayer.opacity ?? 1,
+            },
+            layout: {
+              visibility: gjLayer.visible ? 'visible' : 'none',
+            },
+          });
+
+          // Re-add point layer
+          map.addLayer({
+            id: `${layer.id}-point`,
+            type: 'circle',
+            source: layer.id,
+            paint: {
+              'circle-color': gjLayer.fillColor || '#3388ff',
+              'circle-radius': 6,
+              'circle-opacity': gjLayer.opacity ?? 1,
+              'circle-stroke-color': gjLayer.strokeColor || '#ffffff',
+              'circle-stroke-width': 2,
+            },
+            filter: ['==', '$type', 'Point'],
+            layout: {
+              visibility: gjLayer.visible ? 'visible' : 'none',
+            },
+          });
+        } else if (layer.type === 'raster') {
+          const rasterLayer = layer as RasterLayerConfig;
+
+          // Re-add raster source
+          map.addSource(layer.id, {
+            type: 'raster',
+            tiles: Array.isArray(rasterLayer.url) ? rasterLayer.url : [rasterLayer.url],
+            tileSize: rasterLayer.tileSize || 256,
+            bounds: rasterLayer.bounds,
+          });
+
+          // Re-add raster layer
+          map.addLayer({
+            id: layer.id,
+            type: 'raster',
+            source: layer.id,
+            paint: {
+              'raster-opacity': rasterLayer.opacity ?? 1,
+            },
+            layout: {
+              visibility: rasterLayer.visible ? 'visible' : 'none',
+            },
+          });
+        }
+      });
+    };
+
+    map.on('style.load', handleStyleLoad);
+    return () => {
+      map.off('style.load', handleStyleLoad);
+    };
+  }, [map]);
 
   // Sync layer changes with map
   useEffect(() => {
@@ -99,6 +237,134 @@ export function LayerProvider({ children }: { children: ReactNode }) {
       }
     });
   }, [map, isLoaded, state.layers]);
+
+  // Persist layer metadata to localStorage when layers change
+  useEffect(() => {
+    // Don't persist empty state during initial load
+    if (state.layers.length === 0 && !hasRestoredRef.current) return;
+
+    const layerMeta: PersistedLayerMeta[] = state.layers.map((layer) => ({
+      id: layer.id,
+      name: layer.name,
+      type: layer.type,
+      resultId: layer.resultId,
+      outputType: layer.outputType,
+      breaksMode: layer.breaksMode,
+      visible: layer.visible,
+      opacity: layer.opacity,
+      zIndex: layer.zIndex,
+    }));
+    localStorage.setItem(LAYERS_STORAGE_KEY, JSON.stringify(layerMeta));
+  }, [state.layers]);
+
+  // Restore layers from localStorage on initial load
+  useEffect(() => {
+    if (hasRestoredRef.current || !isLoaded) return;
+    hasRestoredRef.current = true;
+
+    const saved = localStorage.getItem(LAYERS_STORAGE_KEY);
+    if (!saved) return;
+
+    try {
+      const layerMetas: PersistedLayerMeta[] = JSON.parse(saved);
+      console.log(`[LayerContext] Restoring ${layerMetas.length} layers from localStorage`);
+
+      // Fetch and restore each layer that has a resultId
+      layerMetas.forEach(async (meta) => {
+        if (meta.resultId && meta.type === 'geojson') {
+          try {
+            const mode = meta.breaksMode || 'dynamic';
+            const res = await fetch(`/api/v1/results/${meta.resultId}/preview?mode=${mode}`);
+            if (!res.ok) {
+              console.warn(`[LayerContext] Failed to restore layer ${meta.name}: ${res.status}`);
+              return;
+            }
+            const geojson = await res.json();
+
+            // Add the layer with restored metadata
+            // Note: We call setState directly to avoid infinite loop with addGeoJSONLayer
+            if (map && !map.getSource(meta.id)) {
+              // Determine colors from feature data
+              const hasFeatureColors =
+                geojson.type === 'FeatureCollection' &&
+                geojson.features?.some((f: GeoJSON.Feature) => f.properties?.color);
+
+              map.addSource(meta.id, { type: 'geojson', data: geojson });
+
+              // Add fill layer
+              map.addLayer({
+                id: `${meta.id}-fill`,
+                type: 'fill',
+                source: meta.id,
+                paint: {
+                  'fill-color': hasFeatureColors
+                    ? ['coalesce', ['get', 'color'], '#3388ff']
+                    : '#3388ff',
+                  'fill-opacity': (meta.opacity ?? 1) * 0.5,
+                },
+                filter: ['==', '$type', 'Polygon'],
+                layout: { visibility: meta.visible ? 'visible' : 'none' },
+              });
+
+              // Add line layer
+              map.addLayer({
+                id: `${meta.id}-line`,
+                type: 'line',
+                source: meta.id,
+                paint: {
+                  'line-color': hasFeatureColors
+                    ? ['coalesce', ['get', 'color'], '#3388ff']
+                    : '#3388ff',
+                  'line-width': 2,
+                  'line-opacity': meta.opacity ?? 1,
+                },
+                layout: { visibility: meta.visible ? 'visible' : 'none' },
+              });
+
+              // Add point layer
+              map.addLayer({
+                id: `${meta.id}-point`,
+                type: 'circle',
+                source: meta.id,
+                paint: {
+                  'circle-color': '#3388ff',
+                  'circle-radius': 6,
+                  'circle-opacity': meta.opacity ?? 1,
+                  'circle-stroke-color': '#ffffff',
+                  'circle-stroke-width': 2,
+                },
+                filter: ['==', '$type', 'Point'],
+                layout: { visibility: meta.visible ? 'visible' : 'none' },
+              });
+
+              // Update state
+              setState((prev) => ({
+                ...prev,
+                layers: [
+                  ...prev.layers,
+                  {
+                    ...meta,
+                    type: 'geojson' as const,
+                    data: geojson,
+                    useFeatureColors: hasFeatureColors,
+                    fillOpacity: 0.5,
+                    strokeWidth: 2,
+                  },
+                ],
+              }));
+
+              console.log(`[LayerContext] Restored layer: ${meta.name}`);
+            }
+          } catch (err) {
+            console.warn(`[LayerContext] Error restoring layer ${meta.name}:`, err);
+          }
+        }
+      });
+    } catch (err) {
+      console.warn('[LayerContext] Failed to parse stored layers:', err);
+      localStorage.removeItem(LAYERS_STORAGE_KEY);
+    }
+  }, [isLoaded, map]);
 
   const addGeoJSONLayer = useCallback(
     (config: Omit<GeoJSONLayerConfig, 'type'>) => {

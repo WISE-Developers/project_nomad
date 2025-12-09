@@ -63,8 +63,11 @@ export class JobQueue implements IJobQueue {
   ): Promise<Result<Job, DomainError>> {
     const existing = await this.repo.findById(jobId);
     if (!existing) {
+      console.error(`[JobQueue.updateStatus] Job ${jobId} not found!`);
       return Result.fail(new NotFoundError('Job', jobId));
     }
+
+    console.log(`[JobQueue.updateStatus] Found job ${jobId}: status=${existing.status}, startedAt=${existing.startedAt?.toISOString()}`);
 
     let updated = existing.withStatus(status);
 
@@ -86,6 +89,7 @@ export class JobQueue implements IJobQueue {
       });
     }
 
+    console.log(`[JobQueue.updateStatus] Saving job ${jobId}: status=${updated.status}, startedAt=${updated.startedAt?.toISOString()}, completedAt=${updated.completedAt?.toISOString()}`);
     await this.repo.update(updated);
     console.log(`[JobQueue] Job ${jobId} status updated to ${status}`);
 

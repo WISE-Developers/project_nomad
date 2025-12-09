@@ -117,7 +117,7 @@ export function ModelSummary({ data }: ModelSummaryProps) {
       {/* Spatial Summary */}
       <div style={cardStyle}>
         <div style={cardTitleStyle}>
-          <span>📍</span>
+          <i className="fa-solid fa-location-dot" />
           <span>Location</span>
         </div>
         <div style={rowStyle}>
@@ -158,7 +158,7 @@ export function ModelSummary({ data }: ModelSummaryProps) {
       {/* Temporal Summary */}
       <div style={cardStyle}>
         <div style={cardTitleStyle}>
-          <span>🕐</span>
+          <i className="fa-solid fa-clock" />
           <span>Time Range</span>
         </div>
         <div style={rowStyle}>
@@ -191,7 +191,7 @@ export function ModelSummary({ data }: ModelSummaryProps) {
       {/* Model Summary */}
       <div style={cardStyle}>
         <div style={cardTitleStyle}>
-          <span>🔥</span>
+          <i className="fa-solid fa-fire" />
           <span>Model Configuration</span>
         </div>
         <div style={rowStyle}>
@@ -215,7 +215,7 @@ export function ModelSummary({ data }: ModelSummaryProps) {
       {/* Weather Summary */}
       <div style={cardStyle}>
         <div style={cardTitleStyle}>
-          <span>🌤️</span>
+          <i className="fa-solid fa-cloud-sun" />
           <span>Weather Data</span>
         </div>
         <div style={rowStyle}>
