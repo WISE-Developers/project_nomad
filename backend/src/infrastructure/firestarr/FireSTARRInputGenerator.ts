@@ -187,7 +187,7 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
         console.log(`[FireSTARRInputGenerator] Saved ignition geometry to ${ignitionFile}`);
       }
 
-      // Handle perimeter if provided
+      // Handle perimeter if provided - rasterize to TIFF for FireSTARR
       let perimeterFile: string | undefined;
       if (params.perimeter) {
         if (params.perimeter.type !== GeometryType.Polygon) {
@@ -218,6 +218,8 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
             if (!rasterResult.success) {
               console.warn(`[FireSTARRInputGenerator] Perimeter rasterization failed: ${rasterResult.error.message}`);
               perimeterFile = undefined;
+            } else {
+              console.log(`[FireSTARRInputGenerator] Rasterization succeeded, perimeterFile = ${perimeterFile}`);
             }
           }
         }

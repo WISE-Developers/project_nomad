@@ -462,7 +462,9 @@ export class FireSTARREngine implements IFireModelingEngine {
     }
 
     if (inputResult.perimeterFile) {
-      const containerPerimeterFile = `${containerWorkingDir}/perimeter.tif`;
+      // Extract filename from host path to build container path
+      const perimeterFilename = inputResult.perimeterFile.split('/').pop();
+      const containerPerimeterFile = `${containerWorkingDir}/${perimeterFilename}`;
       args.push('--perim', containerPerimeterFile);
     }
 
