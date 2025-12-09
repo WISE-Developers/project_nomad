@@ -177,7 +177,7 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId }: ModelSetupWi
           {/* Header - Drag Handle */}
           <div style={headerStyle} className="wizard-drag-handle">
             <h2 style={titleStyle}>
-              <span>🔥 New Fire Model</span>
+              <span><i className="fa-solid fa-fire" style={{ marginRight: '8px' }} />New Fire Model</span>
               <span style={dragHintStyle}>drag to move</span>
             </h2>
           </div>

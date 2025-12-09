@@ -6,17 +6,14 @@
  */
 
 import React, { useState, useCallback } from 'react';
+import { Rnd } from 'react-rnd';
 import { ResultsSummary } from './ResultsSummary';
-import { OutputList } from './OutputList';
+import { OutputList, type BreaksMode } from './OutputList';
 import { OutputPreviewModal } from './OutputPreviewModal';
 import { useModelResults } from '../hooks/useModelResults';
 import { ExportPanel } from '../../Export';
+import { API_BASE_URL } from '../../../services/api';
 import type { OutputItem } from '../types';
-
-/**
- * API configuration
- */
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 /**
  * Props for ModelReviewPanel
@@ -26,21 +23,34 @@ interface ModelReviewPanelProps {
   modelId: string;
   /** Called when panel is closed */
   onClose: () => void;
-  /** Called when output is added to main map */
+  /** Called when output is added to main map (contours/GeoJSON) */
   onAddToMap?: (output: OutputItem, geoJson: GeoJSON.GeoJSON, modelInfo?: { modelId: string; modelName: string; engineType: string }) => void;
+  /** Called when raster output is added to main map */
+  onAddRasterToMap?: (output: OutputItem, bounds: [number, number, number, number], tileUrl: string, modelInfo?: { modelId: string; modelName: string; engineType: string }) => void;
 }
 
 /**
  * ModelReviewPanel displays full model results with preview capabilities.
  */
+const DEFAULT_WIDTH = 400;
+const DEFAULT_HEIGHT = 600;
+const MIN_WIDTH = 350;
+const MIN_HEIGHT = 400;
+
 export function ModelReviewPanel({
   modelId,
   onClose,
   onAddToMap,
+  onAddRasterToMap,
 }: ModelReviewPanelProps) {
   const { results, isLoading, error, refetch } = useModelResults(modelId);
   const [previewOutput, setPreviewOutput] = useState<OutputItem | null>(null);
   const [showExportPanel, setShowExportPanel] = useState(false);
+  const [size, setSize] = useState({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
+
+  // Calculate initial position (left side, below header)
+  const [initialX] = useState(() => 180);
+  const [initialY] = useState(() => 70);
 
   /**
    * Handle preview request
@@ -59,14 +69,23 @@ export function ModelReviewPanel({
 
   /**
    * Handle add to map request from output list or preview modal
+   * @param output The output item to add
+   * @param mode Optional breaks mode for probability outputs ('static' or 'dynamic')
    */
   const handleAddToMap = useCallback(
-    async (output: OutputItem) => {
+    async (output: OutputItem, mode?: BreaksMode) => {
       if (!onAddToMap) return;
 
       try {
+        // Build preview URL with optional mode query param
+        let previewUrl = `${API_BASE_URL}${output.previewUrl}`;
+        if (mode) {
+          const separator = previewUrl.includes('?') ? '&' : '?';
+          previewUrl += `${separator}mode=${mode}`;
+        }
+
         // Fetch the GeoJSON preview
-        const response = await fetch(`${API_BASE_URL}${output.previewUrl}`);
+        const response = await fetch(previewUrl);
         if (!response.ok) {
           throw new Error(`Failed to fetch GeoJSON: ${response.status}`);
         }
@@ -76,6 +95,7 @@ export function ModelReviewPanel({
           modelId: results.modelId,
           modelName: results.modelName,
           engineType: results.engineType,
+          breaksMode: mode, // Include breaks mode in model info
         } : undefined;
         onAddToMap(output, geoJson, modelInfo);
       } catch (err) {
@@ -135,34 +155,56 @@ export function ModelReviewPanel({
     onAddToMap(ignitionOutput, results.inputs.ignition.geojson as GeoJSON.GeoJSON, modelInfo);
   }, [onAddToMap, results]);
 
-  // Loading state
-  if (isLoading && !results) {
-    return (
-      <div style={panelStyle}>
-        <div style={headerStyle}>
-          <h2 style={titleStyle}>Model Results</h2>
-          <button style={closeButtonStyle} onClick={onClose}>
-            &times;
-          </button>
-        </div>
+  /**
+   * Handle adding raster tiles to map
+   */
+  const handleAddRasterToMap = useCallback(
+    async (output: OutputItem) => {
+      if (!onAddRasterToMap) return;
+
+      try {
+        // Fetch bounds for the raster
+        const boundsUrl = `${API_BASE_URL}/api/v1/results/${output.id}/bounds`;
+        const response = await fetch(boundsUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch bounds: ${response.status}`);
+        }
+        const { bounds } = await response.json();
+
+        // Build tile URL template
+        const tileUrl = `${API_BASE_URL}/api/v1/results/${output.id}/tile/{z}/{x}/{y}.png`;
+
+        // Pass model info for layer naming
+        const modelInfo = results ? {
+          modelId: results.modelId,
+          modelName: results.modelName,
+          engineType: results.engineType,
+        } : undefined;
+
+        onAddRasterToMap(output, bounds, tileUrl, modelInfo);
+      } catch (err) {
+        console.error('Failed to add raster to map:', err);
+        alert('Failed to load raster data for map');
+      }
+    },
+    [onAddRasterToMap, results]
+  );
+
+  // Render panel content based on state
+  const renderContent = () => {
+    // Loading state
+    if (isLoading && !results) {
+      return (
         <div style={loadingStyle}>
           <div style={spinnerStyle} />
           <div>Loading results...</div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  // Error state
-  if (error && !results) {
-    return (
-      <div style={panelStyle}>
-        <div style={headerStyle}>
-          <h2 style={titleStyle}>Model Results</h2>
-          <button style={closeButtonStyle} onClick={onClose}>
-            &times;
-          </button>
-        </div>
+    // Error state
+    if (error && !results) {
+      return (
         <div style={errorStyle}>
           <div style={errorIconStyle}>!</div>
           <div style={errorTextStyle}>Failed to load results</div>
@@ -171,59 +213,86 @@ export function ModelReviewPanel({
             Try Again
           </button>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  // No results
-  if (!results) {
+    // No results
+    if (!results) {
+      return <div style={emptyStyle}>No results found for this model.</div>;
+    }
+
+    // Results content
     return (
-      <div style={panelStyle}>
-        <div style={headerStyle}>
-          <h2 style={titleStyle}>Model Results</h2>
-          <button style={closeButtonStyle} onClick={onClose}>
-            &times;
-          </button>
-        </div>
-        <div style={emptyStyle}>No results found for this model.</div>
+      <div style={contentStyle}>
+        <ResultsSummary
+          modelId={results.modelId}
+          modelName={results.modelName}
+          engineType={results.engineType}
+          summary={results.executionSummary}
+          outputCount={results.outputs.length}
+          inputs={results.inputs}
+          onAddIgnitionToMap={handleAddIgnitionToMap}
+        />
+        <OutputList
+          outputs={results.outputs}
+          onPreview={handlePreview}
+          onDownload={handleDownload}
+          onAddToMap={handleAddToMap}
+          onAddRasterToMap={onAddRasterToMap ? handleAddRasterToMap : undefined}
+          onExport={handleExport}
+        />
       </div>
     );
-  }
+  };
 
   return (
     <>
-      <div style={panelStyle}>
-        {/* Header */}
-        <div style={headerStyle}>
-          <h2 style={titleStyle}>Model Results</h2>
-          <button style={closeButtonStyle} onClick={onClose}>
-            &times;
-          </button>
-        </div>
+      <Rnd
+        default={{
+          x: initialX,
+          y: initialY,
+          width: DEFAULT_WIDTH,
+          height: DEFAULT_HEIGHT,
+        }}
+        minWidth={MIN_WIDTH}
+        minHeight={MIN_HEIGHT}
+        maxHeight={window.innerHeight - 32}
+        bounds="parent"
+        dragHandleClassName="model-results-drag-handle"
+        style={{ zIndex: 1000 }}
+        onResize={(_e, _dir, ref) => {
+          setSize({
+            width: ref.offsetWidth,
+            height: ref.offsetHeight,
+          });
+        }}
+        enableResizing={{
+          top: false,
+          right: true,
+          bottom: true,
+          left: true,
+          topRight: false,
+          bottomRight: true,
+          bottomLeft: true,
+          topLeft: false,
+        }}
+      >
+        <div style={{ ...panelStyle, width: size.width, height: size.height }}>
+          {/* Header - Drag Handle */}
+          <div style={headerStyle} className="model-results-drag-handle">
+            <h2 style={titleStyle}>Model Results</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={dragHintStyle}>drag to move</span>
+              <button style={closeButtonStyle} onClick={onClose}>
+                &times;
+              </button>
+            </div>
+          </div>
 
-        {/* Content */}
-        <div style={contentStyle}>
-          {/* Summary */}
-          <ResultsSummary
-            modelId={results.modelId}
-            modelName={results.modelName}
-            engineType={results.engineType}
-            summary={results.executionSummary}
-            outputCount={results.outputs.length}
-            inputs={results.inputs}
-            onAddIgnitionToMap={handleAddIgnitionToMap}
-          />
-
-          {/* Output list */}
-          <OutputList
-            outputs={results.outputs}
-            onPreview={handlePreview}
-            onDownload={handleDownload}
-            onAddToMap={handleAddToMap}
-            onExport={handleExport}
-          />
+          {/* Content */}
+          {renderContent()}
         </div>
-      </div>
+      </Rnd>
 
       {/* Preview modal */}
       {previewOutput && (
@@ -269,17 +338,11 @@ const exportModalOverlayStyle: React.CSSProperties = {
 
 // Styles
 const panelStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '16px',
-  left: '250px',
-  width: '400px',
-  maxHeight: 'calc(100vh - 32px)',
   backgroundColor: 'white',
   borderRadius: '12px',
   boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
   display: 'flex',
   flexDirection: 'column',
-  zIndex: 1000,
   overflow: 'hidden',
 };
 
@@ -289,6 +352,14 @@ const headerStyle: React.CSSProperties = {
   justifyContent: 'space-between',
   padding: '16px 20px',
   borderBottom: '1px solid #e0e0e0',
+  cursor: 'move',
+  userSelect: 'none',
+};
+
+const dragHintStyle: React.CSSProperties = {
+  fontSize: '10px',
+  color: '#999',
+  fontWeight: 'normal',
 };
 
 const titleStyle: React.CSSProperties = {

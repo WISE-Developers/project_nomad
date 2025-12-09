@@ -39,10 +39,14 @@ export {
   type RasterizeResult,
 } from './PerimeterRasterizer.js';
 
-// Contour Generation
+// Contour Generation & Raster Tiles
 export {
   generateContours,
   clearContourCache,
+  clearTileCache,
+  generateRasterTile,
+  getRasterBounds,
+  type BreaksMode,
 } from './ContourGenerator.js';
 
 // Types

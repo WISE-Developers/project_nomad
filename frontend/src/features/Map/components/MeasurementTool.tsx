@@ -196,7 +196,7 @@ export function MeasurementTool({
           onClick={measureDistance}
           title="Measure distance (double-click to finish)"
         >
-          <span style={{ fontSize: '16px' }}>📏</span>
+          <i className="fa-solid fa-ruler" style={{ fontSize: '16px' }} />
           <span>Distance</span>
         </button>
         <button
@@ -204,7 +204,7 @@ export function MeasurementTool({
           onClick={measureArea}
           title="Measure area (double-click to finish)"
         >
-          <span style={{ fontSize: '16px' }}>⬛</span>
+          <i className="fa-solid fa-vector-square" style={{ fontSize: '16px' }} />
           <span>Area</span>
         </button>
       </div>

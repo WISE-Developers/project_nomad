@@ -12,6 +12,8 @@ export { LayerItem } from './components/LayerItem';
 export { BasemapSwitcher } from './components/BasemapSwitcher';
 export { MeasurementTool } from './components/MeasurementTool';
 export { TerrainControl } from './components/TerrainControl';
+export { MapInfoControl } from './components/MapInfoControl';
+export { MapContextMenu } from './components/MapContextMenu';
 
 // Context
 export { MapProvider, useMap } from './context/MapContext';

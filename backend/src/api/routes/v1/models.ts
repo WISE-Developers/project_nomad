@@ -143,10 +143,12 @@ router.post(
 
     // Build execution options
     const geometryType = body.ignition.type === 'point' ? GeometryType.Point : GeometryType.Polygon;
+    console.log(`[ModelsRoute] Creating ignition geometry: type=${body.ignition.type} -> ${geometryType}`);
     const ignitionGeometry = new SpatialGeometry({
       type: geometryType,
       coordinates: body.ignition.coordinates,
     });
+    console.log(`[ModelsRoute] Ignition geometry created: ${ignitionGeometry.type}, coords length: ${Array.isArray(body.ignition.coordinates[0]) ? body.ignition.coordinates.length : 1}`);
     const timeRange = new TimeRange(
       new Date(body.timeRange.start),
       new Date(body.timeRange.end)
@@ -498,10 +500,12 @@ router.post(
 
     // Create ignition geometry
     const geometryType = body.ignition.type === 'point' ? GeometryType.Point : GeometryType.Polygon;
+    console.log(`[ModelsRoute /fire/run] Creating ignition geometry: type=${body.ignition.type} -> ${geometryType}`);
     const ignitionGeometry = new SpatialGeometry({
       type: geometryType,
       coordinates: body.ignition.coordinates,
     });
+    console.log(`[ModelsRoute /fire/run] Ignition geometry created: ${ignitionGeometry.type}, coords length: ${Array.isArray(body.ignition.coordinates[0]) ? body.ignition.coordinates.length : 1}`);
 
     // Create time range
     const timeRange = new TimeRange(

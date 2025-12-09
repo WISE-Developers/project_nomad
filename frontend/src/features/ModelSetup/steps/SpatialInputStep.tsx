@@ -88,9 +88,9 @@ const deleteButtonStyle: React.CSSProperties = {
 };
 
 const tabs: { id: SpatialInputMethod; label: string; icon: string }[] = [
-  { id: 'draw', label: 'Draw on Map', icon: '✏️' },
-  { id: 'coordinates', label: 'Enter Coordinates', icon: '📍' },
-  { id: 'upload', label: 'Upload File', icon: '📁' },
+  { id: 'draw', label: 'Draw on Map', icon: 'pen' },
+  { id: 'coordinates', label: 'Enter Coordinates', icon: 'location-dot' },
+  { id: 'upload', label: 'Upload File', icon: 'folder' },
 ];
 
 /**
@@ -215,7 +215,7 @@ export function SpatialInputStep() {
             style={activeTab === tab.id ? activeTabStyle : tabStyle}
             onClick={() => handleTabChange(tab.id)}
           >
-            {tab.icon} {tab.label}
+            <i className={`fa-solid fa-${tab.icon}`} style={{ marginRight: '6px' }} />{tab.label}
           </button>
         ))}
       </div>

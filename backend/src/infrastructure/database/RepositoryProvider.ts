@@ -1,13 +1,13 @@
 /**
  * Repository Provider
  *
- * Factory for creating repository instances based on deployment mode.
- * SAN mode uses SQLite, ACN mode would use PostgreSQL.
+ * Factory for creating repository instances using Knex.js.
+ * Supports SQLite (SAN mode) and PostgreSQL/MySQL/etc (ACN mode).
  */
 
 import { IModelRepository, IJobRepository, IResultRepository } from '../../application/interfaces/index.js';
-import { getDatabase } from './Database.js';
-import { SqliteModelRepository, SqliteJobRepository, SqliteResultRepository } from './sqlite/index.js';
+import { getKnex, getDatabaseClient } from './knex/index.js';
+import { KnexModelRepository, KnexJobRepository, KnexResultRepository } from './knex/index.js';
 
 /**
  * Deployment mode determines which database backend to use
@@ -25,52 +25,30 @@ interface Repositories {
 
 // Singleton instances
 let repositories: Repositories | null = null;
-let currentMode: DeploymentMode | null = null;
+let currentClient: string | null = null;
 
 /**
- * Gets the current deployment mode from environment
- */
-function getDeploymentMode(): DeploymentMode {
-  const mode = process.env.NOMAD_DEPLOYMENT_MODE;
-  if (mode === 'ACN') {
-    return 'ACN';
-  }
-  return 'SAN'; // Default to SAN mode
-}
-
-/**
- * Initializes repositories for the current deployment mode.
- * Must be called after database initialization.
+ * Initializes repositories using Knex.
+ * Knex automatically handles the database dialect based on configuration.
  */
 export function initializeRepositories(): Repositories {
-  const mode = getDeploymentMode();
+  const knex = getKnex();
+  const client = getDatabaseClient();
 
-  if (repositories && currentMode === mode) {
+  // If already initialized with same client, return existing
+  if (repositories && currentClient === client) {
     return repositories;
   }
 
-  console.log(`[RepositoryProvider] Initializing ${mode} repositories`);
+  console.log(`[RepositoryProvider] Initializing Knex repositories (${client})`);
 
-  if (mode === 'SAN') {
-    const db = getDatabase();
-    repositories = {
-      model: new SqliteModelRepository(db),
-      job: new SqliteJobRepository(db),
-      result: new SqliteResultRepository(db),
-    };
-  } else {
-    // ACN mode - PostgreSQL implementation would go here
-    // For now, fall back to SQLite with a warning
-    console.warn('[RepositoryProvider] ACN mode not yet implemented, falling back to SQLite');
-    const db = getDatabase();
-    repositories = {
-      model: new SqliteModelRepository(db),
-      job: new SqliteJobRepository(db),
-      result: new SqliteResultRepository(db),
-    };
-  }
+  repositories = {
+    model: new KnexModelRepository(knex),
+    job: new KnexJobRepository(knex),
+    result: new KnexResultRepository(knex),
+  };
 
-  currentMode = mode;
+  currentClient = client;
   return repositories;
 }
 
@@ -109,7 +87,7 @@ export function getResultRepository(): IResultRepository {
  */
 export function resetRepositories(): void {
   repositories = null;
-  currentMode = null;
+  currentClient = null;
 }
 
 /**

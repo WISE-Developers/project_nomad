@@ -1,5 +1,8 @@
 import type { Map as MapboxMap, LngLatLike, StyleSpecification } from 'mapbox-gl';
 
+// Re-export layer types
+export type { BreaksMode } from './layer';
+
 /**
  * Map initialization options
  */
@@ -77,8 +80,8 @@ export const DEFAULT_MAP_OPTIONS: Required<MapOptions> = {
   center: [-106.0, 56.0], // Central Canada
   zoom: 4,
   style: BASEMAP_STYLES.outdoors.url,
-  terrain: false,
-  terrainExaggeration: 1.5,
+  terrain: true,
+  terrainExaggeration: 1.4,
   pitch: 0,
   bearing: 0,
 };

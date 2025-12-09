@@ -98,12 +98,19 @@ export class Job {
    * Creates a new Job with updated status
    */
   withStatus(status: JobStatus): Job {
-    return new Job({
+    const shouldSetStartedAt = status === JobStatus.Running && !this.startedAt;
+    const shouldSetCompletedAt = this.isTerminalStatus(status);
+    console.log(`[Job.withStatus] ${this.id}: ${this.status} -> ${status}, shouldSetStartedAt=${shouldSetStartedAt}, shouldSetCompletedAt=${shouldSetCompletedAt}`);
+
+    const newJob = new Job({
       ...this.toProps(),
       status,
-      ...(status === JobStatus.Running && !this.startedAt && { startedAt: new Date() }),
-      ...(this.isTerminalStatus(status) && { completedAt: new Date() }),
+      ...(shouldSetStartedAt && { startedAt: new Date() }),
+      ...(shouldSetCompletedAt && { completedAt: new Date() }),
     });
+
+    console.log(`[Job.withStatus] ${this.id}: startedAt=${newJob.startedAt?.toISOString()}, completedAt=${newJob.completedAt?.toISOString()}`);
+    return newJob;
   }
 
   /**

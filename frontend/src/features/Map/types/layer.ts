@@ -6,6 +6,13 @@ import type { FeatureCollection } from 'geojson';
 export type LayerType = 'geojson' | 'raster';
 
 /**
+ * Breaks mode for probability layers
+ * - static: Fixed 10% intervals (FireSTARR standard)
+ * - dynamic: Quantile breaks from actual data
+ */
+export type BreaksMode = 'static' | 'dynamic';
+
+/**
  * Layer visibility state
  */
 export type LayerVisibility = 'visible' | 'none';
@@ -28,6 +35,12 @@ export interface BaseLayerConfig {
   zIndex: number;
   /** Optional group ID for organizing layers */
   groupId?: string;
+  /** Breaks mode for probability layers (static/dynamic) */
+  breaksMode?: BreaksMode;
+  /** Result ID for persistence/reload (references backend model result) */
+  resultId?: string;
+  /** Output type for persistence (e.g., 'probability', 'intensity') */
+  outputType?: string;
 }
 
 /**
