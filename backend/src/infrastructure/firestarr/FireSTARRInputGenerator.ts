@@ -10,6 +10,7 @@
 import { mkdir, rm, access, writeFile, readdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import type { Feature, Geometry } from 'geojson';
 import { IInputGenerator, InputGenerationResult } from '../../application/interfaces/IInputGenerator.js';
 import { Result } from '../../application/common/index.js';
 import { DomainError, ValidationError } from '../../domain/errors/index.js';
@@ -175,13 +176,13 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
       if (params.ignitionGeometry) {
         const ignitionFile = join(workingDir, 'ignition.geojson');
         const geometry = params.ignitionGeometry.toGeoJSON();
-        const feature: GeoJSON.Feature = {
+        const feature: Feature = {
           type: 'Feature',
           properties: {
             name: 'Ignition',
             geometryType: params.ignitionGeometry.type,
           },
-          geometry: geometry as GeoJSON.Geometry,
+          geometry: geometry as Geometry,
         };
         await writeFile(ignitionFile, JSON.stringify(feature, null, 2), 'utf-8');
         console.log(`[FireSTARRInputGenerator] Saved ignition geometry to ${ignitionFile}`);

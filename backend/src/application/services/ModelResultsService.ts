@@ -8,6 +8,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import type { Feature, FeatureCollection, Point, Polygon } from 'geojson';
 import { Result } from '../common/index.js';
 import { DomainError, NotFoundError } from '../../domain/errors/index.js';
 import {
@@ -56,7 +57,7 @@ export interface OutputItem {
 export interface IgnitionGeometry {
   type: 'point' | 'polygon';
   coordinates: [number, number] | [number, number][][];
-  geojson: GeoJSON.Feature | GeoJSON.FeatureCollection;
+  geojson: Feature | FeatureCollection;
 }
 
 /**
@@ -257,21 +258,21 @@ export class ModelResultsService {
         try {
           if (fs.existsSync(ignitionPath)) {
             const geojsonContent = fs.readFileSync(ignitionPath, 'utf-8');
-            const geojson = JSON.parse(geojsonContent) as GeoJSON.Feature | GeoJSON.FeatureCollection;
+            const geojson = JSON.parse(geojsonContent) as Feature | FeatureCollection;
 
             // Extract geometry type and coordinates
             const feature = 'features' in geojson ? geojson.features[0] : geojson;
             const geomType = feature?.geometry?.type;
 
             if (geomType === 'Point') {
-              const coords = (feature.geometry as GeoJSON.Point).coordinates as [number, number];
+              const coords = (feature.geometry as Point).coordinates as [number, number];
               inputs.ignition = {
                 type: 'point',
                 coordinates: coords,
                 geojson,
               };
             } else if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
-              const coords = (feature.geometry as GeoJSON.Polygon).coordinates as [number, number][][];
+              const coords = (feature.geometry as Polygon).coordinates as [number, number][][];
               inputs.ignition = {
                 type: 'polygon',
                 coordinates: coords,
