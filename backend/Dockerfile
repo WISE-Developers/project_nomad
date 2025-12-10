@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
 
 # Install dependencies first (better caching)
 COPY package*.json ./
+COPY ../package-lock.json ./
 RUN npm ci
 
 # Copy source
