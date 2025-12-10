@@ -12,12 +12,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies first (better caching)
-COPY package*.json ./
-COPY ../package-lock.json ./
+COPY backend/package*.json ./
+COPY package-lock.json ./
 RUN npm ci
 
 # Copy source
-COPY . .
+COPY backend/ .
 
 # Build
 RUN npm run build

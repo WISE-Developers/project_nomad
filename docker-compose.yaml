@@ -5,8 +5,8 @@ services:
   nomad-backend:
     container_name: nomad-backend
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     ports:
       - "3001:3001"
     environment:
@@ -19,8 +19,8 @@ services:
   nomad-frontend:
     container_name: nomad-frontend
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
     ports:
       - "8080:80"
     depends_on:
