@@ -6,6 +6,7 @@
  */
 
 import { spawn, ChildProcess } from 'child_process';
+import { existsSync } from 'fs';
 import {
   IContainerExecutor,
   ContainerRunOptions,
@@ -59,9 +60,29 @@ export class DockerExecutor implements IContainerExecutor {
       let timeoutHandle: NodeJS.Timeout | undefined;
       let killHandle: NodeJS.Timeout | undefined;
 
-      const child: ChildProcess = spawn('docker', ['compose', ...args], {
-        cwd: options.projectDir ?? this.projectDir,
-        env: { ...process.env, ...options.env },
+      // Use explicit project name to ensure consistency when running from container
+      const projectName = process.env.COMPOSE_PROJECT_NAME || 'project_nomad';
+
+      // When running in container, use host.env which has the original host paths
+      // (not the overridden container paths from the process environment)
+      const cwd = options.projectDir ?? this.projectDir;
+      const hostEnvFile = `${cwd}/host.env`;
+      const useHostEnv = existsSync(hostEnvFile);
+
+      const composeArgs = useHostEnv
+        ? ['compose', '-p', projectName, '--env-file', hostEnvFile, ...args]
+        : ['compose', '-p', projectName, ...args];
+
+      // When using host.env, remove container-overridden env vars so env-file values are used
+      const spawnEnv = { ...process.env, ...options.env };
+      if (useHostEnv) {
+        // These vars have container paths that would break volume mounts
+        delete spawnEnv.FIRESTARR_DATASET_PATH;
+      }
+
+      const child: ChildProcess = spawn('docker', composeArgs, {
+        cwd,
+        env: spawnEnv,
         stdio: ['ignore', 'pipe', 'pipe'],
       });
 

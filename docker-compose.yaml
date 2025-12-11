@@ -12,9 +12,17 @@ services:
     volumes:
       # WARNING: Docker socket mount - see Security Considerations in README
       - /var/run/docker.sock:/var/run/docker.sock
+      # FireSTARR dataset - same mount as firestarr-app for fuel grids + sims
+      - ${FIRESTARR_DATASET_PATH}:/appl/data
+      # Mount compose files so backend can spawn FireSTARR containers
+      - ./docker-compose.yaml:/app/docker-compose.yaml:ro
+      - ./.env:/app/.env:ro
+      - ./.env:/app/host.env:ro
     environment:
       - NODE_ENV=production
       - PORT=3001
+      # Override to use container path (not host relative path from .env)
+      - FIRESTARR_DATASET_PATH=/appl/data
     env_file:
       - .env
     restart: unless-stopped
@@ -46,5 +54,3 @@ services:
       - /etc/ssl/certs:/etc/ssl/certs
       - ${FIRESTARR_DATASET_PATH}:/appl/data
       - ${FIRESTARR_DATASET_PATH}/sims:/appl/data/sims
-    env_file:
-      - .env
