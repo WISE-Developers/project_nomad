@@ -21,6 +21,9 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+      args:
+        - VITE_MAPBOX_TOKEN=${VITE_MAPBOX_TOKEN}
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL}
     ports:
       - "${NOMAD_FRONTEND_HOST_PORT}:80"
     depends_on:

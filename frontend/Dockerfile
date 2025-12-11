@@ -1,6 +1,10 @@
 # Frontend Dockerfile - Multi-stage build
 FROM node:22-alpine AS builder
 
+# Build-time args for Vite (baked into bundle)
+ARG VITE_MAPBOX_TOKEN
+ARG VITE_API_BASE_URL
+
 WORKDIR /app
 
 # Install dependencies
