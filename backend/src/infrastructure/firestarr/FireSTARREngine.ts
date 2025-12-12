@@ -443,12 +443,21 @@ export class FireSTARREngine implements IFireModelingEngine {
       .getContainerWorkingDir(inputResult.workingDir.split('/').pop()! as FireModelId);
     const containerWeatherFile = `${containerWorkingDir}/weather.csv`;
 
+    // Use corrected centroid from perimeter rasterization if available
+    // This ensures the ignition point matches the perimeter raster center
+    const latitude = inputResult.perimeterCentroid?.latitude ?? params.latitude;
+    const longitude = inputResult.perimeterCentroid?.longitude ?? params.longitude;
+
+    if (inputResult.perimeterCentroid) {
+      console.log(`[FireSTARREngine] Using corrected centroid: lat=${latitude.toFixed(6)}, lon=${longitude.toFixed(6)} (original: lat=${params.latitude.toFixed(6)}, lon=${params.longitude.toFixed(6)})`);
+    }
+
     const args: string[] = [
       FIRESTARR_BINARY,
       containerWorkingDir,
       this.formatDate(params.startDate),
-      params.latitude.toString(),
-      params.longitude.toString(),
+      latitude.toString(),
+      longitude.toString(),
       params.startTime,
       '--wx', containerWeatherFile,
       '--ffmc', params.previousFFMC.toString(),

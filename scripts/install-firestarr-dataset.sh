@@ -244,9 +244,11 @@ main() {
     cleanup_and_flatten "$FIRESTARR_DATASET_PATH"
 
     # Create sims directory for simulation outputs
+    # Must be world-writable so FireSTARR container (UID 1000) can write to it
     print_step "Creating sims directory..."
     mkdir -p "$FIRESTARR_DATASET_PATH/sims"
-    print_success "Created $FIRESTARR_DATASET_PATH/sims"
+    chmod 777 "$FIRESTARR_DATASET_PATH/sims"
+    print_success "Created $FIRESTARR_DATASET_PATH/sims (world-writable)"
 
     # Verify installation
     print_step "Verifying installation..."

@@ -21,6 +21,8 @@ export interface InputGenerationResult {
   readonly perimeterFile?: string;
   /** Any additional generated config files */
   readonly configFiles: string[];
+  /** Corrected ignition centroid from perimeter rasterization (WGS84) */
+  readonly perimeterCentroid?: { latitude: number; longitude: number };
 }
 
 /**

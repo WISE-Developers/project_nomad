@@ -171,7 +171,7 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
 
     try {
       // Create working directory
-      await mkdir(workingDir, { recursive: true });
+      await mkdir(workingDir, { recursive: true, mode: 0o777 });
       console.log(`[FireSTARRInputGenerator] Created working directory: ${workingDir}`);
 
       // Validate weather data
@@ -206,6 +206,7 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
 
       // Handle perimeter if provided - rasterize to TIFF for FireSTARR
       let perimeterFile: string | undefined;
+      let perimeterCentroid: { latitude: number; longitude: number } | undefined;
       if (params.perimeter) {
         if (params.perimeter.type !== GeometryType.Polygon) {
           return Result.fail(
@@ -237,6 +238,11 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
               perimeterFile = undefined;
             } else {
               console.log(`[FireSTARRInputGenerator] Rasterization succeeded, perimeterFile = ${perimeterFile}`);
+              // Capture the corrected centroid from rasterization
+              perimeterCentroid = rasterResult.value.centroid;
+              if (perimeterCentroid) {
+                console.log(`[FireSTARRInputGenerator] Corrected centroid: lat=${perimeterCentroid.latitude.toFixed(6)}, lon=${perimeterCentroid.longitude.toFixed(6)}`);
+              }
             }
           }
         }
@@ -247,6 +253,7 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
         weatherFile,
         perimeterFile,
         configFiles: [],
+        perimeterCentroid,
       };
 
       console.log(`[FireSTARRInputGenerator] Generated inputs for model ${modelId}:`, result);

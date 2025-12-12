@@ -44,6 +44,8 @@ export interface RasterizeResult {
   readonly height: number;
   /** Number of burned cells */
   readonly burnedCells: number;
+  /** Centroid of the polygon in WGS84 (calculated from UTM projection for accuracy) */
+  readonly centroid?: { latitude: number; longitude: number };
 }
 
 /**
@@ -160,12 +162,20 @@ export async function rasterizePerimeter(
     // Get polygon centroid and envelope in UTM coordinates
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const geomAny = gdalGeom as any;
-    const centroid = geomAny.centroid();
+    const utmCentroid = geomAny.centroid();
     const envelope = geomAny.getEnvelope();
-    const centerX = centroid.x as number;
-    const centerY = centroid.y as number;
+    const centerX = utmCentroid.x as number;
+    const centerY = utmCentroid.y as number;
 
     console.log(`[PerimeterRasterizer] Polygon centroid (UTM): ${centerX.toFixed(1)}, ${centerY.toFixed(1)}`);
+
+    // Transform UTM centroid back to WGS84 for use as ignition point
+    // This ensures the ignition point matches the perimeter raster center
+    const inverseTransform = new gdal.CoordinateTransformation(targetSrs, wgs84);
+    const wgs84Centroid = inverseTransform.transformPoint(centerX, centerY);
+    const centroidLongitude = wgs84Centroid.x;
+    const centroidLatitude = wgs84Centroid.y;
+    console.log(`[PerimeterRasterizer] Polygon centroid (WGS84): ${centroidLongitude.toFixed(6)}, ${centroidLatitude.toFixed(6)}`);
     console.log(`[PerimeterRasterizer] Polygon envelope: [${envelope.minX.toFixed(1)}, ${envelope.minY.toFixed(1)}, ${envelope.maxX.toFixed(1)}, ${envelope.maxY.toFixed(1)}]`);
 
     // Calculate local extent: 200km buffer around polygon centroid, snapped to pixel boundaries
@@ -280,6 +290,7 @@ export async function rasterizePerimeter(
       width,
       height,
       burnedCells,
+      centroid: { latitude: centroidLatitude, longitude: centroidLongitude },
     });
   } catch (error) {
     // GDAL not available or rasterization failed

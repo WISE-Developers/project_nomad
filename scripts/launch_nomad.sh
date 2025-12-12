@@ -129,6 +129,24 @@ check_dataset() {
     return 1
 }
 
+# Ensure sims directory exists and is writable
+ensure_sims_writable() {
+    local sims_dir="$FIRESTARR_DATASET_PATH/sims"
+
+    # Create if doesn't exist
+    if [ ! -d "$sims_dir" ]; then
+        print_step "Creating sims directory..."
+        mkdir -p "$sims_dir"
+    fi
+
+    # Ensure world-writable for container access (UID 1000)
+    if [ ! -w "$sims_dir" ] || [ "$(stat -c '%a' "$sims_dir" 2>/dev/null || stat -f '%Lp' "$sims_dir" 2>/dev/null)" != "777" ]; then
+        print_step "Setting sims directory permissions..."
+        chmod 777 "$sims_dir"
+        print_success "sims directory is now writable"
+    fi
+}
+
 # Install dataset using the install script
 install_dataset() {
     print_step "Installing FireSTARR dataset..."
@@ -401,6 +419,9 @@ main() {
             print_warning "Tests requiring external data will fail"
         fi
     fi
+
+    # Step 3b: Ensure sims directory is writable
+    ensure_sims_writable
 
     # Step 4: Pull Docker image
     if ! pull_image; then
