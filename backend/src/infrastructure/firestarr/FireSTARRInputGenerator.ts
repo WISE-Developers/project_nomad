@@ -7,7 +7,7 @@
  * - Working directory structure
  */
 
-import { mkdir, rm, access, writeFile, readdir } from 'fs/promises';
+import { mkdir, rm, access, writeFile, readdir, chmod } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import type { Feature, Geometry } from 'geojson';
@@ -170,8 +170,10 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
     const workingDir = this.getWorkingDir(modelId);
 
     try {
-      // Create working directory
-      await mkdir(workingDir, { recursive: true, mode: 0o777 });
+      // Create working directory with world-writable permissions
+      // (chmod is needed because mkdir mode is affected by umask)
+      await mkdir(workingDir, { recursive: true });
+      await chmod(workingDir, 0o777);
       console.log(`[FireSTARRInputGenerator] Created working directory: ${workingDir}`);
 
       // Validate weather data
