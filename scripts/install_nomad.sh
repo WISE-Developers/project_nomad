@@ -1,10 +1,11 @@
 #!/bin/bash
 #
-# Project Nomad Launcher
-# Validates configuration, installs datasets, and offers test options
+# Project Nomad Installer
+# Detects system architecture, validates configuration, installs datasets,
+# and offers test options
 #
 # Usage:
-#   ./scripts/launch_nomad.sh
+#   ./scripts/install_nomad.sh
 #
 
 set -e
@@ -37,7 +38,7 @@ NC='\033[0m' # No Color
 print_header() {
     echo -e "${BLUE}"
     echo "╔════════════════════════════════════════════════════════════╗"
-    echo "║           Project Nomad Launcher                           ║"
+    echo "║           Project Nomad Installer                          ║"
     echo "║           Fire Modeling System                             ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
@@ -61,6 +62,218 @@ print_success() {
 
 print_info() {
     echo -e "${CYAN}ℹ${NC} $1"
+}
+
+# ============================================
+# Architecture Detection
+# ============================================
+
+# Detect if running under Colima (Mac Docker alternative)
+is_colima() {
+    if docker context show 2>/dev/null | grep -q "colima"; then
+        return 0
+    fi
+    # Also check docker info for colima
+    if docker info 2>/dev/null | grep -qi "colima"; then
+        return 0
+    fi
+    return 1
+}
+
+# Check if CPU supports AVX2 (required for modern FireSTARR builds)
+has_avx2() {
+    local arch=$(uname -m)
+
+    if [ "$arch" = "x86_64" ]; then
+        # Linux
+        if [ -f /proc/cpuinfo ]; then
+            if grep -q "avx2" /proc/cpuinfo; then
+                return 0
+            fi
+        fi
+        # macOS
+        if command -v sysctl &> /dev/null; then
+            if sysctl -n machdep.cpu.features 2>/dev/null | grep -qi "AVX2"; then
+                return 0
+            fi
+            # Also check leaf7 features on macOS
+            if sysctl -n machdep.cpu.leaf7_features 2>/dev/null | grep -qi "AVX2"; then
+                return 0
+            fi
+        fi
+        return 1
+    fi
+    # Non-x86 architectures don't have AVX2
+    return 1
+}
+
+# Detect system architecture and recommend FireSTARR image
+detect_architecture() {
+    local arch=$(uname -m)
+    local os=$(uname -s)
+
+    DETECTED_ARCH="$arch"
+    DETECTED_OS="$os"
+    DETECTED_COLIMA=false
+    DETECTED_AVX2=false
+    RECOMMENDED_IMAGE=""
+    ARCH_EXPLANATION=""
+
+    # Check for Colima
+    if is_colima; then
+        DETECTED_COLIMA=true
+    fi
+
+    # Check for AVX2
+    if has_avx2; then
+        DETECTED_AVX2=true
+    fi
+
+    # Determine recommended image based on detection
+    case "$arch" in
+        arm64|aarch64)
+            RECOMMENDED_IMAGE="ghcr.io/wise-developers/firestarr:${VERSION}-arm64"
+            ARCH_EXPLANATION="ARM64 architecture detected (Apple Silicon or ARM server).
+    This requires the ARM64-native FireSTARR build."
+            ;;
+        x86_64)
+            if [ "$DETECTED_AVX2" = true ]; then
+                RECOMMENDED_IMAGE="ghcr.io/cwfmf/firestarr:dev-${VERSION}"
+                ARCH_EXPLANATION="Modern x86_64 CPU with AVX2 support detected.
+    This is optimal and can use the standard FireSTARR build."
+            else
+                RECOMMENDED_IMAGE="ghcr.io/cwfmf/firestarr:${VERSION}-sandybridge"
+                ARCH_EXPLANATION="Older x86_64 CPU without AVX2 support detected.
+    This requires the Sandybridge-compatible FireSTARR build
+    (compiled for older CPUs without modern vector instructions)."
+            fi
+            ;;
+        *)
+            RECOMMENDED_IMAGE="ghcr.io/cwfmf/firestarr:dev-${VERSION}"
+            ARCH_EXPLANATION="Unknown architecture: $arch
+    Defaulting to standard x86_64 build. This may not work on your system."
+            ;;
+    esac
+}
+
+# Display architecture detection results and get user confirmation
+configure_firestarr_image() {
+    print_step "Detecting system architecture..."
+    detect_architecture
+
+    echo ""
+    echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}              Architecture Detection Results${NC}"
+    echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo "    Operating System:  $DETECTED_OS"
+    echo "    CPU Architecture:  $DETECTED_ARCH"
+    echo "    AVX2 Support:      $([ "$DETECTED_AVX2" = true ] && echo "Yes" || echo "No")"
+    echo "    Docker via Colima: $([ "$DETECTED_COLIMA" = true ] && echo "Yes" || echo "No")"
+    echo ""
+    echo -e "${CYAN}Analysis:${NC}"
+    echo "    $ARCH_EXPLANATION"
+    echo ""
+    echo -e "${CYAN}Recommended Image:${NC}"
+    echo -e "    ${GREEN}$RECOMMENDED_IMAGE${NC}"
+    echo ""
+    echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    # Check if FIRESTARR_IMAGE is already set in .env
+    if [ -n "$FIRESTARR_IMAGE" ]; then
+        if [ "$FIRESTARR_IMAGE" = "$RECOMMENDED_IMAGE" ]; then
+            print_success "FIRESTARR_IMAGE in .env matches recommendation"
+            return 0
+        else
+            print_warning "FIRESTARR_IMAGE in .env differs from recommendation:"
+            echo "    Current:     $FIRESTARR_IMAGE"
+            echo "    Recommended: $RECOMMENDED_IMAGE"
+            echo ""
+            read -p "Keep current setting? [Y/n] " -n 1 -r
+            echo ""
+            if [[ $REPLY =~ ^[Nn]$ ]]; then
+                update_firestarr_image "$RECOMMENDED_IMAGE"
+            else
+                print_info "Keeping current FIRESTARR_IMAGE setting"
+            fi
+        fi
+    else
+        echo "Available options:"
+        echo ""
+        echo "    1) Use recommended: $RECOMMENDED_IMAGE"
+        echo "    2) Modern x86_64 (AVX2):    ghcr.io/cwfmf/firestarr:dev-${VERSION}"
+        echo "    3) Older x86_64 (no AVX2):  ghcr.io/cwfmf/firestarr:${VERSION}-sandybridge"
+        echo "    4) ARM64 (Apple Silicon):   ghcr.io/wise-developers/firestarr:${VERSION}-arm64"
+        echo "    5) Enter custom image"
+        echo ""
+        read -p "Select an option [1-5] (default: 1): " choice
+
+        case "${choice:-1}" in
+            1)
+                update_firestarr_image "$RECOMMENDED_IMAGE"
+                ;;
+            2)
+                update_firestarr_image "ghcr.io/cwfmf/firestarr:dev-${VERSION}"
+                ;;
+            3)
+                update_firestarr_image "ghcr.io/cwfmf/firestarr:${VERSION}-sandybridge"
+                ;;
+            4)
+                update_firestarr_image "ghcr.io/wise-developers/firestarr:${VERSION}-arm64"
+                ;;
+            5)
+                echo ""
+                read -p "Enter custom image: " custom_image
+                if [ -n "$custom_image" ]; then
+                    update_firestarr_image "$custom_image"
+                else
+                    print_error "No image specified, using recommended"
+                    update_firestarr_image "$RECOMMENDED_IMAGE"
+                fi
+                ;;
+            *)
+                print_warning "Invalid option, using recommended"
+                update_firestarr_image "$RECOMMENDED_IMAGE"
+                ;;
+        esac
+    fi
+}
+
+# Update FIRESTARR_IMAGE in .env file
+update_firestarr_image() {
+    local new_image="$1"
+
+    # Check if FIRESTARR_IMAGE line exists in .env
+    if grep -q "^FIRESTARR_IMAGE=" "$ENV_FILE" 2>/dev/null; then
+        # Update existing line
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s|^FIRESTARR_IMAGE=.*|FIRESTARR_IMAGE=$new_image|" "$ENV_FILE"
+        else
+            sed -i "s|^FIRESTARR_IMAGE=.*|FIRESTARR_IMAGE=$new_image|" "$ENV_FILE"
+        fi
+    elif grep -q "^#.*FIRESTARR_IMAGE=" "$ENV_FILE" 2>/dev/null; then
+        # There's a commented line, add after it
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "/^#.*FIRESTARR_IMAGE=/a\\
+FIRESTARR_IMAGE=$new_image" "$ENV_FILE"
+        else
+            sed -i "/^#.*FIRESTARR_IMAGE=/a FIRESTARR_IMAGE=$new_image" "$ENV_FILE"
+        fi
+    else
+        # Add new line after VERSION
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "/^VERSION=/a\\
+FIRESTARR_IMAGE=$new_image" "$ENV_FILE"
+        else
+            sed -i "/^VERSION=/a FIRESTARR_IMAGE=$new_image" "$ENV_FILE"
+        fi
+    fi
+
+    # Update the variable for this session
+    export FIRESTARR_IMAGE="$new_image"
+
+    print_success "FIRESTARR_IMAGE set to: $new_image"
 }
 
 # Validate .env configuration
@@ -423,12 +636,15 @@ main() {
     # Step 3b: Ensure sims directory is writable
     ensure_sims_writable
 
-    # Step 4: Pull Docker image
+    # Step 4: Configure FireSTARR image based on architecture
+    configure_firestarr_image
+
+    # Step 5: Pull Docker image
     if ! pull_image; then
         exit 1
     fi
 
-    # Step 5: Offer test menu
+    # Step 6: Offer test menu
     echo ""
     print_success "Setup complete!"
     echo ""
