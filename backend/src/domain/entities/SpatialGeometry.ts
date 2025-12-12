@@ -115,13 +115,63 @@ export class SpatialGeometry {
   }
 
   /**
-   * Gets the centroid of this geometry
+   * Gets the centroid of this geometry.
+   * For polygons, calculates the true geometric centroid (center of mass).
+   * For points and lines, uses simple average of vertices.
    */
   getCentroid(): Position {
+    if (this.type === GeometryType.Polygon) {
+      return this.getPolygonCentroid();
+    }
+
+    // For points and lines, use simple average
     const positions = this.getAllPositions();
     const sumLon = positions.reduce((sum, pos) => sum + pos[0], 0);
     const sumLat = positions.reduce((sum, pos) => sum + pos[1], 0);
     return [sumLon / positions.length, sumLat / positions.length];
+  }
+
+  /**
+   * Calculates the true geometric centroid of a polygon using the
+   * standard formula based on signed area.
+   * Reference: https://en.wikipedia.org/wiki/Centroid#Of_a_polygon
+   */
+  private getPolygonCentroid(): Position {
+    const rings = this.coordinates as PolygonCoordinates;
+    const ring = rings[0]; // Use exterior ring only
+
+    let signedArea = 0;
+    let cx = 0;
+    let cy = 0;
+
+    const n = ring.length - 1; // Exclude closing point (duplicate of first)
+
+    for (let i = 0; i < n; i++) {
+      const x0 = ring[i][0];
+      const y0 = ring[i][1];
+      const x1 = ring[(i + 1) % n][0];
+      const y1 = ring[(i + 1) % n][1];
+
+      const a = x0 * y1 - x1 * y0;
+      signedArea += a;
+      cx += (x0 + x1) * a;
+      cy += (y0 + y1) * a;
+    }
+
+    signedArea *= 0.5;
+
+    // Handle degenerate case (zero area)
+    if (Math.abs(signedArea) < 1e-10) {
+      // Fall back to simple average
+      const sumLon = ring.reduce((sum, pos) => sum + pos[0], 0);
+      const sumLat = ring.reduce((sum, pos) => sum + pos[1], 0);
+      return [sumLon / ring.length, sumLat / ring.length];
+    }
+
+    cx /= (6 * signedArea);
+    cy /= (6 * signedArea);
+
+    return [cx, cy];
   }
 
   /**

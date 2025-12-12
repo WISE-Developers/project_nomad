@@ -114,23 +114,45 @@ export async function rasterizePerimeter(
     // Open template raster to get CRS and resolution info
     const templateDs = await gdal.openAsync(templatePath);
     const geoTransform = templateDs.geoTransform;
-    const projection = templateDs.srs?.toWKT() ?? '';
+    const templateSrs = templateDs.srs;
 
     if (!geoTransform) {
       templateDs.close();
       return Result.fail(new ValidationError('Template raster has no geotransform'));
     }
 
+    if (!templateSrs) {
+      templateDs.close();
+      return Result.fail(new ValidationError('Template raster has no spatial reference'));
+    }
+
     const pixelWidth = geoTransform[1];
     const pixelHeight = Math.abs(geoTransform[5]); // Make positive for calculations
+
+    // Extract central meridian from template WKT
+    // GDAL's toProj4() rounds to standard UTM zones, losing half-zone info
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const templateWkt = (templateSrs as any).toWKT() as string;
+    const centralMeridianMatch = templateWkt.match(/Longitude of natural origin[^,]*,\s*([-\d.]+)/i)
+      || templateWkt.match(/central_meridian[^,]*,\s*([-\d.]+)/i);
+
+    if (!centralMeridianMatch) {
+      templateDs.close();
+      return Result.fail(new ValidationError('Could not determine central meridian from template raster'));
+    }
+
+    const centralMeridian = parseFloat(centralMeridianMatch[1]);
     templateDs.close();
+
+    // Build PROJ4 string with exact central meridian from template
+    const proj4String = `+proj=tmerc +lat_0=0 +lon_0=${centralMeridian} +k=0.9996 +x_0=500000 +y_0=0 +datum=NAD83 +units=m +no_defs`;
 
     // Create geometry from WKT (coordinates are in WGS84)
     const wkt = geometryToWKT(geometry);
     const gdalGeom = gdal.Geometry.fromWKT(wkt);
 
-    // Transform polygon from WGS84 to target CRS (UTM)
-    const targetSrs = gdal.SpatialReference.fromWKT(projection);
+    // Transform polygon from WGS84 to target CRS (UTM with correct central meridian)
+    const targetSrs = gdal.SpatialReference.fromProj4(proj4String);
     const wgs84 = gdal.SpatialReference.fromProj4('+proj=longlat +datum=WGS84 +no_defs');
     const transform = new gdal.CoordinateTransformation(wgs84, targetSrs);
     gdalGeom.transform(transform);

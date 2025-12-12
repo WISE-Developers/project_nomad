@@ -86,6 +86,22 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
           e => e.isFile() && e.name.startsWith('fuel_') && e.name.endsWith('.tif')
         );
 
+        // Sort fuel grids by proximity to query longitude
+        // File naming: fuel_{zone}_{half}.tif where central meridian = zone * 6 - 183 + (half === 5 ? 3 : 0)
+        // e.g., fuel_10_0 = -123°, fuel_10_5 = -120°, fuel_11_0 = -117°
+        fuelFiles.sort((a, b) => {
+          const getCentralMeridian = (name: string): number => {
+            const match = name.match(/fuel_(\d+)_(\d+)/);
+            if (!match) return 999;
+            const zone = parseInt(match[1], 10);
+            const half = parseInt(match[2], 10);
+            return zone * 6 - 183 + (half === 5 ? 3 : 0);
+          };
+          const cmA = getCentralMeridian(a.name);
+          const cmB = getCentralMeridian(b.name);
+          return Math.abs(longitude - cmA) - Math.abs(longitude - cmB);
+        });
+
         for (const fuelFile of fuelFiles) {
           const tifPath = join(gridDir, fuelFile.name);
 
