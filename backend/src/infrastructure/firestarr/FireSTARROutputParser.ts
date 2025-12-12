@@ -35,8 +35,11 @@ export class FireSTARROutputParser implements IOutputParser<ParsedOutput[]> {
         if (probMatch) {
           const julianDay = parseInt(probMatch[1], 10);
           const dateStr = probMatch[2];
-          const filePath = join(workingDir, file);
-          const stats = await stat(filePath);
+          const absolutePath = join(workingDir, file);
+          const stats = await stat(absolutePath);
+          // Store relative path (modelId/filename) for portability across environments
+          const modelId = workingDir.split('/').pop() || '';
+          const filePath = `${modelId}/${file}`;
 
           const metadata: ResultMetadata = {
             generatedAt: stats.mtime,
@@ -58,8 +61,11 @@ export class FireSTARROutputParser implements IOutputParser<ParsedOutput[]> {
         const interimMatch = file.match(FIRESTARR_OUTPUT_PATTERNS.INTERIM_PROBABILITY);
         if (interimMatch) {
           const julianDay = parseInt(interimMatch[1], 10);
-          const filePath = join(workingDir, file);
-          const stats = await stat(filePath);
+          const absolutePath = join(workingDir, file);
+          const stats = await stat(absolutePath);
+          // Store relative path (modelId/filename) for portability across environments
+          const modelId = workingDir.split('/').pop() || '';
+          const filePath = `${modelId}/${file}`;
 
           const metadata: ResultMetadata = {
             generatedAt: stats.mtime,

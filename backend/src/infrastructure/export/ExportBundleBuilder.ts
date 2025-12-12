@@ -13,6 +13,7 @@ import {
 } from '../../domain/entities/index.js';
 import { getModelResultsService } from '../../application/services/index.js';
 import { getFireSTARREngine } from '../firestarr/index.js';
+import { resolveResultFilePath } from '../firestarr/FireSTARRInputGenerator.js';
 import { getFormatConverter } from './FormatConverter.js';
 import { getExportFormatRegistry } from './ExportFormatRegistry.js';
 import type { ExportBundle, ExportBundleItem, BundleManifest } from './types.js';
@@ -89,11 +90,14 @@ export class ExportBundleBuilder {
       }
 
       const result = stored.result;
-      const filePath = result.metadata.filePath as string | undefined;
+      const relativeFilePath = result.metadata.filePath as string | undefined;
 
-      if (!filePath) {
+      if (!relativeFilePath) {
         throw new Error(`Result has no file path: ${request.resultId}`);
       }
+
+      // Resolve relative path to absolute path for file operations
+      const filePath = resolveResultFilePath(relativeFilePath);
 
       // Determine target format
       const targetFormat = request.targetFormat ?? registry.getFormats()

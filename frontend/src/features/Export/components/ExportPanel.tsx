@@ -199,7 +199,7 @@ export function ExportPanel({
   const handleExport = useCallback(async () => {
     const items = Array.from(selectedIds).map((resultId) => ({ resultId }));
 
-    await generate(
+    const generatedExportId = await generate(
       {
         modelId,
         modelName,
@@ -209,11 +209,8 @@ export function ExportPanel({
     );
 
     // Auto-download if download delivery
-    if (delivery === 'download') {
-      // Slight delay to ensure state is updated
-      setTimeout(() => {
-        download();
-      }, 500);
+    if (delivery === 'download' && generatedExportId) {
+      download(generatedExportId);
     }
   }, [selectedIds, modelId, modelName, delivery, generate, download]);
 
@@ -328,7 +325,7 @@ export function ExportPanel({
               <p style={{ fontSize: '14px', color: '#666', marginBottom: '16px' }}>
                 Your download should start automatically.
               </p>
-              <button style={primaryButtonStyle} onClick={download}>
+              <button style={primaryButtonStyle} onClick={() => download()}>
                 Download Again
               </button>
             </>

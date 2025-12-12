@@ -13,6 +13,7 @@ import { NotFoundError } from '../../../domain/errors/index.js';
 import { createModelResultId, OutputFormat } from '../../../domain/entities/index.js';
 import { getModelResultsService } from '../../../application/services/index.js';
 import { getFireSTARREngine, generateContours, generateRasterTile, getRasterBounds, type BreaksMode } from '../../../infrastructure/firestarr/index.js';
+import { resolveResultFilePath } from '../../../infrastructure/firestarr/FireSTARRInputGenerator.js';
 
 const router = Router();
 
@@ -76,8 +77,12 @@ router.get(
       throw new NotFoundError('Result', resultId);
     }
 
-    const filePath = stored.result.metadata.filePath as string | undefined;
-    if (!filePath || !existsSync(filePath)) {
+    const relativeFilePath = stored.result.metadata.filePath as string | undefined;
+    if (!relativeFilePath) {
+      throw new NotFoundError('Result file', resultId);
+    }
+    const filePath = resolveResultFilePath(relativeFilePath);
+    if (!existsSync(filePath)) {
       throw new NotFoundError('Result file', resultId);
     }
 
@@ -173,8 +178,12 @@ router.get(
       throw new NotFoundError('Result', resultId);
     }
 
-    const filePath = stored.result.metadata.filePath as string | undefined;
-    if (!filePath || !existsSync(filePath)) {
+    const relativeFilePath = stored.result.metadata.filePath as string | undefined;
+    if (!relativeFilePath) {
+      throw new NotFoundError('Result file', resultId);
+    }
+    const filePath = resolveResultFilePath(relativeFilePath);
+    if (!existsSync(filePath)) {
       throw new NotFoundError('Result file', resultId);
     }
 
@@ -251,8 +260,12 @@ router.get(
       throw new NotFoundError('Result', resultId);
     }
 
-    const filePath = stored.result.metadata.filePath as string | undefined;
-    if (!filePath || !existsSync(filePath)) {
+    const relativeFilePath = stored.result.metadata.filePath as string | undefined;
+    if (!relativeFilePath) {
+      throw new NotFoundError('Result file', resultId);
+    }
+    const filePath = resolveResultFilePath(relativeFilePath);
+    if (!existsSync(filePath)) {
       throw new NotFoundError('Result file', resultId);
     }
 
@@ -279,8 +292,12 @@ router.get(
       throw new NotFoundError('Result', resultId);
     }
 
-    const filePath = stored.result.metadata.filePath as string | undefined;
-    if (!filePath || !existsSync(filePath)) {
+    const relativeFilePath = stored.result.metadata.filePath as string | undefined;
+    if (!relativeFilePath) {
+      throw new NotFoundError('Result file', resultId);
+    }
+    const filePath = resolveResultFilePath(relativeFilePath);
+    if (!existsSync(filePath)) {
       throw new NotFoundError('Result file', resultId);
     }
 

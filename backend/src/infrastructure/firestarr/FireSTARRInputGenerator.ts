@@ -338,3 +338,37 @@ export function createFireSTARRInputGenerator(): FireSTARRInputGenerator {
     gridRoot: join(resolvedPath, 'generated/grid/100m'),
   });
 }
+
+/**
+ * Resolves a file path to an absolute path.
+ * Handles multiple path formats for backwards compatibility:
+ * - Container paths (/appl/data/sims/...) - converts to host path
+ * - Relative paths (modelId/filename) - resolves using FIRESTARR_DATASET_PATH
+ * - Host absolute paths - returns as-is
+ */
+export function resolveResultFilePath(filePath: string): string {
+  const datasetPath = process.env.FIRESTARR_DATASET_PATH;
+  if (!datasetPath) {
+    throw new Error('FIRESTARR_DATASET_PATH environment variable not set.');
+  }
+
+  const projectRoot = join(process.cwd(), '..');
+  const resolvedBase = datasetPath.startsWith('/')
+    ? datasetPath
+    : join(projectRoot, datasetPath);
+
+  // Container path - extract relative part and resolve to host path
+  const containerPrefix = '/appl/data/sims/';
+  if (filePath.startsWith(containerPrefix)) {
+    const relativePart = filePath.slice(containerPrefix.length);
+    return join(resolvedBase, 'sims', relativePart);
+  }
+
+  // Relative path - resolve using environment
+  if (!filePath.startsWith('/')) {
+    return join(resolvedBase, 'sims', filePath);
+  }
+
+  // Already a host absolute path - return as-is
+  return filePath;
+}

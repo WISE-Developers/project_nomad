@@ -27,10 +27,10 @@ interface UseExportGenerationResult {
   shareUrl: string | null;
   /** Error message if generation failed */
   error: string | null;
-  /** Generate an export bundle */
-  generate: (request: ExportRequest, delivery: DeliveryMethod) => Promise<void>;
-  /** Download the generated export */
-  download: () => void;
+  /** Generate an export bundle - returns exportId on success */
+  generate: (request: ExportRequest, delivery: DeliveryMethod) => Promise<string | null>;
+  /** Download the generated export (optionally with explicit exportId) */
+  download: (explicitExportId?: string) => void;
   /** Reset state to idle */
   reset: () => void;
 }
@@ -45,7 +45,7 @@ export function useExportGeneration(): UseExportGenerationResult {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const generate = useCallback(async (request: ExportRequest, delivery: DeliveryMethod) => {
+  const generate = useCallback(async (request: ExportRequest, delivery: DeliveryMethod): Promise<string | null> => {
     setState('generating');
     setError(null);
     setExportId(null);
@@ -87,16 +87,19 @@ export function useExportGeneration(): UseExportGenerationResult {
       }
 
       setState('complete');
+      return exportData.exportId;
     } catch (err) {
       setState('error');
       setError(err instanceof Error ? err.message : 'Export failed');
+      return null;
     }
   }, []);
 
-  const download = useCallback(() => {
-    if (!exportId) return;
+  const download = useCallback((explicitExportId?: string) => {
+    const id = explicitExportId ?? exportId;
+    if (!id) return;
     // Trigger browser download
-    window.location.href = `${API_BASE}/exports/${exportId}/download`;
+    window.location.href = `${API_BASE}/exports/${id}/download`;
   }, [exportId]);
 
   const reset = useCallback(() => {

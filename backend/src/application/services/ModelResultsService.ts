@@ -22,6 +22,7 @@ import { IFireModelingEngine, ExecutionStatus } from '../interfaces/IFireModelin
 import { getResultRepository, getJobRepository } from '../../infrastructure/database/index.js';
 import type { IResultRepository, IJobRepository } from '../interfaces/index.js';
 import { createFireModelId } from '../../domain/entities/FireModel.js';
+import { resolveResultFilePath } from '../../infrastructure/firestarr/FireSTARRInputGenerator.js';
 
 /**
  * Execution summary for API response
@@ -250,7 +251,9 @@ export class ModelResultsService {
       // Build model inputs (ignition + weather)
       let inputs: ModelInputs | undefined;
       if (outputs.length > 0 && outputs[0].filePath) {
-        const simDir = path.dirname(outputs[0].filePath);
+        // Resolve relative path to absolute path for file operations
+        const absoluteFilePath = resolveResultFilePath(outputs[0].filePath);
+        const simDir = path.dirname(absoluteFilePath);
         inputs = {};
 
         // Try to load ignition geometry
@@ -326,12 +329,14 @@ export class ModelResultsService {
   }
 
   /**
-   * Get file path for a result
+   * Get file path for a result (resolved to absolute path)
    */
   async getResultFilePath(resultId: ModelResultId): Promise<string | null> {
     const result = await this.resultRepo.findById(resultId);
     if (!result) return null;
-    return (result.metadata.filePath as string) ?? null;
+    const relativePath = (result.metadata.filePath as string) ?? null;
+    if (!relativePath) return null;
+    return resolveResultFilePath(relativePath);
   }
 }
 
