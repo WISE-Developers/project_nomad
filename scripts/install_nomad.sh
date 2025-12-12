@@ -11,7 +11,7 @@
 set -e
 
 # Installer version
-INSTALLER_VERSION="1.1.0"
+INSTALLER_VERSION="1.2.0"
 
 # Script directory (for calling other scripts)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -430,6 +430,48 @@ pull_image() {
     fi
 }
 
+# Check for Windows git autocrlf gotcha
+check_git_autocrlf() {
+    print_step "Checking git line-ending configuration..."
+
+    # Only relevant if git is installed
+    if ! command -v git &> /dev/null; then
+        return 0
+    fi
+
+    # Get the autocrlf setting
+    local autocrlf
+    autocrlf=$(git config --get core.autocrlf 2>/dev/null || echo "")
+
+    if [ "$autocrlf" = "true" ]; then
+        print_warning "Git core.autocrlf is set to 'true'"
+        echo ""
+        echo "    This setting converts line endings from LF to CRLF on checkout,"
+        echo "    which can break shell scripts with 'bad interpreter' errors."
+        echo ""
+        echo "    Recommended fix:"
+        echo ""
+        echo "        git config --global core.autocrlf false"
+        echo ""
+        echo "    Then re-clone this repository, or run:"
+        echo ""
+        echo "        git rm --cached -r ."
+        echo "        git reset --hard"
+        echo ""
+        read -p "Continue anyway? [y/N] " -n 1 -r
+        echo ""
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            print_error "Please fix core.autocrlf and try again"
+            return 1
+        fi
+        print_warning "Continuing with autocrlf=true (scripts may fail)"
+    else
+        print_success "Git line-ending configuration OK"
+    fi
+
+    return 0
+}
+
 # Check Docker dependencies
 check_docker() {
     print_step "Checking Docker..."
@@ -630,12 +672,17 @@ main() {
         exit 1
     fi
 
-    # Step 2: Check Docker
+    # Step 2: Check git autocrlf (Windows gotcha)
+    if ! check_git_autocrlf; then
+        exit 1
+    fi
+
+    # Step 3: Check Docker
     if ! check_docker; then
         exit 1
     fi
 
-    # Step 3: Check/Install dataset
+    # Step 4: Check/Install dataset
     print_step "Checking dataset installation..."
     if check_dataset; then
         print_success "Dataset found at $FIRESTARR_DATASET_PATH"
@@ -654,18 +701,18 @@ main() {
         fi
     fi
 
-    # Step 3b: Ensure sims directory is writable
+    # Step 4b: Ensure sims directory is writable
     ensure_sims_writable
 
-    # Step 4: Configure FireSTARR image based on architecture
+    # Step 5: Configure FireSTARR image based on architecture
     configure_firestarr_image
 
-    # Step 5: Pull Docker image
+    # Step 6: Pull Docker image
     if ! pull_image; then
         exit 1
     fi
 
-    # Step 6: Offer test menu
+    # Step 7: Offer test menu
     echo ""
     print_success "Setup complete!"
     echo ""

@@ -19,6 +19,29 @@ NC='\033[0m' # No Color
 VERSION="${VERSION:-0.9.5.4}"
 
 # ============================================
+# Git Configuration Detection
+# ============================================
+
+# Check for Windows git autocrlf gotcha
+check_git_autocrlf() {
+    if ! command -v git &> /dev/null; then
+        DETECTED_GIT=false
+        DETECTED_AUTOCRLF="N/A"
+        AUTOCRLF_WARNING=false
+        return 0
+    fi
+
+    DETECTED_GIT=true
+    DETECTED_AUTOCRLF=$(git config --get core.autocrlf 2>/dev/null || echo "unset")
+
+    if [ "$DETECTED_AUTOCRLF" = "true" ]; then
+        AUTOCRLF_WARNING=true
+    else
+        AUTOCRLF_WARNING=false
+    fi
+}
+
+# ============================================
 # Architecture Detection (same as install_nomad.sh)
 # ============================================
 
@@ -121,6 +144,7 @@ echo "╚═══════════════════════�
 echo -e "${NC}"
 
 detect_architecture
+check_git_autocrlf
 
 echo ""
 echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
@@ -131,9 +155,19 @@ echo "    Operating System:  $DETECTED_OS"
 echo "    CPU Architecture:  $DETECTED_ARCH"
 echo "    AVX2 Support:      $([ "$DETECTED_AVX2" = true ] && echo "Yes" || echo "No")"
 echo "    Docker via Colima: $([ "$DETECTED_COLIMA" = true ] && echo "Yes" || echo "No")"
+if [ "$AUTOCRLF_WARNING" = true ]; then
+    echo -e "    Git autocrlf:      ${RED}$DETECTED_AUTOCRLF (WARNING!)${NC}"
+else
+    echo -e "    Git autocrlf:      ${GREEN}$DETECTED_AUTOCRLF${NC}"
+fi
 echo ""
 echo -e "${CYAN}Analysis:${NC}"
 echo "    $ARCH_EXPLANATION"
+if [ "$AUTOCRLF_WARNING" = true ]; then
+    echo ""
+    echo -e "    ${YELLOW}WARNING: Git core.autocrlf=true can break shell scripts!${NC}"
+    echo "    Fix with: git config --global core.autocrlf false"
+fi
 echo ""
 echo -e "${CYAN}Recommended Image:${NC}"
 echo -e "    ${GREEN}$RECOMMENDED_IMAGE${NC}"
@@ -150,6 +184,13 @@ if command -v docker &> /dev/null; then
     echo "    docker context:     $(docker context show 2>/dev/null || echo 'N/A')"
 else
     echo "    docker:             not installed"
+fi
+
+# Show git autocrlf
+if [ "$DETECTED_GIT" = true ]; then
+    echo "    git autocrlf:       $DETECTED_AUTOCRLF"
+else
+    echo "    git:                not installed"
 fi
 
 echo ""
