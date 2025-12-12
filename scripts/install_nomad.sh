@@ -41,7 +41,7 @@ NC='\033[0m' # No Color
 print_header() {
     echo -e "${BLUE}"
     echo "╔════════════════════════════════════════════════════════════╗"
-    echo "║           Project Nomad Installer v${INSTALLER_VERSION}                    ║"
+    echo "║           Project Nomad Installer v${INSTALLER_VERSION}                   ║"
     echo "║           Fire Modeling System                             ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
