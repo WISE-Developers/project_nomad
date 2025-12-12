@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { SplashScreen } from './components/SplashScreen';
 import {
   MapProvider,
   MapContainer,
@@ -667,8 +668,15 @@ function AppContent() {
 }
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  const handleEnter = useCallback(() => {
+    setShowSplash(false);
+  }, []);
+
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
+      {showSplash && <SplashScreen onEnter={handleEnter} />}
       <MapProvider>
         <MapContainer
           options={{
