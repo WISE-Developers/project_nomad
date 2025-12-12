@@ -10,6 +10,9 @@
 
 set -e
 
+# Installer version
+INSTALLER_VERSION="1.0.0"
+
 # Script directory (for calling other scripts)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
@@ -38,7 +41,7 @@ NC='\033[0m' # No Color
 print_header() {
     echo -e "${BLUE}"
     echo "╔════════════════════════════════════════════════════════════╗"
-    echo "║           Project Nomad Installer                          ║"
+    echo "║           Project Nomad Installer v${INSTALLER_VERSION}                    ║"
     echo "║           Fire Modeling System                             ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
