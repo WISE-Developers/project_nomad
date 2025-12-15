@@ -18,7 +18,7 @@ Democratizing fire modeling to save lives through accessible, modern interfaces 
 
 Project Nomad is a TypeScript React GUI for fire modeling systems (WISE, FireSTARR). It provides a MapBox GL-based map interface for fire behavior analysis and prediction modeling in wildfire management operations.
 
-**Current Status**: Pre-development planning phase. The repository contains specifications, SME documentation, and architectural planning - no implementation code yet.
+**Current Status**: Phase 1 MVP Complete. Working SAN deployment with FireSTARR integration, full visualization pipeline, and installer for easy deployment.
 
 ## Deployment Modes
 
@@ -33,7 +33,7 @@ Self-hosted PWA for individual users or small teams:
 Component integrated into existing agency infrastructure:
 - Embeddable React component
 - PostGIS spatial database integration
-- Agency authentication systems (SSO, LDAP)
+- Protocol-based authentication (OIDC/OAuth 2.0, SAML 2.0)
 - Configuration via Git submodules for agency-specific branding and data sources
 
 ## Fire Modeling Engines
@@ -101,22 +101,30 @@ Comprehensive technical references for fire modeling integration:
 
 ```
 project_nomad/
-├── assets/
-│   └── logo/                 # Project branding
-│       ├── nomad-logo.png    # Full logo with text
-│       └── nomad-icon.svg    # Icon only (favicon)
+├── frontend/
+│   └── src/
+│       ├── App.tsx           # Main orchestration
+│       ├── features/         # Feature modules
+│       │   ├── Map/          # MapBox GL integration
+│       │   ├── Wizard/       # Reusable wizard component
+│       │   ├── ModelSetup/   # Fire model setup workflow
+│       │   ├── ModelReview/  # Results visualization
+│       │   ├── Dashboard/    # Draft models management
+│       │   ├── Export/       # Output export
+│       │   └── Notifications/# Job status notifications
+│       ├── services/         # API communication
+│       ├── components/       # Shared components
+│       └── shared/utils/     # Utilities
+├── backend/
+│   └── src/                  # Express API server
 ├── Documentation/
-│   └── Research/
-│       ├── SME_Data/
-│       │   ├── FireSTARR/    # FireSTARR technical documentation
-│       │   └── WISE/         # WISE technical documentation
-│       └── Onboarding/       # High-level overview docs
-
-├── configuration/            # Agency configuration (future)
-│   └── generic/              # Default open-source config
-├── src/                      # Source code (future)
-├── draft_plan.md             # Project specification
-└── demo.json                 # Configuration example
+│   └── persist/
+│       └── SMEKB/Nomad/      # SME Knowledge Base
+│           └── plan/
+│               ├── nomad_master_plan.md
+│               └── SST/      # Single Source of Truth diagrams
+├── assets/logo/              # Project branding
+└── configuration/            # Agency configuration
 ```
 
 ## System Requirements
