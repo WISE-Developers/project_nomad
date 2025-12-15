@@ -6,3 +6,10 @@
 
 export { EnvironmentService } from './EnvironmentService.js';
 export { ConfigurationLoader } from './ConfigurationLoader.js';
+export {
+  ConfigurationValidator,
+  getConfigurationValidator,
+  resetConfigurationValidator,
+  type ValidationResult,
+  type ValidationError,
+} from './ConfigurationValidator.js';

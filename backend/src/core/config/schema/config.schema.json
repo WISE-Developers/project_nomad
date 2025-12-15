@@ -1,0 +1,252 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://project-nomad.io/config.schema.json",
+  "title": "Project Nomad Configuration",
+  "description": "Configuration schema for Project Nomad fire modeling system",
+  "type": "object",
+  "required": [
+    "version",
+    "agencyId",
+    "agencyName",
+    "deploymentMode",
+    "environment",
+    "auth",
+    "branding",
+    "engines",
+    "dataSources",
+    "roles",
+    "exportOptions",
+    "features",
+    "suppressDefaultSources"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "2.0",
+      "description": "Schema version for migration support"
+    },
+    "agencyId": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Unique agency identifier (lowercase, alphanumeric, hyphens)"
+    },
+    "agencyName": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable agency name"
+    },
+    "deploymentMode": {
+      "type": "string",
+      "enum": ["SAN", "ACN"],
+      "description": "Deployment mode: SAN (Stand Alone Nomad) or ACN (Agency Centric Nomad)"
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["development", "staging", "production"],
+      "description": "Deployment environment"
+    },
+    "auth": {
+      "$ref": "#/definitions/AuthConfig"
+    },
+    "branding": {
+      "$ref": "#/definitions/AgencyBrandingConfig"
+    },
+    "engines": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/EngineConfig"
+      },
+      "description": "Available fire modeling engines"
+    },
+    "dataSources": {
+      "type": "object",
+      "required": ["weather", "wildfirePoints", "fuelTypes"],
+      "properties": {
+        "weather": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/DataSourceConfig" }
+        },
+        "wildfirePoints": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/DataSourceConfig" }
+        },
+        "fuelTypes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/DataSourceConfig" }
+        }
+      }
+    },
+    "roles": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/RoleConfig" },
+      "description": "Internal role definitions"
+    },
+    "exportOptions": {
+      "$ref": "#/definitions/ExportOptionsConfig"
+    },
+    "features": {
+      "$ref": "#/definitions/FeaturesConfig"
+    },
+    "suppressDefaultSources": {
+      "type": "boolean",
+      "description": "Whether to hide default/national data sources"
+    }
+  },
+  "definitions": {
+    "AuthConfig": {
+      "type": "object",
+      "required": ["provider", "roleMappings", "allowAnonymous"],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["none", "simple", "oidc", "saml"],
+          "description": "Authentication provider type"
+        },
+        "oidc": {
+          "type": "object",
+          "properties": {
+            "issuer": { "type": "string", "format": "uri" },
+            "clientId": { "type": "string" },
+            "clientSecret": { "type": "string" },
+            "scopes": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "authorizationEndpoint": { "type": "string", "format": "uri" },
+            "tokenEndpoint": { "type": "string", "format": "uri" },
+            "userInfoEndpoint": { "type": "string", "format": "uri" }
+          },
+          "required": ["issuer", "clientId", "scopes"]
+        },
+        "saml": {
+          "type": "object",
+          "properties": {
+            "idpMetadataUrl": { "type": "string", "format": "uri" },
+            "spEntityId": { "type": "string" },
+            "acsUrl": { "type": "string", "format": "uri" },
+            "sloUrl": { "type": "string", "format": "uri" },
+            "certificate": { "type": "string" }
+          },
+          "required": ["idpMetadataUrl", "spEntityId", "acsUrl"]
+        },
+        "roleMappings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["externalRole", "internalRole"],
+            "properties": {
+              "externalRole": { "type": "string" },
+              "internalRole": { "type": "string" }
+            }
+          }
+        },
+        "sessionTimeout": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Session timeout in minutes"
+        },
+        "allowAnonymous": {
+          "type": "boolean",
+          "description": "Allow anonymous access"
+        }
+      }
+    },
+    "AgencyBrandingConfig": {
+      "type": "object",
+      "properties": {
+        "logoUrl": { "type": "string" },
+        "primaryColor": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "secondaryColor": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        },
+        "displayName": { "type": "string" }
+      }
+    },
+    "EngineConfig": {
+      "type": "object",
+      "required": ["engineType", "enabled", "settings"],
+      "properties": {
+        "engineType": {
+          "type": "string",
+          "enum": ["firestarr", "wise"]
+        },
+        "enabled": { "type": "boolean" },
+        "settings": { "type": "object" }
+      }
+    },
+    "DataSourceConfig": {
+      "type": "object",
+      "required": ["id", "name", "urls", "type", "kind", "isDefault"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "urls": {
+          "type": "array",
+          "items": { "type": "string", "format": "uri" }
+        },
+        "type": {
+          "type": "string",
+          "enum": ["API", "OWS"]
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["REST", "WFS", "WCS"]
+        },
+        "isDefault": { "type": "boolean" }
+      }
+    },
+    "RoleConfig": {
+      "type": "object",
+      "required": ["internalRole", "permissions"],
+      "properties": {
+        "internalRole": { "type": "string" },
+        "agencyRole": { "type": "string" },
+        "permissions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "ExportOptionsConfig": {
+      "type": "object",
+      "required": ["allowZipDownload", "allowShareableLink", "allowAgencyStorage", "availableFormats"],
+      "properties": {
+        "allowZipDownload": { "type": "boolean" },
+        "allowShareableLink": { "type": "boolean" },
+        "allowAgencyStorage": { "type": "boolean" },
+        "availableFormats": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "FeaturesConfig": {
+      "type": "object",
+      "required": ["enabled", "suppressedEngines", "suppressedFeatures"],
+      "properties": {
+        "enabled": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of enabled feature flags"
+        },
+        "suppressedEngines": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["firestarr", "wise"]
+          },
+          "description": "List of suppressed engines"
+        },
+        "suppressedFeatures": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of suppressed features"
+        }
+      }
+    }
+  }
+}

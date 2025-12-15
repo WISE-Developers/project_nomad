@@ -6,6 +6,92 @@ import { EngineType } from '../../domain/entities/index.js';
 export type DeploymentMode = 'SAN' | 'ACN';
 
 /**
+ * Environment type
+ */
+export type Environment = 'development' | 'staging' | 'production';
+
+/**
+ * Authentication provider type
+ */
+export type AuthProvider = 'none' | 'simple' | 'oidc' | 'saml';
+
+/**
+ * OIDC authentication configuration
+ */
+export interface OIDCConfig {
+  /** OIDC issuer URL */
+  readonly issuer: string;
+  /** Client ID */
+  readonly clientId: string;
+  /** Client secret (for confidential clients) */
+  readonly clientSecret?: string;
+  /** Requested scopes */
+  readonly scopes: string[];
+  /** Authorization endpoint override */
+  readonly authorizationEndpoint?: string;
+  /** Token endpoint override */
+  readonly tokenEndpoint?: string;
+  /** User info endpoint override */
+  readonly userInfoEndpoint?: string;
+}
+
+/**
+ * SAML authentication configuration
+ */
+export interface SAMLConfig {
+  /** Identity Provider metadata URL */
+  readonly idpMetadataUrl: string;
+  /** Service Provider entity ID */
+  readonly spEntityId: string;
+  /** Assertion Consumer Service URL */
+  readonly acsUrl: string;
+  /** Single Logout URL */
+  readonly sloUrl?: string;
+  /** Certificate for signing */
+  readonly certificate?: string;
+}
+
+/**
+ * Role mapping from external auth provider to internal roles
+ */
+export interface RoleMapping {
+  /** External role/group name from auth provider */
+  readonly externalRole: string;
+  /** Internal Nomad role name */
+  readonly internalRole: string;
+}
+
+/**
+ * Authentication configuration
+ */
+export interface AuthConfig {
+  /** Authentication provider type */
+  readonly provider: AuthProvider;
+  /** OIDC configuration (when provider is 'oidc') */
+  readonly oidc?: OIDCConfig;
+  /** SAML configuration (when provider is 'saml') */
+  readonly saml?: SAMLConfig;
+  /** Role mappings from external to internal roles */
+  readonly roleMappings: RoleMapping[];
+  /** Session timeout in minutes */
+  readonly sessionTimeout?: number;
+  /** Allow anonymous access */
+  readonly allowAnonymous: boolean;
+}
+
+/**
+ * Feature toggle configuration
+ */
+export interface FeaturesConfig {
+  /** List of enabled feature flags */
+  readonly enabled: string[];
+  /** List of suppressed/disabled engines */
+  readonly suppressedEngines: EngineType[];
+  /** List of suppressed features */
+  readonly suppressedFeatures: string[];
+}
+
+/**
  * Data source configuration
  */
 export interface DataSourceConfig {
@@ -79,12 +165,18 @@ export interface EngineConfig {
  * Full application configuration
  */
 export interface ApplicationConfig {
+  /** Schema version for migration support */
+  readonly version: '2.0';
   /** Agency identifier */
   readonly agencyId: string;
   /** Agency name */
   readonly agencyName: string;
   /** Deployment mode */
   readonly deploymentMode: DeploymentMode;
+  /** Environment (dev/staging/prod) */
+  readonly environment: Environment;
+  /** Authentication configuration */
+  readonly auth: AuthConfig;
   /** Agency branding */
   readonly branding: AgencyBrandingConfig;
   /** Available engines */
@@ -95,10 +187,12 @@ export interface ApplicationConfig {
     wildfirePoints: DataSourceConfig[];
     fuelTypes: DataSourceConfig[];
   };
-  /** Role mappings */
+  /** Role mappings (legacy - use auth.roleMappings for external auth) */
   readonly roles: RoleConfig[];
   /** Export options */
   readonly exportOptions: ExportOptionsConfig;
+  /** Feature toggles */
+  readonly features: FeaturesConfig;
   /** Whether to suppress default/national data sources */
   readonly suppressDefaultSources: boolean;
 }

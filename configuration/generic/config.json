@@ -1,7 +1,16 @@
 {
+  "$schema": "../../backend/src/core/config/schema/config.schema.json",
+  "version": "2.0",
   "agencyId": "generic",
   "agencyName": "Project Nomad",
   "deploymentMode": "SAN",
+  "environment": "development",
+  "auth": {
+    "provider": "simple",
+    "roleMappings": [],
+    "sessionTimeout": 480,
+    "allowAnonymous": true
+  },
   "branding": {
     "displayName": "Project Nomad",
     "primaryColor": "#2563eb",
@@ -46,6 +55,11 @@
     "allowShareableLink": true,
     "allowAgencyStorage": false,
     "availableFormats": ["geojson", "kml", "shapefile"]
+  },
+  "features": {
+    "enabled": ["model-setup", "model-review", "export"],
+    "suppressedEngines": [],
+    "suppressedFeatures": []
   },
   "suppressDefaultSources": false
 }

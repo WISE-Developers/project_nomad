@@ -12,14 +12,23 @@ import {
   ExportOptionsConfig,
 } from '../../application/interfaces/index.js';
 import { EngineType } from '../../domain/entities/index.js';
+import { ConfigurationValidator, getConfigurationValidator } from './ConfigurationValidator.js';
 
 /**
  * Default configuration used as base and fallback.
  */
 const DEFAULT_CONFIG: ApplicationConfig = {
+  version: '2.0',
   agencyId: 'generic',
   agencyName: 'Project Nomad',
   deploymentMode: 'SAN',
+  environment: 'development',
+  auth: {
+    provider: 'simple',
+    roleMappings: [],
+    sessionTimeout: 480,
+    allowAnonymous: true,
+  },
   branding: {},
   engines: [
     { engineType: 'firestarr' as EngineType, enabled: true, settings: {} },
@@ -35,6 +44,11 @@ const DEFAULT_CONFIG: ApplicationConfig = {
     allowShareableLink: true,
     allowAgencyStorage: false,
     availableFormats: ['geojson', 'kml', 'shapefile'],
+  },
+  features: {
+    enabled: ['model-setup', 'model-review', 'export'],
+    suppressedEngines: [],
+    suppressedFeatures: [],
   },
   suppressDefaultSources: false,
 };
@@ -54,13 +68,16 @@ export class ConfigurationLoader implements IConfigurationService {
   private config: ApplicationConfig;
   private configPath: string | null = null;
   private readonly configBasePath: string;
+  private readonly validator: ConfigurationValidator;
 
   constructor(
     private readonly envService: IEnvironmentService,
-    configBasePath?: string
+    configBasePath?: string,
+    validator?: ConfigurationValidator
   ) {
     // Default to /configuration at project root
     this.configBasePath = configBasePath || path.resolve(process.cwd(), 'configuration');
+    this.validator = validator || getConfigurationValidator();
     this.config = this.loadConfiguration();
   }
 
@@ -167,6 +184,9 @@ export class ConfigurationLoader implements IConfigurationService {
     const agencyId = this.envService.getAgencyId();
     const deploymentMode = this.envService.getDeploymentMode();
 
+    // Reset configPath for reload support
+    this.configPath = null;
+
     let loadedConfig: Partial<ApplicationConfig> = {};
 
     // Try to load agency-specific config
@@ -216,6 +236,18 @@ export class ConfigurationLoader implements IConfigurationService {
 
       const content = fs.readFileSync(configPath, 'utf-8');
       const parsed = JSON.parse(content);
+
+      // Validate against schema if validator is available
+      const validationResult = this.validator.validate(parsed);
+      if (!validationResult.valid) {
+        const errorMessages = validationResult.errors
+          .map((e) => `  ${e.path}: ${e.message}`)
+          .join('\n');
+        console.warn(
+          `[ConfigurationLoader] Configuration validation warnings for ${configPath}:\n${errorMessages}`
+        );
+        // Continue loading despite validation warnings (lenient mode)
+      }
 
       return parsed as Partial<ApplicationConfig>;
     } catch (error) {

@@ -27,11 +27,14 @@ const startTime = Date.now();
 router.get('/health', (_req, res) => {
   const uptimeSeconds = Math.floor((Date.now() - startTime) / 1000);
 
+  const deploymentMode = (process.env.NOMAD_DEPLOYMENT_MODE?.toUpperCase() as 'SAN' | 'ACN') || 'SAN';
+
   // TODO: Add real database and engine checks when implemented
   const health = {
     status: 'healthy' as const,
     timestamp: new Date().toISOString(),
     uptime: uptimeSeconds,
+    deploymentMode,
     checks: {
       database: {
         status: 'not_configured',

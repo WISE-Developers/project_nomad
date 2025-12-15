@@ -44,6 +44,13 @@ export {
 export {
   type IConfigurationService,
   type DeploymentMode,
+  type Environment,
+  type AuthProvider,
+  type OIDCConfig,
+  type SAMLConfig,
+  type RoleMapping,
+  type AuthConfig,
+  type FeaturesConfig,
   type DataSourceConfig,
   type AgencyBrandingConfig,
   type RoleConfig,

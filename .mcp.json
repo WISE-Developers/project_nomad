@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "ollama-the-beast": {
+      "command": "node",
+      "args": ["./Documentation/persist/tools/MCP/ollama-local/dist/index.js"],
+      "env": {
+        "OLLAMA_MODEL": "qwen2.5-coder:32b"
+      }
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { SplashScreen } from './components/SplashScreen';
+import { DeploymentModeProvider } from './core/deployment';
 import {
   MapProvider,
   MapContainer,
@@ -711,9 +712,10 @@ function App() {
   }, []);
 
   return (
-    <div style={{ width: '100vw', height: '100vh' }}>
-      {showSplash && <SplashScreen onEnter={handleEnter} />}
-      <MapProvider>
+    <DeploymentModeProvider>
+      <div style={{ width: '100vw', height: '100vh' }}>
+        {showSplash && <SplashScreen onEnter={handleEnter} />}
+        <MapProvider>
         <MapContainer
           options={{
             center: [-115.5, 54.5], // Alberta
@@ -725,7 +727,8 @@ function App() {
           </LayerProvider>
         </MapContainer>
       </MapProvider>
-    </div>
+      </div>
+    </DeploymentModeProvider>
   );
 }
 
