@@ -42,6 +42,16 @@ export {
   type DefaultAdapterOptions,
 } from './default/index.js';
 
+// Example adapter template (for ACN implementations)
+export {
+  createAgencyAdapter,
+  type AgencyAdapterOptions,
+  // Integration pattern examples
+  EmbeddedNomadDashboard,
+  StyledEmbeddedDashboard,
+  TokenRefreshDashboard,
+} from './examples/index.js';
+
 // Re-export all types and the main interface
 export type {
   // Common types
