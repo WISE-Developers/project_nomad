@@ -454,6 +454,44 @@ Both deployment modes produce:
 
 ---
 
+## Implementation Progress
+
+### Phase 3: Frontend Architecture
+
+#### Sprint 2: Dashboard & openNomad (Dec 2024)
+
+**Status**: Complete
+
+##### Issue #108: openNomad API Interface
+- Created `IOpenNomadAPI` interface with 6 modules: auth, models, jobs, results, spatial, config
+- Defines all types for communication between Dashboard and backend
+- Template for agency-specific adapters
+
+##### Issue #110: Default openNomad Implementation (SAN)
+- `OpenNomadProvider` React context for API access
+- `createDefaultAdapter()` factory wrapping services/api.ts
+- Heavily commented as agency implementation template
+- Subscription management for job status polling
+
+##### Issue #109: Extract Dashboard Component
+- **DashboardContext**: Centralized state management with reducer pattern
+- **Dashboard Hooks**: useModels, useJobs, useResults (all using openNomad API)
+- **Dashboard Components**:
+  - `DashboardContainer`: Floating (SAN) and embedded (ACN) modes
+  - `ModelList`: Filter, sort, search, bulk operations
+  - `ModelCard`: Individual model display with actions
+  - `StatusMonitor`: Active job tracking with progress bars
+- **App.tsx Integration**: Replaced inline models list with Dashboard
+
+**Architecture**:
+```
+Dashboard Component <--> useOpenNomad() <--> IOpenNomadAPI <--> Backend
+                                                ^
+                                    Agency adapters implement this
+```
+
+---
+
 ## Next Steps
 
 1. Stand up FireSTARR model to determine exact input/output requirements
