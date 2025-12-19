@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { SplashScreen } from './components/SplashScreen';
 import { DeploymentModeProvider } from './core/deployment';
 import {
@@ -26,6 +26,7 @@ import {
   NotificationPermissionBanner,
 } from './features/Notifications';
 import { runModel, getModels, deleteModel } from './services/api';
+import { OpenNomadProvider, createDefaultAdapter } from './openNomad';
 
 interface ModelSummary {
   id: string;
@@ -707,27 +708,32 @@ function AppContent() {
 function App() {
   const [showSplash, setShowSplash] = useState(true);
 
+  // Create the openNomad API adapter (memoized to prevent re-creation)
+  const openNomadAdapter = useMemo(() => createDefaultAdapter(), []);
+
   const handleEnter = useCallback(() => {
     setShowSplash(false);
   }, []);
 
   return (
     <DeploymentModeProvider>
-      <div style={{ width: '100vw', height: '100vh' }}>
-        {showSplash && <SplashScreen onEnter={handleEnter} />}
-        <MapProvider>
-        <MapContainer
-          options={{
-            center: [-115.5, 54.5], // Alberta
-            zoom: 6,
-          }}
-        >
-          <LayerProvider>
-            <AppContent />
-          </LayerProvider>
-        </MapContainer>
-      </MapProvider>
-      </div>
+      <OpenNomadProvider adapter={openNomadAdapter}>
+        <div style={{ width: '100vw', height: '100vh' }}>
+          {showSplash && <SplashScreen onEnter={handleEnter} />}
+          <MapProvider>
+            <MapContainer
+              options={{
+                center: [-115.5, 54.5], // Alberta
+                zoom: 6,
+              }}
+            >
+              <LayerProvider>
+                <AppContent />
+              </LayerProvider>
+            </MapContainer>
+          </MapProvider>
+        </div>
+      </OpenNomadProvider>
     </DeploymentModeProvider>
   );
 }

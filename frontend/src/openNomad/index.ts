@@ -3,13 +3,44 @@
  *
  * The communication layer between the Dashboard component and backend services.
  *
- * @example
- * ```typescript
- * import { IOpenNomadAPI, Model, Job } from '@/openNomad';
+ * ## Quick Start
+ *
+ * ```tsx
+ * import { OpenNomadProvider, useOpenNomad, createDefaultAdapter } from '@/openNomad';
+ *
+ * // Wrap your app with the provider
+ * function App() {
+ *   const adapter = useMemo(() => createDefaultAdapter(), []);
+ *   return (
+ *     <OpenNomadProvider adapter={adapter}>
+ *       <YourApp />
+ *     </OpenNomadProvider>
+ *   );
+ * }
+ *
+ * // Use the API in components
+ * function ModelsList() {
+ *   const api = useOpenNomad();
+ *   // api.models.list(), api.jobs.getStatus(), etc.
+ * }
  * ```
  *
  * @module openNomad
  */
+
+// Context and hooks
+export {
+  OpenNomadProvider,
+  useOpenNomad,
+  useOpenNomadOptional,
+  type OpenNomadProviderProps,
+} from './context/index.js';
+
+// Default implementation (SAN mode)
+export {
+  createDefaultAdapter,
+  type DefaultAdapterOptions,
+} from './default/index.js';
 
 // Re-export all types and the main interface
 export type {
