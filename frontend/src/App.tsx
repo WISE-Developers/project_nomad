@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { SplashScreen } from './components/SplashScreen';
 import { DeploymentModeProvider } from './core/deployment';
 import {
@@ -25,20 +25,9 @@ import {
   JobStatusToast,
   NotificationPermissionBanner,
 } from './features/Notifications';
-import { runModel, getModels, deleteModel } from './services/api';
+import { runModel } from './services/api';
 import { OpenNomadProvider, createDefaultAdapter } from './openNomad';
-
-interface ModelSummary {
-  id: string;
-  name: string;
-  status: string;
-  engineType: string;
-  createdAt: string;
-  userId: string | null;
-  outputMode?: string | null;
-  confidenceInterval?: number | null;
-  durationDays?: number | null;
-}
+import { DashboardContainer } from './features/Dashboard';
 
 /**
  * Calculate bounding box from GeoJSON
@@ -121,32 +110,11 @@ function AppContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [reviewModelId, setReviewModelId] = useState<string | null>(null);
-  const [showModelsList, setShowModelsList] = useState(false);
-  const [models, setModels] = useState<ModelSummary[]>([]);
-  const [modelsLoading, setModelsLoading] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
   const { deleteAll } = useDraw();
   const { map, isLoaded } = useMap();
   const { addGeoJSONLayer, addRasterLayer } = useLayers();
   const layerCounter = useRef(0);
-
-  // Fetch models when list is opened
-  const fetchModels = useCallback(async () => {
-    setModelsLoading(true);
-    try {
-      const data = await getModels();
-      setModels(data.models);
-    } catch (error) {
-      console.error('Failed to fetch models:', error);
-    } finally {
-      setModelsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (showModelsList) {
-      fetchModels();
-    }
-  }, [showModelsList, fetchModels]);
 
   // Job notifications
   const {
@@ -461,160 +429,31 @@ function AppContent() {
           </button>
           <button
             style={{ ...headerButtonStyle, backgroundColor: '#3b82f6' }}
-            onClick={() => setShowModelsList(!showModelsList)}
+            onClick={() => setShowDashboard(!showDashboard)}
           >
-            <i className="fa-solid fa-clipboard-list" style={{ marginRight: '8px' }} />My Models
+            <i className="fa-solid fa-clipboard-list" style={{ marginRight: '8px' }} />Dashboard
           </button>
         </div>
       )}
 
-      {/* Models List Panel */}
-      {showModelsList && !showWizard && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '80px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            backgroundColor: '#1f2937',
-            borderRadius: '8px',
-            padding: '16px',
-            minWidth: '400px',
-            maxWidth: '600px',
-            maxHeight: '60vh',
-            overflowY: 'auto',
-            zIndex: 1000,
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+      {/* Dashboard Panel */}
+      {showDashboard && !showWizard && (
+        <DashboardContainer
+          mode="floating"
+          onClose={() => setShowDashboard(false)}
+          onLaunchWizard={(draftId) => {
+            setShowDashboard(false);
+            if (draftId) {
+              // TODO: Resume draft
+              console.log('Resume draft:', draftId);
+            }
+            setShowWizard(true);
           }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h3 style={{ margin: 0, color: 'white' }}>My Models</h3>
-            <button
-              onClick={() => setShowModelsList(false)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#9ca3af',
-                fontSize: '20px',
-                cursor: 'pointer',
-              }}
-            >
-              ✕
-            </button>
-          </div>
-          {modelsLoading ? (
-            <div style={{ color: '#9ca3af', textAlign: 'center', padding: '20px' }}>Loading...</div>
-          ) : models.length === 0 ? (
-            <div style={{ color: '#9ca3af', textAlign: 'center', padding: '20px' }}>No models yet</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {models.map((model) => (
-                <div
-                  key={model.id}
-                  style={{
-                    backgroundColor: '#374151',
-                    padding: '12px',
-                    borderRadius: '6px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div>
-                    <div style={{ color: 'white', fontWeight: 500 }}>{model.name}</div>
-                    <div style={{ color: '#9ca3af', fontSize: '12px' }}>
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '2px 6px',
-                        borderRadius: '3px',
-                        backgroundColor: model.status === 'completed' ? '#065f46' :
-                                         model.status === 'draft' ? '#4b5563' :
-                                         model.status === 'running' ? '#1e40af' : '#7f1d1d',
-                        marginRight: '8px',
-                      }}>
-                        {model.status}
-                      </span>
-                      {model.userId && (
-                        <span style={{ marginRight: '8px', color: '#60a5fa' }}>
-                          {model.userId}
-                        </span>
-                      )}
-                      {new Date(model.createdAt).toLocaleString()}
-                    </div>
-                    {/* Show output mode, confidence, and duration for completed models */}
-                    {model.status === 'completed' && (model.outputMode || model.durationDays) && (
-                      <div style={{ color: '#9ca3af', fontSize: '11px', marginTop: '4px' }}>
-                        {model.outputMode && (
-                          <span style={{
-                            display: 'inline-block',
-                            padding: '1px 5px',
-                            borderRadius: '3px',
-                            backgroundColor: model.outputMode === 'pseudo-deterministic' ? '#7c3aed' : '#0369a1',
-                            color: 'white',
-                            marginRight: '6px',
-                          }}>
-                            {model.outputMode === 'pseudo-deterministic' ? 'Perimeters' : 'Probability'}
-                            {model.outputMode === 'pseudo-deterministic' && model.confidenceInterval && ` ${model.confidenceInterval}%`}
-                          </span>
-                        )}
-                        {model.durationDays && (
-                          <span style={{ color: '#60a5fa' }}>
-                            {model.durationDays} day{model.durationDays !== 1 ? 's' : ''}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    {model.status === 'completed' && (
-                      <button
-                        onClick={() => {
-                          setReviewModelId(model.id);
-                          setShowModelsList(false);
-                        }}
-                        style={{
-                          padding: '6px 12px',
-                          backgroundColor: '#10b981',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontSize: '12px',
-                        }}
-                      >
-                        View Results
-                      </button>
-                    )}
-                    <button
-                      onClick={async () => {
-                        if (confirm(`Delete "${model.name}"? This will also delete all results.`)) {
-                          try {
-                            await deleteModel(model.id);
-                            fetchModels();
-                          } catch (err) {
-                            console.error('Failed to delete model:', err);
-                            alert('Failed to delete model');
-                          }
-                        }
-                      }}
-                      style={{
-                        padding: '6px 12px',
-                        backgroundColor: '#dc2626',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+          onViewResults={(modelId) => {
+            setShowDashboard(false);
+            setReviewModelId(modelId);
+          }}
+        />
       )}
 
       {/* Model Setup Wizard */}
