@@ -83,6 +83,16 @@ export function useMap(): MapContextValue {
 }
 
 /**
+ * Optional version of useMap that returns null if no provider.
+ *
+ * Use this when the component may be rendered outside of a MapProvider,
+ * such as when embedded in a host application that provides its own map.
+ */
+export function useMapOptional(): MapContextValue | null {
+  return useContext(MapContext);
+}
+
+/**
  * Internal hook for MapContainer to set map state.
  * Not exported from the module - only for internal use.
  */

@@ -97,6 +97,9 @@ export type {
   ExportParams,
 
   // Spatial types
+  DrawMode,
+  MapLayer,
+  MapLayerStyle,
   WeatherStation,
   FuelTypeData,
   FuelType,

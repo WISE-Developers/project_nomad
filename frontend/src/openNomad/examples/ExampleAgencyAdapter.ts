@@ -21,6 +21,7 @@ import type {
   ModelResults,
   ExportFormat,
   ExportParams,
+  MapLayer,
   WeatherStation,
   FuelTypeData,
   ElevationData,
@@ -325,6 +326,78 @@ export function createAgencyAdapter(options: AgencyAdapterOptions): IOpenNomadAP
   // ===========================================================================
 
   const spatial: IOpenNomadAPI['spatial'] = {
+    // -------------------------------------------------------------------------
+    // Map Interaction (Host-Provided)
+    // -------------------------------------------------------------------------
+
+    // TODO: Implement these using your host application's map component.
+    // These are the key methods that enable embedding - your adapter
+    // bridges between Nomad's requests and your map's drawing tools.
+
+    async drawPoint(): Promise<GeoJSON.Point> {
+      // TODO: Activate your map's point drawing tool
+      // Return the geometry when user completes drawing
+      throw new Error(
+        'drawPoint() must be implemented by your agency adapter. ' +
+        'Use your host application\'s map drawing tools.'
+      );
+    },
+
+    async drawLine(): Promise<GeoJSON.LineString> {
+      // TODO: Activate your map's line drawing tool
+      throw new Error(
+        'drawLine() must be implemented by your agency adapter. ' +
+        'Use your host application\'s map drawing tools.'
+      );
+    },
+
+    async drawPolygon(): Promise<GeoJSON.Polygon> {
+      // TODO: Activate your map's polygon drawing tool
+      throw new Error(
+        'drawPolygon() must be implemented by your agency adapter. ' +
+        'Use your host application\'s map drawing tools.'
+      );
+    },
+
+    onGeometryChange(_callback: (geometry: GeoJSONGeometry | null) => void): Unsubscribe {
+      // TODO: Subscribe to your map's drawing events
+      // Call callback with geometry as user draws
+      return () => {};
+    },
+
+    cancelDraw(): void {
+      // TODO: Deactivate your map's drawing tool
+    },
+
+    addLayer(_layer: MapLayer): void {
+      // TODO: Add layer to your map using your map library's API
+      // Example for Mapbox GL:
+      // map.addSource(layer.id, { type: 'geojson', data: layer.data });
+      // map.addLayer({ id: layer.id, source: layer.id, ... });
+    },
+
+    updateLayer(_id: string, _updates: Partial<MapLayer>): void {
+      // TODO: Update an existing layer
+    },
+
+    removeLayer(_id: string): void {
+      // TODO: Remove layer from your map
+    },
+
+    fitBounds(_bounds: BBox, _options?: { padding?: number; animate?: boolean }): void {
+      // TODO: Fit your map to these bounds
+      // Example: map.fitBounds(bounds, { padding, animate });
+    },
+
+    getBounds(): BBox {
+      // TODO: Return your map's current visible bounds
+      return [-180, -90, 180, 90];
+    },
+
+    // -------------------------------------------------------------------------
+    // Data Services
+    // -------------------------------------------------------------------------
+
     async getWeatherStations(bounds: BBox): Promise<WeatherStation[]> {
       // TODO: Query your agency's weather station service
       const [minLng, minLat, maxLng, maxLat] = bounds;

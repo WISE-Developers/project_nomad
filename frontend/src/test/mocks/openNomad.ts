@@ -20,6 +20,7 @@ import type {
   ModelResults,
   ExportFormat,
   ExportParams,
+  MapLayer,
   WeatherStation,
   FuelTypeData,
   ElevationData,
@@ -321,14 +322,62 @@ export function createMockOpenNomadAPI(): IOpenNomadAPI {
     },
 
     spatial: {
+      // Map interaction methods
+      drawPoint: vi.fn((): Promise<GeoJSON.Point> => {
+        return Promise.resolve({
+          type: 'Point',
+          coordinates: [-114.0, 62.0],
+        });
+      }),
+
+      drawLine: vi.fn((): Promise<GeoJSON.LineString> => {
+        return Promise.resolve({
+          type: 'LineString',
+          coordinates: [
+            [-114.0, 62.0],
+            [-114.1, 62.1],
+          ],
+        });
+      }),
+
+      drawPolygon: vi.fn((): Promise<GeoJSON.Polygon> => {
+        return Promise.resolve({
+          type: 'Polygon',
+          coordinates: [
+            [
+              [-114.0, 62.0],
+              [-114.1, 62.0],
+              [-114.1, 62.1],
+              [-114.0, 62.1],
+              [-114.0, 62.0],
+            ],
+          ],
+        });
+      }),
+
+      onGeometryChange: vi.fn((_callback: (geometry: GeoJSONGeometry | null) => void): Unsubscribe => {
+        return () => {};
+      }),
+
+      cancelDraw: vi.fn(),
+
+      addLayer: vi.fn((_layer: MapLayer): void => {}),
+
+      updateLayer: vi.fn((_id: string, _updates: Partial<MapLayer>): void => {}),
+
+      removeLayer: vi.fn((_id: string): void => {}),
+
+      fitBounds: vi.fn((_bounds: BBox, _options?: { padding?: number; animate?: boolean }): void => {}),
+
+      getBounds: vi.fn((): BBox => [-180, -90, 180, 90]),
+
+      // Data services
       getWeatherStations: vi.fn((_bounds: BBox): Promise<WeatherStation[]> => {
         return Promise.resolve([
           {
             id: 'station-1',
             name: 'Test Weather Station',
-            location: { type: 'Point', coordinates: [-114.5, 62.5] },
-            provider: 'Environment Canada',
-            lastUpdate: new Date().toISOString(),
+            coordinates: { lat: 62.5, lng: -114.5 },
           },
         ]);
       }),

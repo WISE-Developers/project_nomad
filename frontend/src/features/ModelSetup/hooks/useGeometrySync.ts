@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useCallback } from 'react';
-import { useDraw } from '../../Map/context/DrawContext';
+import { useDrawOptional } from '../../Map/context/DrawContext';
 import { useWizardData } from '../../Wizard';
 import type { ModelSetupData, SpatialData, BoundingBox } from '../types';
 import type { DrawnFeature, DrawingMode } from '../../Map/types/geometry';
@@ -81,11 +81,25 @@ export interface UseGeometrySyncReturn {
  *
  * Subscribes to draw events and updates wizard data automatically.
  * Also provides methods to programmatically update geometry.
+ *
+ * In embedded mode (no DrawProvider), returns safe fallbacks and
+ * the adapter path in SpatialInputStep takes over.
  */
 export function useGeometrySync(options: UseGeometrySyncOptions = {}): UseGeometrySyncReturn {
   const { onGeometryChange } = options;
   const { data, setField } = useWizardData<ModelSetupData>();
-  const { getFeatures, isReady, onCreateSubscribe, onUpdateSubscribe, onDeleteSubscribe, deleteAll } = useDraw();
+  const drawCtx = useDrawOptional();
+
+  // Check if we're in embedded mode (no DrawProvider)
+  const isEmbeddedMode = !drawCtx;
+
+  // Extract draw context values (use no-ops for embedded mode)
+  const getFeatures = drawCtx?.getFeatures ?? (() => []);
+  const isReady = drawCtx?.isReady ?? false;
+  const onCreateSubscribe = drawCtx?.onCreateSubscribe ?? (() => () => {});
+  const onUpdateSubscribe = drawCtx?.onUpdateSubscribe ?? (() => () => {});
+  const onDeleteSubscribe = drawCtx?.onDeleteSubscribe ?? (() => () => {});
+  const deleteAll = drawCtx?.deleteAll ?? (() => {});
 
   const features = data.geometry?.features ?? [];
 
@@ -94,6 +108,9 @@ export function useGeometrySync(options: UseGeometrySyncOptions = {}): UseGeomet
    */
   const updateGeometry = useCallback(
     (newFeatures: DrawnFeature[]) => {
+      // In embedded mode, this is a no-op - geometry is managed by SpatialInputStep
+      if (isEmbeddedMode) return;
+
       const geometryData: SpatialData = {
         type: getGeometryType(newFeatures),
         features: newFeatures,
@@ -103,22 +120,26 @@ export function useGeometrySync(options: UseGeometrySyncOptions = {}): UseGeomet
       setField('geometry', geometryData);
       onGeometryChange?.(newFeatures);
     },
-    [setField, data.geometry?.inputMethod, onGeometryChange]
+    [isEmbeddedMode, setField, data.geometry?.inputMethod, onGeometryChange]
   );
 
   /**
    * Clear all geometry
    */
   const clearGeometry = useCallback(() => {
+    // In embedded mode, this is a no-op - geometry is managed by SpatialInputStep
+    if (isEmbeddedMode) return;
+
     deleteAll();
     updateGeometry([]);
-  }, [deleteAll, updateGeometry]);
+  }, [isEmbeddedMode, deleteAll, updateGeometry]);
 
   /**
    * Subscribe to draw events and sync with wizard
    */
   useEffect(() => {
-    if (!isReady) return;
+    // Skip subscriptions in embedded mode
+    if (isEmbeddedMode || !isReady) return;
 
     const syncFromDraw = () => {
       const currentFeatures = getFeatures();
@@ -134,7 +155,7 @@ export function useGeometrySync(options: UseGeometrySyncOptions = {}): UseGeomet
       unsubUpdate();
       unsubDelete();
     };
-  }, [isReady, getFeatures, updateGeometry, onCreateSubscribe, onUpdateSubscribe, onDeleteSubscribe]);
+  }, [isEmbeddedMode, isReady, getFeatures, updateGeometry, onCreateSubscribe, onUpdateSubscribe, onDeleteSubscribe]);
 
   return {
     features,

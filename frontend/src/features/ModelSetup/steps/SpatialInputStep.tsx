@@ -2,17 +2,23 @@
  * SpatialInputStep Component
  *
  * First wizard step for selecting/drawing fire ignition geometry.
+ *
+ * Supports two modes:
+ * - **SAN mode**: Uses internal DrawContext/MapContext for drawing on Nomad's map
+ * - **Embedded mode**: Uses openNomad adapter's spatial methods for drawing on host's map
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { useWizardData } from '../../Wizard';
-import { useDraw } from '../../Map/context/DrawContext';
-import { useMap } from '../../Map/context/MapContext';
+import { useDrawOptional } from '../../Map/context/DrawContext';
+import { useMapOptional } from '../../Map/context/MapContext';
+import { useOpenNomad } from '../../../openNomad';
 import { CoordinateInput } from '../components/CoordinateInput';
 import { GeometryUpload } from '../components/GeometryUpload';
 import { useGeometrySync } from '../hooks/useGeometrySync';
 import type { ModelSetupData, SpatialInputMethod } from '../types';
 import type { DrawnFeature } from '../../Map/types/geometry';
+import type { GeoJSONGeometry } from '../../../openNomad/api';
 
 const containerStyle: React.CSSProperties = {
   display: 'flex',
@@ -87,6 +93,23 @@ const deleteButtonStyle: React.CSSProperties = {
   cursor: 'pointer',
 };
 
+const drawButtonContainerStyle: React.CSSProperties = {
+  padding: '16px',
+  backgroundColor: '#f5f5f5',
+  borderRadius: '4px',
+  marginTop: '16px',
+};
+
+const drawButtonStyle: React.CSSProperties = {
+  padding: '8px 16px',
+  backgroundColor: '#ff6b35',
+  color: 'white',
+  border: 'none',
+  borderRadius: '4px',
+  cursor: 'pointer',
+  fontSize: '14px',
+};
+
 const tabs: { id: SpatialInputMethod; label: string; icon: string }[] = [
   { id: 'draw', label: 'Draw on Map', icon: 'pen' },
   { id: 'coordinates', label: 'Enter Coordinates', icon: 'location-dot' },
@@ -114,11 +137,39 @@ function formatGeometryType(type: string): string {
  */
 export function SpatialInputStep() {
   const { data, setField } = useWizardData<ModelSetupData>();
-  const { addFeatures, deleteAll } = useDraw();
-  const { map, isLoaded } = useMap();
-  const { features, clearGeometry, isReady } = useGeometrySync();
+  const api = useOpenNomad();
 
-  const [activeTab, setActiveTab] = useState<SpatialInputMethod>(data.geometry?.inputMethod ?? 'draw');
+  // Optional internal hooks - will be null in embedded mode
+  const drawContext = useDrawOptional();
+  const mapContext = useMapOptional();
+
+  // Determine if we're in embedded mode (no internal map/draw providers)
+  const isEmbeddedMode = !drawContext || !mapContext;
+
+  // For SAN mode, use internal hooks via useGeometrySync
+  // For embedded mode, we'll manage geometry differently
+  const geometrySync = useGeometrySync();
+
+  // SAN mode: get values from internal context
+  const addFeatures = drawContext?.addFeatures;
+  const deleteAll = drawContext?.deleteAll;
+  const map = mapContext?.map;
+  const isLoaded = mapContext?.isLoaded ?? false;
+
+  // Features and readiness depend on mode
+  const features = isEmbeddedMode ? [] : geometrySync.features;
+  const isReady = isEmbeddedMode ? true : geometrySync.isReady;
+
+  // Embedded mode: track drawn geometry locally
+  const [embeddedGeometry, setEmbeddedGeometry] = useState<GeoJSONGeometry | null>(null);
+
+  // Determine available tabs based on mode
+  const availableTabs = isEmbeddedMode
+    ? tabs.filter((t) => t.id !== 'draw') // No "draw on map" in embedded mode (host handles that)
+    : tabs;
+
+  const defaultTab = isEmbeddedMode ? 'coordinates' : 'draw';
+  const [activeTab, setActiveTab] = useState<SpatialInputMethod>(data.geometry?.inputMethod ?? defaultTab);
 
   // Update input method when tab changes
   const handleTabChange = useCallback(
@@ -132,34 +183,79 @@ export function SpatialInputStep() {
     [setField, data.geometry]
   );
 
+  // Handle draw button click (embedded mode - calls adapter)
+  const handleDrawOnHostMap = useCallback(
+    async (geometryType: 'point' | 'line' | 'polygon') => {
+      try {
+        let geometry: GeoJSON.Point | GeoJSON.LineString | GeoJSON.Polygon;
+        switch (geometryType) {
+          case 'point':
+            geometry = await api.spatial.drawPoint();
+            break;
+          case 'line':
+            geometry = await api.spatial.drawLine();
+            break;
+          case 'polygon':
+            geometry = await api.spatial.drawPolygon();
+            break;
+        }
+        setEmbeddedGeometry(geometry);
+        setField('geometry', {
+          ...data.geometry,
+          features: [{ type: 'Feature', geometry, properties: {} } as DrawnFeature],
+        });
+      } catch (error) {
+        // User cancelled or error occurred
+        console.warn('Drawing cancelled or failed:', error);
+      }
+    },
+    [api.spatial, setField, data.geometry]
+  );
+
   // Handle coordinate input
   const handleCoordinateSubmit = useCallback(
     (feature: DrawnFeature) => {
-      if (isReady) {
+      if (isEmbeddedMode) {
+        // In embedded mode, store geometry in wizard data
+        setEmbeddedGeometry(feature.geometry);
+        setField('geometry', {
+          ...data.geometry,
+          features: [feature],
+        });
+      } else if (isReady && addFeatures) {
+        // SAN mode: add to internal draw context
         addFeatures([feature]);
         // useGeometrySync will pick up the change via subscription
       }
     },
-    [addFeatures, isReady]
+    [isEmbeddedMode, isReady, addFeatures, setField, data.geometry]
   );
 
   // Handle file upload
   const handleFileUpload = useCallback(
     (uploadedFeatures: DrawnFeature[]) => {
-      if (isReady) {
-        // Clear existing features first
+      if (isEmbeddedMode) {
+        // In embedded mode, store first feature in wizard data
+        if (uploadedFeatures.length > 0) {
+          setEmbeddedGeometry(uploadedFeatures[0].geometry);
+          setField('geometry', {
+            ...data.geometry,
+            features: uploadedFeatures,
+          });
+        }
+      } else if (isReady && addFeatures && deleteAll) {
+        // SAN mode: clear existing and add to internal draw context
         deleteAll();
-        // Add uploaded features
         addFeatures(uploadedFeatures);
       }
     },
-    [addFeatures, deleteAll, isReady]
+    [isEmbeddedMode, isReady, addFeatures, deleteAll, setField, data.geometry]
   );
 
-  // Handle individual feature deletion
+  // Handle individual feature deletion (SAN mode only)
   const handleDeleteFeature = useCallback(
     (featureId: string | number | undefined) => {
-      if (!featureId) return;
+      if (!featureId || !addFeatures || !deleteAll) return;
       const remaining = features.filter((f) => f.id !== featureId);
       deleteAll();
       if (remaining.length > 0) {
@@ -169,9 +265,18 @@ export function SpatialInputStep() {
     [features, deleteAll, addFeatures]
   );
 
-  // Fly to features when they change
+  // Handle clear in embedded mode
+  const handleClearEmbedded = useCallback(() => {
+    setEmbeddedGeometry(null);
+    setField('geometry', {
+      ...data.geometry,
+      features: [],
+    });
+  }, [setField, data.geometry]);
+
+  // Fly to features when they change (SAN mode only)
   useEffect(() => {
-    if (!map || !isLoaded || !features.length) return;
+    if (isEmbeddedMode || !map || !isLoaded || !features.length) return;
 
     // Calculate bounds
     const allCoords: [number, number][] = [];
@@ -203,13 +308,20 @@ export function SpatialInputStep() {
       ];
       map.fitBounds(bounds, { padding: 50 });
     }
-  }, [map, isLoaded, features]);
+  }, [isEmbeddedMode, map, isLoaded, features]);
+
+  // For display purposes, combine internal features with embedded geometry
+  const displayFeatures: DrawnFeature[] = isEmbeddedMode
+    ? embeddedGeometry
+      ? [{ id: 'embedded', geometry: embeddedGeometry, properties: {} } as DrawnFeature]
+      : []
+    : features;
 
   return (
     <div style={containerStyle}>
       {/* Tab navigation */}
       <div style={tabsStyle}>
-        {tabs.map((tab) => (
+        {availableTabs.map((tab) => (
           <button
             key={tab.id}
             style={activeTab === tab.id ? activeTabStyle : tabStyle}
@@ -222,7 +334,7 @@ export function SpatialInputStep() {
 
       {/* Tab content */}
       <div style={contentStyle}>
-        {activeTab === 'draw' && (
+        {activeTab === 'draw' && !isEmbeddedMode && (
           <div style={drawInstructionStyle}>
             <strong>Draw on the map:</strong>
             <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
@@ -239,29 +351,63 @@ export function SpatialInputStep() {
         {activeTab === 'upload' && <GeometryUpload onUpload={handleFileUpload} />}
       </div>
 
+      {/* Embedded mode: Draw buttons to trigger host map drawing */}
+      {isEmbeddedMode && (
+        <div style={drawButtonContainerStyle}>
+          <div style={{ fontSize: '14px', color: '#333', marginBottom: '8px' }}>
+            Or draw geometry on the map:
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              style={drawButtonStyle}
+              onClick={() => handleDrawOnHostMap('point')}
+            >
+              <i className="fa-solid fa-location-dot" style={{ marginRight: '4px' }} />
+              Point
+            </button>
+            <button
+              style={drawButtonStyle}
+              onClick={() => handleDrawOnHostMap('line')}
+            >
+              <i className="fa-solid fa-minus" style={{ marginRight: '4px' }} />
+              Line
+            </button>
+            <button
+              style={drawButtonStyle}
+              onClick={() => handleDrawOnHostMap('polygon')}
+            >
+              <i className="fa-solid fa-draw-polygon" style={{ marginRight: '4px' }} />
+              Polygon
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Feature list */}
-      {features.length > 0 && (
+      {displayFeatures.length > 0 && (
         <div style={featureListStyle}>
           <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
-            {features.length} feature{features.length !== 1 ? 's' : ''} selected:
+            {displayFeatures.length} feature{displayFeatures.length !== 1 ? 's' : ''} selected:
           </div>
-          {features.map((feature, index) => (
+          {displayFeatures.map((feature, index) => (
             <div key={feature.id ?? index} style={featureItemStyle}>
               <span style={{ color: '#333' }}>
                 {formatGeometryType(feature.geometry.type)}
                 {feature.properties?.fileName && ` (from ${feature.properties.fileName})`}
               </span>
-              <button
-                style={deleteButtonStyle}
-                onClick={() => handleDeleteFeature(feature.id)}
-              >
-                Remove
-              </button>
+              {!isEmbeddedMode && (
+                <button
+                  style={deleteButtonStyle}
+                  onClick={() => handleDeleteFeature(feature.id)}
+                >
+                  Remove
+                </button>
+              )}
             </div>
           ))}
           <button
             style={{ ...deleteButtonStyle, marginTop: '8px', width: '100%' }}
-            onClick={clearGeometry}
+            onClick={isEmbeddedMode ? handleClearEmbedded : geometrySync.clearGeometry}
           >
             Clear All
           </button>

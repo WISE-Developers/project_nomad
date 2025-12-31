@@ -37,6 +37,7 @@ import type {
   ModelResult,
   ExportFormat,
   ExportParams,
+  MapLayer,
   WeatherStation,
   FuelTypeData,
   ElevationData,
@@ -651,15 +652,155 @@ export function createDefaultAdapter(_options?: DefaultAdapterOptions): IOpenNom
     // =========================================================================
 
     /**
-     * Spatial data services.
+     * Spatial data and map interaction services.
      *
-     * AGENCY NOTE: This is where agency-specific data integration happens.
-     * Connect to your agency's:
+     * AGENCY NOTE: This is where agency-specific integration happens.
+     * The map interaction methods (draw*, addLayer, etc.) are the key
+     * abstraction for embedding - your adapter implements these using
+     * your host application's map component.
+     *
+     * Data services connect to your agency's:
      * - Weather station network
      * - Fuel type WCS/WFS services
      * - DEM services
      */
     spatial: {
+      // -----------------------------------------------------------------------
+      // Map Interaction Methods
+      // -----------------------------------------------------------------------
+
+      /**
+       * Request user to draw a point on the map.
+       *
+       * DEFAULT BEHAVIOR: NOT IMPLEMENTED.
+       * In SAN mode, this would use internal map hooks.
+       * In ACN mode, the host app implements this.
+       *
+       * AGENCY NOTE: Activate your map's point drawing tool,
+       * return a Promise that resolves when user completes the draw.
+       */
+      async drawPoint(): Promise<GeoJSON.Point> {
+        throw new Error(
+          'drawPoint() is not implemented in the default adapter. ' +
+          'In embedded mode, the host application must implement spatial.drawPoint().'
+        );
+      },
+
+      /**
+       * Request user to draw a line on the map.
+       *
+       * DEFAULT BEHAVIOR: NOT IMPLEMENTED.
+       *
+       * AGENCY NOTE: Activate your map's line drawing tool.
+       */
+      async drawLine(): Promise<GeoJSON.LineString> {
+        throw new Error(
+          'drawLine() is not implemented in the default adapter. ' +
+          'In embedded mode, the host application must implement spatial.drawLine().'
+        );
+      },
+
+      /**
+       * Request user to draw a polygon on the map.
+       *
+       * DEFAULT BEHAVIOR: NOT IMPLEMENTED.
+       *
+       * AGENCY NOTE: Activate your map's polygon drawing tool.
+       */
+      async drawPolygon(): Promise<GeoJSON.Polygon> {
+        throw new Error(
+          'drawPolygon() is not implemented in the default adapter. ' +
+          'In embedded mode, the host application must implement spatial.drawPolygon().'
+        );
+      },
+
+      /**
+       * Subscribe to geometry changes during drawing.
+       *
+       * DEFAULT BEHAVIOR: Returns no-op unsubscribe.
+       *
+       * AGENCY NOTE: Connect to your map's drawing events.
+       */
+      onGeometryChange(_callback: (geometry: GeoJSONGeometry | null) => void): Unsubscribe {
+        // Default implementation does nothing
+        // Agency adapters would connect to their map's drawing events
+        return () => {};
+      },
+
+      /**
+       * Cancel any active drawing operation.
+       *
+       * DEFAULT BEHAVIOR: No-op.
+       *
+       * AGENCY NOTE: Deactivate your map's drawing tool.
+       */
+      cancelDraw(): void {
+        // Default implementation does nothing
+      },
+
+      /**
+       * Add a layer to the map.
+       *
+       * DEFAULT BEHAVIOR: No-op (logs warning).
+       *
+       * AGENCY NOTE: Add the layer to your map using your map library's API.
+       */
+      addLayer(_layer: MapLayer): void {
+        console.warn(
+          'addLayer() is not implemented in the default adapter. ' +
+          'In embedded mode, the host application must implement spatial.addLayer().'
+        );
+      },
+
+      /**
+       * Update an existing layer.
+       *
+       * DEFAULT BEHAVIOR: No-op.
+       *
+       * AGENCY NOTE: Update the layer in your map.
+       */
+      updateLayer(_id: string, _updates: Partial<MapLayer>): void {
+        // Default implementation does nothing
+      },
+
+      /**
+       * Remove a layer from the map.
+       *
+       * DEFAULT BEHAVIOR: No-op.
+       *
+       * AGENCY NOTE: Remove the layer from your map.
+       */
+      removeLayer(_id: string): void {
+        // Default implementation does nothing
+      },
+
+      /**
+       * Fit the map view to a bounding box.
+       *
+       * DEFAULT BEHAVIOR: No-op.
+       *
+       * AGENCY NOTE: Call your map's fitBounds/flyTo method.
+       */
+      fitBounds(_bounds: BBox, _options?: { padding?: number; animate?: boolean }): void {
+        // Default implementation does nothing
+      },
+
+      /**
+       * Get the current map bounds.
+       *
+       * DEFAULT BEHAVIOR: Returns world bounds.
+       *
+       * AGENCY NOTE: Return your map's current visible bounds.
+       */
+      getBounds(): BBox {
+        // Default implementation returns world bounds
+        return [-180, -90, 180, 90];
+      },
+
+      // -----------------------------------------------------------------------
+      // Data Services
+      // -----------------------------------------------------------------------
+
       /**
        * Get weather stations within bounds.
        *

@@ -426,6 +426,51 @@ export interface ExportParams {
 // =============================================================================
 
 /**
+ * Draw mode for map geometry input.
+ */
+export type DrawMode = 'point' | 'line' | 'polygon';
+
+/**
+ * Map layer for displaying results or reference data.
+ */
+export interface MapLayer {
+  /** Unique layer identifier */
+  id: string;
+  /** Layer type */
+  type: 'geojson' | 'raster' | 'vector-tile';
+  /** GeoJSON data for geojson type */
+  data?: GeoJSON.FeatureCollection | GeoJSON.Feature | GeoJSON.Geometry;
+  /** URL for raster or vector-tile types */
+  url?: string;
+  /** Layer styling */
+  style?: MapLayerStyle;
+  /** Z-order (higher = on top) */
+  zIndex?: number;
+  /** Layer visibility */
+  visible?: boolean;
+}
+
+/**
+ * Styling options for map layers.
+ */
+export interface MapLayerStyle {
+  /** Fill color for polygons (hex or rgba) */
+  fillColor?: string;
+  /** Fill opacity (0-1) */
+  fillOpacity?: number;
+  /** Stroke/line color (hex or rgba) */
+  strokeColor?: string;
+  /** Stroke width in pixels */
+  strokeWidth?: number;
+  /** Stroke opacity (0-1) */
+  strokeOpacity?: number;
+  /** Point radius in pixels */
+  pointRadius?: number;
+  /** Point color (hex or rgba) */
+  pointColor?: string;
+}
+
+/**
  * Weather station information.
  */
 export interface WeatherStation {
@@ -781,12 +826,117 @@ export interface IOpenNomadAPI {
   // ===========================================================================
 
   /**
-   * Spatial data services.
+   * Spatial data and map interaction services.
    *
-   * These provide access to weather stations, fuel types, and elevation data.
-   * In ACN mode, implementations may connect to agency-specific data sources.
+   * This module serves two purposes:
+   * 1. **Data Services**: Access to weather stations, fuel types, and elevation data
+   * 2. **Map Interaction**: Drawing geometry, managing layers, and map navigation
+   *
+   * In ACN mode, the host application implements these using its own map component.
+   * In SAN mode, Nomad's built-in map handles the implementation.
+   *
+   * This is the key abstraction that enables embedding - Nomad declares what
+   * spatial capabilities it needs, and the host provides the implementation.
    */
   spatial: {
+    // -------------------------------------------------------------------------
+    // Map Interaction (Host-Provided in ACN Mode)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Request user to draw a point on the map.
+     *
+     * The host application activates its point drawing tool and returns
+     * the result when the user completes the action.
+     *
+     * @returns The drawn point geometry
+     * @throws If user cancels or drawing is not available
+     */
+    drawPoint(): Promise<GeoJSON.Point>;
+
+    /**
+     * Request user to draw a line on the map.
+     *
+     * The host application activates its line drawing tool and returns
+     * the result when the user completes the action.
+     *
+     * @returns The drawn line geometry
+     * @throws If user cancels or drawing is not available
+     */
+    drawLine(): Promise<GeoJSON.LineString>;
+
+    /**
+     * Request user to draw a polygon on the map.
+     *
+     * The host application activates its polygon drawing tool and returns
+     * the result when the user completes the action.
+     *
+     * @returns The drawn polygon geometry
+     * @throws If user cancels or drawing is not available
+     */
+    drawPolygon(): Promise<GeoJSON.Polygon>;
+
+    /**
+     * Subscribe to geometry changes during drawing.
+     *
+     * Called repeatedly as the user draws, allowing real-time preview.
+     * Useful for showing area calculations, validation feedback, etc.
+     *
+     * @param callback - Called with the current geometry state
+     * @returns Cleanup function to unsubscribe
+     */
+    onGeometryChange(callback: (geometry: GeoJSONGeometry | null) => void): Unsubscribe;
+
+    /**
+     * Cancel any active drawing operation.
+     *
+     * Deactivates the drawing tool without returning geometry.
+     */
+    cancelDraw(): void;
+
+    /**
+     * Add a layer to the map.
+     *
+     * Used for displaying model results, reference data, etc.
+     *
+     * @param layer - Layer configuration
+     */
+    addLayer(layer: MapLayer): void;
+
+    /**
+     * Update an existing layer.
+     *
+     * @param id - Layer ID to update
+     * @param updates - Partial layer updates
+     */
+    updateLayer(id: string, updates: Partial<MapLayer>): void;
+
+    /**
+     * Remove a layer from the map.
+     *
+     * @param id - Layer ID to remove
+     */
+    removeLayer(id: string): void;
+
+    /**
+     * Fit the map view to a bounding box.
+     *
+     * @param bounds - Bounding box to fit
+     * @param options - Optional padding and animation settings
+     */
+    fitBounds(bounds: BBox, options?: { padding?: number; animate?: boolean }): void;
+
+    /**
+     * Get the current map bounds.
+     *
+     * @returns Current visible bounds
+     */
+    getBounds(): BBox;
+
+    // -------------------------------------------------------------------------
+    // Data Services
+    // -------------------------------------------------------------------------
+
     /**
      * Get weather stations within bounds.
      *

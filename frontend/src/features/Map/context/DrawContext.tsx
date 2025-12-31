@@ -300,3 +300,13 @@ export function useDraw(): DrawContextValue {
   }
   return context;
 }
+
+/**
+ * Optional version of useDraw that returns null if no provider.
+ *
+ * Use this when the component may be rendered outside of a DrawProvider,
+ * such as when embedded in a host application that provides its own map.
+ */
+export function useDrawOptional(): DrawContextValue | null {
+  return useContext(DrawContext);
+}
