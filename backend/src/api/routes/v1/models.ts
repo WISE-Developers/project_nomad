@@ -536,6 +536,9 @@ router.post(
       timeRange,
       weatherConfig: body.weather,
       simulationCount: body.scenarios ?? 100,
+      outputMode: body.outputMode === 'pseudo-deterministic' ? 'pseudo-deterministic' : 'probabilistic',
+      confidenceInterval: body.confidenceInterval ?? 50,
+      smoothPerimeter: body.smoothPerimeter ?? false,
     };
 
     // Update model status to queued
