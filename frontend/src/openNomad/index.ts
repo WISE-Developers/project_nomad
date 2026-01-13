@@ -59,6 +59,60 @@ export {
   type DashboardMode,
 } from '../features/Dashboard/components/DashboardContainer.js';
 
+// White-label customization (theming, labels, actions, slots, features)
+export {
+  // Provider
+  NomadProvider,
+  useNomadCustomization,
+  useNomadCustomizationOptional,
+  useNomadTheme,
+  useNomadLabels,
+  useNomadFeatures,
+  useIsFeatureEnabled,
+  useActionsForPlacement,
+  type NomadProviderProps,
+  type NomadCustomizationContextValue,
+
+  // Components
+  ThemedContainer,
+  ActionButton,
+  ActionsContainer,
+  SlotRenderer,
+  FeatureGate,
+  ToolbarWithActions,
+  HeaderWithActions,
+
+  // Defaults
+  DEFAULT_THEME,
+  DEFAULT_LABELS,
+  DEFAULT_FEATURES,
+  DEFAULT_CONFIG,
+  mergeTheme,
+  mergeLabels,
+  mergeFeatures,
+  mergeConfig,
+
+  // Types (re-exported)
+  type NomadTheme,
+  type NomadLabels,
+  type ResolvedNomadLabels,
+  type TabLabels,
+  type ButtonLabels,
+  type TooltipLabels,
+  type PlaceholderLabels,
+  type StatusLabels,
+  type EmptyStateLabels,
+  type NomadAction,
+  type ActionPlacement,
+  type NomadSlots,
+  type SlotRenderFn,
+  type NomadFeatures,
+  type NomadConfig,
+  type NomadCustomizationProps,
+  type ResolvedNomadConfig,
+  type ThemeStyleAccessor,
+} from './customization/index.js';
+
 // Re-export all types and the main interface
 export type {
   // Common types
