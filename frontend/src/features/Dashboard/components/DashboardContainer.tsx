@@ -14,6 +14,7 @@ import { ModelList } from './ModelList.js';
 import { DraftsDashboard } from './DraftsDashboard.js';
 import { StatusMonitor } from './StatusMonitor.js';
 import { ModelSetupWizard, type ModelSetupData } from '../../ModelSetup/index.js';
+import { ModelReviewPanel } from '../../ModelReview/index.js';
 import type { Model } from '../../../openNomad/api.js';
 import {
   NomadProvider,
@@ -298,7 +299,7 @@ function FloatingDashboard({
   className = '',
 }: FloatingDashboardProps) {
   const [size, setSize] = useState({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
-  const { activeView, wizardDraftId, showDashboard } = useDashboardView();
+  const { activeView, wizardDraftId, resultsModelId, showDashboard } = useDashboardView();
   const labels = useNomadLabels();
   const { theme } = useNomadCustomizationOptional();
 
@@ -327,6 +328,16 @@ function FloatingDashboard({
         onComplete={handleWizardComplete}
         onCancel={handleWizardCancel}
         draftId={wizardDraftId ?? undefined}
+      />
+    );
+  }
+
+  // When showing results, render the review panel
+  if (activeView === 'results' && resultsModelId) {
+    return (
+      <ModelReviewPanel
+        modelId={resultsModelId}
+        onClose={showDashboard}
       />
     );
   }
@@ -439,7 +450,7 @@ function EmbeddedDashboard({
   onAddToMap,
   className = '',
 }: EmbeddedDashboardProps) {
-  const { activeView, wizardDraftId, showDashboard } = useDashboardView();
+  const { activeView, wizardDraftId, resultsModelId, showDashboard } = useDashboardView();
   const labels = useNomadLabels();
   const { theme } = useNomadCustomizationOptional();
 
@@ -464,6 +475,16 @@ function EmbeddedDashboard({
         onComplete={handleWizardComplete}
         onCancel={handleWizardCancel}
         draftId={wizardDraftId ?? undefined}
+      />
+    );
+  }
+
+  // When showing results, render the review panel
+  if (activeView === 'results' && resultsModelId) {
+    return (
+      <ModelReviewPanel
+        modelId={resultsModelId}
+        onClose={showDashboard}
       />
     );
   }
