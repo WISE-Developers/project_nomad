@@ -14,7 +14,7 @@ import { ModelList } from './ModelList.js';
 import { DraftsDashboard } from './DraftsDashboard.js';
 import { StatusMonitor } from './StatusMonitor.js';
 import { ModelSetupWizard, type ModelSetupData } from '../../ModelSetup/index.js';
-import { ModelReviewPanel } from '../../ModelReview/index.js';
+import { ModelReviewPanel, type OutputItem } from '../../ModelReview/index.js';
 import type { Model } from '../../../openNomad/api.js';
 import {
   NomadProvider,
@@ -65,6 +65,10 @@ export interface DashboardContainerProps {
   onViewResults?: (modelId: string) => void;
   /** Called when user wants to add a result to the map */
   onAddToMap?: (modelId: string) => void;
+  /** Called when GeoJSON output is added to main map (from results view) */
+  onAddGeoJsonToMap?: (output: OutputItem, geoJson: GeoJSON.GeoJSON, modelInfo?: { modelId: string; modelName: string; engineType: string }) => void;
+  /** Called when raster output is added to main map (from results view) */
+  onAddRasterToMap?: (output: OutputItem, bounds: [number, number, number, number], tileUrl: string, modelInfo?: { modelId: string; modelName: string; engineType: string }) => void;
   /** Initial tab to show */
   initialTab?: DashboardTab;
   /** CSS class for container */
@@ -287,6 +291,8 @@ interface FloatingDashboardProps extends DashboardContentProps {
   onClose?: () => void;
   onWizardComplete?: (data: ModelSetupData) => void | Promise<void>;
   onWizardCancel?: () => void;
+  onAddGeoJsonToMap?: (output: OutputItem, geoJson: GeoJSON.GeoJSON, modelInfo?: { modelId: string; modelName: string; engineType: string }) => void;
+  onAddRasterToMap?: (output: OutputItem, bounds: [number, number, number, number], tileUrl: string, modelInfo?: { modelId: string; modelName: string; engineType: string }) => void;
   className?: string;
 }
 
@@ -296,6 +302,8 @@ function FloatingDashboard({
   onWizardCancel,
   onViewResults,
   onAddToMap,
+  onAddGeoJsonToMap,
+  onAddRasterToMap,
   className = '',
 }: FloatingDashboardProps) {
   const [size, setSize] = useState({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
@@ -338,6 +346,8 @@ function FloatingDashboard({
       <ModelReviewPanel
         modelId={resultsModelId}
         onClose={showDashboard}
+        onAddToMap={onAddGeoJsonToMap}
+        onAddRasterToMap={onAddRasterToMap}
       />
     );
   }
@@ -440,12 +450,16 @@ function FloatingDashboard({
 interface EmbeddedDashboardProps extends DashboardContentProps {
   onWizardComplete?: (data: ModelSetupData) => void | Promise<void>;
   onWizardCancel?: () => void;
+  onAddGeoJsonToMap?: (output: OutputItem, geoJson: GeoJSON.GeoJSON, modelInfo?: { modelId: string; modelName: string; engineType: string }) => void;
+  onAddRasterToMap?: (output: OutputItem, bounds: [number, number, number, number], tileUrl: string, modelInfo?: { modelId: string; modelName: string; engineType: string }) => void;
   className?: string;
 }
 
 function EmbeddedDashboard({
   onWizardComplete,
   onWizardCancel,
+  onAddGeoJsonToMap,
+  onAddRasterToMap,
   onViewResults,
   onAddToMap,
   className = '',
@@ -485,6 +499,8 @@ function EmbeddedDashboard({
       <ModelReviewPanel
         modelId={resultsModelId}
         onClose={showDashboard}
+        onAddToMap={onAddGeoJsonToMap}
+        onAddRasterToMap={onAddRasterToMap}
       />
     );
   }
@@ -544,6 +560,8 @@ function InnerDashboard({
   onLaunchWizard: _onLaunchWizard, // Deprecated, kept for backwards compatibility
   onViewResults,
   onAddToMap,
+  onAddGeoJsonToMap,
+  onAddRasterToMap,
   initialTab = 'models',
   className,
 }: InnerDashboardProps) {
@@ -559,6 +577,8 @@ function InnerDashboard({
           onWizardCancel={onWizardCancel}
           onViewResults={onViewResults}
           onAddToMap={onAddToMap}
+          onAddGeoJsonToMap={onAddGeoJsonToMap}
+          onAddRasterToMap={onAddRasterToMap}
           className={className}
         />
       ) : (
@@ -567,6 +587,8 @@ function InnerDashboard({
           onWizardCancel={onWizardCancel}
           onViewResults={onViewResults}
           onAddToMap={onAddToMap}
+          onAddGeoJsonToMap={onAddGeoJsonToMap}
+          onAddRasterToMap={onAddRasterToMap}
           className={className}
         />
       )}
