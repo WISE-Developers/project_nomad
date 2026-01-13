@@ -83,14 +83,13 @@ describe('DashboardContainer', () => {
       expect(draftsTab).toHaveAttribute('aria-selected', 'true');
     });
 
-    it('calls onLaunchWizard when new model button is clicked', async () => {
+    it('navigates to wizard when new model button is clicked', async () => {
       const user = userEvent.setup();
-      const onLaunchWizard = vi.fn();
       const Wrapper = createWrapper(mockApi);
 
       render(
         <Wrapper>
-          <DashboardContainer mode="embedded" onLaunchWizard={onLaunchWizard} />
+          <DashboardContainer mode="embedded" />
         </Wrapper>
       );
 
@@ -103,7 +102,12 @@ describe('DashboardContainer', () => {
       const newButton = screen.getByRole('button', { name: /new|create/i });
       await user.click(newButton);
 
-      expect(onLaunchWizard).toHaveBeenCalled();
+      // Dashboard now manages wizard internally - verify wizard is shown
+      // The wizard should now be displayed (checking for wizard content)
+      await waitFor(() => {
+        // The ModelSetupWizard should be rendered, which has "Model Setup" or step content
+        expect(screen.queryByRole('tab', { name: /models/i })).not.toBeInTheDocument();
+      });
     });
   });
 

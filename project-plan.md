@@ -1,6 +1,6 @@
 # Project Nomad - Project Plan
 
-**Last Updated:** 2025-12-31
+**Last Updated:** 2026-01-13
 **Repository:** [WISE-Developers/project_nomad](https://github.com/WISE-Developers/project_nomad)
 **SME:** Sage
 
@@ -68,6 +68,53 @@
 - [x] #93: Embed Configuration API
 - [ ] #94: Library Build Configuration
 - [ ] #95: Component Documentation
+- [ ] **NEW: Agency White-Label Customization Contract**
+
+#### White-Label Requirements (ACN Mode)
+
+Agencies embedding Nomad must be able to fully customize the UI to match their system. The component must expose:
+
+**Theming (CSS Variables)**
+- Colors, fonts, spacing, borders, border-radius
+- Exposed via `--nomad-*` CSS custom properties
+
+**Labels (i18n/Branding)**
+- Dashboard title
+- Tab names
+- Button text
+- Tooltips and placeholders
+- Via `labels` prop with full override capability
+
+**Actions (Agency Buttons)**
+- Add custom buttons with placement control (toolbar, sidebar, results panel, map overlay)
+- Via `actions` array prop: `{ label, icon?, placement, onClick }`
+
+**Slots (Component Extension)**
+- Replace or extend: header, toolbar, sidebar, panels
+- Via `slots` prop with render props pattern: `slots={{ toolbar: (defaults) => <>{defaults}<Custom /></> }}`
+
+**Feature Flags**
+- Show/hide Nomad capabilities agency doesn't need
+- Via `features` prop: `{ export: true, compare: false, ... }`
+
+**API Shape:**
+```tsx
+<NomadDashboard
+  title="Agency Fire Modeling"
+  labels={{ tabs: {...}, buttons: {...} }}
+  theme={{ '--nomad-primary': '#agency-blue' }}
+  actions={[{ label: 'Export', placement: 'toolbar', onClick }]}
+  slots={{ toolbar: (defaults) => <>{defaults}<AgencyTools /></> }}
+  features={{ export: true, compare: false }}
+/>
+```
+
+Or via provider for multi-component configs:
+```tsx
+<NomadProvider config={agencyConfig}>
+  <NomadDashboard />
+</NomadProvider>
+```
 
 ### P3-006: PostgreSQL/PostGIS Repositories
 - [ ] #100: PostgreSQL Connection Manager
