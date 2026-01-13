@@ -248,7 +248,8 @@ async function generateSinglePerimeter(
         console.log(`[PerimeterGenerator] Detected source CRS: ${sourceCRS}`);
       } else {
         // Try to detect UTM zone from central meridian
-        const centralMeridianMatch = gdalInfoOutput.match(/Longitude of natural origin",(-?\d+(?:\.\d+)?)/);
+        // Handle format: PARAMETER["Longitude of natural origin",-120,
+        const centralMeridianMatch = gdalInfoOutput.match(/Longitude of natural origin"?,?\s*(-?\d+(?:\.\d+)?)/);
         if (centralMeridianMatch) {
           const centralMeridian = parseFloat(centralMeridianMatch[1]);
           // Calculate UTM zone from central meridian
