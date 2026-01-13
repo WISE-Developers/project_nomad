@@ -233,10 +233,13 @@ export interface ResolvedNomadConfig {
  * @returns Complete configuration with defaults applied
  */
 export function mergeConfig(custom?: NomadConfig): ResolvedNomadConfig {
+  const title = custom?.title ?? custom?.labels?.title ?? DEFAULT_LABELS.title;
+  const labels = mergeLabels(custom?.labels);
+
   return {
-    title: custom?.title ?? custom?.labels?.title ?? DEFAULT_LABELS.title,
+    title,
     theme: mergeTheme(custom?.theme),
-    labels: mergeLabels(custom?.labels),
+    labels: { ...labels, title }, // Apply top-level title to labels.title
     features: mergeFeatures(custom?.features),
     actions: custom?.actions ?? [],
     slots: custom?.slots ?? {},
