@@ -247,30 +247,22 @@ async function generateSinglePerimeter(
         sourceCRS = `EPSG:${epsgMatch[1]}`;
         console.log(`[PerimeterGenerator] Detected source CRS: ${sourceCRS}`);
       } else {
-        // Try to detect UTM zone from central meridian
-        // Handle format: PARAMETER["Longitude of natural origin",-120,
+        // Build PROJ4 string from projection parameters instead of guessing EPSG
+        // This handles non-standard projections like FireSTARR's custom TM with CM at zone boundaries
         const centralMeridianMatch = gdalInfoOutput.match(/Longitude of natural origin"?,?\s*(-?\d+(?:\.\d+)?)/);
+        const scaleFactorMatch = gdalInfoOutput.match(/Scale factor at natural origin"?,?\s*([\d.]+)/);
+        const falseEastingMatch = gdalInfoOutput.match(/False easting"?,?\s*(\d+)/);
+        const falseNorthingMatch = gdalInfoOutput.match(/False northing"?,?\s*(\d+)/);
+
         if (centralMeridianMatch) {
           const centralMeridian = parseFloat(centralMeridianMatch[1]);
-          // Calculate UTM zone from central meridian
-          const utmZone = Math.floor((centralMeridian + 180) / 6) + 1;
+          const scaleFactor = scaleFactorMatch ? parseFloat(scaleFactorMatch[1]) : 0.9996;
+          const falseEasting = falseEastingMatch ? parseInt(falseEastingMatch[1]) : 500000;
+          const falseNorthing = falseNorthingMatch ? parseInt(falseNorthingMatch[1]) : 0;
 
-          // Detect hemisphere (N or S) from latitude of origin or check if data is in northern/southern hemisphere
-          // For simplicity, check the origin northing coordinate
-          const originMatch = gdalInfoOutput.match(/Origin = \(([^,]+),([^)]+)\)/);
-          let hemisphere = 'N'; // Default to North
-          if (originMatch) {
-            const northing = parseFloat(originMatch[2]);
-            // UTM northing values: Northern hemisphere 0-10,000,000m, Southern uses false northing 10,000,000m
-            if (northing > 10000000) {
-              hemisphere = 'S';
-            }
-          }
-
-          // UTM North zones are 32601-32660, UTM South zones are 32701-32760
-          const epsgCode = hemisphere === 'N' ? 32600 + utmZone : 32700 + utmZone;
-          sourceCRS = `EPSG:${epsgCode}`;
-          console.log(`[PerimeterGenerator] Inferred UTM Zone ${utmZone}${hemisphere} (${sourceCRS}) from central meridian ${centralMeridian}`);
+          // Build PROJ4 string with actual parameters from the raster
+          sourceCRS = `+proj=tmerc +lat_0=0 +lon_0=${centralMeridian} +k=${scaleFactor} +x_0=${falseEasting} +y_0=${falseNorthing} +datum=NAD83 +units=m +no_defs`;
+          console.log(`[PerimeterGenerator] Built PROJ4 from raster params: lon_0=${centralMeridian}, k=${scaleFactor}`);
         }
       }
     } catch (error) {
@@ -281,11 +273,12 @@ async function generateSinglePerimeter(
     const wgs84Path = join(tempDir, `wgs84_day${day}.geojson`);
 
     // Build reprojection command with explicit source CRS if detected
+    // PROJ4 strings need quotes since they contain spaces
     const reprojectCmd = sourceCRS
-      ? `ogr2ogr -f GeoJSON -s_srs ${sourceCRS} -t_srs EPSG:4326 "${wgs84Path}" "${polyPath}"`
+      ? `ogr2ogr -f GeoJSON -s_srs "${sourceCRS}" -t_srs EPSG:4326 "${wgs84Path}" "${polyPath}"`
       : `ogr2ogr -f GeoJSON -t_srs EPSG:4326 "${wgs84Path}" "${polyPath}"`;
 
-    console.log(`[PerimeterGenerator] Reprojecting day ${day} to WGS84${sourceCRS ? ` from ${sourceCRS}` : ''}`);
+    console.log(`[PerimeterGenerator] Reprojecting day ${day} to WGS84${sourceCRS ? ` from ${sourceCRS.substring(0, 50)}...` : ''}`);
     execSync(reprojectCmd, { encoding: 'utf8', stdio: 'pipe' });
 
     if (!existsSync(wgs84Path)) {
