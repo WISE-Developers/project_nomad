@@ -6,7 +6,7 @@
  * @module features/Dashboard/components
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import type { Model, ModelStatus, EngineType } from '../../../openNomad/api.js';
 
 // =============================================================================
@@ -137,10 +137,19 @@ export function ModelCard({
     onViewResults?.(model);
   }, [model, onViewResults]);
 
-  const handleAddToMap = useCallback((e: React.MouseEvent) => {
+  const [isAddingToMap, setIsAddingToMap] = useState(false);
+
+  const handleAddToMap = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    onAddToMap?.(model);
-  }, [model, onAddToMap]);
+    if (!onAddToMap || isAddingToMap) return;
+
+    setIsAddingToMap(true);
+    try {
+      await Promise.resolve(onAddToMap(model));
+    } finally {
+      setIsAddingToMap(false);
+    }
+  }, [model, onAddToMap, isAddingToMap]);
 
   const handleDelete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -227,10 +236,14 @@ export function ModelCard({
             {onAddToMap && (
               <button
                 onClick={handleAddToMap}
-                style={secondaryButtonStyle}
+                disabled={isAddingToMap}
+                style={{
+                  ...secondaryButtonStyle,
+                  ...(isAddingToMap ? disabledButtonStyle : {}),
+                }}
                 aria-label="Add to map"
               >
-                Add to Map
+                {isAddingToMap ? 'Adding...' : 'Add to Map'}
               </button>
             )}
           </>
@@ -391,6 +404,11 @@ const secondaryButtonStyle: React.CSSProperties = {
   backgroundColor: 'white',
   color: '#333',
   border: '1px solid #ccc',
+};
+
+const disabledButtonStyle: React.CSSProperties = {
+  opacity: 0.6,
+  cursor: 'wait',
 };
 
 const deleteButtonStyle: React.CSSProperties = {

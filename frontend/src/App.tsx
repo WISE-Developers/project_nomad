@@ -25,7 +25,8 @@ import {
   JobStatusToast,
   NotificationPermissionBanner,
 } from './features/Notifications';
-import { runModel } from './services/api';
+import { runModel, API_BASE_URL } from './services/api';
+import type { ModelResultsResponse } from './features/ModelReview/types';
 import { OpenNomadProvider, createDefaultAdapter } from './openNomad';
 import { DashboardContainer } from './features/Dashboard';
 
@@ -406,6 +407,43 @@ function AppContent() {
     console.log(`Added raster layer ${layerId} for output ${layerName}`);
   }, [map, isLoaded, addRasterLayer]);
 
+  // Handler for model card "Add to Map" button - fetches results and adds first output
+  const handleModelCardAddToMap = useCallback(async (modelId: string) => {
+    try {
+      // Fetch model results
+      const response = await fetch(`${API_BASE_URL}/api/v1/models/${modelId}/results`);
+      if (!response.ok) {
+        console.error('Failed to fetch model results:', response.status);
+        return;
+      }
+      const results: ModelResultsResponse = await response.json();
+
+      // Find first output with a preview URL
+      const output = results.outputs.find(o => o.previewUrl);
+      if (!output || !output.previewUrl) {
+        console.warn('No outputs with previewUrl found');
+        return;
+      }
+
+      // Fetch preview GeoJSON
+      const previewResponse = await fetch(output.previewUrl);
+      if (!previewResponse.ok) {
+        console.error('Failed to fetch preview:', previewResponse.status);
+        return;
+      }
+      const geoJson = await previewResponse.json();
+
+      // Add to map using existing handler
+      handleAddToMap(output, geoJson, {
+        modelId: results.modelId,
+        modelName: results.modelName,
+        engineType: results.engineType,
+      });
+    } catch (err) {
+      console.error('Error adding model to map:', err);
+    }
+  }, [handleAddToMap]);
+
   return (
     <>
       {/* Notification permission banner */}
@@ -447,6 +485,9 @@ function AppContent() {
             setShowDashboard(false);
             setReviewModelId(modelId);
           }}
+          onAddToMap={handleModelCardAddToMap}
+          onAddGeoJsonToMap={handleAddToMap}
+          onAddRasterToMap={handleAddRasterToMap}
         />
       )}
 
