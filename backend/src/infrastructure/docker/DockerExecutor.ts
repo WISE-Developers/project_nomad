@@ -32,10 +32,45 @@ const KILL_GRACE_PERIOD_MS = 10000;
  */
 export class DockerExecutor implements IContainerExecutor {
   private readonly projectDir: string;
+  /** Track active processes by job ID for cancellation support */
+  private readonly activeProcesses: Map<string, ChildProcess> = new Map();
 
   constructor(projectDir?: string) {
     // Default to parent of backend (project root)
     this.projectDir = projectDir ?? process.cwd().replace(/\/backend$/, '');
+  }
+
+  /**
+   * Cancel a running job by its ID.
+   * Sends SIGTERM followed by SIGKILL after grace period.
+   * @returns true if process was found and killed, false otherwise
+   */
+  cancelJob(jobId: string): boolean {
+    const child = this.activeProcesses.get(jobId);
+    if (!child) {
+      console.log(`[DockerExecutor] No active process found for job ${jobId}`);
+      return false;
+    }
+
+    console.log(`[DockerExecutor] Cancelling job ${jobId}, sending SIGTERM`);
+    child.kill('SIGTERM');
+
+    // Force kill after grace period if still running
+    setTimeout(() => {
+      if (this.activeProcesses.has(jobId)) {
+        console.log(`[DockerExecutor] Grace period expired for ${jobId}, sending SIGKILL`);
+        child.kill('SIGKILL');
+      }
+    }, KILL_GRACE_PERIOD_MS);
+
+    return true;
+  }
+
+  /**
+   * Check if a job is currently running.
+   */
+  isJobRunning(jobId: string): boolean {
+    return this.activeProcesses.has(jobId);
   }
 
   async run(options: ContainerRunOptions): Promise<Result<ContainerResult, EngineError>> {
@@ -86,6 +121,11 @@ export class DockerExecutor implements IContainerExecutor {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
 
+      // Track process for cancellation support
+      if (options.jobId) {
+        this.activeProcesses.set(options.jobId, child);
+      }
+
       // Set up timeout
       timeoutHandle = setTimeout(() => {
         console.log(`[DockerExecutor] Timeout after ${timeout}ms, sending SIGTERM`);
@@ -123,6 +163,11 @@ export class DockerExecutor implements IContainerExecutor {
       child.on('close', (code) => {
         if (timeoutHandle) clearTimeout(timeoutHandle);
         if (killHandle) clearTimeout(killHandle);
+
+        // Remove from active processes
+        if (options.jobId) {
+          this.activeProcesses.delete(options.jobId);
+        }
 
         const durationMs = Date.now() - startTime;
         const exitCode = code ?? -1;

@@ -40,6 +40,8 @@ export interface ContainerRunOptions {
   readonly timeout?: number;
   /** Project directory for docker-compose */
   readonly projectDir?: string;
+  /** Optional job ID for tracking and cancellation support */
+  readonly jobId?: string;
 }
 
 /**

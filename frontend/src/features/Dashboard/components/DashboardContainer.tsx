@@ -10,6 +10,7 @@
 import { useState, useCallback, useMemo, type CSSProperties } from 'react';
 import { Rnd } from 'react-rnd';
 import { DashboardProvider, useDashboardTabs, useDashboardView, type DashboardTab } from '../context/DashboardContext.js';
+import { useJobs } from '../hooks/useJobs.js';
 import { ModelList } from './ModelList.js';
 import { DraftsDashboard } from './DraftsDashboard.js';
 import { StatusMonitor } from './StatusMonitor.js';
@@ -219,8 +220,9 @@ function DashboardContent({
   const features = useNomadFeatures();
   const { theme } = useNomadCustomizationOptional();
 
-  // TODO: Get actual job count from useJobs hook
-  const jobCount = 0;
+  // Get actual job count from useJobs hook
+  const { runningCount, pendingCount } = useJobs({ autoSubscribeRunning: true });
+  const jobCount = runningCount + pendingCount;
 
   const handleResumeDraft = useCallback((draftId: string) => {
     showWizard(draftId);

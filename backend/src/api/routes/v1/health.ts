@@ -1,4 +1,10 @@
 import { Router } from 'express';
+import {
+  testConnection,
+  getDatabaseClient,
+  isKnexInitialized,
+} from '../../../infrastructure/database/knex/KnexConnection.js';
+import { getModelExecutionService } from '../../../infrastructure/services/index.js';
 
 const router = Router();
 const startTime = Date.now();
@@ -24,32 +30,48 @@ const startTime = Date.now();
  *             schema:
  *               $ref: '#/components/schemas/Health'
  */
-router.get('/health', (_req, res) => {
+router.get('/health', async (_req, res) => {
   const uptimeSeconds = Math.floor((Date.now() - startTime) / 1000);
 
   const deploymentMode = (process.env.NOMAD_DEPLOYMENT_MODE?.toUpperCase() as 'SAN' | 'ACN') || 'SAN';
 
-  // TODO: Add real database and engine checks when implemented
+  // Database check
+  let dbStatus: 'healthy' | 'unhealthy' | 'not_configured' = 'not_configured';
+  let dbClient: string | null = null;
+  if (isKnexInitialized()) {
+    dbClient = getDatabaseClient();
+    const dbOk = await testConnection();
+    dbStatus = dbOk ? 'healthy' : 'unhealthy';
+  }
+
+  // Engine availability checks
+  const executionService = getModelExecutionService();
+  const [firestarrAvailable, wiseAvailable] = await Promise.all([
+    executionService.isEngineAvailable('FireSTARR'),
+    executionService.isEngineAvailable('WISE'),
+  ]);
+
+  // Determine overall status
+  const overallStatus = dbStatus === 'unhealthy' ? 'degraded' : 'healthy';
+
   const health = {
-    status: 'healthy' as const,
+    status: overallStatus as 'healthy' | 'degraded',
     timestamp: new Date().toISOString(),
     uptime: uptimeSeconds,
     deploymentMode,
     checks: {
       database: {
-        status: 'not_configured',
+        status: dbStatus,
+        client: dbClient,
       },
       engines: {
-        FireSTARR: { available: false, version: null },
-        WISE: { available: false, version: null },
+        FireSTARR: { available: firestarrAvailable, version: null },
+        WISE: { available: wiseAvailable, version: null },
       },
     },
   };
 
-  // Determine overall status based on checks
-  // For now, always healthy since we don't have real checks yet
   const statusCode = health.status === 'healthy' ? 200 : 503;
-
   res.status(statusCode).json(health);
 });
 
