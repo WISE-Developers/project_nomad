@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { ConfigurationLoader } from '../../../infrastructure/config/ConfigurationLoader.js';
+import { EnvironmentService } from '../../../infrastructure/config/EnvironmentService.js';
 
 const router = Router();
 
@@ -42,17 +44,21 @@ const router = Router();
  *                         type: string
  */
 router.get('/config', (_req, res) => {
-  // TODO: Load from ConfigurationService when integrated
+  const configService = ConfigurationLoader.getInstance(EnvironmentService.getInstance());
+  const branding = configService.getBranding();
+  const enabledEngines = configService.getEnabledEngines();
+  const exportOptions = configService.getExportOptions();
+
   const config = {
-    deploymentMode: process.env.NOMAD_DEPLOYMENT_MODE || 'SAN',
+    deploymentMode: configService.getDeploymentMode(),
     branding: {
-      name: 'Project Nomad',
-      logoUrl: null,
-      primaryColor: '#2563eb',
+      name: branding.displayName || 'Project Nomad',
+      logoUrl: branding.logoUrl || null,
+      primaryColor: branding.primaryColor || '#2563eb',
     },
     features: {
-      engines: ['FireSTARR', 'WISE'],
-      exportFormats: ['GeoJSON', 'GeoTIFF', 'Shapefile', 'KML'],
+      engines: enabledEngines.map((e) => e.engineType),
+      exportFormats: exportOptions.availableFormats,
     },
   };
 

@@ -292,22 +292,176 @@ export class WeatherService {
    * @returns Array of hourly weather points
    */
   private async fetchFromSpotWX(
-    _apiKey: string,
+    apiKey: string,
     location: WeatherLocation,
     dateRange: WeatherDateRange
   ): Promise<WeatherDataPoint[]> {
     console.log(`[WeatherService] SpotWX fetch requested for ${location.latitude}, ${location.longitude}`);
     console.log(`[WeatherService] Date range: ${dateRange.start.toISOString()} to ${dateRange.end.toISOString()}`);
 
-    // TODO: Implement SpotWX API call
-    // The API returns hourly forecast data including:
-    // - Temperature, humidity, wind speed/direction
-    // - Precipitation
-    //
-    // We will need to use cffdrs to calculate FWI from SpotWX data as well
-    throw new Error(
-      'SpotWX integration not yet implemented. Please use file upload for now.'
+    // SpotWX API endpoint
+    const baseUrl = 'https://spotwx.io/api.php';
+
+    // Use HRDPS for Canada (high resolution), fallback to RDPS
+    const model = 'HRDPS';
+
+    const url = new URL(baseUrl);
+    url.searchParams.set('key', apiKey);
+    url.searchParams.set('lat', location.latitude.toFixed(6));
+    url.searchParams.set('lon', location.longitude.toFixed(6));
+    url.searchParams.set('model', model);
+
+    console.log(`[WeatherService] Fetching from SpotWX: ${url.toString().replace(apiKey, '***')}`);
+
+    const response = await fetch(url.toString());
+
+    if (!response.ok) {
+      throw new Error(`SpotWX API error: ${response.status} ${response.statusText}`);
+    }
+
+    const csvContent = await response.text();
+
+    // Check for API error responses
+    if (csvContent.includes('Error') || csvContent.includes('Invalid')) {
+      throw new Error(`SpotWX API error: ${csvContent.substring(0, 200)}`);
+    }
+
+    // Parse SpotWX CSV response
+    const rawRecords = this.parseSpotWXCsv(csvContent);
+
+    if (rawRecords.length === 0) {
+      throw new Error('SpotWX returned no weather data');
+    }
+
+    // Filter to requested date range
+    const filteredRecords = rawRecords.filter(
+      r => r.datetime >= dateRange.start && r.datetime <= dateRange.end
     );
+
+    if (filteredRecords.length === 0) {
+      console.warn(`[WeatherService] No records in date range, using all ${rawRecords.length} records`);
+      // Use all records if filter returned nothing (forecast may not cover exact range)
+    }
+
+    const recordsToProcess = filteredRecords.length > 0 ? filteredRecords : rawRecords;
+
+    console.log(`[WeatherService] Processing ${recordsToProcess.length} SpotWX records with cffdrs`);
+
+    // Calculate FWI using cffdrs (use default starting codes for forecast)
+    // Default starting codes for spring/early fire season
+    const defaultStartingCodes = { ffmc: 85.0, dmc: 6.0, dc: 15.0 };
+
+    return this.calculateFWIFromRawRecords(recordsToProcess, defaultStartingCodes, location.latitude);
+  }
+
+  /**
+   * Parses SpotWX CSV response into raw weather records.
+   * SpotWX returns CSV with columns including: DateTime, TMP, RH, WIND, WDIR, APCP
+   */
+  private parseSpotWXCsv(content: string): RawWeatherRecord[] {
+    const lines = content.trim().split('\n');
+    if (lines.length < 2) {
+      throw new Error('SpotWX CSV must have header and at least one data row');
+    }
+
+    const header = lines[0].toLowerCase().split(',').map(h => h.trim());
+
+    // Find column indices (SpotWX uses different names)
+    const findIndex = (names: string[]): number => {
+      for (const name of names) {
+        const idx = header.findIndex(h => h.includes(name.toLowerCase()));
+        if (idx !== -1) return idx;
+      }
+      return -1;
+    };
+
+    // SpotWX column mappings (may vary by model)
+    const dateIdx = findIndex(['datetime', 'date', 'time', 'valid']);
+    const tempIdx = findIndex(['tmp', 'temp', 'temperature', 't2m']);
+    const rhIdx = findIndex(['rh', 'humidity', 'relh']);
+    const wsIdx = findIndex(['wind', 'ws', 'wspd', 'windspd']);
+    const wdIdx = findIndex(['wdir', 'wd', 'winddir']);
+    const precIdx = findIndex(['apcp', 'prec', 'precip', 'precipitation']);
+
+    if (dateIdx === -1 || tempIdx === -1 || rhIdx === -1 || wsIdx === -1) {
+      console.error('[WeatherService] SpotWX header columns:', header);
+      throw new Error('SpotWX CSV missing required columns (DateTime, TMP, RH, WIND)');
+    }
+
+    const records: RawWeatherRecord[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const parts = line.split(',').map(p => p.trim());
+
+      try {
+        const datetime = new Date(parts[dateIdx]);
+        if (isNaN(datetime.getTime())) continue;
+
+        records.push({
+          scenario: 0,
+          datetime,
+          temp: parseFloat(parts[tempIdx]) || 0,
+          rh: parseFloat(parts[rhIdx]) || 0,
+          ws: parseFloat(parts[wsIdx]) || 0,
+          wd: wdIdx !== -1 ? parseFloat(parts[wdIdx]) || 0 : 0,
+          prec: precIdx !== -1 ? parseFloat(parts[precIdx]) || 0 : 0,
+        });
+      } catch (e) {
+        console.warn(`[WeatherService] Skipping SpotWX line ${i}: ${e}`);
+      }
+    }
+
+    return records;
+  }
+
+  /**
+   * Calculates FWI indices from raw weather records using cffdrs.
+   */
+  private calculateFWIFromRawRecords(
+    records: RawWeatherRecord[],
+    startingCodes: FWIStartingCodes,
+    latitude: number
+  ): WeatherDataPoint[] {
+    let prevFFMC = startingCodes.ffmc;
+    let prevDMC = startingCodes.dmc;
+    let prevDC = startingCodes.dc;
+
+    return records.map(record => {
+      const month = record.datetime.getMonth() + 1;
+
+      // Calculate new moisture codes using cffdrs
+      const newFFMC = ffmc(prevFFMC, record.temp, record.rh, record.ws, record.prec);
+      const newDMC = dmc(prevDMC, record.temp, record.rh, record.prec, latitude, month);
+      const newDC = dc(prevDC, record.temp, record.rh, record.prec, latitude, month);
+
+      // Calculate derived indices
+      const newISI = isi(newFFMC, record.ws);
+      const newBUI = bui(newDMC, newDC);
+      const newFWI = fwi(newISI, newBUI);
+
+      // Update previous values for next iteration
+      prevFFMC = newFFMC;
+      prevDMC = newDMC;
+      prevDC = newDC;
+
+      return {
+        datetime: record.datetime,
+        temperature: record.temp,
+        humidity: record.rh,
+        windSpeed: record.ws,
+        windDirection: record.wd,
+        precipitation: record.prec,
+        ffmc: Math.round(newFFMC * 10) / 10,
+        dmc: Math.round(newDMC * 10) / 10,
+        dc: Math.round(newDC * 10) / 10,
+        isi: Math.round(newISI * 100) / 100,
+        bui: Math.round(newBUI * 100) / 100,
+        fwi: Math.round(newFWI * 100) / 100,
+      };
+    });
   }
 
   /**

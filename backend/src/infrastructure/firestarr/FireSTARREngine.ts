@@ -186,12 +186,13 @@ export class FireSTARREngine implements IFireModelingEngine {
       }
     };
 
-    // Execute via Docker
+    // Execute via Docker (pass modelId for cancellation support)
     const result = await this.dockerExecutor.runStream(
       {
         service: FIRESTARR_SERVICE,
         command,
         timeout: 4 * 60 * 60 * 1000, // 4 hours
+        jobId: modelId, // Enable cancellation tracking
       },
       onOutput
     );
@@ -332,13 +333,23 @@ export class FireSTARREngine implements IFireModelingEngine {
       return;
     }
 
-    // TODO: Implement Docker container kill
-    // For now, just update status
+    // Kill the Docker container if running
+    const executor = this.dockerExecutor as import('../docker/DockerExecutor.js').DockerExecutor;
+    if (executor.cancelJob) {
+      const killed = executor.cancelJob(modelId);
+      console.log(`[FireSTARREngine] Cancel request for ${modelId}: ${killed ? 'process killed' : 'no active process'}`);
+    }
+
+    // Update status
+    const cancelledAt = new Date();
+    state.completedTime = cancelledAt;
     state.status = {
       state: 'failed',
       error: 'Cancelled by user',
       message: 'Execution cancelled',
-      updatedAt: new Date(),
+      startedAt: state.startTime,
+      completedAt: cancelledAt,
+      updatedAt: cancelledAt,
     };
 
     console.log(`[FireSTARREngine] Cancelled model ${modelId}`);
@@ -382,13 +393,128 @@ export class FireSTARREngine implements IFireModelingEngine {
       };
     }
 
-    // TODO: Check against actual fuel grid coverage
-    // This would require reading the fuel grid and checking the cell value
+    // Check actual fuel grid coverage
+    try {
+      const inputGen = this.inputGenerator as FireSTARRInputGenerator;
+      const currentYear = new Date().getFullYear();
+      const fuelGridPath = await inputGen.findFuelGridForCoordinates(lat, lon, currentYear);
 
-    return {
-      valid: true,
-      utmZone,
+      if (!fuelGridPath) {
+        return {
+          valid: false,
+          reason: 'No fuel grid coverage at this location',
+          utmZone,
+        };
+      }
+
+      // Sample the pixel value at this location
+      const fuelCode = await this.sampleFuelGridPixel(fuelGridPath, lat, lon);
+
+      if (fuelCode === null || fuelCode === 0) {
+        return {
+          valid: false,
+          reason: 'No data at this location in fuel grid',
+          utmZone,
+        };
+      }
+
+      if (fuelCode === 99 || fuelCode === 100 || fuelCode === 102) {
+        // 99 = Non-fuel, 100 = Water, 102 = Unknown
+        return {
+          valid: false,
+          reason: 'Non-burnable fuel type at this location',
+          utmZone,
+        };
+      }
+
+      return {
+        valid: true,
+        fuelType: this.getFuelTypeName(fuelCode),
+        utmZone,
+      };
+    } catch (error) {
+      // If fuel grid check fails, fall back to basic validation
+      console.warn('[FireSTARREngine] Fuel grid validation failed, allowing location:', error);
+      return {
+        valid: true,
+        utmZone,
+      };
+    }
+  }
+
+  /**
+   * Sample a pixel value from a fuel grid at given WGS84 coordinates.
+   */
+  private async sampleFuelGridPixel(
+    fuelGridPath: string,
+    latitude: number,
+    longitude: number
+  ): Promise<number | null> {
+    try {
+      const gdalModule = await import('gdal-async');
+      const gdal = gdalModule.default;
+
+      const ds = await gdal.openAsync(fuelGridPath);
+      const band = ds.bands.get(1);
+      const gt = ds.geoTransform;
+      const srs = ds.srs;
+
+      if (!gt || !srs || !band) {
+        ds.close();
+        return null;
+      }
+
+      // Transform WGS84 coordinates to raster CRS
+      const wgs84 = gdal.SpatialReference.fromProj4('+proj=longlat +datum=WGS84 +no_defs');
+      const transform = new gdal.CoordinateTransformation(wgs84, srs);
+      const transformed = transform.transformPoint(longitude, latitude);
+
+      // Convert to pixel coordinates
+      const pixelX = Math.floor((transformed.x - gt[0]) / gt[1]);
+      const pixelY = Math.floor((transformed.y - gt[3]) / gt[5]);
+
+      // Check bounds
+      if (pixelX < 0 || pixelX >= ds.rasterSize.x || pixelY < 0 || pixelY >= ds.rasterSize.y) {
+        ds.close();
+        return null;
+      }
+
+      // Read single pixel
+      const data = band.pixels.read(pixelX, pixelY, 1, 1);
+      ds.close();
+
+      return data[0] ?? null;
+    } catch (error) {
+      console.error('[FireSTARREngine] Failed to sample fuel grid:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get human-readable fuel type name from code.
+   */
+  private getFuelTypeName(code: number): string {
+    const fuelTypes: Record<number, string> = {
+      1: 'C-1 Spruce-Lichen Woodland',
+      2: 'C-2 Boreal Spruce',
+      3: 'C-3 Mature Jack/Lodgepole Pine',
+      4: 'C-4 Immature Jack/Lodgepole Pine',
+      5: 'C-5 Red/White Pine',
+      6: 'C-6 Conifer Plantation',
+      7: 'C-7 Ponderosa Pine/Douglas Fir',
+      11: 'D-1 Leafless Aspen',
+      12: 'D-2 Green Aspen',
+      21: 'M-1 Boreal Mixedwood (Leafless)',
+      22: 'M-2 Boreal Mixedwood (Green)',
+      23: 'M-3 Dead Balsam Fir (Leafless)',
+      24: 'M-4 Dead Balsam Fir (Green)',
+      31: 'S-1 Jack/Lodgepole Pine Slash',
+      32: 'S-2 White Spruce/Balsam Slash',
+      33: 'S-3 Coastal Cedar/Hemlock/Fir Slash',
+      40: 'O-1a Matted Grass',
+      41: 'O-1b Standing Grass',
     };
+    return fuelTypes[code] || `Fuel Type ${code}`;
   }
 
   /**
