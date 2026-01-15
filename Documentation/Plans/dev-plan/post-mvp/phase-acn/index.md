@@ -25,10 +25,10 @@ Phase 3 prepares Project Nomad for Agency-Centric deployment mode (ACN). This en
 | P3-003 | [Auth Abstraction](./P3-003-auth-abstraction.md) | 5 | OIDC/OAuth 2.0, SAML 2.0, abstraction layer |
 | P3-004 | [Embeddable React Component](./P3-004-embeddable-component.md) | 4 | Component packaging, embed API |
 | P3-005 | [Agency Data Services](./P3-005-agency-data-services.md) | 4 | Agency WFS/WCS integration |
-| P3-006 | [PostgreSQL/PostGIS](./P3-006-postgis-repositories.md) | 4 | Repository implementations |
+| P3-006 | [PostgreSQL/PostGIS](./P3-006-postgis-repositories.md) | 1 | Agency integration docs (DESCOPED - agency owns DB) |
 | P3-007 | [API Versioning](./P3-007-api-versioning.md) | 3 | Version strategy, stability guarantees |
 
-**Total Tasks**: 29
+**Total Tasks**: 26
 
 ## Dependency Graph
 
@@ -74,26 +74,23 @@ P3-003: Auth      P3-005: Agency    P3-006: PostGIS
 13. **P3-005-02**: WFS client implementation
 14. **P3-005-03**: WCS client implementation
 15. **P3-005-04**: Agency data integration tests
-16. **P3-006-01**: PostgreSQL connection manager
-17. **P3-006-02**: PostGIS model repository
-18. **P3-006-03**: PostGIS spatial repository
-19. **P3-006-04**: Database migration system
+16. **P3-006-01**: Agency integration guide (documentation only - agency owns DB)
 
 ### Sprint 4: Integration (P3-004 + P3-007)
-20. **P3-004-01**: Component entry point
-21. **P3-004-02**: Embed configuration API
-22. **P3-004-03**: Build toolchain for library mode
-23. **P3-004-04**: Component documentation
-24. **P3-007-01**: API version header middleware
-25. **P3-007-02**: Versioned route structure
-26. **P3-007-03**: Deprecation warning system
+17. **P3-004-01**: Component entry point
+18. **P3-004-02**: Embed configuration API
+19. **P3-004-03**: Build toolchain for library mode
+20. **P3-004-04**: Component documentation
+21. **P3-007-01**: API version header middleware
+22. **P3-007-02**: Versioned route structure
+23. **P3-007-03**: Deprecation warning system
 
 ## Success Criteria
 
 - [ ] Nomad can run in either SAN or ACN mode via `NOMAD_DEPLOYMENT_MODE`
 - [ ] ACN mode authenticates via agency OIDC or SAML provider
 - [ ] Agency can embed Nomad frontend in their React application
-- [ ] ACN mode persists to PostgreSQL/PostGIS (not SQLite)
+- [ ] ACN mode uses agency-provided repository adapters (agency owns database)
 - [ ] API has version prefix and stability guarantees
 - [ ] All existing SAN functionality continues to work
 

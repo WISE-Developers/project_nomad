@@ -1,112 +1,55 @@
 # P3-006: PostgreSQL/PostGIS Repositories
 
+**Status**: DESCOPED (2025-01-15)
+
 **GitHub Milestone**: [P3-006: PostgreSQL/PostGIS Repositories](https://github.com/WISE-Developers/project_nomad/milestone/14)
 
-## Overview
+## Scope Change
 
-Implement PostgreSQL/PostGIS-backed repositories for ACN deployments. While SAN mode uses SQLite/SpatiaLite for single-user local deployments, ACN mode requires PostgreSQL/PostGIS for multi-user, enterprise-grade persistence with proper connection pooling and spatial indexing.
+**Original scope**: Nomad would implement and manage PostgreSQL/PostGIS repositories for ACN deployments.
 
-## Tasks
+**Revised understanding**: In ACN mode, the agency provides their own database infrastructure. Nomad embeds as a component into agency systems via the `openNomad` API. The agency implements repository adapters against our interfaces - they own the database.
 
-### P3-006-01: PostgreSQL Connection Manager
+This was validated through EM3 integration experience:
+- EM3 has its own PostgreSQL database
+- EM3 implements `IAuthProvider`, `IModelRepository`, etc.
+- Nomad never directly touches the agency database
 
-**Description**: Create connection manager for PostgreSQL with pooling and configuration.
+## What Remains In Scope
 
-**Acceptance Criteria**:
-- [ ] Create `PostgreSQLConnectionManager` class
-- [ ] Support connection pooling (configurable pool size)
-- [ ] Read connection params from configuration or env vars
-- [ ] Support SSL connections (required for production)
-- [ ] Implement health check method
-- [ ] Handle connection failures gracefully (retry, circuit breaker)
-- [ ] Clean shutdown (drain pool)
+### Interface Contracts (Already Complete)
+The repository interfaces that agencies implement are defined and stable:
+- `IModelRepository` - fire model persistence
+- `IJobRepository` - job tracking
+- `IResultRepository` - results storage
+- `ISpatialRepository` - spatial operations
 
-**Files to Create/Modify**:
-- `backend/src/infrastructure/persistence/PostgreSQLConnectionManager.ts`
-- `backend/src/infrastructure/persistence/PostgreSQLConfig.ts`
+### Reference Implementation (Already Complete)
+- `ExampleAgencyAdapter.ts` - template showing agencies how to implement adapters
+- Documentation on interface contracts
 
-**Dependencies**: P3-001-03, P3-002-02
+### Documentation (Needed)
+- [ ] **P3-006-01**: Agency Integration Guide documenting how to wire agency PostgreSQL to Nomad interfaces
 
-**External Dependencies**:
-- `pg` (node-postgres)
-- `pg-pool`
+## What Is Out Of Scope
 
----
+The following are **agency responsibilities**, not Nomad responsibilities:
 
-### P3-006-02: PostGIS Model Repository
+- PostgreSQL connection management and pooling
+- PostGIS spatial repository implementations
+- Database schema design and migrations
+- Database performance tuning and indexing
 
-**Description**: Implement model repository using PostgreSQL.
+Agencies have existing database infrastructure. They implement adapters to connect it to Nomad's interfaces.
 
-**Acceptance Criteria**:
-- [ ] Create `PostgreSQLModelRepository` implementing `IModelRepository`
-- [ ] Store models with all fields (JSON columns for complex data)
-- [ ] Support queries: by ID, by user, by status, by date range
-- [ ] Implement pagination for list queries
-- [ ] Add database indexes for common queries
-- [ ] Store model spatial extent as PostGIS geometry
-
-**Files to Create/Modify**:
-- `backend/src/infrastructure/persistence/PostgreSQLModelRepository.ts`
-- `backend/src/infrastructure/persistence/migrations/001_create_models_table.sql`
-
-**Dependencies**: P3-006-01
-
----
-
-### P3-006-03: PostGIS Spatial Repository
-
-**Description**: Implement spatial repository using PostGIS for geometry storage and spatial queries.
-
-**Acceptance Criteria**:
-- [ ] Create `PostGISSpatialRepository` implementing `ISpatialRepository`
-- [ ] Store geometries with spatial index (GIST)
-- [ ] Implement spatial queries: within bbox, intersects, contains
-- [ ] Support multiple geometry types (point, line, polygon, multipolygon)
-- [ ] Handle coordinate reference system transformations
-- [ ] Store and query by model ID relationship
-
-**Files to Create/Modify**:
-- `backend/src/infrastructure/persistence/PostGISSpatialRepository.ts`
-- `backend/src/infrastructure/persistence/migrations/002_create_spatial_tables.sql`
-
-**Dependencies**: P3-006-01
-
----
-
-### P3-006-04: Database Migration System
-
-**Description**: Create migration system for managing PostgreSQL schema changes.
-
-**Acceptance Criteria**:
-- [ ] Create migration runner that executes SQL files in order
-- [ ] Track applied migrations in `_migrations` table
-- [ ] Support rollback (down migrations)
-- [ ] Migration files: `{version}_{name}_up.sql`, `{version}_{name}_down.sql`
-- [ ] CLI command: `npm run db:migrate`
-- [ ] CLI command: `npm run db:rollback`
-- [ ] Verify migrations are idempotent
-
-**Files to Create/Modify**:
-- `backend/src/infrastructure/persistence/MigrationRunner.ts`
-- `backend/src/infrastructure/persistence/migrations/000_create_migrations_table.sql`
-- `backend/package.json` (add migration scripts)
-- `backend/scripts/db-migrate.ts`
-- `backend/scripts/db-rollback.ts`
-
-**Dependencies**: P3-006-01
-
----
-
-## Architecture Notes
-
-### Repository Pattern
+## Architecture (Revised)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Use Cases                            │
-│            (Clean Architecture)                         │
+│                    Nomad Component                       │
+│              (via openNomad API)                        │
 └───────────────────────┬─────────────────────────────────┘
-                        │
+                        │ Interface Contracts
 ┌───────────────────────┴─────────────────────────────────┐
 │                 Repository Interfaces                    │
 │   IModelRepository, ISpatialRepository, IJobRepository  │
@@ -117,85 +60,25 @@ Implement PostgreSQL/PostGIS-backed repositories for ACN deployments. While SAN 
           ▼                           ▼
 ┌─────────────────────┐   ┌─────────────────────┐
 │   SAN Mode          │   │   ACN Mode          │
-│   SQLite/SpatiaLite │   │   PostgreSQL/PostGIS│
+│   Nomad owns DB     │   │   Agency owns DB    │
+│   SQLite/SpatiaLite │   │   Agency implements │
+│   (our code)        │   │   adapters          │
 └─────────────────────┘   └─────────────────────┘
 ```
 
-### Database Schema (ACN)
+## Remaining Task
 
-```sql
--- Models table
-CREATE TABLE models (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) NOT NULL,
-    engine VARCHAR(50) NOT NULL,
-    status VARCHAR(50) NOT NULL,
-    config JSONB NOT NULL,
-    results JSONB,
-    extent GEOMETRY(POLYGON, 4326),
-    created_by UUID REFERENCES users(id),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+### P3-006-01: Agency Integration Guide
 
-CREATE INDEX idx_models_status ON models(status);
-CREATE INDEX idx_models_created_by ON models(created_by);
-CREATE INDEX idx_models_extent ON models USING GIST(extent);
+**Description**: Document how agencies connect their PostgreSQL/PostGIS to Nomad interfaces.
 
--- Spatial data table
-CREATE TABLE model_geometries (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    model_id UUID REFERENCES models(id) ON DELETE CASCADE,
-    geometry_type VARCHAR(50) NOT NULL,
-    geometry GEOMETRY NOT NULL,
-    properties JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+**Acceptance Criteria**:
+- [ ] Document each repository interface contract
+- [ ] Provide PostgreSQL implementation examples (non-functional reference)
+- [ ] Document recommended schema patterns
+- [ ] Show example adapter wiring
 
-CREATE INDEX idx_geometries_model ON model_geometries(model_id);
-CREATE INDEX idx_geometries_geom ON model_geometries USING GIST(geometry);
-```
+**Files to Create/Modify**:
+- `Documentation/Integration/agency-database-guide.md`
 
-### Configuration
-
-```json
-{
-  "database": {
-    "type": "postgresql",
-    "host": "${DB_HOST}",
-    "port": 5432,
-    "database": "nomad",
-    "user": "${DB_USER}",
-    "password": "${DB_PASSWORD}",
-    "ssl": true,
-    "pool": {
-      "min": 2,
-      "max": 10
-    }
-  }
-}
-```
-
-## Migration Example
-
-```sql
--- migrations/001_create_models_table_up.sql
-CREATE EXTENSION IF NOT EXISTS postgis;
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
-CREATE TABLE models (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    -- ... columns
-);
-
--- migrations/001_create_models_table_down.sql
-DROP TABLE IF EXISTS models;
-```
-
-## SST Alignment
-
-From master plan:
-> **Backend:**
-> - [ ] PostgreSQL/PostGIS repository implementations
-
-ACN deployments need enterprise-grade persistence that supports multiple concurrent users and proper spatial indexing.
+This is documentation only - no code implementation needed.
