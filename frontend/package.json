@@ -4,12 +4,13 @@
   "description": "Project Nomad - Fire Modeling GUI",
   "private": false,
   "type": "module",
-  "main": "./dist/openNomad.js",
+  "main": "./dist/openNomad.umd.cjs",
   "module": "./dist/openNomad.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "import": "./dist/openNomad.js",
+      "require": "./dist/openNomad.umd.cjs",
       "types": "./dist/index.d.ts"
     }
   },
