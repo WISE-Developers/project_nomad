@@ -78,8 +78,20 @@ export function ModelReviewPanel({
       if (!onAddToMap) return;
 
       try {
-        // Get preview URL via adapter (supports embedded mode)
-        const previewUrl = api.results.getPreviewUrl(output.id, mode);
+        // Use previewUrl from API response - backend returns correct URL for each output type
+        // (regular results use /results/{id}/preview, perimeters use /models/{id}/perimeters)
+        let previewUrl = output.previewUrl;
+
+        // Add mode param for probability outputs
+        if (mode) {
+          const separator = previewUrl.includes('?') ? '&' : '?';
+          previewUrl = `${previewUrl}${separator}mode=${mode}`;
+        }
+
+        // For embedded mode, transform URL if adapter provides transformer
+        if (api.results.transformPreviewUrl) {
+          previewUrl = api.results.transformPreviewUrl(previewUrl);
+        }
 
         // Fetch the GeoJSON preview
         const response = await fetch(previewUrl);
@@ -171,7 +183,7 @@ export function ModelReviewPanel({
           engineType: results.engineType,
         } : undefined;
 
-        onAddRasterToMap(output, bounds, tileUrl, modelInfo);
+        await onAddRasterToMap(output, bounds, tileUrl, modelInfo);
       } catch (err) {
         console.error('Failed to add raster to map:', err);
         alert('Failed to load raster data for map');

@@ -16,8 +16,8 @@ interface UseLayersReturn {
   state: LayerState;
   /** Add a GeoJSON layer */
   addGeoJSONLayer: (config: Omit<GeoJSONLayerConfig, 'type'>) => void;
-  /** Add a raster layer */
-  addRasterLayer: (config: Omit<RasterLayerConfig, 'type'>) => void;
+  /** Add a raster layer (resolves when tiles are loaded) */
+  addRasterLayer: (config: Omit<RasterLayerConfig, 'type'>) => Promise<void>;
   /** Remove a layer */
   removeLayer: (layerId: string) => void;
   /** Update layer properties */
@@ -176,8 +176,8 @@ export function useLayers(): UseLayersReturn {
   );
 
   const addRasterLayer = useCallback(
-    (config: Omit<RasterLayerConfig, 'type'>) => {
-      if (!map || !isLoaded) return;
+    (config: Omit<RasterLayerConfig, 'type'>): Promise<void> => {
+      if (!map || !isLoaded) return Promise.resolve();
 
       const layerConfig: RasterLayerConfig = {
         ...config,
@@ -210,6 +210,38 @@ export function useLayers(): UseLayersReturn {
         ...prev,
         layers: [...prev.layers, layerConfig],
       }));
+
+      // Return a Promise that resolves when tiles are loaded
+      // Capture map reference for use in callbacks (we've already checked it's non-null)
+      const mapRef = map;
+      return new Promise<void>((resolve) => {
+        const sourceId = config.id;
+        const TIMEOUT_MS = 60000; // 60 second timeout
+
+        // Check if source is already loaded
+        if (mapRef.isSourceLoaded(sourceId)) {
+          resolve();
+          return;
+        }
+
+        // Set up timeout
+        const timeoutId = setTimeout(() => {
+          mapRef.off('sourcedata', onSourceData);
+          console.warn(`[useLayers] Raster source ${sourceId} load timed out after ${TIMEOUT_MS}ms`);
+          resolve(); // Resolve anyway so UI doesn't hang
+        }, TIMEOUT_MS);
+
+        // Listen for source data events
+        function onSourceData(e: mapboxgl.MapSourceDataEvent) {
+          if (e.sourceId === sourceId && e.isSourceLoaded) {
+            clearTimeout(timeoutId);
+            mapRef.off('sourcedata', onSourceData);
+            resolve();
+          }
+        }
+
+        mapRef.on('sourcedata', onSourceData);
+      });
     },
     [map, isLoaded]
   );

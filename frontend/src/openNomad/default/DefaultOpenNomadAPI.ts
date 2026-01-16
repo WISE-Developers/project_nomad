@@ -54,7 +54,6 @@ import {
   getModel,
   deleteModel as apiDeleteModel,
   getJob,
-  API_BASE_URL,
   type ModelResponse,
   type JobResponse,
 } from '../../services/api.js';
@@ -185,9 +184,11 @@ export interface DefaultAdapterOptions {
  * }
  * ```
  */
-export function createDefaultAdapter(_options?: DefaultAdapterOptions): IOpenNomadAPI {
-  // AGENCY NOTE: Store any configuration from options here.
-  // const { baseUrl } = options ?? {};
+export function createDefaultAdapter(options?: DefaultAdapterOptions): IOpenNomadAPI {
+  // Use provided baseUrl, fallback to env var, then localhost for development
+  const baseUrl = options?.baseUrl ??
+    ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) ||
+    'http://localhost:3001');
 
   return {
     // =========================================================================
@@ -659,7 +660,7 @@ export function createDefaultAdapter(_options?: DefaultAdapterOptions): IOpenNom
        * AGENCY NOTE: Return URL appropriate for your backend/proxy configuration.
        */
       getModelResultsUrl(modelId: string): string {
-        return `${API_BASE_URL}/api/v1/models/${modelId}/results`;
+        return `${baseUrl}/api/v1/models/${modelId}/results`;
       },
 
       /**
@@ -671,8 +672,8 @@ export function createDefaultAdapter(_options?: DefaultAdapterOptions): IOpenNom
        * In embedded mode, this might be a relative URL through the host's proxy.
        */
       getPreviewUrl(resultId: string, mode?: 'static' | 'dynamic'): string {
-        const baseUrl = `${API_BASE_URL}/api/v1/results/${resultId}/preview`;
-        return mode ? `${baseUrl}?mode=${mode}` : baseUrl;
+        const previewUrl = `${baseUrl}/api/v1/results/${resultId}/preview`;
+        return mode ? `${previewUrl}?mode=${mode}` : previewUrl;
       },
 
       /**
@@ -683,7 +684,7 @@ export function createDefaultAdapter(_options?: DefaultAdapterOptions): IOpenNom
        * AGENCY NOTE: Return URL appropriate for your backend/proxy configuration.
        */
       getDownloadUrl(resultId: string): string {
-        return `${API_BASE_URL}/api/v1/results/${resultId}/download`;
+        return `${baseUrl}/api/v1/results/${resultId}/download`;
       },
 
       /**
@@ -694,7 +695,7 @@ export function createDefaultAdapter(_options?: DefaultAdapterOptions): IOpenNom
        * AGENCY NOTE: Return URL template appropriate for your tile serving setup.
        */
       getTileUrlTemplate(resultId: string): string {
-        return `${API_BASE_URL}/api/v1/results/${resultId}/tile/{z}/{x}/{y}.png`;
+        return `${baseUrl}/api/v1/results/${resultId}/tile/{z}/{x}/{y}.png`;
       },
 
       /**
@@ -705,7 +706,7 @@ export function createDefaultAdapter(_options?: DefaultAdapterOptions): IOpenNom
        * AGENCY NOTE: Implement bounds retrieval for your tile serving setup.
        */
       async getTileBounds(resultId: string): Promise<BBox> {
-        const response = await fetch(`${API_BASE_URL}/api/v1/results/${resultId}/bounds`);
+        const response = await fetch(`${baseUrl}/api/v1/results/${resultId}/bounds`);
         if (!response.ok) {
           throw new Error(`Failed to fetch tile bounds: ${response.status}`);
         }

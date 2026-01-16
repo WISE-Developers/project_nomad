@@ -56,14 +56,20 @@ export function OutputPreviewModal({
   const [error, setError] = useState<string | null>(null);
   const [geoJsonData, setGeoJsonData] = useState<ContourFeatureCollection | null>(null);
 
-  // Fetch GeoJSON preview data via adapter (supports embedded mode)
+  // Fetch GeoJSON preview data
+  // Use output.previewUrl from API response - backend returns correct URL for each output type
+  // (regular results use /results/{id}/preview, perimeters use /models/{id}/perimeters)
   useEffect(() => {
     async function fetchPreview() {
       setIsLoading(true);
       setError(null);
 
       try {
-        const previewUrl = api.results.getPreviewUrl(output.id);
+        // Use the previewUrl from the API response directly
+        // For embedded mode, transform via adapter if needed
+        const previewUrl = api.results.transformPreviewUrl
+          ? api.results.transformPreviewUrl(output.previewUrl)
+          : output.previewUrl;
         const response = await fetch(previewUrl);
         if (!response.ok) {
           throw new Error(`Failed to fetch preview: ${response.status}`);
@@ -124,13 +130,25 @@ export function OutputPreviewModal({
           data: geoJsonData as GeoJSON.GeoJSON,
         });
 
-        // Add fill layer for probability contours
+        // Determine if features have a 'color' property (probability contours)
+        // or not (fire perimeters from GDAL which only have DN property)
+        const hasColorProperty = geoJsonData.features.some(
+          f => f.properties && 'color' in f.properties
+        );
+
+        // Colors for fire perimeters (orange theme)
+        const perimeterFillColor = '#ff9800';
+        const perimeterStrokeColor = '#f57c00';
+
+        // Add fill layer
         map.addLayer({
           id: 'contours-fill',
           type: 'fill',
           source: 'contours',
           paint: {
-            'fill-color': ['get', 'color'],
+            'fill-color': hasColorProperty
+              ? ['get', 'color']
+              : perimeterFillColor,
             'fill-opacity': 0.5,
           },
         });
@@ -141,7 +159,9 @@ export function OutputPreviewModal({
           type: 'line',
           source: 'contours',
           paint: {
-            'line-color': ['get', 'color'],
+            'line-color': hasColorProperty
+              ? ['get', 'color']
+              : perimeterStrokeColor,
             'line-width': 2,
           },
         });
@@ -249,8 +269,8 @@ export function OutputPreviewModal({
           <div ref={mapContainerRef} style={mapContainerStyle} />
         </div>
 
-        {/* Legend */}
-        {geoJsonData && !isLoading && !error && (
+        {/* Legend - only show for burn probability outputs */}
+        {geoJsonData && !isLoading && !error && output.type === 'burn_probability' && (
           <div style={legendStyle}>
             <div style={legendTitleStyle}>Burn Probability</div>
             <div style={legendItemsStyle}>
@@ -271,6 +291,25 @@ export function OutputPreviewModal({
                   <span>{item.label}</span>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Legend for fire perimeters */}
+        {geoJsonData && !isLoading && !error && (output.type === 'fire_perimeter' || output.type === 'perimeter') && (
+          <div style={legendStyle}>
+            <div style={legendTitleStyle}>Fire Perimeter</div>
+            <div style={legendItemsStyle}>
+              <div style={legendItemStyle}>
+                <span
+                  style={{
+                    ...legendColorStyle,
+                    backgroundColor: '#ff9800',
+                    border: '2px solid #f57c00',
+                  }}
+                />
+                <span>Predicted fire boundary</span>
+              </div>
             </div>
           </div>
         )}

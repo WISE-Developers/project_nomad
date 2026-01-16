@@ -206,10 +206,15 @@ function OutputListItem({
   };
 
   const handleRasterClick = async () => {
+    console.log('[OutputListItem] handleRasterClick called');
+    console.log('[OutputListItem] onAddRasterToMap exists:', !!onAddRasterToMap);
+    console.log('[OutputListItem] isLoadingRaster:', isLoadingRaster);
     if (!onAddRasterToMap || isLoadingRaster) return;
+    console.log('[OutputListItem] calling onAddRasterToMap');
     setIsLoadingRaster(true);
     try {
       await onAddRasterToMap();
+      console.log('[OutputListItem] onAddRasterToMap completed');
     } finally {
       setIsLoadingRaster(false);
     }
