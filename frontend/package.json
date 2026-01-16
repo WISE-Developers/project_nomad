@@ -1,6 +1,6 @@
 {
   "name": "@nomad/frontend",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Project Nomad - Fire Modeling GUI",
   "private": false,
   "type": "module",
@@ -23,7 +23,9 @@
     "preview": "vite preview",
     "lint": "eslint src/**/*.{ts,tsx}",
     "test": "vitest",
-    "test:watch": "vitest watch"
+    "test:watch": "vitest watch",
+    "tarball": "npm run build:lib && node scripts/validate-tarball.js && npm pack",
+    "tarball:patch": "npm version patch --no-git-tag-version && npm run tarball"
   },
   "dependencies": {
     "@mapbox/mapbox-gl-draw": "^1.5.1",

@@ -159,7 +159,7 @@ function TabNavigation({ activeTab, onTabChange, jobCount = 0 }: TabNavigationPr
 
   const activeTabDynamic: CSSProperties = {
     color: theme['--nomad-primary'],
-    borderBottomColor: theme['--nomad-primary'],
+    borderBottom: `2px solid ${theme['--nomad-primary']}`,
   };
 
   return (
@@ -168,7 +168,7 @@ function TabNavigation({ activeTab, onTabChange, jobCount = 0 }: TabNavigationPr
         style={{
           ...tabContainerStyle,
           backgroundColor: theme['--nomad-header-bg'],
-          borderBottomColor: theme['--nomad-border-color'],
+          borderBottom: `1px solid ${theme['--nomad-border-color']}`,
         }}
       >
         {visibleTabs.map((tab) => (
@@ -368,7 +368,7 @@ function FloatingDashboard({
   const headerDynamic: CSSProperties = {
     ...headerStyle,
     backgroundColor: theme['--nomad-header-bg'],
-    borderBottomColor: theme['--nomad-border-color'],
+    borderBottom: `1px solid ${theme['--nomad-border-color']}`,
   };
 
   const titleDynamic: CSSProperties = {
@@ -519,7 +519,7 @@ function EmbeddedDashboard({
   const headerDynamic: CSSProperties = {
     ...embeddedHeaderStyle,
     backgroundColor: theme['--nomad-header-bg'],
-    borderBottomColor: theme['--nomad-border-color'],
+    borderBottom: `1px solid ${theme['--nomad-border-color']}`,
   };
 
   const titleDynamic: CSSProperties = {

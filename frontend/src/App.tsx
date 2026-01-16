@@ -361,12 +361,12 @@ function AppContent() {
     console.log(`Added layer ${layerId} for output ${layerName}`);
   }, [map, isLoaded, addGeoJSONLayer]);
 
-  const handleAddRasterToMap = useCallback((
+  const handleAddRasterToMap = useCallback(async (
     output: OutputItem,
     bounds: [number, number, number, number],
     tileUrl: string,
     modelInfo?: { modelId: string; modelName: string; engineType: string }
-  ) => {
+  ): Promise<void> => {
     if (!map || !isLoaded) {
       console.warn('Map not ready');
       return;
@@ -381,8 +381,18 @@ function AppContent() {
       layerName = `${modelInfo.modelName} [${shortId}] - ${output.name} (Raster)`;
     }
 
-    // Add the raster layer
-    addRasterLayer({
+    // Zoom to the raster bounds (start zooming while tiles load)
+    map.fitBounds(
+      [[bounds[0], bounds[1]], [bounds[2], bounds[3]]],
+      {
+        padding: 50,
+        maxZoom: 14,
+        duration: 1000,
+      }
+    );
+
+    // Add the raster layer and wait for tiles to load
+    await addRasterLayer({
       id: layerId,
       name: layerName,
       url: tileUrl,
@@ -394,16 +404,6 @@ function AppContent() {
       resultId: modelInfo?.modelId,
       outputType: output.type,
     });
-
-    // Zoom to the raster bounds
-    map.fitBounds(
-      [[bounds[0], bounds[1]], [bounds[2], bounds[3]]],
-      {
-        padding: 50,
-        maxZoom: 14,
-        duration: 1000,
-      }
-    );
 
     console.log(`Added raster layer ${layerId} for output ${layerName}`);
   }, [map, isLoaded, addRasterLayer]);

@@ -848,6 +848,21 @@ export interface IOpenNomadAPI {
     getPreviewUrl(resultId: string, mode?: 'static' | 'dynamic'): string;
 
     /**
+     * Transform a preview URL from the API response for embedded mode.
+     *
+     * Optional method for adapters that need to rewrite URLs (e.g., to route
+     * through a proxy). If not provided, the URL is used as-is.
+     *
+     * This is used instead of getPreviewUrl when the API response already
+     * contains the correct URL path (e.g., for perimeter outputs which use
+     * a different endpoint than regular results).
+     *
+     * @param url - The preview URL from the API response
+     * @returns Transformed URL suitable for the embedded environment
+     */
+    transformPreviewUrl?(url: string): string;
+
+    /**
      * Get the download URL for a result.
      *
      * @param resultId - Result ID
