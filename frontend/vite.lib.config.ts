@@ -54,8 +54,8 @@ export default defineConfig({
       entry: path.resolve(__dirname, 'src/openNomad/index.ts'),
       // Global name for UMD builds (not used, but required)
       name: 'openNomad',
-      // Only ES module format
-      formats: ['es'],
+      // ES module for modern bundlers, UMD for script tag usage
+      formats: ['es', 'umd'],
       // Output filename
       fileName: 'openNomad',
     },
