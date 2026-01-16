@@ -1,6 +1,6 @@
 # Project Nomad - Project Plan
 
-**Last Updated:** 2026-01-13
+**Last Updated:** 2026-01-16
 **Repository:** [WISE-Developers/project_nomad](https://github.com/WISE-Developers/project_nomad)
 **SME:** Sage
 
@@ -27,9 +27,9 @@
 | [P3-001: Core Abstraction Layer](https://github.com/WISE-Developers/project_nomad/milestone/9) | **Complete** | 0 | 4 | Mode detection, context provider, service factory, integration tests |
 | [P3-002: Configuration Service](https://github.com/WISE-Developers/project_nomad/milestone/10) | In Progress | 5 | 0 | Schema v2, loader refactor, submodule support, frontend context, tests |
 | [P3-003: Auth Abstraction](https://github.com/WISE-Developers/project_nomad/milestone/11) | **Complete** | 0 | 5 | Provider interface, OIDC, SAML, role mapping, tests |
-| [P3-004: Embeddable React Component](https://github.com/WISE-Developers/project_nomad/milestone/12) | In Progress | 2 | 2 | Entry point done, embed config done; library build + docs pending |
+| [P3-004: Embeddable React Component](https://github.com/WISE-Developers/project_nomad/milestone/12) | In Progress | 2 | 3 | Entry point, embed config, white-label done; library build + docs pending |
 | [P3-005: Agency Data Services](https://github.com/WISE-Developers/project_nomad/milestone/13) | **Complete** | 0 | 4 | Interface, WFS client, WCS client, integration tests |
-| [P3-006: PostgreSQL/PostGIS](https://github.com/WISE-Developers/project_nomad/milestone/14) | Not Started | 4 | 0 | Connection manager, model repo, spatial repo, migrations |
+| [P3-006: PostgreSQL/PostGIS](https://github.com/WISE-Developers/project_nomad/milestone/14) | **Descoped** | 1 | 0 | Agency owns DB in ACN mode; Nomad provides interface contracts only |
 | [P3-007: API Versioning](https://github.com/WISE-Developers/project_nomad/milestone/15) | Not Started | 3 | 0 | Header middleware, versioned routes, deprecation warnings |
 | [P3-S2: Dashboard & openNomad](https://github.com/WISE-Developers/project_nomad/milestone/17) | **Complete** | 0 | 6 | API interface, default impl, dashboard, context, guide, tests |
 
@@ -66,61 +66,28 @@
 ### P3-004: Embeddable React Component
 - [x] #92: Component Entry Point
 - [x] #93: Embed Configuration API
+- [x] **White-Label Customization System** (completed 2026-01-13)
 - [ ] #94: Library Build Configuration
 - [ ] #95: Component Documentation
-- [ ] **NEW: Agency White-Label Customization Contract**
 
-#### White-Label Requirements (ACN Mode)
+#### White-Label Implementation (Complete)
 
-Agencies embedding Nomad must be able to fully customize the UI to match their system. The component must expose:
+Full customization system delivered for ACN mode:
+- **theme**: CSS variables (`--nomad-*`) for colors, fonts, spacing
+- **labels**: All UI text (tabs, buttons, tooltips)
+- **actions**: Custom buttons with placement control
+- **slots**: Replace/extend header, toolbar, sidebar, panels
+- **features**: Show/hide capabilities
 
-**Theming (CSS Variables)**
-- Colors, fonts, spacing, borders, border-radius
-- Exposed via `--nomad-*` CSS custom properties
+See `frontend/src/openNomad/customization/` for implementation.
 
-**Labels (i18n/Branding)**
-- Dashboard title
-- Tab names
-- Button text
-- Tooltips and placeholders
-- Via `labels` prop with full override capability
+### P3-006: PostgreSQL/PostGIS Repositories (DESCOPED)
 
-**Actions (Agency Buttons)**
-- Add custom buttons with placement control (toolbar, sidebar, results panel, map overlay)
-- Via `actions` array prop: `{ label, icon?, placement, onClick }`
+**Descoped 2026-01-15:** In ACN mode, agencies own their database infrastructure.
+Nomad provides interface contracts; agencies implement adapters.
+EM3 integration validated this pattern.
 
-**Slots (Component Extension)**
-- Replace or extend: header, toolbar, sidebar, panels
-- Via `slots` prop with render props pattern: `slots={{ toolbar: (defaults) => <>{defaults}<Custom /></> }}`
-
-**Feature Flags**
-- Show/hide Nomad capabilities agency doesn't need
-- Via `features` prop: `{ export: true, compare: false, ... }`
-
-**API Shape:**
-```tsx
-<NomadDashboard
-  title="Agency Fire Modeling"
-  labels={{ tabs: {...}, buttons: {...} }}
-  theme={{ '--nomad-primary': '#agency-blue' }}
-  actions={[{ label: 'Export', placement: 'toolbar', onClick }]}
-  slots={{ toolbar: (defaults) => <>{defaults}<AgencyTools /></> }}
-  features={{ export: true, compare: false }}
-/>
-```
-
-Or via provider for multi-component configs:
-```tsx
-<NomadProvider config={agencyConfig}>
-  <NomadDashboard />
-</NomadProvider>
-```
-
-### P3-006: PostgreSQL/PostGIS Repositories
-- [ ] #100: PostgreSQL Connection Manager
-- [ ] #101: PostGIS Model Repository
-- [ ] #102: PostGIS Spatial Repository
-- [ ] #103: Database Migration System
+- [ ] #100: Agency Database Integration Guide (docs only)
 
 ### P3-007: API Versioning
 - [ ] #104: API Version Header Middleware
@@ -129,6 +96,30 @@ Or via provider for multi-component configs:
 
 ### Other Active
 - [ ] #114: Build FireSTARR for old Opteron server
+
+---
+
+## Recent Progress (2026-01-13 to 2026-01-16)
+
+### White-Label Customization (P3-004)
+- Full theming, labels, actions, slots, features API
+- NomadProvider context for multi-component configs
+- Helper components (ThemedContainer, ActionButton, SlotRenderer, FeatureGate)
+
+### Embedded Mode Fixes
+- API_BASE_URL hardcoding fixed for proper embedded mode support
+- transformPreviewUrl interface for URL rewriting in embedded mode
+
+### UX Improvements
+- Raster loading indicator now shows during full tile fetch (~1 min)
+- Fire perimeter preview support (orange styling + legend)
+- Add to Map button wired for standalone and internal results
+- Title prop fix for labels.title override
+- Fixed 6 production placeholder issues from audit
+- Fixed React style warnings in DashboardContainer
+
+### Versioning
+- Frontend now at v0.2.6
 
 ---
 
