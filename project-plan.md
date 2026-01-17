@@ -1,6 +1,6 @@
 # Project Nomad - Project Plan
 
-**Last Updated:** 2026-01-16
+**Last Updated:** 2026-01-17
 **Repository:** [WISE-Developers/project_nomad](https://github.com/WISE-Developers/project_nomad)
 **SME:** Sage
 
@@ -12,8 +12,6 @@
 
 **Active Work:**
 - P3-002: Configuration Service (5 open issues)
-- P3-004: Embeddable React Component (2 open issues)
-- P3-006: PostgreSQL/PostGIS Repositories (4 open issues)
 - P3-007: API Versioning (3 open issues)
 
 ---
@@ -27,7 +25,7 @@
 | [P3-001: Core Abstraction Layer](https://github.com/WISE-Developers/project_nomad/milestone/9) | **Complete** | 0 | 4 | Mode detection, context provider, service factory, integration tests |
 | [P3-002: Configuration Service](https://github.com/WISE-Developers/project_nomad/milestone/10) | In Progress | 5 | 0 | Schema v2, loader refactor, submodule support, frontend context, tests |
 | [P3-003: Auth Abstraction](https://github.com/WISE-Developers/project_nomad/milestone/11) | **Complete** | 0 | 5 | Provider interface, OIDC, SAML, role mapping, tests |
-| [P3-004: Embeddable React Component](https://github.com/WISE-Developers/project_nomad/milestone/12) | In Progress | 2 | 3 | Entry point, embed config, white-label done; library build + docs pending |
+| [P3-004: Embeddable React Component](https://github.com/WISE-Developers/project_nomad/milestone/12) | **Complete** | 0 | 5 | Entry point, embed config, white-label, UMD bundle, docs |
 | [P3-005: Agency Data Services](https://github.com/WISE-Developers/project_nomad/milestone/13) | **Complete** | 0 | 4 | Interface, WFS client, WCS client, integration tests |
 | [P3-006: PostgreSQL/PostGIS](https://github.com/WISE-Developers/project_nomad/milestone/14) | **Descoped** | 1 | 0 | Agency owns DB in ACN mode; Nomad provides interface contracts only |
 | [P3-007: API Versioning](https://github.com/WISE-Developers/project_nomad/milestone/15) | Not Started | 3 | 0 | Header middleware, versioned routes, deprecation warnings |
@@ -63,24 +61,6 @@
 - [ ] #85: Frontend Configuration Context
 - [ ] #86: Configuration Integration Tests
 
-### P3-004: Embeddable React Component
-- [x] #92: Component Entry Point
-- [x] #93: Embed Configuration API
-- [x] **White-Label Customization System** (completed 2026-01-13)
-- [ ] #94: Library Build Configuration
-- [ ] #95: Component Documentation
-
-#### White-Label Implementation (Complete)
-
-Full customization system delivered for ACN mode:
-- **theme**: CSS variables (`--nomad-*`) for colors, fonts, spacing
-- **labels**: All UI text (tabs, buttons, tooltips)
-- **actions**: Custom buttons with placement control
-- **slots**: Replace/extend header, toolbar, sidebar, panels
-- **features**: Show/hide capabilities
-
-See `frontend/src/openNomad/customization/` for implementation.
-
 ### P3-006: PostgreSQL/PostGIS Repositories (DESCOPED)
 
 **Descoped 2026-01-15:** In ACN mode, agencies own their database infrastructure.
@@ -99,12 +79,14 @@ EM3 integration validated this pattern.
 
 ---
 
-## Recent Progress (2026-01-13 to 2026-01-16)
+## Recent Progress (2026-01-13 to 2026-01-17)
 
-### White-Label Customization (P3-004)
-- Full theming, labels, actions, slots, features API
-- NomadProvider context for multi-component configs
-- Helper components (ThemedContainer, ActionButton, SlotRenderer, FeatureGate)
+### P3-004: Embeddable React Component (Complete 2026-01-17)
+- Milestone closed with 5/5 issues complete
+- White-label customization (theming, labels, actions, slots, features)
+- UMD bundle for script tag usage (#94)
+- Component documentation - EMBEDDING.md + runnable examples (#95)
+- Frontend v0.2.7 released
 
 ### Embedded Mode Fixes
 - API_BASE_URL hardcoding fixed for proper embedded mode support
@@ -118,12 +100,16 @@ EM3 integration validated this pattern.
 - Fixed 6 production placeholder issues from audit
 - Fixed React style warnings in DashboardContainer
 
-### Versioning
-- Frontend now at v0.2.6
-
 ---
 
 ## Completed This Phase
+
+### P3-004: Embeddable React Component
+- [x] #92: Component Entry Point
+- [x] #93: Embed Configuration API
+- [x] White-Label Customization System (theme, labels, actions, slots, features)
+- [x] #94: Library Build Configuration (UMD bundle)
+- [x] #95: Component Documentation (EMBEDDING.md, examples)
 
 ### P3-001: Core Abstraction Layer (Sprint 1)
 - [x] #78: Deployment Mode Detection
