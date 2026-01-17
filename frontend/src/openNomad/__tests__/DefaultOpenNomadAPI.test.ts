@@ -16,9 +16,10 @@ vi.mock('../../services/api', () => ({
   getModel: vi.fn(),
   deleteModel: vi.fn(),
   getJob: vi.fn(),
+  getConfig: vi.fn(),
 }));
 
-import { getModels, getModel, deleteModel, getJob } from '../../services/api';
+import { getModels, getModel, deleteModel, getJob, getConfig } from '../../services/api';
 
 describe('DefaultOpenNomadAPI', () => {
   let api: IOpenNomadAPI;
@@ -310,12 +311,66 @@ describe('DefaultOpenNomadAPI', () => {
     });
 
     describe('getAgencyConfig', () => {
-      it('should return default agency config', async () => {
+      it('should fetch config from backend and map response', async () => {
+        const mockConfigResponse = {
+          deploymentMode: 'SAN' as const,
+          branding: {
+            name: 'NWT Fire Center',
+            logoUrl: 'https://example.com/logo.png',
+            primaryColor: '#ff5722',
+          },
+          features: {
+            engines: ['firestarr'],
+            exportFormats: ['geojson', 'geotiff', 'shapefile'],
+          },
+        };
+
+        vi.mocked(getConfig).mockResolvedValue(mockConfigResponse);
+
         const config = await api.config.getAgencyConfig();
 
+        expect(getConfig).toHaveBeenCalledTimes(1);
+        expect(config.name).toBe('NWT Fire Center');
+        expect(config.logoUrl).toBe('https://example.com/logo.png');
+        expect(config.branding?.primaryColor).toBe('#ff5722');
+        expect(config.exportFormats).toHaveLength(3);
+        expect(config.exportFormats?.find(f => f.id === 'geotiff')?.category).toBe('raster');
+      });
+
+      it('should return default config when fetch fails', async () => {
+        vi.mocked(getConfig).mockRejectedValue(new Error('Network error'));
+
+        const config = await api.config.getAgencyConfig();
+
+        expect(getConfig).toHaveBeenCalledTimes(1);
         expect(config.id).toBe('nomad');
         expect(config.name).toBe('Project Nomad');
-        expect(config.branding).toBeDefined();
+        expect(config.branding?.primaryColor).toBe('#1976d2');
+        expect(config.exportFormats).toHaveLength(1);
+        expect(config.exportFormats?.[0].id).toBe('geojson');
+      });
+
+      it('should use default branding when backend returns null values', async () => {
+        const mockConfigResponse = {
+          deploymentMode: 'SAN' as const,
+          branding: {
+            name: '',
+            logoUrl: null,
+            primaryColor: '',
+          },
+          features: {
+            engines: [],
+            exportFormats: [],
+          },
+        };
+
+        vi.mocked(getConfig).mockResolvedValue(mockConfigResponse);
+
+        const config = await api.config.getAgencyConfig();
+
+        expect(config.name).toBe('Project Nomad'); // Falls back to default
+        expect(config.logoUrl).toBeUndefined();
+        expect(config.branding?.primaryColor).toBe('#1976d2'); // Falls back to default
       });
     });
   });
