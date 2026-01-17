@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nomad Dashboard - Vanilla JS Integration</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f5; }
+
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    header {
+      padding: 1rem 1.5rem;
+      background: #1a5f2a;
+      color: white;
+    }
+
+    header h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 400px;
+      background: white;
+      border-right: 1px solid #e0e0e0;
+      overflow: auto;
+    }
+
+    .content {
+      flex: 1;
+      padding: 2rem;
+      overflow: auto;
+    }
+
+    .content h2 {
+      margin-bottom: 1rem;
+      color: #333;
+    }
+
+    .content p {
+      color: #666;
+      line-height: 1.6;
+    }
+
+    #event-log {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.875rem;
+      max-height: 300px;
+      overflow: auto;
+    }
+
+    .log-entry {
+      padding: 0.25rem 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <h1>Agency Fire Management (Vanilla JS)</h1>
+    </header>
+    <main>
+      <!-- Nomad Dashboard renders here -->
+      <aside class="sidebar" id="nomad-container"></aside>
+
+      <!-- Main content area -->
+      <section class="content">
+        <h2>Dashboard Integration Demo</h2>
+        <p>
+          This example shows how to embed the Nomad Dashboard using vanilla JavaScript
+          (no build step required). The dashboard is loaded via the UMD bundle and
+          rendered using React's createRoot API.
+        </p>
+        <h3 style="margin-top: 1.5rem;">Event Log</h3>
+        <div id="event-log">
+          <div class="log-entry">Waiting for events...</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- React (required peer dependency) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Nomad Dashboard UMD bundle -->
+  <!-- In production, replace with your actual path or CDN URL -->
+  <script src="../../../frontend/dist/openNomad.umd.cjs"></script>
+
+  <script>
+    /**
+     * Vanilla JS Integration Example
+     *
+     * This script demonstrates how to:
+     * 1. Access the Nomad exports from the global window.NomadFrontend
+     * 2. Create an adapter to connect to your backend
+     * 3. Render the dashboard into a DOM element
+     */
+
+    // Get Nomad exports from the UMD bundle
+    const {
+      OpenNomadProvider,
+      DashboardContainer,
+      createAgencyAdapter,
+    } = window.NomadFrontend;
+
+    // Event logging helper
+    function logEvent(message) {
+      const log = document.getElementById('event-log');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      log.insertBefore(entry, log.firstChild);
+    }
+
+    // Create the adapter (connects dashboard to your backend)
+    const adapter = createAgencyAdapter({
+      authToken: 'example-token-from-your-auth-system',
+      apiBaseUrl: '/api/nomad',
+      agencyId: 'vanilla-example',
+    });
+
+    // Event handlers
+    function handleLaunchWizard(draftId) {
+      logEvent(`Launch wizard${draftId ? ` for draft: ${draftId}` : ''}`);
+      // In production: window.location.href = '/modeling/new';
+    }
+
+    function handleViewResults(modelId) {
+      logEvent(`View results for model: ${modelId}`);
+      // In production: open results panel or navigate
+    }
+
+    function handleAddToMap(modelId) {
+      logEvent(`Add to map: ${modelId}`);
+      // In production: add layer to your map
+    }
+
+    // Create React elements (without JSX)
+    const dashboard = React.createElement(
+      OpenNomadProvider,
+      { adapter: adapter },
+      React.createElement(DashboardContainer, {
+        mode: 'embedded',
+        onLaunchWizard: handleLaunchWizard,
+        onViewResults: handleViewResults,
+        onAddToMap: handleAddToMap,
+        initialTab: 'models',
+      })
+    );
+
+    // Render the dashboard
+    const container = document.getElementById('nomad-container');
+    const root = ReactDOM.createRoot(container);
+    root.render(dashboard);
+
+    logEvent('Dashboard mounted successfully');
+  </script>
+</body>
+</html>

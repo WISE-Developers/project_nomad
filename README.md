@@ -36,6 +36,8 @@ Component integrated into existing agency infrastructure:
 - Protocol-based authentication (OIDC/OAuth 2.0, SAML 2.0)
 - Configuration via Git submodules for agency-specific branding and data sources
 
+**For ACN integration, see [EMBEDDING.md](EMBEDDING.md)** - complete guide for embedding the dashboard in your agency's application.
+
 ## Fire Modeling Engines
 
 ### FireSTARR (Primary)
@@ -85,6 +87,12 @@ Deterministic fire growth modeling:
 
 ## Documentation
 
+### Component Embedding
+For agencies integrating the Nomad dashboard into existing applications:
+- **[EMBEDDING.md](EMBEDDING.md)** - Consumer entry point for embedding
+- **[openNomad/README.md](frontend/src/openNomad/README.md)** - Complete adapter implementation guide
+- **[docs/examples/](docs/examples/)** - Runnable integration examples
+
 ### SME Documentation
 Comprehensive technical references for fire modeling integration:
 
@@ -112,17 +120,27 @@ project_nomad/
 │       │   ├── Dashboard/    # Draft models management
 │       │   ├── Export/       # Output export
 │       │   └── Notifications/# Job status notifications
+│       ├── openNomad/        # Embeddable component API
+│       │   ├── api.ts        # IOpenNomadAPI interface
+│       │   ├── customization/# White-label theming
+│       │   ├── default/      # SAN mode implementation
+│       │   └── examples/     # Integration examples
 │       ├── services/         # API communication
 │       ├── components/       # Shared components
 │       └── shared/utils/     # Utilities
 ├── backend/
 │   └── src/                  # Express API server
+├── docs/
+│   └── examples/             # Runnable integration examples
+│       ├── react-minimal/    # React + Vite example
+│       └── vanilla-js/       # UMD script tag example
 ├── Documentation/
 │   └── persist/
 │       └── SMEKB/Nomad/      # SME Knowledge Base
 │           └── plan/
 │               ├── nomad_master_plan.md
 │               └── SST/      # Single Source of Truth diagrams
+├── EMBEDDING.md              # Component embedding guide
 ├── assets/logo/              # Project branding
 └── configuration/            # Agency configuration
 ```
