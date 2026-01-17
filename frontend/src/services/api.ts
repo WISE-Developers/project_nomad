@@ -268,3 +268,27 @@ export interface JobResponse {
 export async function getJob(jobId: string): Promise<JobResponse> {
   return request<JobResponse>(`/jobs/${jobId}`);
 }
+
+// ============================================================================
+// Config API
+// ============================================================================
+
+export interface ConfigResponse {
+  deploymentMode: 'SAN' | 'ACN';
+  branding: {
+    name: string;
+    logoUrl: string | null;
+    primaryColor: string;
+  };
+  features: {
+    engines: string[];
+    exportFormats: string[];
+  };
+}
+
+/**
+ * Get application configuration
+ */
+export async function getConfig(): Promise<ConfigResponse> {
+  return request<ConfigResponse>('/config');
+}

@@ -54,6 +54,7 @@ import {
   getModel,
   deleteModel as apiDeleteModel,
   getJob,
+  getConfig,
   type ModelResponse,
   type JobResponse,
 } from '../../services/api.js';
@@ -973,41 +974,74 @@ export function createDefaultAdapter(options?: DefaultAdapterOptions): IOpenNoma
       /**
        * Get agency-specific configuration.
        *
-       * DEFAULT BEHAVIOR: Returns generic Nomad configuration.
+       * DEFAULT BEHAVIOR: Fetches from /api/v1/config and maps to AgencyConfig.
+       * Falls back to generic Nomad configuration if fetch fails.
        *
        * AGENCY NOTE: Return your agency's branding and settings.
        */
       async getAgencyConfig(): Promise<AgencyConfig> {
-        return {
+        // Default branding values
+        const defaultBranding = {
+          primaryColor: '#1976d2',
+          secondaryColor: '#0d47a1',
+        };
+
+        // Default configuration used as fallback
+        const defaultConfig: AgencyConfig = {
           id: 'nomad',
           name: 'Project Nomad',
           logoUrl: undefined,
-          branding: {
-            primaryColor: '#1976d2',
-            secondaryColor: '#dc004e',
-          },
+          branding: defaultBranding,
           defaultMapCenter: {
             lat: 62.45,
             lng: -114.37,
             zoom: 5,
           },
-          exportFormats: await this.getAvailableEngines().then(() =>
-            // Re-use getExportFormats for consistency
-            [
-              {
-                id: 'geojson',
-                name: 'GeoJSON',
-                extension: 'geojson',
-                category: 'vector' as const,
-                supportedOutputTypes: ['perimeter', 'probability'] as const,
-              },
-            ]
-          ),
+          exportFormats: [
+            {
+              id: 'geojson',
+              name: 'GeoJSON',
+              extension: 'geojson',
+              category: 'vector' as const,
+              supportedOutputTypes: ['perimeter', 'probability'] as const,
+            },
+          ],
           contact: {
             name: 'Nomad Support',
             email: 'support@nomad.example.com',
           },
         };
+
+        try {
+          const config = await getConfig();
+
+          // Map backend export format strings to ExportFormat objects
+          const exportFormats: ExportFormat[] = (config.features.exportFormats || []).map(
+            (format) => ({
+              id: format,
+              name: format.charAt(0).toUpperCase() + format.slice(1),
+              extension: format === 'shapefile' ? 'shp' : format,
+              category: (format === 'geotiff' ? 'raster' : 'vector') as 'vector' | 'raster',
+              supportedOutputTypes: ['perimeter', 'probability'] as const,
+            })
+          );
+
+          return {
+            id: 'nomad',
+            name: config.branding.name || defaultConfig.name,
+            logoUrl: config.branding.logoUrl || undefined,
+            branding: {
+              primaryColor: config.branding.primaryColor || defaultBranding.primaryColor,
+              secondaryColor: defaultBranding.secondaryColor, // Backend doesn't provide this
+            },
+            defaultMapCenter: defaultConfig.defaultMapCenter, // Backend doesn't provide this
+            exportFormats: exportFormats.length > 0 ? exportFormats : defaultConfig.exportFormats,
+            contact: defaultConfig.contact, // Backend doesn't provide this
+          };
+        } catch (error) {
+          console.warn('[DefaultOpenNomadAPI] Failed to fetch config, using defaults:', error);
+          return defaultConfig;
+        }
       },
     },
   };
