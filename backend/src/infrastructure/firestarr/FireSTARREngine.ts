@@ -26,7 +26,7 @@ import {
 } from '../../domain/entities/index.js';
 import { Coordinates } from '../../domain/value-objects/index.js';
 import { FireSTARRParams, WeatherHourlyData } from './types.js';
-import { getDockerExecutor } from '../docker/index.js';
+import { getFireSTARRExecutor, isBinaryMode } from '../execution/index.js';
 import { FireSTARRInputGenerator, createFireSTARRInputGenerator } from './FireSTARRInputGenerator.js';
 import { FireSTARROutputParser, getFireSTARROutputParser } from './FireSTARROutputParser.js';
 import { getWeatherService } from '../weather/index.js';
@@ -69,17 +69,17 @@ interface ExecutionState {
  * - Status tracking and progress reporting
  */
 export class FireSTARREngine implements IFireModelingEngine {
-  private readonly dockerExecutor: IContainerExecutor;
+  private readonly executor: IContainerExecutor;
   private readonly inputGenerator: IInputGenerator<FireSTARRParams>;
   private readonly outputParser: IOutputParser<ParsedOutput[]>;
   private readonly executions: Map<string, ExecutionState> = new Map();
 
   constructor(
-    dockerExecutor?: IContainerExecutor,
+    executor?: IContainerExecutor,
     inputGenerator?: IInputGenerator<FireSTARRParams>,
     outputParser?: IOutputParser<ParsedOutput[]>
   ) {
-    this.dockerExecutor = dockerExecutor ?? getDockerExecutor();
+    this.executor = executor ?? getFireSTARRExecutor();
     this.inputGenerator = inputGenerator ?? createFireSTARRInputGenerator();
     this.outputParser = outputParser ?? getFireSTARROutputParser();
   }
@@ -186,8 +186,8 @@ export class FireSTARREngine implements IFireModelingEngine {
       }
     };
 
-    // Execute via Docker (pass modelId for cancellation support)
-    const result = await this.dockerExecutor.runStream(
+    // Execute via executor (pass modelId for cancellation support)
+    const result = await this.executor.runStream(
       {
         service: FIRESTARR_SERVICE,
         command,
@@ -333,10 +333,10 @@ export class FireSTARREngine implements IFireModelingEngine {
       return;
     }
 
-    // Kill the Docker container if running
-    const executor = this.dockerExecutor as import('../docker/DockerExecutor.js').DockerExecutor;
-    if (executor.cancelJob) {
-      const killed = executor.cancelJob(modelId);
+    // Kill the running process if active
+    const executorWithCancel = this.executor as { cancelJob?: (jobId: string) => boolean };
+    if (executorWithCancel.cancelJob) {
+      const killed = executorWithCancel.cancelJob(modelId);
       console.log(`[FireSTARREngine] Cancel request for ${modelId}: ${killed ? 'process killed' : 'no active process'}`);
     }
 
@@ -612,12 +612,26 @@ export class FireSTARREngine implements IFireModelingEngine {
 
   /**
    * Builds the FireSTARR CLI command.
+   * Uses container paths for Docker mode, host paths for binary mode.
    */
   private buildCommand(params: FireSTARRParams, inputResult: InputGenerationResult): string[] {
-    // Use container paths (Docker mounts dataset at /appl/data)
-    const containerWorkingDir = (this.inputGenerator as FireSTARRInputGenerator)
-      .getContainerWorkingDir(inputResult.workingDir.split('/').pop()! as FireModelId);
-    const containerWeatherFile = `${containerWorkingDir}/weather.csv`;
+    // Determine paths based on execution mode
+    let workingDir: string;
+    let weatherFile: string;
+    let binaryPath: string;
+
+    if (isBinaryMode()) {
+      // Binary mode: use host paths directly
+      workingDir = inputResult.workingDir;
+      weatherFile = `${workingDir}/weather.csv`;
+      binaryPath = process.env.FIRESTARR_BINARY_PATH ?? FIRESTARR_BINARY;
+    } else {
+      // Docker mode: use container paths (Docker mounts dataset at /appl/data)
+      workingDir = (this.inputGenerator as FireSTARRInputGenerator)
+        .getContainerWorkingDir(inputResult.workingDir.split('/').pop()! as FireModelId);
+      weatherFile = `${workingDir}/weather.csv`;
+      binaryPath = FIRESTARR_BINARY;
+    }
 
     // Use corrected centroid from perimeter rasterization if available
     // This ensures the ignition point matches the perimeter raster center
@@ -629,13 +643,13 @@ export class FireSTARREngine implements IFireModelingEngine {
     }
 
     const args: string[] = [
-      FIRESTARR_BINARY,
-      containerWorkingDir,
+      binaryPath,
+      workingDir,
       this.formatDate(params.startDate),
       latitude.toString(),
       longitude.toString(),
       params.startTime,
-      '--wx', containerWeatherFile,
+      '--wx', weatherFile,
       '--ffmc', params.previousFFMC.toString(),
       '--dmc', params.previousDMC.toString(),
       '--dc', params.previousDC.toString(),
@@ -647,10 +661,15 @@ export class FireSTARREngine implements IFireModelingEngine {
     }
 
     if (inputResult.perimeterFile) {
-      // Extract filename from host path to build container path
-      const perimeterFilename = inputResult.perimeterFile.split('/').pop();
-      const containerPerimeterFile = `${containerWorkingDir}/${perimeterFilename}`;
-      args.push('--perim', containerPerimeterFile);
+      if (isBinaryMode()) {
+        // Binary mode: use host path directly
+        args.push('--perim', inputResult.perimeterFile);
+      } else {
+        // Docker mode: extract filename and build container path
+        const perimeterFilename = inputResult.perimeterFile.split('/').pop();
+        const containerPerimeterFile = `${workingDir}/${perimeterFilename}`;
+        args.push('--perim', containerPerimeterFile);
+      }
     }
 
     if (params.outputDateOffsets) {

@@ -76,4 +76,39 @@ export class EnvironmentService implements IEnvironmentService {
   getNodeEnv(): string {
     return process.env.NODE_ENV || 'development';
   }
+
+  /**
+   * Gets and validates the FireSTARR execution mode.
+   *
+   * @returns 'docker' or 'binary'
+   * @throws Error if binary mode is set without FIRESTARR_BINARY_PATH
+   */
+  getFireSTARRExecutionMode(): 'docker' | 'binary' {
+    const mode = this.get('FIRESTARR_EXECUTION_MODE')?.toLowerCase() || 'docker';
+
+    if (mode === 'binary') {
+      const binaryPath = this.get('FIRESTARR_BINARY_PATH');
+      if (!binaryPath) {
+        throw new Error(
+          'FIRESTARR_EXECUTION_MODE=binary requires FIRESTARR_BINARY_PATH to be set'
+        );
+      }
+    }
+
+    if (mode !== 'docker' && mode !== 'binary') {
+      throw new Error(
+        `Invalid FIRESTARR_EXECUTION_MODE: "${mode}". Must be "docker" or "binary".`
+      );
+    }
+
+    return mode;
+  }
+
+  /**
+   * Gets the FireSTARR binary path.
+   * Required when FIRESTARR_EXECUTION_MODE=binary.
+   */
+  getFireSTARRBinaryPath(): string | undefined {
+    return this.get('FIRESTARR_BINARY_PATH');
+  }
 }
