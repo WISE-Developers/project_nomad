@@ -462,6 +462,17 @@ step3_paths() {
         echo ""
     fi
 
+    # Port configuration (metal Nomad only)
+    if [ "$NOMAD_INFRA" = "metal" ]; then
+        echo -e "${CYAN}Server Port Configuration${NC}"
+        echo "    Port for the Nomad server (serves both API and UI in production)."
+        echo ""
+        read -p "Server port [3001]: " input_port
+        NOMAD_PORT="${input_port:-3001}"
+        print_success "Server port: $NOMAD_PORT"
+        echo ""
+    fi
+
     # FireSTARR binary source (metal FireSTARR only)
     if [ "$FIRESTARR_INFRA" = "metal" ]; then
         prompt_firestarr_binary_source
@@ -1137,6 +1148,10 @@ generate_env_file() {
         update_env_value "NOMAD_DATA_PATH" "$NOMAD_DATA_PATH"
     fi
 
+    if [ -n "$NOMAD_PORT" ]; then
+        update_env_value "PORT" "$NOMAD_PORT"
+    fi
+
     if [ -n "$NOMAD_AGENCY_ID" ]; then
         update_env_value "NOMAD_AGENCY_ID" "$NOMAD_AGENCY_ID"
     fi
@@ -1327,7 +1342,7 @@ install_nomad_metal_firestarr_docker() {
     echo "    cd $PROJECT_DIR"
     echo "    npm run start"
     echo ""
-    echo "Access at: http://localhost:3001"
+    echo "Access at: http://localhost:${NOMAD_PORT:-3001}"
     echo "FireSTARR will run in Docker containers when needed."
 }
 
@@ -1396,7 +1411,7 @@ install_all_metal() {
     echo "    cd $PROJECT_DIR"
     echo "    npm run start"
     echo ""
-    echo "Access at: http://localhost:3001"
+    echo "Access at: http://localhost:${NOMAD_PORT:-3001}"
 }
 
 install_nomad_docker_firestarr_metal() {
@@ -1560,6 +1575,9 @@ print_summary() {
     echo "    Deployment Mode:         $NOMAD_DEPLOYMENT_MODE"
     echo "    Nomad Infrastructure:    $NOMAD_INFRA"
     echo "    FireSTARR Infrastructure: $FIRESTARR_INFRA"
+    if [ -n "$NOMAD_PORT" ]; then
+    echo "    Server Port:             $NOMAD_PORT"
+    fi
     if [ "$DATASET_INSTALL_MODE" = "existing" ]; then
     echo "    Dataset Path:            $FIRESTARR_DATASET_PATH (existing)"
     elif [ "$DATASET_INSTALL_MODE" = "download" ]; then
