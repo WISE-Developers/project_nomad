@@ -141,6 +141,44 @@ get_selection() {
 }
 
 # ============================================
+# Early Prerequisite Checks (fail fast)
+# ============================================
+
+# Check Node.js version early - exits if Node is missing or too old
+check_node_early() {
+    local required_major=20
+
+    if ! command -v node &> /dev/null; then
+        echo ""
+        print_error "Node.js is not installed"
+        echo ""
+        echo "    Node.js >= $required_major is required for native installation."
+        echo ""
+        echo "    To install Node.js:"
+        echo "      macOS:   brew install node@$required_major"
+        echo "      Or use nvm: nvm install $required_major"
+        echo ""
+        exit 1
+    fi
+
+    local node_version
+    node_version=$(node -v | sed 's/v//')
+    local major_version
+    major_version=$(echo "$node_version" | cut -d. -f1)
+
+    if [ "$major_version" -lt "$required_major" ]; then
+        echo ""
+        print_error "Node.js $node_version is installed, but >= $required_major is required"
+        echo ""
+        echo "    To upgrade Node.js:"
+        echo "      macOS:   brew install node@$required_major"
+        echo "      Or use nvm: nvm install $required_major && nvm use $required_major"
+        echo ""
+        exit 1
+    fi
+}
+
+# ============================================
 # Step 1: Deployment Mode
 # ============================================
 
@@ -214,6 +252,7 @@ step2_infrastructure() {
             print_success "Selected: All Docker"
             ;;
         2)
+            check_node_early
             NOMAD_INFRA="metal"
             FIRESTARR_INFRA="metal"
             FIRESTARR_EXECUTION_MODE="binary"
@@ -226,6 +265,7 @@ step2_infrastructure() {
             print_success "Selected: Nomad Docker + FireSTARR Metal"
             ;;
         4)
+            check_node_early
             NOMAD_INFRA="metal"
             FIRESTARR_INFRA="docker"
             FIRESTARR_EXECUTION_MODE="docker"
