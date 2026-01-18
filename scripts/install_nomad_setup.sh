@@ -363,15 +363,36 @@ prompt_existing_dataset() {
     fi
 }
 
-# Option 2: Download new dataset - get target path
+# Option 2: Download new dataset - get download folder and install path
 prompt_new_dataset_path() {
     echo ""
-    echo -e "${CYAN}Dataset Download Location${NC}"
-    echo "    Where to download the FireSTARR dataset (~50GB required)."
+    echo -e "${CYAN}Dataset Archive Download Folder${NC}"
+    echo "    Where to save the downloaded archive file (~50GB)."
+    echo "    The archive is preserved for future reinstalls."
+    echo ""
+
+    local default_download="${FIRESTARR_DOWNLOAD_DIR:-$HOME/Downloads}"
+    read -p "Download folder [$default_download]: " input_download
+    input_download="${input_download:-$default_download}"
+
+    # Expand ~ if present
+    input_download="${input_download/#\~/$HOME}"
+
+    # Convert to absolute path
+    if [[ ! "$input_download" = /* ]]; then
+        input_download="$(pwd)/$input_download"
+    fi
+
+    FIRESTARR_DOWNLOAD_DIR="$input_download"
+    print_success "Archive will be downloaded to: $FIRESTARR_DOWNLOAD_DIR"
+
+    echo ""
+    echo -e "${CYAN}Dataset Install Location${NC}"
+    echo "    Where to extract and install the dataset."
     echo ""
 
     local default_dataset="${FIRESTARR_DATASET_PATH:-$HOME/firestarr_data}"
-    read -p "Dataset path [$default_dataset]: " input_dataset
+    read -p "Install path [$default_dataset]: " input_dataset
     input_dataset="${input_dataset:-$default_dataset}"
 
     # Expand ~ if present
@@ -383,7 +404,7 @@ prompt_new_dataset_path() {
     fi
 
     FIRESTARR_DATASET_PATH="$input_dataset"
-    print_success "Dataset will be downloaded to: $FIRESTARR_DATASET_PATH"
+    print_success "Dataset will be installed to: $FIRESTARR_DATASET_PATH"
 }
 
 # ============================================
@@ -1241,6 +1262,8 @@ install_dataset() {
         return 1
     fi
 
+    # Export download dir so dataset script can use it
+    export FIRESTARR_DOWNLOAD_DIR
     run_cmd bash "$install_script"
 }
 
