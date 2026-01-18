@@ -48,6 +48,10 @@ print_success() {
     echo -e "${GREEN}✔${NC} $1"
 }
 
+print_info() {
+    echo -e "${BLUE}ℹ${NC} $1"
+}
+
 # Load configuration from .env
 load_config() {
     if [ ! -f "$ENV_FILE" ]; then
