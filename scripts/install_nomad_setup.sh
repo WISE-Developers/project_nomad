@@ -397,21 +397,30 @@ validate_prerequisites() {
 
     # FireSTARR binary requirements (metal FireSTARR)
     if [ "$FIRESTARR_INFRA" = "metal" ]; then
-        if [ -n "$FIRESTARR_BINARY_SOURCE" ]; then
-            if [[ "$FIRESTARR_BINARY_SOURCE" =~ ^https?:// ]]; then
-                print_success "FireSTARR binary will be downloaded from URL"
-            elif [ -f "$FIRESTARR_BINARY_SOURCE" ]; then
-                print_success "FireSTARR binary source file found"
-            else
-                print_warning "FireSTARR binary source file not found: $FIRESTARR_BINARY_SOURCE"
-            fi
-        elif [ -n "$FIRESTARR_BINARY_PATH" ] && [ -x "$FIRESTARR_BINARY_PATH" ]; then
-            print_success "FireSTARR binary found at $FIRESTARR_BINARY_PATH"
-        else
-            print_warning "FireSTARR binary not configured"
-            echo "    You'll need to compile FireSTARR or download a pre-built binary"
-            echo "    See: https://github.com/WISE-Developers/firestarr"
-        fi
+        case "$FIRESTARR_INSTALL_MODE" in
+            archive)
+                if [[ "$FIRESTARR_ARCHIVE_SOURCE" =~ ^https?:// ]]; then
+                    print_success "FireSTARR will be downloaded from URL"
+                elif [ -f "$FIRESTARR_ARCHIVE_SOURCE" ]; then
+                    print_success "FireSTARR archive found: $FIRESTARR_ARCHIVE_SOURCE"
+                else
+                    print_warning "FireSTARR archive not found: $FIRESTARR_ARCHIVE_SOURCE"
+                fi
+                print_info "Will install to: $FIRESTARR_INSTALL_DIR"
+                ;;
+            existing)
+                if [ -n "$FIRESTARR_BINARY_PATH" ] && [ -x "$FIRESTARR_BINARY_PATH" ]; then
+                    print_success "Existing FireSTARR binary: $FIRESTARR_BINARY_PATH"
+                else
+                    print_warning "FireSTARR binary not found or not executable: $FIRESTARR_BINARY_PATH"
+                fi
+                ;;
+            skip|"")
+                print_warning "FireSTARR binary not configured"
+                echo "    You'll need to compile FireSTARR or download a pre-built binary"
+                echo "    See: https://github.com/WISE-Developers/firestarr"
+                ;;
+        esac
     fi
 
     return $errors
@@ -565,46 +574,165 @@ get_platform_string() {
     echo "${arch}-${os_name}"
 }
 
-# Prompt user for FireSTARR binary source (URL or local file)
+# Prompt user for FireSTARR binary configuration
+# Two options: use existing installation or install from archive
 prompt_firestarr_binary_source() {
     local platform
     platform=$(get_platform_string)
 
     echo ""
-    echo -e "${CYAN}FireSTARR Binary Installation${NC}"
+    echo -e "${CYAN}FireSTARR Binary Configuration${NC}"
     echo "    Detected platform: $platform"
     echo ""
-    echo "    You need a FireSTARR binary compiled for your platform."
-    echo "    This can be:"
-    echo "      - A URL to download the binary"
-    echo "      - A local file path to an existing binary"
+    echo -e "    ${GREEN}1) Use existing FireSTARR installation${NC}"
+    echo "       Point to an already-installed FireSTARR binary"
+    echo "       Note: Nomad will update settings.ini to use its dataset path"
+    echo ""
+    echo -e "    ${GREEN}2) Install FireSTARR for Nomad${NC}"
+    echo "       Provide a distribution archive (.zip) to install"
+    echo "       Nomad will extract and configure it"
+    echo ""
+    echo -e "    ${YELLOW}3) Skip for now${NC}"
+    echo "       Configure FireSTARR later"
     echo ""
 
-    read -p "Enter URL or file path to FireSTARR binary: " binary_source
+    local choice
+    read -p "Select an option [1-3] (default: 2): " choice
+    choice="${choice:-2}"
 
-    if [ -z "$binary_source" ]; then
-        print_warning "No binary source provided - you'll need to configure this later"
-        FIRESTARR_BINARY_SOURCE=""
-        FIRESTARR_BINARY_PATH=""
+    case "$choice" in
+        1)
+            # Use existing installation
+            prompt_existing_firestarr
+            ;;
+        2)
+            # Install from archive
+            prompt_firestarr_archive
+            ;;
+        3)
+            print_info "Skipping FireSTARR configuration - you'll need to set this up later"
+            FIRESTARR_BINARY_SOURCE=""
+            FIRESTARR_BINARY_PATH=""
+            FIRESTARR_INSTALL_MODE="skip"
+            return 1
+            ;;
+        *)
+            print_warning "Invalid selection, skipping"
+            return 1
+            ;;
+    esac
+}
+
+# Option 1: Use existing FireSTARR installation
+prompt_existing_firestarr() {
+    echo ""
+    echo -e "${CYAN}Existing FireSTARR Installation${NC}"
+    echo ""
+    read -p "Path to FireSTARR binary: " binary_path
+
+    # Expand ~ if present
+    binary_path="${binary_path/#\~/$HOME}"
+
+    if [ -z "$binary_path" ]; then
+        print_warning "No path provided"
         return 1
     fi
 
-    FIRESTARR_BINARY_SOURCE="$binary_source"
+    if [ ! -f "$binary_path" ]; then
+        print_error "Binary not found: $binary_path"
+        return 1
+    fi
+
+    if [ ! -x "$binary_path" ]; then
+        print_warning "Binary exists but is not executable: $binary_path"
+    fi
+
+    # Check for existing settings.ini
+    local binary_dir
+    binary_dir=$(dirname "$binary_path")
+    local settings_file="$binary_dir/settings.ini"
+
+    if [ -f "$settings_file" ]; then
+        print_warning "Existing settings.ini found at: $settings_file"
+        echo "    Nomad will update RASTER_ROOT to point to the Nomad dataset."
+        echo ""
+        read -p "Continue? [Y/n] " -n 1 -r
+        echo ""
+        if [[ $REPLY =~ ^[Nn]$ ]]; then
+            return 1
+        fi
+    fi
+
+    FIRESTARR_BINARY_PATH="$binary_path"
+    FIRESTARR_INSTALL_MODE="existing"
+    print_success "Will use existing FireSTARR: $binary_path"
     return 0
 }
 
-# Install FireSTARR binary from source (URL or local file)
-# Creates settings.ini alongside the binary with correct RASTER_ROOT
-install_firestarr_binary() {
-    local source="$1"
-    local dataset_path="$2"
-    local install_dir="${3:-$HOME/.local/bin}"
-    local binary_name="firestarr"
+# Option 2: Install FireSTARR from archive
+prompt_firestarr_archive() {
+    echo ""
+    echo -e "${CYAN}Install FireSTARR for Nomad${NC}"
+    echo ""
+    echo "    Provide a FireSTARR distribution archive (.zip)"
+    echo "    This can be a local file path or a URL"
+    echo ""
 
-    if [ -z "$source" ]; then
-        print_warning "No binary source specified"
+    read -p "Archive location (.zip or URL): " archive_source
+
+    # Expand ~ if present
+    archive_source="${archive_source/#\~/$HOME}"
+
+    if [ -z "$archive_source" ]; then
+        print_warning "No archive provided"
         return 1
     fi
+
+    # Validate source exists (if local file)
+    if [[ ! "$archive_source" =~ ^https?:// ]]; then
+        if [ ! -f "$archive_source" ]; then
+            print_error "Archive not found: $archive_source"
+            return 1
+        fi
+    fi
+
+    FIRESTARR_ARCHIVE_SOURCE="$archive_source"
+
+    # Ask for installation directory
+    echo ""
+    local default_install_dir="$HOME/.local/share/nomad/firestarr"
+    read -p "Installation directory [$default_install_dir]: " install_dir
+    install_dir="${install_dir:-$default_install_dir}"
+
+    # Expand ~ if present
+    install_dir="${install_dir/#\~/$HOME}"
+
+    # Convert to absolute path if relative
+    if [[ ! "$install_dir" = /* ]]; then
+        install_dir="$(pwd)/$install_dir"
+    fi
+
+    FIRESTARR_INSTALL_DIR="$install_dir"
+    FIRESTARR_INSTALL_MODE="archive"
+
+    print_success "Will install FireSTARR from: $archive_source"
+    print_success "Installation directory: $install_dir"
+    return 0
+}
+
+# Install FireSTARR from archive (.zip)
+# Extracts archive and generates settings.ini
+install_firestarr_from_archive() {
+    local archive_source="$1"
+    local install_dir="$2"
+    local dataset_path="$3"
+
+    if [ -z "$archive_source" ] || [ -z "$install_dir" ]; then
+        print_error "Archive source and install directory required"
+        return 1
+    fi
+
+    print_step "Installing FireSTARR from archive..."
 
     # Create install directory
     if [ "$DRY_RUN" = true ]; then
@@ -613,60 +741,90 @@ install_firestarr_binary() {
         mkdir -p "$install_dir"
     fi
 
-    local target_binary="$install_dir/$binary_name"
-    local target_settings="$install_dir/settings.ini"
+    local archive_file="$archive_source"
 
-    # Determine if source is URL or local file
-    if [[ "$source" =~ ^https?:// ]]; then
-        # Download from URL
-        print_step "Downloading FireSTARR binary from URL..."
+    # Download if URL
+    if [[ "$archive_source" =~ ^https?:// ]]; then
+        print_step "Downloading archive..."
+        archive_file="/tmp/firestarr_download_$$.zip"
+
         if [ "$DRY_RUN" = true ]; then
-            print_dry_run "Would download: $source -> $target_binary"
+            print_dry_run "Would download: $archive_source -> $archive_file"
         else
             if command -v curl &> /dev/null; then
-                curl -fSL "$source" -o "$target_binary"
+                curl -fSL "$archive_source" -o "$archive_file"
             elif command -v wget &> /dev/null; then
-                wget -q "$source" -O "$target_binary"
+                wget -q "$archive_source" -O "$archive_file"
             else
                 print_error "Neither curl nor wget available for download"
                 return 1
             fi
 
-            if [ ! -f "$target_binary" ]; then
+            if [ ! -f "$archive_file" ]; then
                 print_error "Download failed"
                 return 1
             fi
         fi
+    fi
+
+    # Extract archive
+    print_step "Extracting archive..."
+    if [ "$DRY_RUN" = true ]; then
+        print_dry_run "Would extract: $archive_file -> $install_dir"
     else
-        # Copy from local file
-        if [ ! -f "$source" ]; then
-            print_error "Source file not found: $source"
+        if [[ "$archive_file" =~ \.zip$ ]]; then
+            unzip -q -o "$archive_file" -d "$install_dir"
+        elif [[ "$archive_file" =~ \.(tar\.gz|tgz)$ ]]; then
+            tar -xzf "$archive_file" -C "$install_dir"
+        elif [[ "$archive_file" =~ \.tar$ ]]; then
+            tar -xf "$archive_file" -C "$install_dir"
+        else
+            print_error "Unsupported archive format (use .zip, .tar.gz, or .tar)"
+            return 1
+        fi
+    fi
+
+    # Clean up downloaded file
+    if [[ "$archive_source" =~ ^https?:// ]] && [ "$DRY_RUN" = false ]; then
+        rm -f "$archive_file"
+    fi
+
+    # Find the binary (might be in a subdirectory)
+    local binary_path=""
+    if [ "$DRY_RUN" = true ]; then
+        binary_path="$install_dir/firestarr"
+        print_dry_run "Would search for firestarr binary in $install_dir"
+    else
+        # Look for firestarr binary
+        binary_path=$(find "$install_dir" -name "firestarr" -type f 2>/dev/null | head -1)
+
+        if [ -z "$binary_path" ]; then
+            # Try case-insensitive
+            binary_path=$(find "$install_dir" -iname "firestarr" -type f 2>/dev/null | head -1)
+        fi
+
+        if [ -z "$binary_path" ]; then
+            print_error "Could not find firestarr binary in extracted archive"
+            echo "    Contents of $install_dir:"
+            ls -la "$install_dir"
             return 1
         fi
 
-        print_step "Copying FireSTARR binary..."
-        if [ "$DRY_RUN" = true ]; then
-            print_dry_run "Would copy: $source -> $target_binary"
-        else
-            cp "$source" "$target_binary"
-        fi
+        # Make executable
+        chmod +x "$binary_path"
     fi
 
-    # Make binary executable
-    if [ "$DRY_RUN" = true ]; then
-        print_dry_run "Would chmod +x $target_binary"
-    else
-        chmod +x "$target_binary"
-    fi
-
-    # Generate settings.ini with RASTER_ROOT
+    # Generate settings.ini in the same directory as the binary
+    local binary_dir
+    binary_dir=$(dirname "$binary_path")
+    local settings_file="$binary_dir/settings.ini"
     local raster_root="$dataset_path/generated/grid/100m"
-    print_step "Generating settings.ini..."
 
+    print_step "Generating settings.ini..."
     if [ "$DRY_RUN" = true ]; then
-        print_dry_run "Would create $target_settings with RASTER_ROOT = $raster_root"
+        print_dry_run "Would create $settings_file with RASTER_ROOT = $raster_root"
     else
-        cat > "$target_settings" << EOF
+        cat > "$settings_file" << EOF
 # FireSTARR settings - generated by Project Nomad installer
 # $(date)
 
@@ -674,25 +832,73 @@ RASTER_ROOT = $raster_root
 EOF
     fi
 
-    # Verify installation
+    # Verify
     if [ "$DRY_RUN" = false ]; then
-        if [ -x "$target_binary" ]; then
-            print_success "FireSTARR binary installed: $target_binary"
+        if [ -x "$binary_path" ]; then
+            print_success "FireSTARR binary: $binary_path"
         else
-            print_error "Binary installation failed"
+            print_error "Binary not executable: $binary_path"
             return 1
         fi
 
-        if [ -f "$target_settings" ]; then
-            print_success "settings.ini created: $target_settings"
-        else
-            print_error "settings.ini creation failed"
-            return 1
+        if [ -f "$settings_file" ]; then
+            print_success "settings.ini: $settings_file"
         fi
     fi
 
-    # Set the path for .env
-    FIRESTARR_BINARY_PATH="$target_binary"
+    FIRESTARR_BINARY_PATH="$binary_path"
+    return 0
+}
+
+# Update settings.ini for existing FireSTARR installation
+update_existing_firestarr_settings() {
+    local binary_path="$1"
+    local dataset_path="$2"
+
+    local binary_dir
+    binary_dir=$(dirname "$binary_path")
+    local settings_file="$binary_dir/settings.ini"
+    local raster_root="$dataset_path/generated/grid/100m"
+
+    print_step "Updating settings.ini for Nomad..."
+
+    if [ "$DRY_RUN" = true ]; then
+        print_dry_run "Would update $settings_file with RASTER_ROOT = $raster_root"
+        return 0
+    fi
+
+    # Backup existing settings.ini if present
+    if [ -f "$settings_file" ]; then
+        local backup="$settings_file.backup.$(date +%Y%m%d_%H%M%S)"
+        cp "$settings_file" "$backup"
+        print_info "Backed up existing settings.ini to $backup"
+    fi
+
+    # Update or create settings.ini
+    if [ -f "$settings_file" ]; then
+        # Update existing RASTER_ROOT line or append
+        if grep -q "^RASTER_ROOT" "$settings_file"; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s|^RASTER_ROOT.*|RASTER_ROOT = $raster_root|" "$settings_file"
+            else
+                sed -i "s|^RASTER_ROOT.*|RASTER_ROOT = $raster_root|" "$settings_file"
+            fi
+        else
+            echo "" >> "$settings_file"
+            echo "# Added by Project Nomad installer - $(date)" >> "$settings_file"
+            echo "RASTER_ROOT = $raster_root" >> "$settings_file"
+        fi
+    else
+        # Create new settings.ini
+        cat > "$settings_file" << EOF
+# FireSTARR settings - generated by Project Nomad installer
+# $(date)
+
+RASTER_ROOT = $raster_root
+EOF
+    fi
+
+    print_success "settings.ini updated: $settings_file"
     return 0
 }
 
@@ -992,17 +1198,24 @@ install_all_metal() {
     # 3. Ensure sims directory
     ensure_sims_writable
 
-    # 4. Install FireSTARR binary (if source was provided)
-    if [ -n "$FIRESTARR_BINARY_SOURCE" ]; then
-        if install_firestarr_binary "$FIRESTARR_BINARY_SOURCE" "$FIRESTARR_DATASET_PATH"; then
+    # 4. Install/configure FireSTARR binary based on selected mode
+    case "$FIRESTARR_INSTALL_MODE" in
+        archive)
+            # Install from archive
+            if install_firestarr_from_archive "$FIRESTARR_ARCHIVE_SOURCE" "$FIRESTARR_INSTALL_DIR" "$FIRESTARR_DATASET_PATH"; then
+                update_env_value "FIRESTARR_BINARY_PATH" "$FIRESTARR_BINARY_PATH"
+            fi
+            ;;
+        existing)
+            # Use existing installation, update settings.ini
+            update_existing_firestarr_settings "$FIRESTARR_BINARY_PATH" "$FIRESTARR_DATASET_PATH"
             update_env_value "FIRESTARR_BINARY_PATH" "$FIRESTARR_BINARY_PATH"
-        fi
-    elif [ -n "$FIRESTARR_BINARY_PATH" ] && [ -x "$FIRESTARR_BINARY_PATH" ]; then
-        print_success "FireSTARR binary verified: $FIRESTARR_BINARY_PATH"
-    else
-        print_warning "FireSTARR binary not configured"
-        echo "    You'll need to set FIRESTARR_BINARY_PATH in .env"
-    fi
+            ;;
+        skip|"")
+            print_warning "FireSTARR binary not configured"
+            echo "    You'll need to set FIRESTARR_BINARY_PATH in .env"
+            ;;
+    esac
 
     # 5. Install Node.js dependencies
     print_step "Installing Node.js dependencies..."
@@ -1045,17 +1258,24 @@ install_nomad_docker_firestarr_metal() {
     # 3. Ensure sims directory
     ensure_sims_writable
 
-    # 4. Install FireSTARR binary (if source was provided)
-    if [ -n "$FIRESTARR_BINARY_SOURCE" ]; then
-        if install_firestarr_binary "$FIRESTARR_BINARY_SOURCE" "$FIRESTARR_DATASET_PATH"; then
+    # 4. Install/configure FireSTARR binary based on selected mode
+    case "$FIRESTARR_INSTALL_MODE" in
+        archive)
+            # Install from archive
+            if install_firestarr_from_archive "$FIRESTARR_ARCHIVE_SOURCE" "$FIRESTARR_INSTALL_DIR" "$FIRESTARR_DATASET_PATH"; then
+                update_env_value "FIRESTARR_BINARY_PATH" "$FIRESTARR_BINARY_PATH"
+            fi
+            ;;
+        existing)
+            # Use existing installation, update settings.ini
+            update_existing_firestarr_settings "$FIRESTARR_BINARY_PATH" "$FIRESTARR_DATASET_PATH"
             update_env_value "FIRESTARR_BINARY_PATH" "$FIRESTARR_BINARY_PATH"
-        fi
-    elif [ -n "$FIRESTARR_BINARY_PATH" ] && [ -x "$FIRESTARR_BINARY_PATH" ]; then
-        print_success "FireSTARR binary verified: $FIRESTARR_BINARY_PATH"
-    else
-        print_warning "FireSTARR binary not configured"
-        echo "    You'll need to set FIRESTARR_BINARY_PATH in .env"
-    fi
+            ;;
+        skip|"")
+            print_warning "FireSTARR binary not configured"
+            echo "    You'll need to set FIRESTARR_BINARY_PATH in .env"
+            ;;
+    esac
 
     # 5. Build Nomad containers
     print_step "Building Nomad containers..."
@@ -1168,19 +1388,24 @@ print_summary() {
     echo -e "${CYAN}              Configuration Summary${NC}"
     echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
     echo ""
-    echo "    Deployment Mode:     $NOMAD_DEPLOYMENT_MODE"
-    echo "    Nomad Infrastructure: $NOMAD_INFRA"
+    echo "    Deployment Mode:         $NOMAD_DEPLOYMENT_MODE"
+    echo "    Nomad Infrastructure:    $NOMAD_INFRA"
     echo "    FireSTARR Infrastructure: $FIRESTARR_INFRA"
-    echo "    Dataset Path:        $FIRESTARR_DATASET_PATH"
+    echo "    Dataset Path:            $FIRESTARR_DATASET_PATH"
     if [ -n "$FIRESTARR_IMAGE" ]; then
-    echo "    FireSTARR Image:     $FIRESTARR_IMAGE"
+    echo "    FireSTARR Image:         $FIRESTARR_IMAGE"
     fi
-    if [ -n "$FIRESTARR_BINARY_PATH" ]; then
-    echo "    FireSTARR Binary:    $FIRESTARR_BINARY_PATH"
+    if [ "$FIRESTARR_INSTALL_MODE" = "archive" ]; then
+    echo "    FireSTARR Archive:       $FIRESTARR_ARCHIVE_SOURCE"
+    echo "    FireSTARR Install Dir:   $FIRESTARR_INSTALL_DIR"
+    elif [ "$FIRESTARR_INSTALL_MODE" = "existing" ]; then
+    echo "    FireSTARR Binary:        $FIRESTARR_BINARY_PATH (existing)"
+    elif [ -n "$FIRESTARR_BINARY_PATH" ]; then
+    echo "    FireSTARR Binary:        $FIRESTARR_BINARY_PATH"
     fi
     if [ "$NOMAD_DEPLOYMENT_MODE" = "ACN" ]; then
-    echo "    Agency ID:           $NOMAD_AGENCY_ID"
-    echo "    Database:            $NOMAD_DB_CLIENT://$NOMAD_DB_HOST:$NOMAD_DB_PORT/$NOMAD_DB_NAME"
+    echo "    Agency ID:               $NOMAD_AGENCY_ID"
+    echo "    Database:                $NOMAD_DB_CLIENT://$NOMAD_DB_HOST:$NOMAD_DB_PORT/$NOMAD_DB_NAME"
     fi
     echo ""
 }
