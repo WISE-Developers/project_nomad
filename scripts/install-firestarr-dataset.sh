@@ -204,20 +204,69 @@ main() {
 
     # Get dataset (download if URL, use directly if local)
     if is_url "$FIRESTARR_DATASET_SOURCE"; then
-        print_step "Downloading FireSTARR dataset..."
-        echo "    This may take a while depending on your connection..."
-        echo ""
+        # Extract original filename from URL
+        local url_filename=$(basename "$FIRESTARR_DATASET_SOURCE")
+        # Remove query string if present
+        url_filename="${url_filename%%\?*}"
+        # Default to firestarr_dataset.zip if we can't extract a name
+        [ -z "$url_filename" ] && url_filename="firestarr_dataset.zip"
 
-        TEMP_FILE=$(mktemp)
-        if download_file "$FIRESTARR_DATASET_SOURCE" "$TEMP_FILE"; then
-            print_success "Download complete"
-        else
-            print_error "Download failed"
-            rm -f "$TEMP_FILE"
-            exit 1
+        local default_dir="$HOME/Downloads"
+
+        echo ""
+        echo "Where should the dataset archive be saved?"
+        echo "    Filename: $url_filename"
+        echo "    (This file will be preserved for future reinstalls)"
+        read -p "Download folder [$default_dir]: " input_dir
+        input_dir="${input_dir:-$default_dir}"
+        # Expand ~ to $HOME
+        input_dir="${input_dir/#\~/$HOME}"
+        # Remove trailing slash
+        input_dir="${input_dir%/}"
+
+        local download_file="$input_dir/$url_filename"
+
+        # Create directory if needed
+        if [ ! -d "$input_dir" ]; then
+            mkdir -p "$input_dir" || {
+                print_error "Cannot create directory: $input_dir"
+                exit 1
+            }
         fi
-        SOURCE_FILE="$TEMP_FILE"
-        CLEANUP_TEMP=true
+
+        # Check if already downloaded
+        if [ -f "$download_file" ]; then
+            print_warning "Dataset file already exists: $download_file"
+            read -p "Use existing file? [Y/n] " -n 1 -r
+            echo ""
+            if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+                print_success "Using existing download"
+                SOURCE_FILE="$download_file"
+            else
+                print_step "Downloading FireSTARR dataset..."
+                echo "    Downloading to: $download_file"
+                echo ""
+                if download_file "$FIRESTARR_DATASET_SOURCE" "$download_file"; then
+                    print_success "Download complete: $download_file"
+                else
+                    print_error "Download failed"
+                    exit 1
+                fi
+                SOURCE_FILE="$download_file"
+            fi
+        else
+            print_step "Downloading FireSTARR dataset..."
+            echo "    Downloading to: $download_file"
+            echo ""
+            if download_file "$FIRESTARR_DATASET_SOURCE" "$download_file"; then
+                print_success "Download complete: $download_file"
+            else
+                print_error "Download failed"
+                exit 1
+            fi
+            SOURCE_FILE="$download_file"
+        fi
+        DOWNLOADED_FILE="$download_file"
     else
         print_step "Using local dataset file..."
         if [ ! -f "$FIRESTARR_DATASET_SOURCE" ]; then
@@ -226,18 +275,13 @@ main() {
         fi
         print_success "Found: $FIRESTARR_DATASET_SOURCE"
         SOURCE_FILE="$FIRESTARR_DATASET_SOURCE"
-        CLEANUP_TEMP=false
+        DOWNLOADED_FILE=""
     fi
 
     # Extract dataset
     print_step "Extracting dataset..."
     unzip -q -o "$SOURCE_FILE" -d "$FIRESTARR_DATASET_PATH"
     print_success "Extraction complete"
-
-    # Clean up temp file if we downloaded
-    if [ "$CLEANUP_TEMP" = true ]; then
-        rm -f "$TEMP_FILE"
-    fi
 
     # Clean Mac artifacts and flatten nested root folder if present
     print_step "Cleaning up extraction..."
@@ -281,6 +325,16 @@ main() {
     echo ""
     echo "Dataset installed to: $FIRESTARR_DATASET_PATH"
     echo ""
+
+    # Tell user about the preserved download file
+    if [ -n "$DOWNLOADED_FILE" ] && [ -f "$DOWNLOADED_FILE" ]; then
+        local file_size=$(du -h "$DOWNLOADED_FILE" | cut -f1)
+        echo -e "${YELLOW}Downloaded archive preserved:${NC} $DOWNLOADED_FILE ($file_size)"
+        echo "    You can delete this file once you've verified everything works:"
+        echo "    rm \"$DOWNLOADED_FILE\""
+        echo ""
+    fi
+
     echo "You can now run FireSTARR with:"
     echo "    docker compose up firestarr-app"
     echo ""
