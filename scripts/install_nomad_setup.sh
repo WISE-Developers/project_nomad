@@ -284,7 +284,7 @@ prompt_dataset_source() {
     echo "    The dataset includes fuel grids, DEM data (~50GB)."
     echo ""
     echo -e "    ${GREEN}1) Use existing dataset${NC}"
-    echo "       Point to an already-downloaded FireSTARR dataset"
+    echo "       Point to an already-installed FireSTARR dataset"
     echo ""
     echo -e "    ${GREEN}2) Download dataset${NC}"
     echo "       Download the dataset during installation"
