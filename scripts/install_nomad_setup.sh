@@ -1020,20 +1020,31 @@ install_firestarr_from_archive() {
             cp "$settings_file" "$backup"
             print_info "Backed up existing settings.ini to $backup"
 
+            # Update RASTER_ROOT
             if grep -q "^RASTER_ROOT" "$settings_file"; then
-                # Update existing RASTER_ROOT
                 if [[ "$OSTYPE" == "darwin"* ]]; then
                     sed -i '' "s|^RASTER_ROOT.*|RASTER_ROOT = $raster_root|" "$settings_file"
                 else
                     sed -i "s|^RASTER_ROOT.*|RASTER_ROOT = $raster_root|" "$settings_file"
                 fi
             else
-                # Append RASTER_ROOT
                 echo "" >> "$settings_file"
                 echo "# Added by Project Nomad installer - $(date)" >> "$settings_file"
                 echo "RASTER_ROOT = $raster_root" >> "$settings_file"
             fi
-            print_info "Updated RASTER_ROOT in existing settings.ini"
+
+            # Update FUEL_LOOKUP_TABLE to absolute path
+            local fuel_lut_path="$dataset_path/fuel.lut"
+            if grep -q "^FUEL_LOOKUP_TABLE" "$settings_file"; then
+                if [[ "$OSTYPE" == "darwin"* ]]; then
+                    sed -i '' "s|^FUEL_LOOKUP_TABLE.*|FUEL_LOOKUP_TABLE = $fuel_lut_path|" "$settings_file"
+                else
+                    sed -i "s|^FUEL_LOOKUP_TABLE.*|FUEL_LOOKUP_TABLE = $fuel_lut_path|" "$settings_file"
+                fi
+            else
+                echo "FUEL_LOOKUP_TABLE = $fuel_lut_path" >> "$settings_file"
+            fi
+            print_info "Updated RASTER_ROOT and FUEL_LOOKUP_TABLE in existing settings.ini"
         else
             # No settings.ini in archive - create new one with required settings
             cat > "$settings_file" << EOF
@@ -1090,6 +1101,8 @@ update_existing_firestarr_settings() {
     fi
 
     # Update or create settings.ini
+    local fuel_lut_path="$dataset_path/fuel.lut"
+
     if [ -f "$settings_file" ]; then
         # Update existing RASTER_ROOT line or append
         if grep -q "^RASTER_ROOT" "$settings_file"; then
@@ -1103,6 +1116,17 @@ update_existing_firestarr_settings() {
             echo "# Added by Project Nomad installer - $(date)" >> "$settings_file"
             echo "RASTER_ROOT = $raster_root" >> "$settings_file"
         fi
+
+        # Update FUEL_LOOKUP_TABLE to absolute path
+        if grep -q "^FUEL_LOOKUP_TABLE" "$settings_file"; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s|^FUEL_LOOKUP_TABLE.*|FUEL_LOOKUP_TABLE = $fuel_lut_path|" "$settings_file"
+            else
+                sed -i "s|^FUEL_LOOKUP_TABLE.*|FUEL_LOOKUP_TABLE = $fuel_lut_path|" "$settings_file"
+            fi
+        else
+            echo "FUEL_LOOKUP_TABLE = $fuel_lut_path" >> "$settings_file"
+        fi
     else
         # Create new settings.ini with required settings
         cat > "$settings_file" << EOF
@@ -1110,11 +1134,11 @@ update_existing_firestarr_settings() {
 # $(date)
 
 RASTER_ROOT = $raster_root
-FUEL_LOOKUP_TABLE = $dataset_path/fuel.lut
+FUEL_LOOKUP_TABLE = $fuel_lut_path
 EOF
     fi
 
-    print_success "settings.ini configured: $settings_file"
+    print_success "settings.ini configured with RASTER_ROOT and FUEL_LOOKUP_TABLE"
     return 0
 }
 
