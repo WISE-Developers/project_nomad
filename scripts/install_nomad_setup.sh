@@ -1041,7 +1041,7 @@ install_firestarr_from_archive() {
 # $(date)
 
 RASTER_ROOT = $raster_root
-FUEL_LOOKUP_TABLE = ./fuel.lut
+FUEL_LOOKUP_TABLE = $dataset_path/fuel.lut
 EOF
             print_info "Created new settings.ini with RASTER_ROOT and FUEL_LOOKUP_TABLE"
         fi
@@ -1110,7 +1110,7 @@ update_existing_firestarr_settings() {
 # $(date)
 
 RASTER_ROOT = $raster_root
-FUEL_LOOKUP_TABLE = ./fuel.lut
+FUEL_LOOKUP_TABLE = $dataset_path/fuel.lut
 EOF
     fi
 
