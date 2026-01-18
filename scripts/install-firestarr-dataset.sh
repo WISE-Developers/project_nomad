@@ -185,23 +185,6 @@ main() {
     check_dependencies
     print_success "All dependencies found"
 
-    # Check if already installed
-    if [ -d "$FIRESTARR_DATASET_PATH/generated" ]; then
-        print_warning "Dataset appears to be already installed at $FIRESTARR_DATASET_PATH"
-        echo ""
-        read -p "Reinstall? This will overwrite existing data. [y/N] " -n 1 -r
-        echo ""
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo "Installation cancelled."
-            exit 0
-        fi
-    fi
-
-    # Create install directory
-    print_step "Creating installation directory..."
-    mkdir -p "$FIRESTARR_DATASET_PATH"
-    print_success "Directory ready: $FIRESTARR_DATASET_PATH"
-
     # Get dataset (download if URL, use directly if local)
     if is_url "$FIRESTARR_DATASET_SOURCE"; then
         # Extract original filename from URL
@@ -286,6 +269,23 @@ main() {
         SOURCE_FILE="$FIRESTARR_DATASET_SOURCE"
         DOWNLOADED_FILE=""
     fi
+
+    # Now we have the source file - check if target already has data
+    if [ -d "$FIRESTARR_DATASET_PATH/generated" ]; then
+        print_warning "Dataset already installed at $FIRESTARR_DATASET_PATH"
+        echo ""
+        read -p "Overwrite existing installation? [y/N] " -n 1 -r
+        echo ""
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "Installation cancelled. Archive preserved at: $SOURCE_FILE"
+            exit 0
+        fi
+    fi
+
+    # Create install directory
+    print_step "Creating installation directory..."
+    mkdir -p "$FIRESTARR_DATASET_PATH"
+    print_success "Directory ready: $FIRESTARR_DATASET_PATH"
 
     # Extract dataset
     print_step "Extracting dataset..."
