@@ -1323,6 +1323,11 @@ install_nomad_metal_firestarr_docker() {
     echo "    cd $PROJECT_DIR"
     echo "    npm run dev"
     echo ""
+    echo "To start Project Nomad (production):"
+    echo "    cd $PROJECT_DIR"
+    echo "    npm run start"
+    echo ""
+    echo "Access at: http://localhost:3001"
     echo "FireSTARR will run in Docker containers when needed."
 }
 
@@ -1388,8 +1393,10 @@ install_all_metal() {
     echo "    npm run dev"
     echo ""
     echo "To start Project Nomad (production):"
-    echo "    npm run start --workspace=@nomad/backend"
-    echo "    # Serve frontend with nginx/caddy"
+    echo "    cd $PROJECT_DIR"
+    echo "    npm run start"
+    echo ""
+    echo "Access at: http://localhost:3001"
 }
 
 install_nomad_docker_firestarr_metal() {

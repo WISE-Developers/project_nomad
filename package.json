@@ -8,7 +8,7 @@
     "frontend"
   ],
   "scripts": {
-    "launch": "bash scripts/launch_nomad.sh",
+    "start": "NODE_ENV=production npm run start --workspace=@nomad/backend",
     "dev": "npm run dev:backend & npm run dev:frontend",
     "dev:backend": "npm run dev --workspace=@nomad/backend",
     "dev:frontend": "npm run dev --workspace=@nomad/frontend",

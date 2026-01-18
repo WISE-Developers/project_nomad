@@ -1,7 +1,8 @@
 import express from 'express';
 import cors, { CorsOptions } from 'cors';
 import dotenv from 'dotenv';
-import { resolve } from 'path';
+import { resolve, join } from 'path';
+import { existsSync } from 'fs';
 import {
   apiRouter,
   setupSwagger,
@@ -132,6 +133,42 @@ setupSwagger(app);
 app.get('/api/health', (_req, res) => {
   res.redirect('/api/v1/health');
 });
+
+// ============================================
+// Static File Serving (Production Mode)
+// ============================================
+
+/**
+ * In production mode, serve the built frontend from frontend/dist.
+ * This allows running a single server for both API and UI.
+ *
+ * The frontend dist path is relative to the backend dist directory:
+ * - Backend runs from: backend/dist/index.js
+ * - Frontend built to: frontend/dist/
+ * - Relative path: ../../frontend/dist
+ */
+const isProduction = process.env.NODE_ENV === 'production';
+const frontendDistPath = resolve(__dirname, '../../frontend/dist');
+
+if (isProduction && existsSync(frontendDistPath)) {
+  console.log(`[Startup] Production mode: serving frontend from ${frontendDistPath}`);
+
+  // Serve static files (JS, CSS, images, etc.)
+  app.use(express.static(frontendDistPath));
+
+  // SPA catch-all: serve index.html for any non-API route
+  // This enables client-side routing (React Router, etc.)
+  app.get('*', (req, res, next) => {
+    // Skip API routes - let them fall through to 404 handler
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(join(frontendDistPath, 'index.html'));
+  });
+} else if (isProduction) {
+  console.warn(`[Startup] Production mode but frontend not found at ${frontendDistPath}`);
+  console.warn('[Startup] Run "npm run build" to build the frontend');
+}
 
 // ============================================
 // Error Handling (must be last)
