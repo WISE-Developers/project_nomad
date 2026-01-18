@@ -211,16 +211,25 @@ main() {
         # Default to firestarr_dataset.zip if we can't extract a name
         [ -z "$url_filename" ] && url_filename="firestarr_dataset.zip"
 
-        local default_dir="$HOME/Downloads"
+        local input_dir=""
 
-        echo ""
-        echo "Where should the dataset archive be saved?"
-        echo "    Filename: $url_filename"
-        echo "    (This file will be preserved for future reinstalls)"
-        read -p "Download folder [$default_dir]: " input_dir
-        input_dir="${input_dir:-$default_dir}"
-        # Expand ~ to $HOME
-        input_dir="${input_dir/#\~/$HOME}"
+        # Use FIRESTARR_DOWNLOAD_DIR if already set (from main installer)
+        if [ -n "$FIRESTARR_DOWNLOAD_DIR" ]; then
+            input_dir="$FIRESTARR_DOWNLOAD_DIR"
+            print_info "Using download folder: $input_dir"
+        else
+            local default_dir="$HOME/Downloads"
+
+            echo ""
+            echo "Where should the dataset archive be saved?"
+            echo "    Filename: $url_filename"
+            echo "    (This file will be preserved for future reinstalls)"
+            read -p "Download folder [$default_dir]: " input_dir
+            input_dir="${input_dir:-$default_dir}"
+            # Expand ~ to $HOME
+            input_dir="${input_dir/#\~/$HOME}"
+        fi
+
         # Remove trailing slash
         input_dir="${input_dir%/}"
 
