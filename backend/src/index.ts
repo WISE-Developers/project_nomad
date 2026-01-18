@@ -1,8 +1,9 @@
 import express from 'express';
 import cors, { CorsOptions } from 'cors';
 import dotenv from 'dotenv';
-import { resolve, join } from 'path';
+import { resolve, join, dirname } from 'path';
 import { existsSync } from 'fs';
+import { fileURLToPath } from 'url';
 import {
   apiRouter,
   setupSwagger,
@@ -148,6 +149,8 @@ app.get('/api/health', (_req, res) => {
  * - Relative path: ../../frontend/dist
  */
 const isProduction = process.env.NODE_ENV === 'production';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const frontendDistPath = resolve(__dirname, '../../frontend/dist');
 
 if (isProduction && existsSync(frontendDistPath)) {
