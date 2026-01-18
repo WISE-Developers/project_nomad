@@ -186,6 +186,12 @@ export class FireSTARREngine implements IFireModelingEngine {
       }
     };
 
+    // Build environment variables for native binary execution
+    const env: Record<string, string> = {};
+    if (process.env.PROJ_DATA) {
+      env.PROJ_DATA = process.env.PROJ_DATA;
+    }
+
     // Execute via executor (pass modelId for cancellation support)
     const result = await this.executor.runStream(
       {
@@ -193,6 +199,7 @@ export class FireSTARREngine implements IFireModelingEngine {
         command,
         timeout: 4 * 60 * 60 * 1000, // 4 hours
         jobId: modelId, // Enable cancellation tracking
+        env: Object.keys(env).length > 0 ? env : undefined,
       },
       onOutput
     );

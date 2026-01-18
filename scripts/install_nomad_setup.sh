@@ -690,6 +690,82 @@ detect_architecture() {
     esac
 }
 
+# Detect PROJ data directory (required for coordinate transformations)
+# Sets PROJ_DATA_PATH if found
+detect_proj_data() {
+    print_step "Detecting PROJ data directory..."
+
+    # Common PROJ data locations
+    local proj_paths=(
+        "/opt/homebrew/share/proj"      # macOS Homebrew (Apple Silicon)
+        "/usr/local/share/proj"         # macOS Homebrew (Intel) / Linux manual
+        "/usr/share/proj"               # Linux system package
+        "/usr/local/opt/proj/share/proj" # macOS Homebrew alternate
+    )
+
+    # Check if PROJ_DATA or PROJ_LIB is already set
+    if [ -n "${PROJ_DATA:-}" ] && [ -f "${PROJ_DATA}/proj.db" ]; then
+        PROJ_DATA_PATH="$PROJ_DATA"
+        print_success "PROJ data found (from PROJ_DATA env): $PROJ_DATA_PATH"
+        return 0
+    fi
+
+    if [ -n "${PROJ_LIB:-}" ] && [ -f "${PROJ_LIB}/proj.db" ]; then
+        PROJ_DATA_PATH="$PROJ_LIB"
+        print_success "PROJ data found (from PROJ_LIB env): $PROJ_DATA_PATH"
+        return 0
+    fi
+
+    # Search common paths
+    for path in "${proj_paths[@]}"; do
+        if [ -f "$path/proj.db" ]; then
+            PROJ_DATA_PATH="$path"
+            print_success "PROJ data found: $PROJ_DATA_PATH"
+            return 0
+        fi
+    done
+
+    # Not found - try to help the user
+    print_warning "PROJ data directory not found"
+    echo ""
+    echo "    FireSTARR requires PROJ for coordinate transformations."
+    echo "    The proj.db file was not found in common locations."
+    echo ""
+
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "    On macOS, install PROJ with Homebrew:"
+        echo "        brew install proj"
+        echo ""
+        read -p "    Would you like to install PROJ now? [y/N]: " install_proj
+        if [[ "$install_proj" =~ ^[Yy] ]]; then
+            if command -v brew &> /dev/null; then
+                print_step "Installing PROJ via Homebrew..."
+                if brew install proj; then
+                    # Re-detect after install
+                    for path in "${proj_paths[@]}"; do
+                        if [ -f "$path/proj.db" ]; then
+                            PROJ_DATA_PATH="$path"
+                            print_success "PROJ installed and found: $PROJ_DATA_PATH"
+                            return 0
+                        fi
+                    done
+                fi
+                print_error "PROJ installation failed or proj.db not found after install"
+            else
+                print_error "Homebrew not found. Install PROJ manually: brew install proj"
+            fi
+        fi
+    else
+        echo "    On Linux, install PROJ with your package manager:"
+        echo "        Ubuntu/Debian: sudo apt install proj-data"
+        echo "        Fedora/RHEL:   sudo dnf install proj"
+        echo ""
+    fi
+
+    PROJ_DATA_PATH=""
+    return 1
+}
+
 configure_firestarr_image() {
     print_step "Detecting system architecture..."
     detect_architecture
@@ -1473,7 +1549,15 @@ install_all_metal() {
             ;;
     esac
 
-    # 5. Install Node.js dependencies
+    # 5. Detect PROJ data directory (required for coordinate transformations)
+    if detect_proj_data; then
+        update_env_value "PROJ_DATA" "$PROJ_DATA_PATH"
+    else
+        print_warning "PROJ not configured - FireSTARR coordinate transformations may fail"
+        echo "    Install PROJ and re-run installer, or manually set PROJ_DATA in .env"
+    fi
+
+    # 6. Install Node.js dependencies
     print_step "Installing Node.js dependencies..."
     run_cmd npm --prefix "$PROJECT_DIR" install
 
@@ -1541,7 +1625,15 @@ install_nomad_docker_firestarr_metal() {
             ;;
     esac
 
-    # 5. Build Nomad containers
+    # 5. Detect PROJ data directory (required for coordinate transformations)
+    if detect_proj_data; then
+        update_env_value "PROJ_DATA" "$PROJ_DATA_PATH"
+    else
+        print_warning "PROJ not configured - FireSTARR coordinate transformations may fail"
+        echo "    Install PROJ and re-run installer, or manually set PROJ_DATA in .env"
+    fi
+
+    # 6. Build Nomad containers
     print_step "Building Nomad containers..."
     run_cmd docker compose -f "$PROJECT_DIR/docker-compose.yaml" build nomad-backend nomad-frontend
 
