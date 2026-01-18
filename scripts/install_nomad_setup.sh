@@ -473,6 +473,26 @@ step3_paths() {
         echo ""
     fi
 
+    # MapBox API Token
+    echo -e "${CYAN}MapBox Access Token${NC}"
+    echo "    Required for map display. The map will not render without a valid token."
+    echo ""
+    echo "    To get a free MapBox token:"
+    echo "      1. Go to https://account.mapbox.com/auth/signup/"
+    echo "      2. Create a free account (no credit card required)"
+    echo "      3. Go to https://account.mapbox.com/access-tokens/"
+    echo "      4. Copy your default public token or create a new one"
+    echo ""
+    read -p "MapBox token (or press Enter to skip): " input_mapbox
+    if [ -n "$input_mapbox" ]; then
+        MAPBOX_TOKEN="$input_mapbox"
+        print_success "MapBox token configured"
+    else
+        print_warning "MapBox token not set - maps won't render until configured"
+        echo "    You can add it later to .env as: VITE_MAPBOX_TOKEN=your_token"
+    fi
+    echo ""
+
     # FireSTARR binary source (metal FireSTARR only)
     if [ "$FIRESTARR_INFRA" = "metal" ]; then
         prompt_firestarr_binary_source
@@ -1152,6 +1172,10 @@ generate_env_file() {
         update_env_value "PORT" "$NOMAD_PORT"
     fi
 
+    if [ -n "$MAPBOX_TOKEN" ]; then
+        update_env_value "VITE_MAPBOX_TOKEN" "$MAPBOX_TOKEN"
+    fi
+
     if [ -n "$NOMAD_AGENCY_ID" ]; then
         update_env_value "NOMAD_AGENCY_ID" "$NOMAD_AGENCY_ID"
     fi
@@ -1172,23 +1196,6 @@ generate_env_file() {
         update_env_value "NOMAD_DB_NAME" "$NOMAD_DB_NAME"
         update_env_value "NOMAD_DB_USER" "$NOMAD_DB_USER"
         update_env_value "NOMAD_DB_PASSWORD" "$NOMAD_DB_PASSWORD"
-    fi
-
-    # Prompt for MapBox token if not set
-    if [ "$DRY_RUN" = false ]; then
-        if ! grep -q "^VITE_MAPBOX_TOKEN=..*$" "$ENV_FILE" 2>/dev/null; then
-            echo ""
-            echo -e "${CYAN}MapBox Access Token${NC}"
-            echo "    Required for map display. Get one at:"
-            echo "    https://account.mapbox.com/access-tokens/"
-            echo ""
-            read -p "MapBox token (or press Enter to skip): " mapbox_token
-            if [ -n "$mapbox_token" ]; then
-                update_env_value "VITE_MAPBOX_TOKEN" "$mapbox_token"
-            else
-                print_warning "MapBox token not set - maps won't render"
-            fi
-        fi
     fi
 
     print_success ".env file configured"
