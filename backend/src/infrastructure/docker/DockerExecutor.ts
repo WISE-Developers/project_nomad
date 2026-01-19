@@ -224,8 +224,9 @@ export class DockerExecutor implements IContainerExecutor {
   async isServiceAvailable(service: string): Promise<boolean> {
     try {
       // Check if the service exists in docker-compose.yaml
+      // Include --profile modeling to see services with profiles (e.g., firestarr-app)
       const result = await this.runCommand(
-        ['compose', 'config', '--services'],
+        ['compose', '--profile', 'modeling', 'config', '--services'],
         10000
       );
       if (result.exitCode !== 0) return false;
@@ -235,7 +236,7 @@ export class DockerExecutor implements IContainerExecutor {
 
       // Check if image is available (or can be pulled)
       const imageResult = await this.runCommand(
-        ['compose', 'images', service],
+        ['compose', '--profile', 'modeling', 'images', service],
         10000
       );
       return imageResult.exitCode === 0;
