@@ -1796,6 +1796,8 @@ install_nomad_docker_firestarr_metal() {
     echo "    cd $PROJECT_DIR"
     echo "    docker compose up -d nomad-backend nomad-frontend"
     echo ""
+    echo "Access Nomad at: http://localhost:\${NOMAD_FRONTEND_HOST_PORT:-3000}"
+    echo ""
     echo "FireSTARR will run as native binary at: $FIRESTARR_BINARY_PATH"
 }
 
