@@ -302,13 +302,25 @@ export class FireSTARREngine implements IFireModelingEngine {
   }
 
   async getResults(modelId: FireModelId): Promise<ModelResult[]> {
+    // Try to get working directory from state, fall back to filesystem
+    let workingDir: string | null = null;
     const state = this.executions.get(modelId);
-    if (!state || !state.inputResult) {
-      throw new Error(`Model ${modelId} not found or not initialized`);
+    if (state?.inputResult?.workingDir) {
+      workingDir = state.inputResult.workingDir;
+    } else {
+      // Fall back to getWorkingDirectory which checks the filesystem
+      workingDir = this.getWorkingDirectory(modelId);
+      if (workingDir) {
+        console.log(`[FireSTARREngine] Using fallback working directory for ${modelId}: ${workingDir}`);
+      }
+    }
+
+    if (!workingDir) {
+      throw new Error(`Model ${modelId} not found - no state and no working directory on disk`);
     }
 
     // Parse outputs
-    const parseResult = await this.outputParser.parse(state.inputResult.workingDir);
+    const parseResult = await this.outputParser.parse(workingDir);
     if (!parseResult.success) {
       throw new Error(`Failed to parse outputs: ${parseResult.error.message}`);
     }

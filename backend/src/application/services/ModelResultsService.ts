@@ -217,6 +217,30 @@ export class ModelResultsService {
         // Get results from database (for models that ran before restart)
         results = await this.resultRepo.findByModelId(createFireModelId(modelId));
         console.log(`[ModelResultsService] Found ${results.length} results in database for ${modelId}`);
+
+        // If database is empty but model is completed, try to harvest from disk
+        if (results.length === 0) {
+          console.log(`[ModelResultsService] Database empty for completed model ${modelId}, attempting disk harvest`);
+          try {
+            // Try to get results from engine (which parses disk files)
+            const diskResults = await this.engine.getResults(modelId);
+            if (diskResults.length > 0) {
+              // Save harvested results to database for future use
+              for (const result of diskResults) {
+                try {
+                  await this.resultRepo.save(result);
+                } catch (e) {
+                  console.log(`[ModelResultsService] Result ${result.id} save error: ${e}`);
+                }
+              }
+              results = diskResults;
+              console.log(`[ModelResultsService] Harvested ${results.length} results from disk for ${modelId}`);
+            }
+          } catch (harvestError) {
+            console.warn(`[ModelResultsService] Disk harvest failed for ${modelId}:`, harvestError);
+            // Continue with empty results
+          }
+        }
       } else {
         // Get results from engine (for models running in current session)
         results = await this.engine.getResults(modelId);
