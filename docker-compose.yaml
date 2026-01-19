@@ -53,6 +53,8 @@ services:
   firestarr-app:
     image: ${FIRESTARR_IMAGE:-ghcr.io/cwfmf/firestarr:dev-${VERSION}}
     profiles: ["modeling"]  # Prevents auto-start with `docker compose up`
+    # Update settings.ini RASTER_ROOT to match our mount point before running
+    entrypoint: ["/bin/sh", "-c", "sed -i 's|RASTER_ROOT.*|RASTER_ROOT = /appl/data|' /appl/firestarr/settings.ini && exec \"$$@\"", "--"]
     volumes:
       - /etc/ssl/certs:/etc/ssl/certs
       - ${FIRESTARR_DATASET_PATH}:/appl/data
