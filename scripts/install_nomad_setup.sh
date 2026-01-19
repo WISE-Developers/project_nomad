@@ -699,12 +699,22 @@ detect_proj_data() {
     if echo "55.0 -116.0" | cs2cs EPSG:4326 EPSG:32611 &> /dev/null; then
         print_success "PROJ is installed and working"
 
-        # Find proj.db location - prefer Homebrew's linked path
+        # Find proj.db location - use platform-appropriate method
         if [[ "$OSTYPE" == "darwin"* ]] && command -v brew &> /dev/null; then
+            # macOS: use Homebrew
             local brew_prefix
             brew_prefix=$(brew --prefix proj 2>/dev/null)
             if [ -n "$brew_prefix" ] && [ -f "$brew_prefix/share/proj/proj.db" ]; then
                 PROJ_DATA_PATH="$brew_prefix/share/proj"
+                print_success "PROJ data found: $PROJ_DATA_PATH"
+                return 0
+            fi
+        elif command -v pkg-config &> /dev/null; then
+            # Linux: use pkg-config
+            local proj_datadir
+            proj_datadir=$(pkg-config --variable=datadir proj 2>/dev/null)
+            if [ -n "$proj_datadir" ] && [ -f "$proj_datadir/proj.db" ]; then
+                PROJ_DATA_PATH="$proj_datadir"
                 print_success "PROJ data found: $PROJ_DATA_PATH"
                 return 0
             fi
