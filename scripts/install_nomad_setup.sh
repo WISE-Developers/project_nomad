@@ -699,19 +699,43 @@ detect_proj_data() {
     if echo "55.0 -116.0" | cs2cs EPSG:4326 EPSG:32611 &> /dev/null; then
         print_success "PROJ is installed and working"
 
-        # Find proj.db location
+        # Find proj.db location - prefer Homebrew's linked path
+        if [[ "$OSTYPE" == "darwin"* ]] && command -v brew &> /dev/null; then
+            local brew_prefix
+            brew_prefix=$(brew --prefix proj 2>/dev/null)
+            if [ -n "$brew_prefix" ] && [ -f "$brew_prefix/share/proj/proj.db" ]; then
+                PROJ_DATA_PATH="$brew_prefix/share/proj"
+                print_success "PROJ data found: $PROJ_DATA_PATH"
+                return 0
+            fi
+        fi
+
+        # Fallback: search common paths
+        local proj_paths=(
+            "/opt/homebrew/share/proj"
+            "/usr/local/share/proj"
+            "/usr/share/proj"
+        )
+        for path in "${proj_paths[@]}"; do
+            if [ -f "$path/proj.db" ]; then
+                PROJ_DATA_PATH="$path"
+                print_success "PROJ data found: $PROJ_DATA_PATH"
+                return 0
+            fi
+        done
+
+        # Last resort: find
         local proj_db_path
         proj_db_path=$(find /opt/homebrew /usr/local /usr -name "proj.db" 2>/dev/null | head -1)
-
         if [ -n "$proj_db_path" ]; then
             PROJ_DATA_PATH=$(dirname "$proj_db_path")
             print_success "PROJ data found: $PROJ_DATA_PATH"
             return 0
-        else
-            print_error "PROJ works but proj.db not found - unexpected state"
-            PROJ_DATA_PATH=""
-            return 1
         fi
+
+        print_error "PROJ works but proj.db not found - unexpected state"
+        PROJ_DATA_PATH=""
+        return 1
     fi
 
     # PROJ not working - offer to install
