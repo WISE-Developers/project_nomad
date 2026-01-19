@@ -186,10 +186,13 @@ export interface DefaultAdapterOptions {
  * ```
  */
 export function createDefaultAdapter(options?: DefaultAdapterOptions): IOpenNomadAPI {
-  // Use provided baseUrl, fallback to env var, then localhost for development
-  const baseUrl = options?.baseUrl ??
+  // Use provided baseUrl, fallback to env var, then current origin for remote access
+  let baseUrl = options?.baseUrl ??
     ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) ||
-    'http://localhost:3001');
+    (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001'));
+
+  // Normalize: remove trailing slash to prevent double slashes in URL construction
+  baseUrl = baseUrl.replace(/\/$/, '');
 
   return {
     // =========================================================================
