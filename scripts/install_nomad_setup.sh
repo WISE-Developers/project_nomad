@@ -699,6 +699,13 @@ detect_proj_data() {
     if echo "55.0 -116.0" | cs2cs EPSG:4326 EPSG:32611 &> /dev/null; then
         print_success "PROJ is installed and working"
 
+        # Check if PROJ_LIB env var is set (common on Windows/OSGeo4W)
+        if [ -n "${PROJ_LIB:-}" ] && [ -f "${PROJ_LIB}/proj.db" ]; then
+            PROJ_DATA_PATH="$PROJ_LIB"
+            print_success "PROJ data found (from PROJ_LIB): $PROJ_DATA_PATH"
+            return 0
+        fi
+
         # Find proj.db location - use platform-appropriate method
         if [[ "$OSTYPE" == "darwin"* ]] && command -v brew &> /dev/null; then
             # macOS: use Homebrew
@@ -709,6 +716,20 @@ detect_proj_data() {
                 print_success "PROJ data found: $PROJ_DATA_PATH"
                 return 0
             fi
+        elif [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]]; then
+            # Windows (Git Bash/MSYS2/Cygwin): check OSGeo4W paths
+            local win_paths=(
+                "/c/OSGeo4W/share/proj"
+                "/c/OSGeo4W64/share/proj"
+                "/c/Program Files/PROJ/share/proj"
+            )
+            for path in "${win_paths[@]}"; do
+                if [ -f "$path/proj.db" ]; then
+                    PROJ_DATA_PATH="$path"
+                    print_success "PROJ data found: $PROJ_DATA_PATH"
+                    return 0
+                fi
+            done
         elif command -v pkg-config &> /dev/null; then
             # Linux: use pkg-config
             local proj_datadir
