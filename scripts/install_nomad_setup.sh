@@ -1588,7 +1588,8 @@ install_all_docker() {
     echo "    cd $PROJECT_DIR"
     echo "    docker compose up -d"
     echo ""
-    echo "Access at: http://localhost:\${NOMAD_FRONTEND_HOST_PORT:-3000}"
+    source "$ENV_FILE"
+    echo "Access Nomad at: http://localhost:$NOMAD_FRONTEND_HOST_PORT"
 }
 
 install_nomad_metal_firestarr_docker() {
@@ -1796,7 +1797,8 @@ install_nomad_docker_firestarr_metal() {
     echo "    cd $PROJECT_DIR"
     echo "    docker compose up -d nomad-backend nomad-frontend"
     echo ""
-    echo "Access Nomad at: http://localhost:\${NOMAD_FRONTEND_HOST_PORT:-3000}"
+    source "$ENV_FILE"
+    echo "Access Nomad at: http://localhost:$NOMAD_FRONTEND_HOST_PORT"
     echo ""
     echo "FireSTARR will run as native binary at: $FIRESTARR_BINARY_PATH"
 }
