@@ -17,7 +17,7 @@ import { getModelExecutionService } from '../../../infrastructure/services/index
 import { getFireSTARREngine } from '../../../infrastructure/firestarr/index.js';
 import { getModelResultsService } from '../../../application/services/index.js';
 import { getJobQueue } from '../../../infrastructure/services/JobQueue.js';
-import { getModelRepository } from '../../../infrastructure/database/index.js';
+import { getModelRepository, getResultRepository } from '../../../infrastructure/database/index.js';
 import type { ExecutionOptions } from '../../../application/interfaces/IFireModelingEngine.js';
 import type { WeatherConfig } from '../../../infrastructure/weather/types.js';
 
@@ -185,6 +185,18 @@ router.post(
           if (status.state === 'completed') {
             await jobQueue.complete(jobId);
             await modelRepo.save(model.withStatus(ModelStatus.Completed));
+            // Harvest results immediately after completion
+            try {
+              const results = await engine.getResults(modelId);
+              const resultRepo = getResultRepository();
+              for (const result of results) {
+                await resultRepo.save(result);
+              }
+              console.log(`[ModelsRoute] Harvested ${results.length} results for model ${modelId}`);
+            } catch (harvestError) {
+              console.warn(`[ModelsRoute] Failed to harvest results for model ${modelId}:`, harvestError);
+              // Continue anyway - results can still be lazy-loaded on first read
+            }
           } else if (status.state === 'failed') {
             await jobQueue.fail(jobId, status.error ?? 'Execution failed');
             await modelRepo.save(model.withStatus(ModelStatus.Failed));
@@ -579,6 +591,18 @@ router.post(
             await jobQueue.complete(jobId);
             // Update model status
             await modelRepo.save(queuedModel.withStatus(ModelStatus.Completed));
+            // Harvest results immediately after completion
+            try {
+              const results = await engine.getResults(id as FireModelId);
+              const resultRepo = getResultRepository();
+              for (const result of results) {
+                await resultRepo.save(result);
+              }
+              console.log(`[ModelsRoute] Harvested ${results.length} results for model ${id}`);
+            } catch (harvestError) {
+              console.warn(`[ModelsRoute] Failed to harvest results for model ${id}:`, harvestError);
+              // Continue anyway - results can still be lazy-loaded on first read
+            }
           } else if (status.state === 'failed') {
             await jobQueue.fail(jobId, status.error ?? 'Execution failed');
             await modelRepo.save(queuedModel.withStatus(ModelStatus.Failed));
