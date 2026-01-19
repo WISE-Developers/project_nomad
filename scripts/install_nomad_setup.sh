@@ -494,6 +494,21 @@ step3_paths() {
         echo ""
     fi
 
+    # Port configuration (Docker Nomad)
+    if [ "$NOMAD_INFRA" = "docker" ]; then
+        echo -e "${CYAN}Docker Port Configuration${NC}"
+        echo "    Host ports for accessing Nomad containers."
+        echo ""
+        read -p "Frontend port (web UI) [3000]: " input_frontend_port
+        NOMAD_FRONTEND_HOST_PORT="${input_frontend_port:-3000}"
+        print_success "Frontend port: $NOMAD_FRONTEND_HOST_PORT"
+        echo ""
+        read -p "Backend port (API) [3001]: " input_backend_port
+        NOMAD_BACKEND_HOST_PORT="${input_backend_port:-3001}"
+        print_success "Backend port: $NOMAD_BACKEND_HOST_PORT"
+        echo ""
+    fi
+
     # MapBox API Token
     echo -e "${CYAN}MapBox Access Token${NC}"
     echo "    Required for map display. The map will not render without a valid token."
@@ -1470,6 +1485,14 @@ generate_env_file() {
 
     if [ -n "$NOMAD_PORT" ]; then
         update_env_value "PORT" "$NOMAD_PORT"
+    fi
+
+    if [ -n "$NOMAD_FRONTEND_HOST_PORT" ]; then
+        update_env_value "NOMAD_FRONTEND_HOST_PORT" "$NOMAD_FRONTEND_HOST_PORT"
+    fi
+
+    if [ -n "$NOMAD_BACKEND_HOST_PORT" ]; then
+        update_env_value "NOMAD_BACKEND_HOST_PORT" "$NOMAD_BACKEND_HOST_PORT"
     fi
 
     if [ -n "$MAPBOX_TOKEN" ]; then
