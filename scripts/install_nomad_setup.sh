@@ -484,6 +484,19 @@ step3_paths() {
         NOMAD_BACKEND_HOST_PORT="${input_backend_port:-3001}"
         print_success "Backend port: $NOMAD_BACKEND_HOST_PORT"
         echo ""
+
+        echo -e "${CYAN}Server Hostname${NC}"
+        echo "    The hostname or IP address users will use to access Nomad."
+        echo "    For local development, use 'localhost'."
+        echo "    For remote servers, use the server's domain or IP (e.g., myserver.com)."
+        echo ""
+        # Try to detect hostname
+        local detected_hostname
+        detected_hostname=$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "localhost")
+        read -p "Server hostname [$detected_hostname]: " input_hostname
+        NOMAD_SERVER_HOSTNAME="${input_hostname:-$detected_hostname}"
+        print_success "Server hostname: $NOMAD_SERVER_HOSTNAME"
+        echo ""
     fi
 
     # MapBox API Token
@@ -1635,6 +1648,12 @@ generate_env_file() {
         update_env_value "NOMAD_BACKEND_HOST_PORT" "$NOMAD_BACKEND_HOST_PORT"
     fi
 
+    # Set API base URL for Docker deployments (frontend needs to know where backend is)
+    if [ -n "$NOMAD_SERVER_HOSTNAME" ] && [ -n "$NOMAD_BACKEND_HOST_PORT" ]; then
+        update_env_value "VITE_API_BASE_URL" "http://${NOMAD_SERVER_HOSTNAME}:${NOMAD_BACKEND_HOST_PORT}"
+        update_env_value "VITE_API_PORT" "$NOMAD_BACKEND_HOST_PORT"
+    fi
+
     if [ -n "$MAPBOX_TOKEN" ]; then
         update_env_value "VITE_MAPBOX_TOKEN" "$MAPBOX_TOKEN"
     fi
@@ -1765,7 +1784,8 @@ install_all_docker() {
     echo "    docker compose up -d"
     echo ""
     source "$ENV_FILE"
-    echo "Access Nomad at: http://localhost:$NOMAD_FRONTEND_HOST_PORT"
+    local access_hostname="${NOMAD_SERVER_HOSTNAME:-localhost}"
+    echo "Access Nomad at: http://${access_hostname}:$NOMAD_FRONTEND_HOST_PORT"
 }
 
 install_all_metal() {
@@ -1947,6 +1967,15 @@ print_summary() {
     echo "    FireSTARR Infrastructure: $FIRESTARR_INFRA"
     if [ -n "$NOMAD_PORT" ]; then
     echo "    Server Port:             $NOMAD_PORT"
+    fi
+    if [ -n "$NOMAD_SERVER_HOSTNAME" ]; then
+    echo "    Server Hostname:         $NOMAD_SERVER_HOSTNAME"
+    fi
+    if [ -n "$NOMAD_FRONTEND_HOST_PORT" ]; then
+    echo "    Frontend Port:           $NOMAD_FRONTEND_HOST_PORT"
+    fi
+    if [ -n "$NOMAD_BACKEND_HOST_PORT" ]; then
+    echo "    Backend Port:            $NOMAD_BACKEND_HOST_PORT"
     fi
     if [ "$DATASET_INSTALL_MODE" = "existing" ]; then
     echo "    Dataset Path:            $FIRESTARR_DATASET_PATH (existing)"
