@@ -199,6 +199,41 @@ check_node_early() {
     fi
 }
 
+# Check glibc version for FireSTARR binary compatibility (Linux only)
+check_glibc_early() {
+    # Only check on Linux
+    [[ "$OSTYPE" != "linux"* ]] && return 0
+
+    local required_version="2.34"
+    local glibc_version
+
+    # Get glibc version from ldd
+    glibc_version=$(ldd --version 2>/dev/null | head -n1 | grep -oE '[0-9]+\.[0-9]+$')
+
+    if [ -z "$glibc_version" ]; then
+        print_warning "Could not detect glibc version"
+        return 0
+    fi
+
+    # Compare versions (convert to comparable integers: 2.34 -> 234)
+    local required_int=$(echo "$required_version" | tr -d '.')
+    local current_int=$(echo "$glibc_version" | tr -d '.')
+
+    if [ "$current_int" -lt "$required_int" ]; then
+        echo ""
+        print_error "glibc $glibc_version is installed, but >= $required_version is required for FireSTARR"
+        echo ""
+        echo "    The FireSTARR binary requires glibc >= $required_version."
+        echo "    Your system has glibc $glibc_version."
+        echo ""
+        echo "    Options:"
+        echo "      1. Upgrade to Ubuntu 22.04+ or a distro with glibc >= $required_version"
+        echo "      2. Use Docker mode instead (recommended for older systems)"
+        echo ""
+        exit 1
+    fi
+}
+
 # ============================================
 # Step 1: Deployment Mode
 # ============================================
@@ -264,6 +299,7 @@ step2_infrastructure() {
             ;;
         2)
             check_node_early
+            check_glibc_early
             NOMAD_INFRA="metal"
             FIRESTARR_INFRA="metal"
             FIRESTARR_EXECUTION_MODE="binary"
