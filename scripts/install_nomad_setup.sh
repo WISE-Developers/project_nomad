@@ -628,6 +628,46 @@ validate_gdal() {
 }
 
 # ============================================
+# Disk Space Validation
+# ============================================
+
+# Check available disk space for a given path
+# Args: $1 = path, $2 = required_gb, $3 = description
+# Returns: 0 if sufficient, 1 if insufficient
+check_disk_space() {
+    local path="$1"
+    local required_gb="$2"
+    local description="${3:-this location}"
+
+    # Find the mount point for this path (use parent if path doesn't exist yet)
+    local check_path="$path"
+    while [ ! -d "$check_path" ] && [ "$check_path" != "/" ]; do
+        check_path=$(dirname "$check_path")
+    done
+
+    # Get available space in GB
+    local available_kb available_gb
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        available_kb=$(df -k "$check_path" | tail -1 | awk '{print $4}')
+    else
+        available_kb=$(df -k "$check_path" | tail -1 | awk '{print $4}')
+    fi
+    available_gb=$((available_kb / 1024 / 1024))
+
+    if [ "$available_gb" -lt "$required_gb" ]; then
+        print_error "Insufficient disk space for $description"
+        echo "    Path: $path"
+        echo "    Available: ${available_gb}GB"
+        echo "    Required: ${required_gb}GB"
+        echo ""
+        return 1
+    else
+        print_success "Disk space OK for $description (${available_gb}GB available, ${required_gb}GB needed)"
+        return 0
+    fi
+}
+
+# ============================================
 # Prerequisite Validation
 # ============================================
 
@@ -643,11 +683,42 @@ validate_prerequisites() {
             print_error "Docker is required but not installed"
             echo "    Install from: https://docs.docker.com/get-docker/"
             ((errors++))
-        elif ! docker compose version &> /dev/null; then
-            print_error "Docker Compose is required but not available"
-            ((errors++))
         else
-            print_success "Docker and Docker Compose available"
+            # Check Docker version (minimum 20.10)
+            local docker_version
+            docker_version=$(docker --version | grep -oE '[0-9]+\.[0-9]+' | head -1)
+            local docker_major docker_minor
+            docker_major=$(echo "$docker_version" | cut -d. -f1)
+            docker_minor=$(echo "$docker_version" | cut -d. -f2)
+
+            if [ "$docker_major" -lt 20 ] || { [ "$docker_major" -eq 20 ] && [ "$docker_minor" -lt 10 ]; }; then
+                print_error "Docker version $docker_version is too old (need >= 20.10)"
+                echo "    Update Docker: https://docs.docker.com/engine/install/"
+                ((errors++))
+            else
+                print_success "Docker $docker_version available"
+            fi
+
+            # Check Docker Compose
+            if ! docker compose version &> /dev/null; then
+                print_error "Docker Compose v2 is required but not available"
+                echo "    Install: apt-get install docker-compose-plugin"
+                echo "    Or: https://docs.docker.com/compose/install/"
+                ((errors++))
+            else
+                local compose_version
+                compose_version=$(docker compose version | grep -oE '[0-9]+\.[0-9]+' | head -1)
+                local compose_major
+                compose_major=$(echo "$compose_version" | cut -d. -f1)
+
+                if [ "$compose_major" -lt 2 ]; then
+                    print_error "Docker Compose v$compose_version is too old (need v2+)"
+                    echo "    Install: apt-get install docker-compose-plugin"
+                    ((errors++))
+                else
+                    print_success "Docker Compose v$compose_version available"
+                fi
+            fi
         fi
     fi
 
@@ -711,6 +782,35 @@ validate_prerequisites() {
                 echo "    See: https://github.com/WISE-Developers/firestarr"
                 ;;
         esac
+    fi
+
+    # Disk space validation
+    echo ""
+    print_step "Checking disk space..."
+
+    # Check dataset path (need ~55GB for dataset + sims)
+    if [ -n "$FIRESTARR_DATASET_PATH" ] && [ "$DATASET_INSTALL_MODE" = "download" ]; then
+        if ! check_disk_space "$FIRESTARR_DATASET_PATH" 55 "FireSTARR dataset"; then
+            ((errors++))
+        fi
+    elif [ -n "$FIRESTARR_DATASET_PATH" ]; then
+        # Existing dataset - just need space for sims (~5GB minimum)
+        if ! check_disk_space "$FIRESTARR_DATASET_PATH" 5 "simulation outputs"; then
+            ((errors++))
+        fi
+    fi
+
+    # Check download directory if downloading (need ~50GB for archive)
+    if [ -n "$FIRESTARR_DOWNLOAD_DIR" ] && [ "$DATASET_INSTALL_MODE" = "download" ]; then
+        # Only check if download dir is on different mount than dataset path
+        local dataset_mount download_mount
+        dataset_mount=$(df "$FIRESTARR_DATASET_PATH" 2>/dev/null | tail -1 | awk '{print $1}')
+        download_mount=$(df "$FIRESTARR_DOWNLOAD_DIR" 2>/dev/null | tail -1 | awk '{print $1}')
+        if [ "$dataset_mount" != "$download_mount" ]; then
+            if ! check_disk_space "$FIRESTARR_DOWNLOAD_DIR" 50 "dataset download"; then
+                ((errors++))
+            fi
+        fi
     fi
 
     return $errors
