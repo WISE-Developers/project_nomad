@@ -753,6 +753,27 @@ has_avx2() {
     return 1
 }
 
+has_avx() {
+    local arch
+    arch=$(uname -m)
+
+    if [ "$arch" = "x86_64" ]; then
+        if [ -f /proc/cpuinfo ]; then
+            # Check for AVX (but not AVX2 specifically - just base AVX)
+            if grep -qE '\bavx\b' /proc/cpuinfo; then
+                return 0
+            fi
+        fi
+        if command -v sysctl &> /dev/null; then
+            if sysctl -n machdep.cpu.features 2>/dev/null | grep -qi "AVX"; then
+                return 0
+            fi
+        fi
+        return 1
+    fi
+    return 1
+}
+
 detect_architecture() {
     local arch
     arch=$(uname -m)
@@ -763,6 +784,8 @@ detect_architecture() {
     DETECTED_OS="$os"
     DETECTED_COLIMA=false
     DETECTED_AVX2=false
+    DETECTED_AVX=false
+    DETECTED_QEMU=false
 
     if is_colima; then
         DETECTED_COLIMA=true
@@ -770,9 +793,18 @@ detect_architecture() {
 
     if has_avx2; then
         DETECTED_AVX2=true
+        DETECTED_AVX=true  # AVX2 implies AVX
+    elif has_avx; then
+        DETECTED_AVX=true
+    fi
+
+    # Detect QEMU virtual CPU
+    if [ -f /proc/cpuinfo ] && grep -qi "QEMU" /proc/cpuinfo; then
+        DETECTED_QEMU=true
     fi
 
     # Determine recommended image based on detection
+    # Priority: AVX2 (fastest) > AVX/sandybridge
     case "$arch" in
         arm64|aarch64)
             RECOMMENDED_IMAGE="ghcr.io/wise-developers/firestarr:\${VERSION}-arm64"
@@ -780,8 +812,11 @@ detect_architecture() {
         x86_64)
             if [ "$DETECTED_AVX2" = true ]; then
                 RECOMMENDED_IMAGE="ghcr.io/cwfmf/firestarr:dev-\${VERSION}"
-            else
+            elif [ "$DETECTED_AVX" = true ]; then
                 RECOMMENDED_IMAGE="ghcr.io/wise-developers/firestarr:\${VERSION}-sandybridge"
+            else
+                # No AVX - cannot run FireSTARR
+                RECOMMENDED_IMAGE=""
             fi
             ;;
         *)
@@ -919,8 +954,36 @@ configure_firestarr_image() {
     echo "    Operating System:  $DETECTED_OS"
     echo "    CPU Architecture:  $DETECTED_ARCH"
     echo "    AVX2 Support:      $([ "$DETECTED_AVX2" = true ] && echo "Yes" || echo "No")"
+    echo "    AVX Support:       $([ "$DETECTED_AVX" = true ] && echo "Yes" || echo "No")"
     echo "    Docker via Colima: $([ "$DETECTED_COLIMA" = true ] && echo "Yes" || echo "No")"
+    if [ "$DETECTED_QEMU" = true ]; then
+    echo "    QEMU Virtual CPU:  Yes"
+    fi
     echo ""
+
+    # Check if CPU meets minimum requirements (AVX required for x86_64)
+    if [ "$DETECTED_ARCH" = "x86_64" ] && [ "$DETECTED_AVX" = false ]; then
+        print_error "CPU does not support AVX instructions"
+        echo ""
+        echo "    FireSTARR requires a CPU with AVX support (2011 or newer)."
+        echo ""
+        if [ "$DETECTED_QEMU" = true ]; then
+            echo "    This appears to be a QEMU virtual machine with a basic CPU profile."
+            echo "    To run FireSTARR, configure your VM with a CPU that supports AVX:"
+            echo ""
+            echo "    Option 1: Use host CPU passthrough (best performance)"
+            echo "        -cpu host"
+            echo ""
+            echo "    Option 2: Use a specific CPU model with AVX"
+            echo "        -cpu SandyBridge    (minimum for AVX)"
+            echo "        -cpu Haswell        (recommended, includes AVX2)"
+            echo ""
+        else
+            echo "    This CPU is too old to run FireSTARR."
+            echo "    Consider running on newer hardware or a VM with AVX-capable CPU."
+        fi
+        return 1
+    fi
 
     # Expand VERSION in recommended image
     local expanded_image
@@ -929,9 +992,9 @@ configure_firestarr_image() {
     echo "Available FireSTARR images:"
     echo ""
     echo "    1) Recommended: $expanded_image"
-    echo "    2) Modern x86_64 (AVX2):    ghcr.io/cwfmf/firestarr:dev-${VERSION}"
-    echo "    3) Older x86_64 (no AVX2):  ghcr.io/wise-developers/firestarr:${VERSION}-sandybridge"
-    echo "    4) ARM64 (Apple Silicon):   ghcr.io/wise-developers/firestarr:${VERSION}-arm64"
+    echo "    2) Modern x86_64 (AVX2):     ghcr.io/cwfmf/firestarr:dev-${VERSION}"
+    echo "    3) Older x86_64 (AVX only):  ghcr.io/wise-developers/firestarr:${VERSION}-sandybridge"
+    echo "    4) ARM64 (Apple Silicon):    ghcr.io/wise-developers/firestarr:${VERSION}-arm64"
     echo "    5) Enter custom image"
     echo ""
     read -p "Select an option [1-5] (default: 1): " choice
@@ -1552,7 +1615,10 @@ install_all_docker() {
             source "$ENV_FILE"
         fi
         VERSION="${VERSION:-0.9.5.4}"
-        configure_firestarr_image
+        if ! configure_firestarr_image; then
+            print_error "Cannot proceed - CPU does not meet FireSTARR requirements"
+            exit 1
+        fi
         update_env_value "FIRESTARR_IMAGE" "$FIRESTARR_IMAGE"
     fi
 
