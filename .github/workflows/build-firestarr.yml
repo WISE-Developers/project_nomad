@@ -26,7 +26,10 @@ jobs:
           git clone https://github.com/CWFMF/firestarr-cpp.git firestarr
           cd firestarr
           git checkout ${{ github.event.inputs.firestarr_ref || 'main' }}
-          echo "Building FireSTARR at $(git rev-parse --short HEAD)"
+          COMMIT=$(git rev-parse --short HEAD)
+          echo "Building FireSTARR at $COMMIT"
+          # CMakeLists.txt expects ../.env with VERSION
+          echo "VERSION=dev-$COMMIT" > ../.env
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
