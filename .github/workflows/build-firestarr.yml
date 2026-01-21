@@ -36,12 +36,14 @@ jobs:
 
       - name: Install dependencies via vcpkg
         run: |
+          mkdir -p build/vcpkg_installed
           vcpkg install \
             libgeotiff \
             tiff \
             curl \
             proj \
-            --triplet x64-linux
+            --triplet x64-linux \
+            --x-install-root build/vcpkg_installed
 
       - name: Configure CMake
         run: |
