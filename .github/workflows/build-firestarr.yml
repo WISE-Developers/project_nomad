@@ -30,6 +30,8 @@ jobs:
           echo "Building FireSTARR at $COMMIT"
           # CMakeLists.txt expects ../.env with VERSION
           echo "VERSION=dev-$COMMIT" > ../.env
+          # Remove post-build copy that fails in CI
+          sed -i '/add_custom_command.*POST_BUILD/,/\.\.\/)$/d' CMakeLists.txt
 
       - name: Install dependencies
         run: |
