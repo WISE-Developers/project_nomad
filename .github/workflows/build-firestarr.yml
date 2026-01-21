@@ -109,14 +109,7 @@ jobs:
           retention-days: 30
 
   build-macos:
-    strategy:
-      matrix:
-        include:
-          - os: macos-13
-            arch: x64
-          - os: macos-14
-            arch: arm64
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-14
 
     steps:
       - name: Checkout Nomad (for workflow context)
@@ -190,13 +183,13 @@ jobs:
           ls -la dist/
 
           # Create tarball
-          tar -czvf firestarr-macos-${{ matrix.arch }}.tar.gz -C dist .
+          tar -czvf firestarr-macos-arm64.tar.gz -C dist .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: firestarr-macos-${{ matrix.arch }}
-          path: firestarr-macos-${{ matrix.arch }}.tar.gz
+          name: firestarr-macos-arm64
+          path: firestarr-macos-arm64.tar.gz
           retention-days: 30
 
   build-windows:
@@ -329,6 +322,5 @@ jobs:
           files: |
             firestarr-linux-ubuntu-22.04/firestarr-linux-ubuntu-22.04.tar.gz
             firestarr-linux-ubuntu-24.04/firestarr-linux-ubuntu-24.04.tar.gz
-            firestarr-macos-x64/firestarr-macos-x64.tar.gz
             firestarr-macos-arm64/firestarr-macos-arm64.tar.gz
             firestarr-windows-x64/firestarr-windows-x64.zip
