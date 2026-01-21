@@ -12,6 +12,7 @@ on:
 
 jobs:
   build-linux:
+    if: false  # Skip while debugging Mac/Windows
     strategy:
       matrix:
         os: [ubuntu-22.04, ubuntu-24.04]
@@ -131,12 +132,19 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install proj libgeotiff libtiff curl tbb
+          brew install gcc proj libgeotiff libtiff curl tbb
 
       - name: Configure CMake
         run: |
+          # Use GCC instead of Apple Clang (Clang lacks std::execution support)
+          GCC_VERSION=$(brew list --versions gcc | grep -oE '[0-9]+' | head -1)
+          export CC=$(brew --prefix)/bin/gcc-${GCC_VERSION}
+          export CXX=$(brew --prefix)/bin/g++-${GCC_VERSION}
+          echo "Using GCC: $CXX"
           cmake -S firestarr -B build \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=$CC \
+            -DCMAKE_CXX_COMPILER=$CXX \
             -DCMAKE_PREFIX_PATH="$(brew --prefix)" \
             -DCMAKE_RUNTIME_OUTPUT_DIRECTORY="$(pwd)/build/bin"
 
@@ -208,11 +216,12 @@ jobs:
           echo "Building FireSTARR at $COMMIT"
           # CMakeLists.txt expects ../.env with VERSION
           "VERSION=dev-$COMMIT" | Out-File -FilePath ..\.env -Encoding utf8
-          # Remove post-build copy that fails in CI (lines 128-130)
-          $content = Get-Content CMakeLists.txt
-          $content | Select-Object -Index (0..126 + 130..($content.Length-1)) | Set-Content CMakeLists.txt
-          echo "Verifying removal:"
-          Select-String -Path CMakeLists.txt -Pattern "add_custom_command" || echo "POST_BUILD removed successfully"
+          # Remove post-build copy that fails in CI (lines 128-130, 1-based = indexes 127-129)
+          $lines = Get-Content CMakeLists.txt
+          $filtered = for ($i = 0; $i -lt $lines.Count; $i++) { if ($i -lt 127 -or $i -gt 129) { $lines[$i] } }
+          $filtered | Set-Content CMakeLists.txt
+          echo "Verifying removal (should show no POST_BUILD):"
+          Select-String -Path CMakeLists.txt -Pattern "POST_BUILD" || echo "POST_BUILD removed successfully"
         shell: pwsh
 
       - name: Setup vcpkg
@@ -301,7 +310,7 @@ jobs:
           retention-days: 30
 
   publish:
-    needs: [build-linux, build-macos, build-windows]
+    needs: [build-macos, build-windows]  # build-linux skipped for now
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
     permissions:
