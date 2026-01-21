@@ -31,26 +31,20 @@ jobs:
           # CMakeLists.txt expects ../.env with VERSION
           echo "VERSION=dev-$COMMIT" > ../.env
 
-      - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11
-
-      - name: Install dependencies via vcpkg
+      - name: Install dependencies
         run: |
-          mkdir -p build/vcpkg_installed
-          vcpkg install \
-            libgeotiff \
-            tiff \
-            curl \
-            proj \
-            --triplet x64-linux \
-            --x-install-root build/vcpkg_installed
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgeotiff-dev \
+            libtiff-dev \
+            libcurl4-openssl-dev \
+            libproj-dev
 
       - name: Configure CMake
         run: |
           cmake -S firestarr -B build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_FLAGS="-march=x86-64-v3" \
-            -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
+            -DCMAKE_CXX_FLAGS="-march=x86-64-v3"
 
       - name: Build
         run: cmake --build build --config Release -j$(nproc)
