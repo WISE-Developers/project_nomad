@@ -10,10 +10,6 @@ on:
   release:
     types: [published]
 
-env:
-  # Pin vcpkg to 2024.12.16 release for reproducibility
-  VCPKG_COMMIT: 'b4624c3a701b11248d88a8e87f4d1984dc5e018a'
-
 jobs:
   build-linux:
     strategy:
@@ -34,8 +30,6 @@ jobs:
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT }}
 
       - name: Install dependencies via vcpkg
         run: |
