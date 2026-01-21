@@ -37,21 +37,19 @@ jobs:
           sudo apt-get install -y \
             libgeotiff-dev \
             libtiff-dev \
-            libcurl4-openssl-dev \
-            libproj-dev \
-            proj-bin \
-            cmake
+            libcurl4-openssl-dev
+
+          # Use vcpkg for PROJ (Ubuntu's package lacks cmake config)
+          export VCPKG_ROOT=/usr/local/share/vcpkg
+          $VCPKG_ROOT/vcpkg install proj --triplet x64-linux
 
       - name: Configure CMake
         run: |
-          # Debug: find PROJ cmake config
-          find /usr -name "*PROJ*cmake*" -o -name "*proj*cmake*" 2>/dev/null || true
-          find /usr -name "PROJConfig.cmake" -o -name "proj-config.cmake" 2>/dev/null || true
-
+          export VCPKG_ROOT=/usr/local/share/vcpkg
           cmake -S firestarr -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_FLAGS="-march=x86-64-v3" \
-            -DCMAKE_PREFIX_PATH="/usr/lib/x86_64-linux-gnu/cmake"
+            -DCMAKE_PREFIX_PATH="$VCPKG_ROOT/installed/x64-linux"
 
       - name: Build
         run: cmake --build build --config Release -j$(nproc)
