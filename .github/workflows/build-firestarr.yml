@@ -348,7 +348,6 @@ jobs:
 
   publish:
     needs: [build-linux, build-macos, build-windows]
-    if: github.event_name == 'release'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -362,7 +361,28 @@ jobs:
           echo "=== All artifacts ==="
           find . -type f \( -name "*.tar.gz" -o -name "*.zip" \)
 
-      - name: Attach to release
+      - name: Update firestarr-latest release (manual runs)
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: firestarr-latest
+          name: "FireSTARR Latest Build"
+          body: |
+            Latest FireSTARR binaries built from upstream.
+
+            **FireSTARR ref:** ${{ github.event.inputs.firestarr_ref || 'main' }}
+            **Built:** ${{ github.run_id }}
+            **Workflow run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          prerelease: true
+          make_latest: false
+          files: |
+            firestarr-linux-ubuntu-22.04/firestarr-linux-ubuntu-22.04.tar.gz
+            firestarr-linux-ubuntu-24.04/firestarr-linux-ubuntu-24.04.tar.gz
+            firestarr-macos-arm64/firestarr-macos-arm64.tar.gz
+            firestarr-windows-x64/firestarr-windows-x64.zip
+
+      - name: Attach to release (release events)
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: |
