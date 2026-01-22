@@ -82,7 +82,7 @@ const EXPORT_FORMATS: readonly ExportFormat[] = [
  */
 const CONVERSION_PATHS: Record<string, string> = {
   // GeoJSON conversions
-  'geojson-kml': 'tokml',
+  'geojson-kml': 'gdal',
   'geojson-shapefile': 'gdal',
   // GeoTIFF conversions
   'geotiff-png': 'gdal',

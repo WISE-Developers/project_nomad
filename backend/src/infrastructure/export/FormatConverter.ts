@@ -5,7 +5,7 @@
  */
 
 import { spawn } from 'child_process';
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
 import { existsSync } from 'fs';
 import { randomUUID } from 'crypto';
@@ -14,15 +14,11 @@ import { OutputFormat } from '../../domain/entities/index.js';
 import { getExportFormatRegistry } from './ExportFormatRegistry.js';
 import { generateContours } from '../firestarr/index.js';
 
-// Use dynamic import for tokml (CommonJS module)
-let tokmlFn: ((geojson: unknown) => string) | null = null;
-
 /**
  * Format Converter
  *
  * Converts between geospatial formats using various methods:
- * - tokml: GeoJSON → KML
- * - GDAL ogr2ogr: Vector format conversions
+ * - GDAL ogr2ogr: Vector format conversions (GeoJSON, KML, Shapefile)
  * - GDAL gdal_translate: Raster format conversions
  * - Custom contour generation: GeoTIFF → GeoJSON contours
  */
@@ -61,8 +57,6 @@ export class FormatConverter {
     await this.ensureTempDir();
 
     switch (method) {
-      case 'tokml':
-        return this.convertGeoJSONToKML(sourcePath);
       case 'gdal':
         return this.convertWithGDAL(sourcePath, sourceFormat, targetFormat);
       case 'contour':
@@ -72,31 +66,6 @@ export class FormatConverter {
       default:
         throw new Error(`Unknown conversion method: ${method}`);
     }
-  }
-
-  /**
-   * Convert GeoJSON to KML using tokml
-   */
-  private async convertGeoJSONToKML(sourcePath: string): Promise<string> {
-    // Load tokml lazily
-    if (!tokmlFn) {
-      try {
-        const module = await import('tokml');
-        tokmlFn = module.default || module;
-      } catch {
-        throw new Error('tokml module not available');
-      }
-    }
-
-    const geojsonContent = await readFile(sourcePath, 'utf-8');
-    const geojson = JSON.parse(geojsonContent);
-
-    const kml = tokmlFn!(geojson);
-
-    const outputPath = this.getTempPath('.kml');
-    await writeFile(outputPath, kml, 'utf-8');
-
-    return outputPath;
   }
 
   /**
