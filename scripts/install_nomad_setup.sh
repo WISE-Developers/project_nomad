@@ -1040,6 +1040,68 @@ detect_architecture() {
     esac
 }
 
+# Install macOS dependencies for FireSTARR binary (Homebrew)
+# The CI-built binary is dynamically linked against these libraries
+install_macos_firestarr_deps() {
+    # Only run on macOS
+    [[ "$OSTYPE" != "darwin"* ]] && return 0
+
+    print_step "Checking macOS dependencies for FireSTARR..."
+
+    # Required Homebrew packages for FireSTARR binary
+    local required_packages=("libgeotiff" "libtiff" "proj" "tbb" "gcc")
+    local missing_packages=()
+
+    # Check which packages are missing
+    for pkg in "${required_packages[@]}"; do
+        if ! brew list "$pkg" &> /dev/null; then
+            missing_packages+=("$pkg")
+        fi
+    done
+
+    if [ ${#missing_packages[@]} -eq 0 ]; then
+        print_success "All FireSTARR dependencies installed"
+        return 0
+    fi
+
+    print_warning "Missing dependencies: ${missing_packages[*]}"
+    echo ""
+    echo "    The FireSTARR binary requires the following Homebrew packages:"
+    for pkg in "${missing_packages[@]}"; do
+        echo "      - $pkg"
+    done
+    echo ""
+
+    if ! command -v brew &> /dev/null; then
+        print_error "Homebrew not found. Install from: https://brew.sh"
+        echo "    Then run: brew install ${missing_packages[*]}"
+        return 1
+    fi
+
+    read -p "    Install missing dependencies now? [Y/n]: " install_deps
+    if [[ "$install_deps" =~ ^[Nn] ]]; then
+        print_warning "Skipping dependency installation"
+        echo "    FireSTARR may not run without these libraries."
+        echo "    Install manually: brew install ${missing_packages[*]}"
+        return 1
+    fi
+
+    print_step "Installing dependencies via Homebrew..."
+    if [ "$DRY_RUN" = true ]; then
+        print_dry_run "Would run: brew install ${missing_packages[*]}"
+    else
+        if brew install "${missing_packages[@]}"; then
+            print_success "Dependencies installed successfully"
+        else
+            print_error "Failed to install some dependencies"
+            echo "    Try manually: brew install ${missing_packages[*]}"
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
 # Detect PROJ data directory (required for coordinate transformations)
 # Sets PROJ_DATA_PATH if found
 detect_proj_data() {
@@ -1971,7 +2033,10 @@ install_all_metal() {
     # 3. Ensure sims directory
     ensure_sims_writable
 
-    # 4. Install/configure FireSTARR binary based on selected mode
+    # 4. Install macOS dependencies for FireSTARR (Homebrew libraries)
+    install_macos_firestarr_deps
+
+    # 5. Install/configure FireSTARR binary based on selected mode
     case "$FIRESTARR_INSTALL_MODE" in
         archive)
             # Install from archive
@@ -1990,7 +2055,7 @@ install_all_metal() {
             ;;
     esac
 
-    # 5. Detect PROJ data directory (required for coordinate transformations)
+    # 6. Detect PROJ data directory (required for coordinate transformations)
     if detect_proj_data; then
         update_env_value "PROJ_DATA" "$PROJ_DATA_PATH"
     else
@@ -1998,11 +2063,11 @@ install_all_metal() {
         echo "    Install PROJ and re-run installer, or manually set PROJ_DATA in .env"
     fi
 
-    # 6. Install Node.js dependencies
+    # 7. Install Node.js dependencies
     print_step "Installing Node.js dependencies..."
     run_cmd npm --prefix "$PROJECT_DIR" install
 
-    # 6. Build backend and frontend
+    # 8. Build backend and frontend
     print_step "Building Nomad..."
     run_cmd npm --prefix "$PROJECT_DIR" run build
 
