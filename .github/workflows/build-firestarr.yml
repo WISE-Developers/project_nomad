@@ -130,6 +130,21 @@ jobs:
           echo "Verifying removal:"
           grep -n "add_custom_command" CMakeLists.txt || echo "POST_BUILD removed successfully"
 
+          # GCC on macOS requires TBB for std::execution parallel algorithms
+          # Patch CMakeLists.txt to find and link TBB
+          echo '' >> CMakeLists.txt
+          echo '# TBB required for std::execution with GCC (patched by CI)' >> CMakeLists.txt
+          echo 'if(APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")' >> CMakeLists.txt
+          echo '  find_package(TBB REQUIRED)' >> CMakeLists.txt
+          echo '  target_link_libraries(\${PROJECT_NAME} PRIVATE TBB::tbb)' >> CMakeLists.txt
+          echo '  message(STATUS "Linked TBB for GCC std::execution support")' >> CMakeLists.txt
+          echo 'endif()' >> CMakeLists.txt
+          echo "=== TBB patch applied ==="
+
+          # Remove -mno-avx512f flag - ARM64 macOS doesn't have this x86_64-only option
+          sed -i '' 's/-mno-avx512f//g' CMakeLists.txt
+          echo "=== Removed AVX512 flag for ARM64 ==="
+
       - name: Install dependencies
         run: |
           brew install gcc proj libgeotiff libtiff curl tbb
@@ -141,11 +156,17 @@ jobs:
           export CC=$(brew --prefix)/bin/gcc-${GCC_VERSION}
           export CXX=$(brew --prefix)/bin/g++-${GCC_VERSION}
           echo "Using GCC: $CXX"
+
+          # TBB is required for std::execution with GCC on macOS
+          TBB_ROOT=$(brew --prefix tbb)
+          echo "TBB location: $TBB_ROOT"
+
           cmake -S firestarr -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=$CC \
             -DCMAKE_CXX_COMPILER=$CXX \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix)" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix);${TBB_ROOT}" \
+            -DTBB_ROOT="${TBB_ROOT}" \
             -DCMAKE_RUNTIME_OUTPUT_DIRECTORY="$(pwd)/build/bin"
 
       - name: Build
@@ -222,6 +243,14 @@ jobs:
           $filtered | Set-Content CMakeLists.txt
           echo "Verifying removal (should show no POST_BUILD):"
           Select-String -Path CMakeLists.txt -Pattern "POST_BUILD" || echo "POST_BUILD removed successfully"
+
+          # Fix constexpr abs() issue for MSVC - replace abs(nd_) with inline ternary
+          # MSVC doesn't consider std::abs() constexpr in all contexts
+          $fireSpreadPath = "src/cpp/FireSpread.h"
+          $content = Get-Content $fireSpreadPath -Raw
+          $content = $content -replace 'const auto nd = abs\(nd_\);', 'const auto nd = (nd_ < 0) ? (-nd_) : nd_;'
+          $content | Set-Content $fireSpreadPath -NoNewline
+          echo "=== Patched FireSpread.h for MSVC constexpr compatibility ==="
         shell: pwsh
 
       - name: Setup vcpkg
