@@ -147,6 +147,10 @@ jobs:
           echo "--- Tail of CMakeLists.txt ---"
           tail -10 CMakeLists.txt
 
+          # Fix missing unistd.h for unlink() - GCC on macOS doesn't auto-include it
+          sed -i '' '1s/^/#include <unistd.h>  \/\/ CI patch for unlink()\n/' src/cpp/ProbabilityMap.cpp
+          echo "=== Added unistd.h to ProbabilityMap.cpp ==="
+
       - name: Install dependencies
         run: |
           brew install gcc proj libgeotiff libtiff curl tbb
