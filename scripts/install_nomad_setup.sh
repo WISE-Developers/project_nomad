@@ -1263,6 +1263,40 @@ get_platform_string() {
     echo "${arch}-${os_name}"
 }
 
+# Get default FireSTARR binary URL for the current platform
+# Returns the GitHub release URL for firestarr-latest
+get_default_firestarr_url() {
+    local arch os_name
+    arch=$(uname -m)
+    os_name=$(uname -s | tr '[:upper:]' '[:lower:]')
+
+    local base_url="https://github.com/WISE-Developers/project_nomad/releases/download/firestarr-latest"
+    local asset_name=""
+
+    case "$os_name" in
+        darwin)
+            # macOS - only ARM64 builds available
+            asset_name="firestarr-macos-arm64.tar.gz"
+            ;;
+        linux)
+            # Linux - use Ubuntu 22.04 build (broader glibc compatibility)
+            asset_name="firestarr-linux-ubuntu-22.04.tar.gz"
+            ;;
+        msys*|mingw*|cygwin*|windows*)
+            # Windows
+            asset_name="firestarr-windows-x64.zip"
+            ;;
+        *)
+            # Unknown OS - return empty
+            echo ""
+            return 1
+            ;;
+    esac
+
+    echo "${base_url}/${asset_name}"
+    return 0
+}
+
 # Prompt user for FireSTARR binary configuration
 # Two options: use existing installation or install from archive
 prompt_firestarr_binary_source() {
@@ -1363,19 +1397,38 @@ prompt_firestarr_archive() {
     echo ""
     echo -e "${CYAN}Install FireSTARR for Nomad${NC}"
     echo ""
-    echo "    Provide a FireSTARR distribution archive (.zip)"
-    echo "    This can be a local file path or a URL"
-    echo ""
 
-    read -p "Archive location (.zip or URL): " archive_source
+    # Get platform-specific default URL
+    local default_url
+    default_url=$(get_default_firestarr_url)
+
+    if [ -n "$default_url" ]; then
+        echo "    A pre-built FireSTARR binary is available for your platform."
+        echo "    Press Enter to download from GitHub, or provide a custom path/URL."
+        echo ""
+        echo "    Default: $default_url"
+        echo ""
+        read -p "Archive location [Enter for default]: " archive_source
+
+        # Use default if empty
+        if [ -z "$archive_source" ]; then
+            archive_source="$default_url"
+            print_info "Using pre-built binary from GitHub releases"
+        fi
+    else
+        echo "    Provide a FireSTARR distribution archive (.tar.gz or .zip)"
+        echo "    This can be a local file path or a URL"
+        echo ""
+        read -p "Archive location: " archive_source
+
+        if [ -z "$archive_source" ]; then
+            print_warning "No archive provided"
+            return 1
+        fi
+    fi
 
     # Expand ~ if present
     archive_source="${archive_source/#\~/$HOME}"
-
-    if [ -z "$archive_source" ]; then
-        print_warning "No archive provided"
-        return 1
-    fi
 
     # Validate source exists (if local file)
     if [[ ! "$archive_source" =~ ^https?:// ]]; then
