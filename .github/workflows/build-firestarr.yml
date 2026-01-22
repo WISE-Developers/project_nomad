@@ -130,20 +130,22 @@ jobs:
           echo "Verifying removal:"
           grep -n "add_custom_command" CMakeLists.txt || echo "POST_BUILD removed successfully"
 
-          # GCC on macOS requires TBB for std::execution parallel algorithms
-          # Patch CMakeLists.txt to find and link TBB
-          echo '' >> CMakeLists.txt
-          echo '# TBB required for std::execution with GCC (patched by CI)' >> CMakeLists.txt
-          echo 'if(APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")' >> CMakeLists.txt
-          echo '  find_package(TBB REQUIRED)' >> CMakeLists.txt
-          echo '  target_link_libraries(\${PROJECT_NAME} PRIVATE TBB::tbb)' >> CMakeLists.txt
-          echo '  message(STATUS "Linked TBB for GCC std::execution support")' >> CMakeLists.txt
-          echo 'endif()' >> CMakeLists.txt
-          echo "=== TBB patch applied ==="
-
           # Remove -mno-avx512f flag - ARM64 macOS doesn't have this x86_64-only option
           sed -i '' 's/-mno-avx512f//g' CMakeLists.txt
           echo "=== Removed AVX512 flag for ARM64 ==="
+
+          # GCC on macOS requires TBB for std::execution parallel algorithms
+          # Use find_library instead of find_package for better homebrew compatibility
+          # Note: Use printf to avoid escaping issues with shell variables vs CMake variables
+          printf '\n# TBB required for std::execution with GCC (patched by CI)\n' >> CMakeLists.txt
+          printf 'if(APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")\n' >> CMakeLists.txt
+          printf '  find_library(TBB_LIB tbb REQUIRED)\n' >> CMakeLists.txt
+          printf '  target_link_libraries(${PROJECT_NAME} PRIVATE ${TBB_LIB})\n' >> CMakeLists.txt
+          printf '  message(STATUS "Linked TBB: ${TBB_LIB}")\n' >> CMakeLists.txt
+          printf 'endif()\n' >> CMakeLists.txt
+          echo "=== TBB patch applied ==="
+          echo "--- Tail of CMakeLists.txt ---"
+          tail -10 CMakeLists.txt
 
       - name: Install dependencies
         run: |
@@ -294,7 +296,7 @@ jobs:
       - name: Check binary dependencies
         run: |
           echo "=== Binary info ==="
-          ${{ steps.locate.outputs.binary }}
+          Get-Item "${{ steps.locate.outputs.binary }}" | Format-List Name, Length, LastWriteTime
           echo ""
           echo "=== Binary size ==="
           (Get-Item "${{ steps.locate.outputs.binary }}").Length / 1MB | ForEach-Object { "{0:N2} MB" -f $_ }
