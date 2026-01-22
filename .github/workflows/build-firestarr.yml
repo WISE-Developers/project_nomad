@@ -12,7 +12,6 @@ on:
 
 jobs:
   build-linux:
-    if: false  # Skip while debugging Mac/Windows
     strategy:
       matrix:
         os: [ubuntu-22.04, ubuntu-24.04]
@@ -348,7 +347,7 @@ jobs:
           retention-days: 30
 
   publish:
-    needs: [build-macos, build-windows]  # build-linux skipped for now
+    needs: [build-linux, build-macos, build-windows]
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
     permissions:
