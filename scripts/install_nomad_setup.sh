@@ -311,7 +311,7 @@ check_proj_schema_early() {
 
     # Query schema version from proj.db
     local schema_minor
-    schema_minor=$(sqlite3 "$proj_db" "SELECT value FROM metadata WHERE name = 'DATABASE.LAYOUT.VERSION.MINOR';" 2>/dev/null || echo "")
+    schema_minor=$(sqlite3 "$proj_db" "SELECT value FROM metadata WHERE key = 'DATABASE.LAYOUT.VERSION.MINOR';" 2>/dev/null || echo "")
 
     if [ -z "$schema_minor" ]; then
         print_warning "Could not determine PROJ schema version"
@@ -350,7 +350,7 @@ check_proj_schema_early() {
                sudo apt install -y --only-upgrade proj-data; then
 
                 # Verify the fix worked
-                schema_minor=$(sqlite3 "$proj_db" "SELECT value FROM metadata WHERE name = 'DATABASE.LAYOUT.VERSION.MINOR';" 2>/dev/null || echo "")
+                schema_minor=$(sqlite3 "$proj_db" "SELECT value FROM metadata WHERE key = 'DATABASE.LAYOUT.VERSION.MINOR';" 2>/dev/null || echo "")
                 if [ -n "$schema_minor" ] && [ "$schema_minor" -ge 6 ] 2>/dev/null; then
                     print_success "PROJ database updated to schema version $schema_minor"
                     return 0
