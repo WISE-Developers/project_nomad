@@ -106,6 +106,8 @@ export class NativeBinaryExecutor implements IContainerExecutor {
     }
 
     console.log(`[NativeBinaryExecutor] Running: ${actualBinary} ${args.join(' ')}`);
+    console.log(`[NativeBinaryExecutor] PROJ_DATA=${process.env.PROJ_DATA ?? '(not set)'}`);
+    console.log(`[NativeBinaryExecutor] cwd=${options.workingDir ?? process.cwd()}`);
 
     return new Promise((resolve) => {
       let stdout = '';
@@ -176,6 +178,11 @@ export class NativeBinaryExecutor implements IContainerExecutor {
         const exitCode = code ?? -1;
 
         console.log(`[NativeBinaryExecutor] Completed with exit code ${exitCode} in ${durationMs}ms`);
+
+        // Log stderr on failure for debugging
+        if (exitCode !== 0 && stderr) {
+          console.error(`[NativeBinaryExecutor] stderr:\n${stderr}`);
+        }
 
         if (killed) {
           resolve(
