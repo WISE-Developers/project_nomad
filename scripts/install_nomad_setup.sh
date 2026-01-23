@@ -297,14 +297,16 @@ check_proj_schema_early() {
         return 0
     fi
 
-    # Check if sqlite3 is available
+    # Check if sqlite3 is available - install if needed
     if ! command -v sqlite3 &> /dev/null; then
-        echo ""
-        print_warning "sqlite3 not found - cannot verify PROJ schema version"
-        echo "    Install sqlite3 to enable PROJ schema validation:"
-        echo "        sudo apt install sqlite3"
-        echo ""
-        return 0
+        print_step "Installing sqlite3 for PROJ schema validation..."
+        if sudo apt install -y sqlite3 &> /dev/null; then
+            print_success "sqlite3 installed"
+        else
+            print_error "Failed to install sqlite3 - cannot verify PROJ schema"
+            echo "    Install manually: sudo apt install sqlite3"
+            exit 1
+        fi
     fi
 
     # Query schema version from proj.db
