@@ -121,7 +121,27 @@ export class ModelExecutionService implements IModelExecutionService {
   async isEngineAvailable(engineType: string): Promise<boolean> {
     switch (engineType) {
       case EngineType.FireSTARR: {
-        // Check if Docker is available
+        // Check execution mode - native binary or Docker
+        const executionMode = process.env.FIRESTARR_EXECUTION_MODE?.toLowerCase();
+
+        if (executionMode === 'binary') {
+          // Native binary mode - check if binary exists and is executable
+          const binaryPath = process.env.FIRESTARR_BINARY_PATH;
+          if (!binaryPath) {
+            console.warn('[ExecutionService] FIRESTARR_BINARY_PATH not configured for binary mode');
+            return false;
+          }
+          try {
+            const fs = await import('fs/promises');
+            await fs.access(binaryPath, (await import('fs')).constants.X_OK);
+            return true;
+          } catch {
+            console.warn(`[ExecutionService] FireSTARR binary not executable: ${binaryPath}`);
+            return false;
+          }
+        }
+
+        // Docker mode (default)
         const dockerExecutor = getDockerExecutor();
         const dockerAvailable = await dockerExecutor.isAvailable();
         if (!dockerAvailable) {
