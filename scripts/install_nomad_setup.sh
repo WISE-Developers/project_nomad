@@ -1880,7 +1880,8 @@ generate_env_file() {
     fi
 
     # Set API base URL for Docker deployments (frontend needs to know where backend is)
-    if [ -n "$NOMAD_SERVER_HOSTNAME" ] && [ -n "$NOMAD_BACKEND_HOST_PORT" ]; then
+    # Only apply in Docker mode - metal mode already set these correctly above
+    if [ "$NOMAD_INFRA" = "docker" ] && [ -n "$NOMAD_SERVER_HOSTNAME" ] && [ -n "$NOMAD_BACKEND_HOST_PORT" ]; then
         update_env_value "VITE_API_BASE_URL" "http://${NOMAD_SERVER_HOSTNAME}:${NOMAD_BACKEND_HOST_PORT}"
         update_env_value "VITE_API_PORT" "$NOMAD_BACKEND_HOST_PORT"
     fi
