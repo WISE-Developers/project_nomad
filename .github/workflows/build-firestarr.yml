@@ -121,10 +121,13 @@ jobs:
           platforms: arm64
 
       - name: Build in ARM64 container
+        env:
+          FIRESTARR_REF: ${{ github.event.inputs.firestarr_ref || 'unstable' }}
         run: |
           docker run --rm --platform linux/arm64 \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
+            -e FIRESTARR_REF="$FIRESTARR_REF" \
             ubuntu:24.04 bash -c '
               set -e
               apt-get update
@@ -132,7 +135,7 @@ jobs:
 
               git clone https://github.com/CWFMF/firestarr-cpp.git firestarr
               cd firestarr
-              git checkout ${{ github.event.inputs.firestarr_ref || '\''unstable'\'' }}
+              git checkout "$FIRESTARR_REF"
               COMMIT=$(git rev-parse --short HEAD)
               echo "VERSION=dev-$COMMIT" > ../.env
 
