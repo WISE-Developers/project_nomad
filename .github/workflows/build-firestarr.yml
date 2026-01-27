@@ -7,12 +7,42 @@ on:
         description: 'FireSTARR branch/tag to build'
         default: 'unstable'
         type: string
+      linux_x64:
+        description: 'Build Linux x64 (Ubuntu 22.04 + 24.04)'
+        type: boolean
+        default: false
+      linux_arm64:
+        description: 'Build Linux ARM64'
+        type: boolean
+        default: false
+      macos:
+        description: 'Build macOS ARM64'
+        type: boolean
+        default: false
+      windows:
+        description: 'Build Windows x64'
+        type: boolean
+        default: false
+      docker:
+        description: 'Build Docker images (requires linux builds)'
+        type: boolean
+        default: false
+      publish:
+        description: 'Publish release (requires all builds)'
+        type: boolean
+        default: false
+      all:
+        description: 'Build everything'
+        type: boolean
+        default: false
   release:
     types: [published]
 
 jobs:
   build-linux:
+    if: ${{ github.event_name == 'release' || inputs.all || inputs.linux_x64 }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-22.04, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
@@ -25,11 +55,11 @@ jobs:
         run: |
           git clone https://github.com/CWFMF/firestarr-cpp.git firestarr
           cd firestarr
-          git checkout ${{ github.event.inputs.firestarr_ref || 'unstable' }}
+          git checkout ${{ inputs.firestarr_ref || 'unstable' }}
           COMMIT=$(git rev-parse --short HEAD)
           echo "Building FireSTARR at $COMMIT"
-          # CMakeLists.txt expects ../.env with VERSION
           echo "VERSION=dev-$COMMIT" > ../.env
+
           # Remove post-build copy that fails in CI
           sed -i '128,130d' CMakeLists.txt
           echo "Verifying removal:"
@@ -62,7 +92,6 @@ jobs:
       - name: Locate binary
         id: locate
         run: |
-          # Find the built executable
           BINARY=$(find build -type f -name "firestarr" -executable | head -1)
           if [ -z "$BINARY" ]; then
             echo "ERROR: Could not find firestarr binary"
@@ -85,20 +114,16 @@ jobs:
           mkdir -p dist
           cp ${{ steps.locate.outputs.binary }} dist/firestarr
 
-          # Bundle data files if they exist
           [ -f firestarr/fuel.lut ] && cp firestarr/fuel.lut dist/
           [ -f firestarr/settings.ini ] && cp firestarr/settings.ini dist/
           [ -f firestarr/data/fuel.lut ] && cp firestarr/data/fuel.lut dist/
           [ -f firestarr/data/settings.ini ] && cp firestarr/data/settings.ini dist/
 
-          # Create version info
           cd firestarr && git rev-parse HEAD > ../dist/VERSION && cd ..
 
-          # List contents
           echo "=== Package contents ==="
           ls -la dist/
 
-          # Create tarball
           tar -czvf firestarr-linux-${{ matrix.os }}.tar.gz -C dist .
 
       - name: Upload artifact
@@ -109,6 +134,7 @@ jobs:
           retention-days: 30
 
   build-linux-arm64:
+    if: ${{ github.event_name == 'release' || inputs.all || inputs.linux_arm64 }}
     runs-on: ubuntu-24.04
 
     steps:
@@ -122,7 +148,7 @@ jobs:
 
       - name: Build in ARM64 container
         env:
-          FIRESTARR_REF: ${{ github.event.inputs.firestarr_ref || 'unstable' }}
+          FIRESTARR_REF: ${{ inputs.firestarr_ref || 'unstable' }}
         run: |
           docker run --rm --platform linux/arm64 \
             -v ${{ github.workspace }}:/workspace \
@@ -139,7 +165,6 @@ jobs:
               COMMIT=$(git rev-parse --short HEAD)
               echo "VERSION=dev-$COMMIT" > ../.env
 
-              # Remove post-build copy that fails
               sed -i "128,130d" CMakeLists.txt
 
               cd ..
@@ -169,6 +194,7 @@ jobs:
           retention-days: 30
 
   build-macos:
+    if: ${{ github.event_name == 'release' || inputs.all || inputs.macos }}
     runs-on: macos-14
 
     steps:
@@ -179,11 +205,11 @@ jobs:
         run: |
           git clone https://github.com/CWFMF/firestarr-cpp.git firestarr
           cd firestarr
-          git checkout ${{ github.event.inputs.firestarr_ref || 'unstable' }}
+          git checkout ${{ inputs.firestarr_ref || 'unstable' }}
           COMMIT=$(git rev-parse --short HEAD)
           echo "Building FireSTARR at $COMMIT"
-          # CMakeLists.txt expects ../.env with VERSION
           echo "VERSION=dev-$COMMIT" > ../.env
+
           # Remove post-build copy that fails in CI (BSD sed syntax)
           sed -i '' '128,130d' CMakeLists.txt
           echo "Verifying removal:"
@@ -194,8 +220,6 @@ jobs:
           echo "=== Removed AVX512 flag for ARM64 ==="
 
           # GCC on macOS requires TBB for std::execution parallel algorithms
-          # Use find_library instead of find_package for better homebrew compatibility
-          # Note: Use printf to avoid escaping issues with shell variables vs CMake variables
           printf '\n# TBB required for std::execution with GCC (patched by CI)\n' >> CMakeLists.txt
           printf 'if(APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")\n' >> CMakeLists.txt
           printf '  find_library(TBB_LIB tbb REQUIRED)\n' >> CMakeLists.txt
@@ -203,11 +227,9 @@ jobs:
           printf '  message(STATUS "Linked TBB: ${TBB_LIB}")\n' >> CMakeLists.txt
           printf 'endif()\n' >> CMakeLists.txt
           echo "=== TBB patch applied ==="
-          echo "--- Tail of CMakeLists.txt ---"
-          tail -10 CMakeLists.txt
 
           # Fix missing unistd.h for unlink() - GCC on macOS doesn't auto-include it
-          sed -i '' '1s/^/#include <unistd.h>  \/\/ CI patch for unlink()\n/' src/cpp/ProbabilityMap.cpp
+          sed -i '' '1s/^/#include <unistd.h>  \/\/ CI patch for unlink()\n/' src/cpp/fs/ProbabilityMap.cpp
           echo "=== Added unistd.h to ProbabilityMap.cpp ==="
 
       - name: Install dependencies
@@ -216,13 +238,11 @@ jobs:
 
       - name: Configure CMake
         run: |
-          # Use GCC instead of Apple Clang (Clang lacks std::execution support)
           GCC_VERSION=$(brew list --versions gcc | grep -oE '[0-9]+' | head -1)
           export CC=$(brew --prefix)/bin/gcc-${GCC_VERSION}
           export CXX=$(brew --prefix)/bin/g++-${GCC_VERSION}
           echo "Using GCC: $CXX"
 
-          # Set up Homebrew paths for libraries
           BREW_PREFIX=$(brew --prefix)
           TBB_ROOT=$(brew --prefix tbb)
           echo "Homebrew prefix: $BREW_PREFIX"
@@ -243,7 +263,6 @@ jobs:
       - name: Locate binary
         id: locate
         run: |
-          # Find the built executable
           BINARY=$(find build -type f -name "firestarr" -perm +111 | head -1)
           if [ -z "$BINARY" ]; then
             echo "ERROR: Could not find firestarr binary"
@@ -266,20 +285,16 @@ jobs:
           mkdir -p dist
           cp ${{ steps.locate.outputs.binary }} dist/firestarr
 
-          # Bundle data files if they exist
           [ -f firestarr/fuel.lut ] && cp firestarr/fuel.lut dist/
           [ -f firestarr/settings.ini ] && cp firestarr/settings.ini dist/
           [ -f firestarr/data/fuel.lut ] && cp firestarr/data/fuel.lut dist/
           [ -f firestarr/data/settings.ini ] && cp firestarr/data/settings.ini dist/
 
-          # Create version info
           cd firestarr && git rev-parse HEAD > ../dist/VERSION && cd ..
 
-          # List contents
           echo "=== Package contents ==="
           ls -la dist/
 
-          # Create tarball
           tar -czvf firestarr-macos-arm64.tar.gz -C dist .
 
       - name: Upload artifact
@@ -290,6 +305,7 @@ jobs:
           retention-days: 30
 
   build-windows:
+    if: ${{ github.event_name == 'release' || inputs.all || inputs.windows }}
     runs-on: windows-latest
 
     steps:
@@ -300,11 +316,11 @@ jobs:
         run: |
           git clone https://github.com/CWFMF/firestarr-cpp.git firestarr
           cd firestarr
-          git checkout ${{ github.event.inputs.firestarr_ref || 'unstable' }}
+          git checkout ${{ inputs.firestarr_ref || 'unstable' }}
           $COMMIT = git rev-parse --short HEAD
           echo "Building FireSTARR at $COMMIT"
-          # CMakeLists.txt expects ../.env with VERSION
           "VERSION=dev-$COMMIT" | Out-File -FilePath ..\.env -Encoding utf8
+
           # Remove post-build copy that fails in CI (lines 128-130, 1-based = indexes 127-129)
           $lines = Get-Content CMakeLists.txt
           $filtered = for ($i = 0; $i -lt $lines.Count; $i++) { if ($i -lt 127 -or $i -gt 129) { $lines[$i] } }
@@ -313,8 +329,7 @@ jobs:
           Select-String -Path CMakeLists.txt -Pattern "POST_BUILD" || echo "POST_BUILD removed successfully"
 
           # Fix constexpr abs() issue for MSVC - replace abs(nd_) with inline ternary
-          # MSVC doesn't consider std::abs() constexpr in all contexts
-          $fireSpreadPath = "src/cpp/FireSpread.h"
+          $fireSpreadPath = "src/cpp/fs/FireSpread.h"
           $content = Get-Content $fireSpreadPath -Raw
           $content = $content -replace 'const auto nd = abs\(nd_\);', 'const auto nd = (nd_ < 0) ? (-nd_) : nd_;'
           $content | Set-Content $fireSpreadPath -NoNewline
@@ -374,28 +389,23 @@ jobs:
 
           Copy-Item "${{ steps.locate.outputs.binary }}" dist\firestarr.exe
 
-          # Copy required DLLs from vcpkg
           $vcpkgBin = "C:\vcpkg\installed\x64-windows\bin"
           if (Test-Path $vcpkgBin) {
             Get-ChildItem "$vcpkgBin\*.dll" | Copy-Item -Destination dist\
           }
 
-          # Bundle data files if they exist
           if (Test-Path firestarr\fuel.lut) { Copy-Item firestarr\fuel.lut dist\ }
           if (Test-Path firestarr\settings.ini) { Copy-Item firestarr\settings.ini dist\ }
           if (Test-Path firestarr\data\fuel.lut) { Copy-Item firestarr\data\fuel.lut dist\ }
           if (Test-Path firestarr\data\settings.ini) { Copy-Item firestarr\data\settings.ini dist\ }
 
-          # Create version info
           cd firestarr
           git rev-parse HEAD | Out-File -FilePath ..\dist\VERSION -Encoding utf8
           cd ..
 
-          # List contents
           echo "=== Package contents ==="
           Get-ChildItem dist
 
-          # Create zip
           Compress-Archive -Path dist\* -DestinationPath firestarr-windows-x64.zip
         shell: pwsh
 
@@ -407,6 +417,7 @@ jobs:
           retention-days: 30
 
   build-docker-amd64:
+    if: ${{ github.event_name == 'release' || inputs.all || inputs.docker }}
     needs: [build-linux]
     runs-on: ubuntu-latest
     permissions:
@@ -452,6 +463,7 @@ jobs:
             ghcr.io/wise-developers/firestarr:unstable
 
   build-docker-arm64:
+    if: ${{ github.event_name == 'release' || inputs.all || inputs.docker }}
     needs: [build-linux-arm64]
     runs-on: ubuntu-latest
     permissions:
@@ -498,6 +510,7 @@ jobs:
           tags: ghcr.io/wise-developers/firestarr:unstable-arm64
 
   publish:
+    if: ${{ github.event_name == 'release' || inputs.all || inputs.publish }}
     needs: [build-linux, build-linux-arm64, build-macos, build-windows, build-docker-amd64, build-docker-arm64]
     runs-on: ubuntu-latest
     permissions:
@@ -506,11 +519,12 @@ jobs:
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
+        continue-on-error: true
 
       - name: List artifacts
         run: |
           echo "=== All artifacts ==="
-          find . -type f \( -name "*.tar.gz" -o -name "*.zip" \)
+          find . -type f \( -name "*.tar.gz" -o -name "*.zip" \) || echo "No artifacts found"
 
       - name: Update firestarr-latest release (manual runs)
         if: github.event_name == 'workflow_dispatch'
@@ -521,7 +535,7 @@ jobs:
           body: |
             Latest FireSTARR binaries built from upstream.
 
-            **FireSTARR ref:** ${{ github.event.inputs.firestarr_ref || 'unstable' }}
+            **FireSTARR ref:** ${{ inputs.firestarr_ref || 'unstable' }}
             **Built:** ${{ github.run_id }}
 
             ## Docker Images
