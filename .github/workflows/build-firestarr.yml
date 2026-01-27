@@ -60,11 +60,10 @@ jobs:
           echo "Building FireSTARR at $COMMIT"
           echo "VERSION=dev-$COMMIT" > ../.env
 
-          # Remove post-build copy that fails in CI
-          # The add_custom_command block spans multiple lines, so delete each relevant line
-          sed -i '/POST_BUILD/d; /COMMAND.*copy.*TARGET_FILE/d; /add_custom_command(TARGET.*firestarr/d' CMakeLists.txt
+          # Remove post-build copy that fails in CI (entire multi-line block)
+          sed -i '/add_custom_command(/,/\.\.\/)$/d' CMakeLists.txt
           echo "Verifying removal:"
-          grep -n "POST_BUILD" CMakeLists.txt || echo "POST_BUILD removed successfully"
+          grep -n "add_custom_command" CMakeLists.txt || echo "POST_BUILD block removed successfully"
 
       - name: Install dependencies
         run: |
@@ -151,11 +150,10 @@ jobs:
           echo "Building FireSTARR at $COMMIT"
           echo "VERSION=dev-$COMMIT" > ../.env
 
-          # Remove post-build copy that fails in CI
-          # The add_custom_command block spans multiple lines, so delete each relevant line
-          sed -i '/POST_BUILD/d; /COMMAND.*copy.*TARGET_FILE/d; /add_custom_command(TARGET.*firestarr/d' CMakeLists.txt
+          # Remove post-build copy that fails in CI (entire multi-line block)
+          sed -i '/add_custom_command(/,/\.\.\/)$/d' CMakeLists.txt
           echo "Verifying removal:"
-          grep -n "POST_BUILD" CMakeLists.txt || echo "POST_BUILD removed successfully"
+          grep -n "add_custom_command" CMakeLists.txt || echo "POST_BUILD block removed successfully"
 
       - name: Install dependencies
         run: |
@@ -257,7 +255,7 @@ jobs:
               COMMIT=$(git rev-parse --short HEAD)
               echo "VERSION=dev-$COMMIT" > ../.env
 
-              sed -i '/POST_BUILD/d; /COMMAND.*copy.*TARGET_FILE/d; /add_custom_command(TARGET.*firestarr/d' CMakeLists.txt
+              sed -i '/add_custom_command(/,/\.\.\/)$/d' CMakeLists.txt
 
               cd ..
               cmake -S firestarr -B build \
@@ -302,10 +300,10 @@ jobs:
           echo "Building FireSTARR at $COMMIT"
           echo "VERSION=dev-$COMMIT" > ../.env
 
-          # Remove post-build copy that fails in CI (BSD sed syntax)
-          sed -i '' '/POST_BUILD/d; /COMMAND.*copy.*TARGET_FILE/d; /add_custom_command(TARGET.*firestarr/d' CMakeLists.txt
+          # Remove post-build copy that fails in CI (BSD sed syntax, entire multi-line block)
+          sed -i '' '/add_custom_command(/,/\.\.\/)$/d' CMakeLists.txt
           echo "Verifying removal:"
-          grep -n "add_custom_command" CMakeLists.txt || echo "POST_BUILD removed successfully"
+          grep -n "add_custom_command" CMakeLists.txt || echo "POST_BUILD block removed successfully"
 
           # Remove -mno-avx512f flag - ARM64 macOS doesn't have this x86_64-only option
           sed -i '' 's/-mno-avx512f//g' CMakeLists.txt
@@ -413,11 +411,12 @@ jobs:
           echo "Building FireSTARR at $COMMIT"
           "VERSION=dev-$COMMIT" | Out-File -FilePath ..\.env -Encoding utf8
 
-          # Remove post-build copy that fails in CI
-          $lines = Get-Content CMakeLists.txt | Where-Object { $_ -notmatch 'POST_BUILD|COMMAND.*copy.*TARGET_FILE|add_custom_command\(TARGET.*firestarr' }
-          $lines | Set-Content CMakeLists.txt
-          echo "Verifying removal (should show no POST_BUILD):"
-          Select-String -Path CMakeLists.txt -Pattern "POST_BUILD" || echo "POST_BUILD removed successfully"
+          # Remove post-build copy that fails in CI (entire multi-line block)
+          $content = Get-Content CMakeLists.txt -Raw
+          $content = $content -replace '(?ms)add_custom_command\(\s*TARGET \$\{bin\}\s*POST_BUILD\s*COMMAND[^\)]+\.\./\)\s*', ''
+          $content | Set-Content CMakeLists.txt -NoNewline
+          echo "Verifying removal:"
+          Select-String -Path CMakeLists.txt -Pattern "add_custom_command" || echo "POST_BUILD block removed successfully"
 
           # Fix constexpr abs() issue for MSVC - replace abs(nd_) with inline ternary
           $fireSpreadPath = "src/cpp/fs/FireSpread.h"
