@@ -61,9 +61,9 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ghcr.io/wise-developers/firestarr:${{ inputs.firestarr_version }}-amd64
-            ghcr.io/wise-developers/firestarr:${{ inputs.firestarr_version }}
-            ghcr.io/wise-developers/firestarr:latest
+            ghcr.io/wise-developers/project_nomad/firestarr:${{ inputs.firestarr_version }}-amd64
+            ghcr.io/wise-developers/project_nomad/firestarr:${{ inputs.firestarr_version }}
+            ghcr.io/wise-developers/project_nomad/firestarr:latest
 
   build-docker-arm64:
     if: ${{ inputs.docker }}
@@ -130,4 +130,4 @@ jobs:
           push: true
           platforms: linux/arm64
           tags: |
-            ghcr.io/wise-developers/firestarr:${{ inputs.firestarr_version }}-arm64
+            ghcr.io/wise-developers/project_nomad/firestarr:${{ inputs.firestarr_version }}-arm64
