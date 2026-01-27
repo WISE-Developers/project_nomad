@@ -7,8 +7,12 @@ on:
         description: 'FireSTARR branch/tag to build'
         default: 'unstable'
         type: string
-      linux_x64:
-        description: 'Build Linux x64 (Ubuntu 22.04 + 24.04)'
+      linux_2204:
+        description: 'Build Linux x64 (Ubuntu 22.04)'
+        type: boolean
+        default: false
+      linux_2404:
+        description: 'Build Linux x64 (Ubuntu 24.04) - needed for Docker'
         type: boolean
         default: false
       linux_arm64:
@@ -39,13 +43,9 @@ on:
     types: [published]
 
 jobs:
-  build-linux:
-    if: ${{ github.event_name == 'release' || inputs.all || inputs.linux_x64 }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, ubuntu-24.04]
-    runs-on: ${{ matrix.os }}
+  build-linux-2204:
+    if: ${{ github.event_name == 'release' || inputs.all || inputs.linux_2204 }}
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout Nomad (for workflow context)
@@ -124,13 +124,103 @@ jobs:
           echo "=== Package contents ==="
           ls -la dist/
 
-          tar -czvf firestarr-linux-${{ matrix.os }}.tar.gz -C dist .
+          tar -czvf firestarr-linux-ubuntu-22.04.tar.gz -C dist .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: firestarr-linux-${{ matrix.os }}
-          path: firestarr-linux-${{ matrix.os }}.tar.gz
+          name: firestarr-linux-ubuntu-22.04
+          path: firestarr-linux-ubuntu-22.04.tar.gz
+          retention-days: 30
+
+  build-linux-2404:
+    if: ${{ github.event_name == 'release' || inputs.all || inputs.linux_2404 }}
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout Nomad (for workflow context)
+        uses: actions/checkout@v4
+
+      - name: Clone firestarr-cpp
+        run: |
+          git clone https://github.com/CWFMF/firestarr-cpp.git firestarr
+          cd firestarr
+          git checkout ${{ inputs.firestarr_ref || 'unstable' }}
+          COMMIT=$(git rev-parse --short HEAD)
+          echo "Building FireSTARR at $COMMIT"
+          echo "VERSION=dev-$COMMIT" > ../.env
+
+          # Remove post-build copy that fails in CI
+          sed -i '128,130d' CMakeLists.txt
+          echo "Verifying removal:"
+          grep -n "add_custom_command" CMakeLists.txt || echo "POST_BUILD removed successfully"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgeotiff-dev \
+            libtiff-dev \
+            libcurl4-openssl-dev
+
+          # Use vcpkg for PROJ (Ubuntu's package lacks cmake config)
+          export VCPKG_ROOT=/usr/local/share/vcpkg
+          $VCPKG_ROOT/vcpkg install proj --triplet x64-linux
+
+      - name: Configure CMake
+        run: |
+          export VCPKG_ROOT=/usr/local/share/vcpkg
+          cmake -S firestarr -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS="-march=x86-64-v3" \
+            -DCMAKE_PREFIX_PATH="$VCPKG_ROOT/installed/x64-linux" \
+            -DCMAKE_RUNTIME_OUTPUT_DIRECTORY="$(pwd)/build/bin"
+
+      - name: Build
+        run: cmake --build build --config Release -j$(nproc)
+
+      - name: Locate binary
+        id: locate
+        run: |
+          BINARY=$(find build -type f -name "firestarr" -executable | head -1)
+          if [ -z "$BINARY" ]; then
+            echo "ERROR: Could not find firestarr binary"
+            find build -type f -executable
+            exit 1
+          fi
+          echo "binary=$BINARY" >> $GITHUB_OUTPUT
+          echo "Found binary at: $BINARY"
+
+      - name: Check binary dependencies
+        run: |
+          echo "=== Binary info ==="
+          file ${{ steps.locate.outputs.binary }}
+          echo ""
+          echo "=== Dynamic dependencies ==="
+          ldd ${{ steps.locate.outputs.binary }} || true
+
+      - name: Package artifact
+        run: |
+          mkdir -p dist
+          cp ${{ steps.locate.outputs.binary }} dist/firestarr
+
+          [ -f firestarr/fuel.lut ] && cp firestarr/fuel.lut dist/
+          [ -f firestarr/settings.ini ] && cp firestarr/settings.ini dist/
+          [ -f firestarr/data/fuel.lut ] && cp firestarr/data/fuel.lut dist/
+          [ -f firestarr/data/settings.ini ] && cp firestarr/data/settings.ini dist/
+
+          cd firestarr && git rev-parse HEAD > ../dist/VERSION && cd ..
+
+          echo "=== Package contents ==="
+          ls -la dist/
+
+          tar -czvf firestarr-linux-ubuntu-24.04.tar.gz -C dist .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firestarr-linux-ubuntu-24.04
+          path: firestarr-linux-ubuntu-24.04.tar.gz
           retention-days: 30
 
   build-linux-arm64:
@@ -418,7 +508,7 @@ jobs:
 
   build-docker-amd64:
     if: ${{ github.event_name == 'release' || inputs.all || inputs.docker }}
-    needs: [build-linux]
+    needs: [build-linux-2404]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -511,7 +601,7 @@ jobs:
 
   publish:
     if: ${{ github.event_name == 'release' || inputs.all || inputs.publish }}
-    needs: [build-linux, build-linux-arm64, build-macos, build-windows, build-docker-amd64, build-docker-arm64]
+    needs: [build-linux-2204, build-linux-2404, build-linux-arm64, build-macos, build-windows, build-docker-amd64, build-docker-arm64]
     runs-on: ubuntu-latest
     permissions:
       contents: write
