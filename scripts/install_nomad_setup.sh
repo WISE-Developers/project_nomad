@@ -661,8 +661,8 @@ step3_paths() {
         echo -e "${CYAN}Server Port Configuration${NC}"
         echo "    Port for the Nomad server (serves both API and UI in production)."
         echo ""
-        read -p "Server port [3001]: " input_port
-        NOMAD_PORT="${input_port:-3001}"
+        read -p "Server port [4901]: " input_port
+        NOMAD_PORT="${input_port:-4901}"
         print_success "Server port: $NOMAD_PORT"
         echo ""
 
@@ -682,12 +682,12 @@ step3_paths() {
         echo -e "${CYAN}Docker Port Configuration${NC}"
         echo "    Host ports for accessing Nomad containers."
         echo ""
-        read -p "Frontend port (web UI) [3000]: " input_frontend_port
-        NOMAD_FRONTEND_HOST_PORT="${input_frontend_port:-3000}"
+        read -p "Frontend port (web UI) [3901]: " input_frontend_port
+        NOMAD_FRONTEND_HOST_PORT="${input_frontend_port:-3901}"
         print_success "Frontend port: $NOMAD_FRONTEND_HOST_PORT"
         echo ""
-        read -p "Backend port (API) [3001]: " input_backend_port
-        NOMAD_BACKEND_HOST_PORT="${input_backend_port:-3001}"
+        read -p "Backend port (API) [4901]: " input_backend_port
+        NOMAD_BACKEND_HOST_PORT="${input_backend_port:-4901}"
         print_success "Backend port: $NOMAD_BACKEND_HOST_PORT"
         echo ""
 
@@ -2201,7 +2201,7 @@ install_all_metal() {
     echo "    cd $PROJECT_DIR"
     echo "    npm run start"
     echo ""
-    echo "Access at: http://${NOMAD_SERVER_HOSTNAME:-localhost}:${NOMAD_PORT:-3001}"
+    echo "Access at: http://${NOMAD_SERVER_HOSTNAME:-localhost}:${NOMAD_PORT:-4901}"
 }
 
 # ============================================
