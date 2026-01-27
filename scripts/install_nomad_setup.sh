@@ -1129,23 +1129,21 @@ detect_architecture() {
     fi
 
     # Determine recommended image based on detection
-    # Priority: AVX2 (fastest) > AVX/sandybridge
+    # All images now from wise-developers/firestarr with unstable tag
     case "$arch" in
         arm64|aarch64)
-            RECOMMENDED_IMAGE="ghcr.io/wise-developers/firestarr:\${VERSION}-arm64"
+            RECOMMENDED_IMAGE="ghcr.io/wise-developers/firestarr:unstable-arm64"
             ;;
         x86_64)
-            if [ "$DETECTED_AVX2" = true ]; then
-                RECOMMENDED_IMAGE="ghcr.io/cwfmf/firestarr:dev-\${VERSION}"
-            elif [ "$DETECTED_AVX" = true ]; then
-                RECOMMENDED_IMAGE="ghcr.io/wise-developers/firestarr:\${VERSION}-sandybridge"
+            if [ "$DETECTED_AVX2" = true ] || [ "$DETECTED_AVX" = true ]; then
+                RECOMMENDED_IMAGE="ghcr.io/wise-developers/firestarr:unstable"
             else
                 # No AVX - cannot run FireSTARR
                 RECOMMENDED_IMAGE=""
             fi
             ;;
         *)
-            RECOMMENDED_IMAGE="ghcr.io/cwfmf/firestarr:dev-\${VERSION}"
+            RECOMMENDED_IMAGE="ghcr.io/wise-developers/firestarr:unstable"
             ;;
     esac
 }
@@ -1379,27 +1377,23 @@ configure_firestarr_image() {
     echo "Available FireSTARR images:"
     echo ""
     echo "    1) Recommended: $expanded_image"
-    echo "    2) Modern x86_64 (AVX2):     ghcr.io/cwfmf/firestarr:dev-${VERSION}"
-    echo "    3) Older x86_64 (AVX only):  ghcr.io/wise-developers/firestarr:${VERSION}-sandybridge"
-    echo "    4) ARM64 (Apple Silicon):    ghcr.io/wise-developers/firestarr:${VERSION}-arm64"
-    echo "    5) Enter custom image"
+    echo "    2) x86_64 (Linux/Windows):   ghcr.io/wise-developers/firestarr:unstable"
+    echo "    3) ARM64 (Apple Silicon):    ghcr.io/wise-developers/firestarr:unstable-arm64"
+    echo "    4) Enter custom image"
     echo ""
-    read -p "Select an option [1-5] (default: 1): " choice
+    read -p "Select an option [1-4] (default: 1): " choice
 
     case "${choice:-1}" in
         1)
             FIRESTARR_IMAGE="$expanded_image"
             ;;
         2)
-            FIRESTARR_IMAGE="ghcr.io/cwfmf/firestarr:dev-${VERSION}"
+            FIRESTARR_IMAGE="ghcr.io/wise-developers/firestarr:unstable"
             ;;
         3)
-            FIRESTARR_IMAGE="ghcr.io/wise-developers/firestarr:${VERSION}-sandybridge"
+            FIRESTARR_IMAGE="ghcr.io/wise-developers/firestarr:unstable-arm64"
             ;;
         4)
-            FIRESTARR_IMAGE="ghcr.io/wise-developers/firestarr:${VERSION}-arm64"
-            ;;
-        5)
             read -p "Enter custom image: " custom_image
             FIRESTARR_IMAGE="${custom_image:-$expanded_image}"
             ;;
@@ -1442,21 +1436,28 @@ get_default_firestarr_url() {
     arch=$(uname -m)
     os_name=$(uname -s | tr '[:upper:]' '[:lower:]')
 
-    local base_url="https://github.com/WISE-Developers/project_nomad/releases/download/firestarr-latest"
+    # local base_url="https://github.com/WISE-Developers/project_nomad/releases/download/firestarr-latest"
+    local base_url="https://github.com/CWFMF/firestarr-cpp/releases/download/firestarr-latest"
+    
     local asset_name=""
 
     case "$os_name" in
         darwin)
             # macOS - only ARM64 builds available
-            asset_name="firestarr-macos-arm64.tar.gz"
+            # asset_name="firestarr-macos-arm64.tar.gz"
+            asset_name="firestarr-macos-arm64-clang-Release.tar.gz"
             ;;
         linux)
             # Linux - use Ubuntu 22.04 build (broader glibc compatibility)
-            asset_name="firestarr-linux-ubuntu-22.04.tar.gz"
+            # asset_name="firestarr-linux-ubuntu-22.04.tar.gz"
+            asset_name="firestarr-ubuntu-x64-gcc-Release.tar.gz"
+
             ;;
         msys*|mingw*|cygwin*|windows*)
             # Windows
-            asset_name="firestarr-windows-x64.zip"
+            # asset_name="firestarr-windows-x64.zip"
+            asset_name="firestarr-windows-x64-cl-Release.zip"
+
             ;;
         *)
             # Unknown OS - return empty

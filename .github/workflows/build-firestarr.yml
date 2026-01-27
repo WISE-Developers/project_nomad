@@ -5,7 +5,7 @@ on:
     inputs:
       firestarr_ref:
         description: 'FireSTARR branch/tag to build'
-        default: 'main'
+        default: 'unstable'
         type: string
   release:
     types: [published]
@@ -25,7 +25,7 @@ jobs:
         run: |
           git clone https://github.com/CWFMF/firestarr-cpp.git firestarr
           cd firestarr
-          git checkout ${{ github.event.inputs.firestarr_ref || 'main' }}
+          git checkout ${{ github.event.inputs.firestarr_ref || 'unstable' }}
           COMMIT=$(git rev-parse --short HEAD)
           echo "Building FireSTARR at $COMMIT"
           # CMakeLists.txt expects ../.env with VERSION
@@ -108,6 +108,63 @@ jobs:
           path: firestarr-linux-${{ matrix.os }}.tar.gz
           retention-days: 30
 
+  build-linux-arm64:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout Nomad (for workflow context)
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Build in ARM64 container
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            ubuntu:24.04 bash -c '
+              set -e
+              apt-get update
+              apt-get install -y git cmake g++ libgeotiff-dev libtiff-dev libcurl4-openssl-dev libproj-dev
+
+              git clone https://github.com/CWFMF/firestarr-cpp.git firestarr
+              cd firestarr
+              git checkout ${{ github.event.inputs.firestarr_ref || '\''unstable'\'' }}
+              COMMIT=$(git rev-parse --short HEAD)
+              echo "VERSION=dev-$COMMIT" > ../.env
+
+              # Remove post-build copy that fails
+              sed -i "128,130d" CMakeLists.txt
+
+              cd ..
+              cmake -S firestarr -B build \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=/workspace/build/bin
+
+              cmake --build build --config Release -j$(nproc)
+            '
+
+      - name: Package artifact
+        run: |
+          mkdir -p dist
+          cp build/bin/firestarr dist/
+          [ -f firestarr/fuel.lut ] && cp firestarr/fuel.lut dist/
+          [ -f firestarr/settings.ini ] && cp firestarr/settings.ini dist/
+          [ -f firestarr/data/fuel.lut ] && cp firestarr/data/fuel.lut dist/
+          [ -f firestarr/data/settings.ini ] && cp firestarr/data/settings.ini dist/
+          cd firestarr && git rev-parse HEAD > ../dist/VERSION && cd ..
+          tar -czvf firestarr-linux-arm64.tar.gz -C dist .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firestarr-linux-arm64
+          path: firestarr-linux-arm64.tar.gz
+          retention-days: 30
+
   build-macos:
     runs-on: macos-14
 
@@ -119,7 +176,7 @@ jobs:
         run: |
           git clone https://github.com/CWFMF/firestarr-cpp.git firestarr
           cd firestarr
-          git checkout ${{ github.event.inputs.firestarr_ref || 'main' }}
+          git checkout ${{ github.event.inputs.firestarr_ref || 'unstable' }}
           COMMIT=$(git rev-parse --short HEAD)
           echo "Building FireSTARR at $COMMIT"
           # CMakeLists.txt expects ../.env with VERSION
@@ -240,7 +297,7 @@ jobs:
         run: |
           git clone https://github.com/CWFMF/firestarr-cpp.git firestarr
           cd firestarr
-          git checkout ${{ github.event.inputs.firestarr_ref || 'main' }}
+          git checkout ${{ github.event.inputs.firestarr_ref || 'unstable' }}
           $COMMIT = git rev-parse --short HEAD
           echo "Building FireSTARR at $COMMIT"
           # CMakeLists.txt expects ../.env with VERSION
@@ -346,8 +403,99 @@ jobs:
           path: firestarr-windows-x64.zip
           retention-days: 30
 
+  build-docker-amd64:
+    needs: [build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout Nomad (for Dockerfile)
+        uses: actions/checkout@v4
+
+      - name: Download Linux x64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: firestarr-linux-ubuntu-24.04
+          path: docker-context/
+
+      - name: Extract binary
+        run: |
+          cd docker-context
+          tar -xzf firestarr-linux-ubuntu-24.04.tar.gz
+          chmod +x firestarr
+          ls -la
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-context
+          file: docker/firestarr/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/wise-developers/firestarr:unstable-amd64
+            ghcr.io/wise-developers/firestarr:unstable
+
+  build-docker-arm64:
+    needs: [build-linux-arm64]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout Nomad (for Dockerfile)
+        uses: actions/checkout@v4
+
+      - name: Download Linux ARM64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: firestarr-linux-arm64
+          path: docker-context/
+
+      - name: Extract binary
+        run: |
+          cd docker-context
+          tar -xzf firestarr-linux-arm64.tar.gz
+          chmod +x firestarr
+          ls -la
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-context
+          file: docker/firestarr/Dockerfile
+          push: true
+          platforms: linux/arm64
+          tags: ghcr.io/wise-developers/firestarr:unstable-arm64
+
   publish:
-    needs: [build-linux, build-macos, build-windows]
+    needs: [build-linux, build-linux-arm64, build-macos, build-windows, build-docker-amd64, build-docker-arm64]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -370,14 +518,25 @@ jobs:
           body: |
             Latest FireSTARR binaries built from upstream.
 
-            **FireSTARR ref:** ${{ github.event.inputs.firestarr_ref || 'main' }}
+            **FireSTARR ref:** ${{ github.event.inputs.firestarr_ref || 'unstable' }}
             **Built:** ${{ github.run_id }}
+
+            ## Docker Images
+            ```bash
+            # Linux/Windows (x64)
+            docker pull ghcr.io/wise-developers/firestarr:unstable
+
+            # Mac Silicon (ARM64 via Colima)
+            docker pull ghcr.io/wise-developers/firestarr:unstable-arm64
+            ```
+
             **Workflow run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           prerelease: true
           make_latest: false
           files: |
             firestarr-linux-ubuntu-22.04/firestarr-linux-ubuntu-22.04.tar.gz
             firestarr-linux-ubuntu-24.04/firestarr-linux-ubuntu-24.04.tar.gz
+            firestarr-linux-arm64/firestarr-linux-arm64.tar.gz
             firestarr-macos-arm64/firestarr-macos-arm64.tar.gz
             firestarr-windows-x64/firestarr-windows-x64.zip
 
@@ -388,5 +547,6 @@ jobs:
           files: |
             firestarr-linux-ubuntu-22.04/firestarr-linux-ubuntu-22.04.tar.gz
             firestarr-linux-ubuntu-24.04/firestarr-linux-ubuntu-24.04.tar.gz
+            firestarr-linux-arm64/firestarr-linux-arm64.tar.gz
             firestarr-macos-arm64/firestarr-macos-arm64.tar.gz
             firestarr-windows-x64/firestarr-windows-x64.zip
