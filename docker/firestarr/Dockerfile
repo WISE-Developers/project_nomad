@@ -8,17 +8,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libproj25 \
     && rm -rf /var/lib/apt/lists/*
 
-# Create app directory
-WORKDIR /app
+# Create app directory (match path expected by compose/backend)
+WORKDIR /appl/firestarr
 
 # Copy pre-built binary and data files
-COPY firestarr /app/
-COPY fuel.lut /app/
-COPY settings.ini /app/
-COPY VERSION /app/
+COPY firestarr /appl/firestarr/
+COPY fuel.lut /appl/firestarr/
+COPY settings.ini /appl/firestarr/
+COPY VERSION /appl/firestarr/
 
 # Make binary executable
-RUN chmod +x /app/firestarr
+RUN chmod +x /appl/firestarr/firestarr
 
 # Default entrypoint
-ENTRYPOINT ["/app/firestarr"]
+ENTRYPOINT ["/appl/firestarr/firestarr"]
