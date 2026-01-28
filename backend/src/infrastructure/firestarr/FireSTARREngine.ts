@@ -662,6 +662,10 @@ export class FireSTARREngine implements IFireModelingEngine {
       logger.debug(`Using corrected centroid: lat=${latitude.toFixed(6)}, lon=${longitude.toFixed(6)} (original: lat=${params.latitude.toFixed(6)}, lon=${params.longitude.toFixed(6)})`, 'FireSTARR');
     }
 
+    // Calculate UTC offset from longitude (natural solar timezone)
+    // Each 15° of longitude = 1 hour offset from UTC
+    const utcOffset = Math.round(longitude / 15);
+
     const args: string[] = [
       binaryPath,
       workingDir,
@@ -669,6 +673,7 @@ export class FireSTARREngine implements IFireModelingEngine {
       latitude.toString(),
       longitude.toString(),
       params.startTime,
+      '--tz', utcOffset.toString(),
       '--wx', weatherFile,
       '--ffmc', params.previousFFMC.toString(),
       '--dmc', params.previousDMC.toString(),
