@@ -1007,9 +1007,9 @@ validate_prerequisites() {
     echo ""
     print_step "Checking disk space..."
 
-    # Check dataset path (need ~50GB for dataset)
+    # Check dataset path (need ~45GB for dataset)
     if [ -n "$FIRESTARR_DATASET_PATH" ] && [ "$DATASET_INSTALL_MODE" = "download" ]; then
-        if ! check_disk_space "$FIRESTARR_DATASET_PATH" 50 "FireSTARR dataset"; then
+        if ! check_disk_space "$FIRESTARR_DATASET_PATH" 45 "FireSTARR dataset"; then
             ((errors++))
         fi
     elif [ -n "$FIRESTARR_DATASET_PATH" ]; then
@@ -1020,7 +1020,7 @@ validate_prerequisites() {
     fi
 
     # Check download directory if downloading to a DIFFERENT disk
-    # (if same disk, the 50GB check above already covers the temporary archive space)
+    # (if same disk, the 45GB check above already covers the temporary archive space)
     if [ -n "$FIRESTARR_DOWNLOAD_DIR" ] && [ "$DATASET_INSTALL_MODE" = "download" ]; then
         # Ensure directories exist for mount comparison
         mkdir -p "$FIRESTARR_DOWNLOAD_DIR" 2>/dev/null
@@ -1032,7 +1032,7 @@ validate_prerequisites() {
 
         # Only check download dir space if on different mount AND we got valid mount info
         if [ -n "$dataset_mount" ] && [ -n "$download_mount" ] && [ "$dataset_mount" != "$download_mount" ]; then
-            if ! check_disk_space "$FIRESTARR_DOWNLOAD_DIR" 50 "dataset download"; then
+            if ! check_disk_space "$FIRESTARR_DOWNLOAD_DIR" 45 "dataset download"; then
                 ((errors++))
             fi
         fi
