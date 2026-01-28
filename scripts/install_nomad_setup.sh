@@ -226,7 +226,7 @@ check_metal_deps_early() {
         fi
     fi
 
-    # sqlite3 (for PROJ validation)
+    # sqlite3 (for SAN mode database)
     if ! command -v sqlite3 &> /dev/null; then
         if [[ "$OSTYPE" == "linux"* ]]; then
             # Auto-install sqlite3 on Linux
@@ -249,24 +249,7 @@ check_metal_deps_early() {
             fi
         fi
 
-        # Check libproj.so.25
-        if ! ldconfig -p 2>/dev/null | grep -q "libproj.so.25"; then
-            missing+=("libproj25 (apt install libproj25)")
-        else
-            # Check PROJ version via proj.db
-            local proj_db="/usr/share/proj/proj.db"
-            if [ -f "$proj_db" ] && command -v sqlite3 &> /dev/null; then
-                local proj_version
-                proj_version=$(sqlite3 "$proj_db" "SELECT value FROM metadata WHERE key = 'PROJ.VERSION';" 2>/dev/null || echo "")
-                if [ -n "$proj_version" ]; then
-                    local proj_major
-                    proj_major=$(echo "$proj_version" | cut -d. -f1)
-                    if [ "$proj_major" -lt 9 ] 2>/dev/null; then
-                        missing+=("PROJ >= 9.0 (found: $proj_version)")
-                    fi
-                fi
-            fi
-        fi
+        # NOTE: FireSTARR is statically linked - no libproj/libtiff needed
     fi
 
     # Report all missing deps at once
@@ -281,7 +264,7 @@ check_metal_deps_early() {
 
         if [[ "$OSTYPE" == "linux"* ]]; then
             echo "    Install on Ubuntu/Debian:"
-            echo "        sudo apt install nodejs npm gdal-bin libgdal-dev libproj25 sqlite3"
+            echo "        sudo apt install nodejs npm gdal-bin python3-gdal sqlite3"
             echo ""
         elif [[ "$OSTYPE" == "darwin"* ]]; then
             echo "    Install on macOS:"
@@ -385,125 +368,8 @@ check_glibc_early() {
     fi
 }
 
-# Check required shared libraries for FireSTARR binary (Linux only)
-check_firestarr_libs_early() {
-    # Only check on Linux
-    [[ "$OSTYPE" != "linux"* ]] && return 0
-
-    local missing_libs=()
-
-    # Check for libtiff.so.6 (Ubuntu 22.04 ships libtiff.so.5)
-    if ! ldconfig -p 2>/dev/null | grep -q "libtiff.so.6"; then
-        missing_libs+=("libtiff.so.6")
-    fi
-
-    # Check for libproj.so.25 (Ubuntu 22.04 ships libproj.so.22)
-    if ! ldconfig -p 2>/dev/null | grep -q "libproj.so.25"; then
-        missing_libs+=("libproj.so.25")
-    fi
-
-    if [ ${#missing_libs[@]} -gt 0 ]; then
-        echo ""
-        print_error "Missing shared libraries required for FireSTARR"
-        echo ""
-        echo "    The FireSTARR binary requires the following libraries:"
-        for lib in "${missing_libs[@]}"; do
-            echo "      - $lib (not found)"
-        done
-        echo ""
-        echo "    Your system may have older versions of these libraries."
-        echo "    Ubuntu 22.04 ships with libtiff.so.5 and libproj.so.22,"
-        echo "    but FireSTARR requires libtiff.so.6 and libproj.so.25."
-        echo ""
-        echo "    Options:"
-        echo "      1. Use Docker mode instead (recommended)"
-        echo "      2. Install newer versions from source or third-party repos"
-        echo ""
-        exit 1
-    fi
-}
-
-# Check PROJ database schema version (Linux only)
-# FireSTARR requires proj.db schema version >= 6
-check_proj_schema_early() {
-    # Only check on Linux
-    [[ "$OSTYPE" != "linux"* ]] && return 0
-
-    # Find proj.db
-    local proj_db=""
-    local proj_paths=(
-        "/usr/share/proj/proj.db"
-        "/usr/local/share/proj/proj.db"
-    )
-
-    for path in "${proj_paths[@]}"; do
-        if [ -f "$path" ]; then
-            proj_db="$path"
-            break
-        fi
-    done
-
-    if [ -z "$proj_db" ]; then
-        # proj.db not found - will be caught by detect_proj_data later
-        return 0
-    fi
-
-    # Check if sqlite3 is available - install if needed
-    if ! command -v sqlite3 &> /dev/null; then
-        print_step "Installing sqlite3 for PROJ schema validation..."
-        if sudo apt install -y sqlite3 &> /dev/null; then
-            print_success "sqlite3 installed"
-        else
-            print_error "Failed to install sqlite3 - cannot verify PROJ schema"
-            echo "    Install manually: sudo apt install sqlite3"
-            exit 1
-        fi
-    fi
-
-    # Query PROJ version from proj.db (e.g., "9.4.1")
-    local proj_version
-    proj_version=$(sqlite3 "$proj_db" "SELECT value FROM metadata WHERE key = 'PROJ.VERSION';" 2>/dev/null || echo "")
-
-    if [ -z "$proj_version" ]; then
-        print_warning "Could not determine PROJ version from proj.db"
-        return 0
-    fi
-
-    # Extract major version (e.g., "9" from "9.4.1")
-    local proj_major
-    proj_major=$(echo "$proj_version" | cut -d. -f1)
-
-    # FireSTARR requires PROJ >= 9.0 (libproj.so.25)
-    if [ "$proj_major" -ge 9 ] 2>/dev/null; then
-        return 0
-    fi
-
-    # PROJ version too old
-    echo ""
-    print_error "PROJ version too old"
-    echo ""
-    echo "    Found: PROJ $proj_version"
-    echo "    Required: PROJ >= 9.0"
-    echo ""
-    echo "    FireSTARR requires PROJ 9.x or newer (libproj.so.25)."
-    echo ""
-
-    # Check if this is Ubuntu
-    if [ -f /etc/os-release ] && grep -q "Ubuntu" /etc/os-release; then
-        echo "    Options:"
-        echo "      1. Use Docker mode instead (recommended)"
-        echo "      2. Upgrade to Ubuntu 24.04 (ships with PROJ 9.x)"
-        echo "      3. Install PROJ 9.x from ubuntugis PPA"
-        echo ""
-    else
-        echo "    Options:"
-        echo "      1. Use Docker mode instead (recommended)"
-        echo "      2. Install PROJ 9.x from source or package manager"
-        echo ""
-    fi
-
-    exit 1
-}
+# NOTE: FireSTARR binary is fully self-contained (statically linked)
+# No external library dependencies beyond base system (libc, libstdc++, libgcc_s)
 
 # ============================================
 # Step 1: Deployment Mode
@@ -1287,189 +1153,6 @@ detect_architecture() {
             RECOMMENDED_IMAGE="ghcr.io/wise-developers/project_nomad/firestarr:latest"
             ;;
     esac
-}
-
-# Install macOS dependencies for FireSTARR binary (Homebrew)
-# The CI-built binary is dynamically linked against these libraries
-install_macos_firestarr_deps() {
-    # Only run on macOS
-    [[ "$OSTYPE" != "darwin"* ]] && return 0
-
-    print_step "Checking macOS dependencies for FireSTARR..."
-
-    # Required Homebrew packages for FireSTARR binary
-    local required_packages=("libgeotiff" "libtiff" "proj" "tbb" "gcc")
-    local missing_packages=()
-
-    # Check which packages are missing
-    for pkg in "${required_packages[@]}"; do
-        if ! brew list "$pkg" &> /dev/null; then
-            missing_packages+=("$pkg")
-        fi
-    done
-
-    if [ ${#missing_packages[@]} -eq 0 ]; then
-        print_success "All FireSTARR dependencies installed"
-        return 0
-    fi
-
-    print_warning "Missing dependencies: ${missing_packages[*]}"
-    echo ""
-    echo "    The FireSTARR binary requires the following Homebrew packages:"
-    for pkg in "${missing_packages[@]}"; do
-        echo "      - $pkg"
-    done
-    echo ""
-
-    if ! command -v brew &> /dev/null; then
-        print_error "Homebrew not found. Install from: https://brew.sh"
-        echo "    Then run: brew install ${missing_packages[*]}"
-        return 1
-    fi
-
-    read -p "    Install missing dependencies now? [Y/n]: " install_deps
-    if [[ "$install_deps" =~ ^[Nn] ]]; then
-        print_warning "Skipping dependency installation"
-        echo "    FireSTARR may not run without these libraries."
-        echo "    Install manually: brew install ${missing_packages[*]}"
-        return 1
-    fi
-
-    print_step "Installing dependencies via Homebrew..."
-    if [ "$DRY_RUN" = true ]; then
-        print_dry_run "Would run: brew install ${missing_packages[*]}"
-    else
-        if brew install "${missing_packages[@]}"; then
-            print_success "Dependencies installed successfully"
-        else
-            print_error "Failed to install some dependencies"
-            echo "    Try manually: brew install ${missing_packages[*]}"
-            return 1
-        fi
-    fi
-
-    return 0
-}
-
-# Detect PROJ data directory (required for coordinate transformations)
-# Sets PROJ_DATA_PATH if found
-detect_proj_data() {
-    print_step "Detecting PROJ installation..."
-
-    # Test if PROJ is installed and working
-    if echo "55.0 -116.0" | cs2cs EPSG:4326 EPSG:32611 &> /dev/null; then
-        print_success "PROJ is installed and working"
-
-        # Check if PROJ_LIB env var is set (common on Windows/OSGeo4W)
-        if [ -n "${PROJ_LIB:-}" ] && [ -f "${PROJ_LIB}/proj.db" ]; then
-            PROJ_DATA_PATH="$PROJ_LIB"
-            print_success "PROJ data found (from PROJ_LIB): $PROJ_DATA_PATH"
-            return 0
-        fi
-
-        # Find proj.db location - use platform-appropriate method
-        if [[ "$OSTYPE" == "darwin"* ]] && command -v brew &> /dev/null; then
-            # macOS: use Homebrew
-            local brew_prefix
-            brew_prefix=$(brew --prefix proj 2>/dev/null)
-            if [ -n "$brew_prefix" ] && [ -f "$brew_prefix/share/proj/proj.db" ]; then
-                PROJ_DATA_PATH="$brew_prefix/share/proj"
-                print_success "PROJ data found: $PROJ_DATA_PATH"
-                return 0
-            fi
-        elif [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]]; then
-            # Windows (Git Bash/MSYS2/Cygwin): check OSGeo4W paths
-            local win_paths=(
-                "/c/OSGeo4W/share/proj"
-                "/c/OSGeo4W64/share/proj"
-                "/c/Program Files/PROJ/share/proj"
-            )
-            for path in "${win_paths[@]}"; do
-                if [ -f "$path/proj.db" ]; then
-                    PROJ_DATA_PATH="$path"
-                    print_success "PROJ data found: $PROJ_DATA_PATH"
-                    return 0
-                fi
-            done
-        elif command -v pkg-config &> /dev/null; then
-            # Linux: use pkg-config
-            local proj_datadir
-            proj_datadir=$(pkg-config --variable=datadir proj 2>/dev/null)
-            if [ -n "$proj_datadir" ] && [ -f "$proj_datadir/proj.db" ]; then
-                PROJ_DATA_PATH="$proj_datadir"
-                print_success "PROJ data found: $PROJ_DATA_PATH"
-                return 0
-            fi
-        fi
-
-        # Fallback: search common paths
-        local proj_paths=(
-            "/opt/homebrew/share/proj"
-            "/usr/local/share/proj"
-            "/usr/share/proj"
-        )
-        for path in "${proj_paths[@]}"; do
-            if [ -f "$path/proj.db" ]; then
-                PROJ_DATA_PATH="$path"
-                print_success "PROJ data found: $PROJ_DATA_PATH"
-                return 0
-            fi
-        done
-
-        # Last resort: find
-        local proj_db_path
-        proj_db_path=$(find /opt/homebrew /usr/local /usr -name "proj.db" 2>/dev/null | head -1)
-        if [ -n "$proj_db_path" ]; then
-            PROJ_DATA_PATH=$(dirname "$proj_db_path")
-            print_success "PROJ data found: $PROJ_DATA_PATH"
-            return 0
-        fi
-
-        print_error "PROJ works but proj.db not found - unexpected state"
-        PROJ_DATA_PATH=""
-        return 1
-    fi
-
-    # PROJ not working - offer to install
-    print_warning "PROJ is not installed or not working"
-    echo ""
-    echo "    FireSTARR requires PROJ for coordinate transformations."
-    echo ""
-
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        echo "    On macOS, install PROJ with Homebrew:"
-        echo "        brew install proj"
-        echo ""
-        read -p "    Would you like to install PROJ now? [y/N]: " install_proj
-        if [[ "$install_proj" =~ ^[Yy] ]]; then
-            if command -v brew &> /dev/null; then
-                print_step "Installing PROJ via Homebrew..."
-                if brew install proj; then
-                    # Re-test after install
-                    if echo "55.0 -116.0" | cs2cs EPSG:4326 EPSG:32611 &> /dev/null; then
-                        local proj_db_path
-                        proj_db_path=$(find /opt/homebrew /usr/local -name "proj.db" 2>/dev/null | head -1)
-                        if [ -n "$proj_db_path" ]; then
-                            PROJ_DATA_PATH=$(dirname "$proj_db_path")
-                            print_success "PROJ installed: $PROJ_DATA_PATH"
-                            return 0
-                        fi
-                    fi
-                fi
-                print_error "PROJ installation failed"
-            else
-                print_error "Homebrew not found. Install PROJ manually: brew install proj"
-            fi
-        fi
-    else
-        echo "    On Linux, install PROJ with your package manager:"
-        echo "        Ubuntu/Debian: sudo apt install proj-bin proj-data"
-        echo "        Fedora/RHEL:   sudo dnf install proj"
-        echo ""
-    fi
-
-    PROJ_DATA_PATH=""
-    return 1
 }
 
 configure_firestarr_image() {
@@ -2301,10 +1984,7 @@ install_all_metal() {
     # 3. Ensure sims directory
     ensure_sims_writable
 
-    # 4. Install macOS dependencies for FireSTARR (Homebrew libraries)
-    install_macos_firestarr_deps
-
-    # 5. Install/configure FireSTARR binary based on selected mode
+    # 4. Install/configure FireSTARR binary based on selected mode
     case "$FIRESTARR_INSTALL_MODE" in
         archive)
             # Install from archive
@@ -2323,15 +2003,7 @@ install_all_metal() {
             ;;
     esac
 
-    # 6. Detect PROJ data directory (required for coordinate transformations)
-    if detect_proj_data; then
-        update_env_value "PROJ_DATA" "$PROJ_DATA_PATH"
-    else
-        print_warning "PROJ not configured - FireSTARR coordinate transformations may fail"
-        echo "    Install PROJ and re-run installer, or manually set PROJ_DATA in .env"
-    fi
-
-    # 7. Install Node.js dependencies
+    # 6. Install Node.js dependencies
     print_step "Installing Node.js dependencies..."
     run_cmd npm --prefix "$PROJECT_DIR" install
 
