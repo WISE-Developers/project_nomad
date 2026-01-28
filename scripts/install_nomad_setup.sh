@@ -309,62 +309,45 @@ check_proj_schema_early() {
         fi
     fi
 
-    # Query schema version from proj.db
-    local schema_minor
-    schema_minor=$(sqlite3 "$proj_db" "SELECT value FROM metadata WHERE key = 'DATABASE.LAYOUT.VERSION.MINOR';" 2>/dev/null || echo "")
+    # Query PROJ version from proj.db (e.g., "9.4.1")
+    local proj_version
+    proj_version=$(sqlite3 "$proj_db" "SELECT value FROM metadata WHERE key = 'PROJ.VERSION';" 2>/dev/null || echo "")
 
-    if [ -z "$schema_minor" ]; then
-        print_warning "Could not determine PROJ schema version"
+    if [ -z "$proj_version" ]; then
+        print_warning "Could not determine PROJ version from proj.db"
         return 0
     fi
 
-    if [ "$schema_minor" -ge 6 ] 2>/dev/null; then
+    # Extract major version (e.g., "9" from "9.4.1")
+    local proj_major
+    proj_major=$(echo "$proj_version" | cut -d. -f1)
+
+    # FireSTARR requires PROJ >= 9.0 (libproj.so.25)
+    if [ "$proj_major" -ge 9 ] 2>/dev/null; then
         return 0
     fi
 
-    # Schema version too old
+    # PROJ version too old
     echo ""
-    print_error "PROJ database schema version too old"
+    print_error "PROJ version too old"
     echo ""
-    echo "    Found: proj.db schema version $schema_minor"
-    echo "    Required: schema version >= 6"
+    echo "    Found: PROJ $proj_version"
+    echo "    Required: PROJ >= 9.0"
     echo ""
-    echo "    FireSTARR requires a newer PROJ database."
-    echo "    Your system has libproj installed but with an outdated proj.db."
+    echo "    FireSTARR requires PROJ 9.x or newer (libproj.so.25)."
     echo ""
 
     # Check if this is Ubuntu
     if [ -f /etc/os-release ] && grep -q "Ubuntu" /etc/os-release; then
-        echo "    To fix on Ubuntu, install proj-data from ubuntugis-unstable PPA:"
+        echo "    Options:"
+        echo "      1. Use Docker mode instead (recommended)"
+        echo "      2. Upgrade to Ubuntu 24.04 (ships with PROJ 9.x)"
+        echo "      3. Install PROJ 9.x from ubuntugis PPA"
         echo ""
-        echo "        sudo add-apt-repository ppa:ubuntugis/ubuntugis-unstable"
-        echo "        sudo apt update"
-        echo "        sudo apt install --only-upgrade proj-data"
-        echo ""
-        read -p "    Would you like to install the updated PROJ data now? [y/N]: " install_proj
-        if [[ "$install_proj" =~ ^[Yy] ]]; then
-            print_step "Adding ubuntugis-unstable PPA and updating proj-data..."
-
-            if sudo add-apt-repository -y ppa:ubuntugis/ubuntugis-unstable && \
-               sudo apt update && \
-               sudo apt install -y --only-upgrade proj-data; then
-
-                # Verify the fix worked
-                schema_minor=$(sqlite3 "$proj_db" "SELECT value FROM metadata WHERE key = 'DATABASE.LAYOUT.VERSION.MINOR';" 2>/dev/null || echo "")
-                if [ -n "$schema_minor" ] && [ "$schema_minor" -ge 6 ] 2>/dev/null; then
-                    print_success "PROJ database updated to schema version $schema_minor"
-                    return 0
-                else
-                    print_error "PROJ update did not resolve schema version issue"
-                fi
-            else
-                print_error "Failed to update PROJ data"
-            fi
-        fi
     else
         echo "    Options:"
         echo "      1. Use Docker mode instead (recommended)"
-        echo "      2. Install PROJ from a source that includes newer proj.db"
+        echo "      2. Install PROJ 9.x from source or package manager"
         echo ""
     fi
 
