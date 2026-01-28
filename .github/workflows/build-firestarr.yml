@@ -81,7 +81,7 @@ jobs:
         run: |
           VERSION="${{ inputs.firestarr_version }}"
           # Check if ARM64 binary exists in release
-          if curl -s -f -I "https://github.com/CWFMF/firestarr-cpp/releases/download/${VERSION}/firestarr-linux-arm64.tar.gz" > /dev/null 2>&1; then
+          if curl -s -f -I "https://github.com/CWFMF/firestarr-cpp/releases/download/${VERSION}/firestarr-ubuntu-arm64-Release.tar.gz" > /dev/null 2>&1; then
             echo "has_arm64=true" >> $GITHUB_OUTPUT
           else
             echo "has_arm64=false" >> $GITHUB_OUTPUT
@@ -98,7 +98,7 @@ jobs:
           cd docker-context
 
           curl -L -o firestarr.tar.gz \
-            "https://github.com/CWFMF/firestarr-cpp/releases/download/${VERSION}/firestarr-linux-arm64.tar.gz"
+            "https://github.com/CWFMF/firestarr-cpp/releases/download/${VERSION}/firestarr-ubuntu-arm64-Release.tar.gz"
 
           tar -xzf firestarr.tar.gz
           chmod +x firestarr
