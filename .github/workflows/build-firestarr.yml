@@ -5,7 +5,7 @@ on:
     inputs:
       firestarr_version:
         description: 'FireSTARR release version'
-        default: 'v0.9.5.6'
+        default: 'v0.9.5.7'
         type: string
       docker:
         description: 'Build and push Docker images'
