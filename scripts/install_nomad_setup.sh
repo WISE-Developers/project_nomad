@@ -723,10 +723,79 @@ step3_paths() {
 }
 
 # ============================================
-# GDAL Validation (Comprehensive)
+# GDAL Validation (for Nomad backend)
 # ============================================
 
-# NOTE: validate_gdal removed - FireSTARR bundles its own GDAL/PROJ
+# Validate GDAL installation for metal mode
+# The Nomad backend uses gdal-async npm package for contour generation
+# which requires native GDAL libraries (gdal-bin, libgdal-dev)
+validate_gdal() {
+    print_step "Checking GDAL installation..."
+
+    # Check if gdalinfo is available (indicates gdal-bin is installed)
+    if ! command -v gdalinfo &> /dev/null; then
+        print_error "GDAL is required but not installed"
+        echo ""
+        echo "    The Nomad backend requires GDAL for contour generation."
+        echo "    (Note: This is separate from FireSTARR which bundles its own GDAL)"
+        echo ""
+
+        # Offer to install on supported platforms
+        if [[ "$OSTYPE" == "linux"* ]]; then
+            if command -v apt-get &> /dev/null; then
+                echo "    Install with: sudo apt-get install gdal-bin libgdal-dev"
+                echo ""
+                read -p "Would you like to install GDAL now? [y/N]: " install_gdal
+                if [[ "$install_gdal" =~ ^[Yy] ]]; then
+                    print_step "Installing GDAL..."
+                    if sudo apt-get update && sudo apt-get install -y gdal-bin libgdal-dev; then
+                        print_success "GDAL installed successfully"
+                        return 0
+                    else
+                        print_error "Failed to install GDAL"
+                        return 1
+                    fi
+                fi
+            else
+                echo "    Install GDAL using your package manager (dnf, yum, pacman, etc.)"
+            fi
+        elif [[ "$OSTYPE" == "darwin"* ]]; then
+            echo "    Install with Homebrew: brew install gdal"
+        fi
+        return 1
+    fi
+
+    # Get GDAL version
+    local gdal_version
+    gdal_version=$(gdalinfo --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+' | head -1)
+
+    if [ -n "$gdal_version" ]; then
+        local gdal_major
+        gdal_major=$(echo "$gdal_version" | cut -d. -f1)
+
+        # Require GDAL 3.x for gdal-async compatibility
+        if [ "$gdal_major" -lt 3 ]; then
+            print_warning "GDAL version $gdal_version is old (recommend >= 3.0)"
+            echo "    The gdal-async npm package works best with GDAL 3.x"
+            return 0  # Warning only, don't fail
+        else
+            print_success "GDAL $gdal_version available"
+        fi
+    else
+        print_success "GDAL available (version unknown)"
+    fi
+
+    # Check for development headers (needed for npm install of gdal-async)
+    if [[ "$OSTYPE" == "linux"* ]]; then
+        if ! pkg-config --exists gdal 2>/dev/null; then
+            print_warning "GDAL development headers may be missing"
+            echo "    Install with: sudo apt-get install libgdal-dev"
+            echo "    Required for building gdal-async npm package"
+        fi
+    fi
+
+    return 0
+}
 
 # ============================================
 # Disk Space Validation
@@ -851,7 +920,10 @@ validate_prerequisites() {
             print_success "npm available"
         fi
 
-        # NOTE: GDAL validation removed - FireSTARR bundles its own
+        # GDAL check (required for Nomad backend contour generation)
+        if ! validate_gdal; then
+            ((errors++))
+        fi
     fi
 
     # FireSTARR binary requirements (metal FireSTARR)
