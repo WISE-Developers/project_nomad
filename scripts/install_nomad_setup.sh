@@ -1489,12 +1489,22 @@ install_firestarr_from_archive() {
         binary_path="$install_dir/firestarr"
         print_dry_run "Would search for firestarr binary in $install_dir"
     else
-        # Look for firestarr binary
+        # Look for firestarr binary (check both Unix and Windows names)
         binary_path=$(find "$install_dir" -name "firestarr" -type f 2>/dev/null | head -1)
 
         if [ -z "$binary_path" ]; then
-            # Try case-insensitive
+            # Try Windows .exe extension
+            binary_path=$(find "$install_dir" -name "firestarr.exe" -type f 2>/dev/null | head -1)
+        fi
+
+        if [ -z "$binary_path" ]; then
+            # Try case-insensitive (Unix)
             binary_path=$(find "$install_dir" -iname "firestarr" -type f 2>/dev/null | head -1)
+        fi
+
+        if [ -z "$binary_path" ]; then
+            # Try case-insensitive (Windows)
+            binary_path=$(find "$install_dir" -iname "firestarr.exe" -type f 2>/dev/null | head -1)
         fi
 
         if [ -z "$binary_path" ]; then
