@@ -2,11 +2,16 @@
  * Wizard Step Content Component
  *
  * Wrapper for step content with common layout and header.
+ * Responsive design with reduced padding on small screens.
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWizard } from '../context/WizardContext';
 import { ValidationErrors } from './ValidationErrors';
+
+// Breakpoints
+const MOBILE_BREAKPOINT = 480;
+const TABLET_BREAKPOINT = 768;
 
 /**
  * Props for WizardStepContent
@@ -26,6 +31,7 @@ interface WizardStepContentProps {
 
 /**
  * WizardStepContent provides consistent layout for step content.
+ * Adapts padding and font sizes for mobile/tablet screens.
  *
  * @example
  * ```tsx
@@ -44,19 +50,32 @@ export function WizardStepContent({
   className = '',
 }: WizardStepContentProps) {
   const { currentStep, currentStepIndex, totalSteps } = useWizard();
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== 'undefined' ? window.innerWidth : 1024
+  );
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = windowWidth < MOBILE_BREAKPOINT;
+  const isTablet = windowWidth < TABLET_BREAKPOINT;
 
   const containerStyle: React.CSSProperties = {
     flex: 1,
-    padding: '24px',
+    padding: isMobile ? '16px' : isTablet ? '20px' : '24px',
     overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
   };
 
   const headerStyle: React.CSSProperties = {
-    marginBottom: '24px',
+    marginBottom: isMobile ? '16px' : '24px',
   };
 
   const titleStyle: React.CSSProperties = {
-    fontSize: '24px',
+    fontSize: isMobile ? '20px' : '24px',
     fontWeight: 600,
     color: '#333',
     margin: 0,
@@ -64,15 +83,16 @@ export function WizardStepContent({
   };
 
   const stepCountStyle: React.CSSProperties = {
-    fontSize: '14px',
+    fontSize: isMobile ? '12px' : '14px',
     color: '#666',
     marginBottom: '8px',
   };
 
   const descriptionStyle: React.CSSProperties = {
-    fontSize: '14px',
+    fontSize: isMobile ? '13px' : '14px',
     color: '#666',
     margin: 0,
+    lineHeight: 1.5,
   };
 
   return (
