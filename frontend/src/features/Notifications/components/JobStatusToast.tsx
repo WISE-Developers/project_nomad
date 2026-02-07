@@ -76,26 +76,20 @@ export function JobStatusToast({
           </div>
 
           {status.status === 'running' && (
-            <div style={{ marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
               <div
                 style={{
-                  height: '6px',
-                  backgroundColor: '#374151',
-                  borderRadius: '3px',
-                  overflow: 'hidden',
+                  width: '18px',
+                  height: '18px',
+                  border: '2px solid #374151',
+                  borderTop: '2px solid #f59e0b',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  flexShrink: 0,
                 }}
-              >
-                <div
-                  style={{
-                    height: '100%',
-                    width: `${status.progress}%`,
-                    backgroundColor: color,
-                    transition: 'width 0.3s ease',
-                  }}
-                />
-              </div>
-              <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
-                {status.progress}% complete
+              />
+              <div style={{ fontSize: '12px', color: '#9ca3af' }}>
+                Processing fire model...
               </div>
             </div>
           )}
@@ -164,6 +158,10 @@ export function JobStatusToast({
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
       `}</style>
     </div>
