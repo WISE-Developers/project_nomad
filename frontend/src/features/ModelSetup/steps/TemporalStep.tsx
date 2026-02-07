@@ -2,9 +2,10 @@
  * TemporalStep Component
  *
  * Second wizard step for setting simulation start time and duration.
+ * Features improved date picker with quick-select buttons and human-readable format.
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef, useEffect } from 'react';
 import { useWizardData } from '../../Wizard';
 import type { ModelSetupData } from '../types';
 
@@ -18,7 +19,7 @@ const containerStyle: React.CSSProperties = {
 const sectionStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  gap: '8px',
+  gap: '12px',
 };
 
 const labelStyle: React.CSSProperties = {
@@ -29,15 +30,9 @@ const labelStyle: React.CSSProperties = {
 
 const inputRowStyle: React.CSSProperties = {
   display: 'flex',
-  gap: '16px',
-  alignItems: 'center',
-};
-
-const inputStyle: React.CSSProperties = {
-  padding: '10px 12px',
-  fontSize: '14px',
-  border: '1px solid #ccc',
-  borderRadius: '4px',
+  gap: '12px',
+  alignItems: 'stretch',
+  flexWrap: 'wrap',
 };
 
 const rangeContainerStyle: React.CSSProperties = {
@@ -88,7 +83,140 @@ const forecastBadgeStyle: React.CSSProperties = {
   marginLeft: '8px',
 };
 
+// Enhanced date picker styles
+const datePickerWrapperStyle: React.CSSProperties = {
+  position: 'relative',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+};
+
+const dateDisplayButtonStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+  padding: '12px 16px',
+  backgroundColor: 'white',
+  borderRadius: '8px',
+  border: '2px solid #e0e0e0',
+  cursor: 'pointer',
+  transition: 'all 0.2s',
+  textAlign: 'left',
+  minWidth: '200px',
+};
+
+const dateDisplayButtonHoverStyle: React.CSSProperties = {
+  ...dateDisplayButtonStyle,
+  borderColor: '#ff6b35',
+  boxShadow: '0 2px 8px rgba(255, 107, 53, 0.2)',
+};
+
+const timeInputStyle: React.CSSProperties = {
+  padding: '12px 16px',
+  fontSize: '16px',
+  border: '2px solid #e0e0e0',
+  borderRadius: '8px',
+  backgroundColor: 'white',
+  cursor: 'pointer',
+  minWidth: '120px',
+  transition: 'all 0.2s',
+};
+
+const quickSelectContainerStyle: React.CSSProperties = {
+  display: 'flex',
+  gap: '8px',
+  flexWrap: 'wrap',
+};
+
+const quickSelectButtonStyle: React.CSSProperties = {
+  padding: '8px 14px',
+  fontSize: '13px',
+  border: '1px solid #ddd',
+  borderRadius: '6px',
+  background: 'white',
+  cursor: 'pointer',
+  transition: 'all 0.2s',
+  fontWeight: 500,
+};
+
+const quickSelectActiveStyle: React.CSSProperties = {
+  ...quickSelectButtonStyle,
+  backgroundColor: '#ff6b35',
+  borderColor: '#ff6b35',
+  color: 'white',
+};
+
 const DURATION_PRESETS = [6, 12, 24, 48, 72, 168];
+
+// Fire season typically starts in April in Canada
+const FIRE_SEASON_START_MONTH = 3; // April (0-indexed)
+const FIRE_SEASON_START_DAY = 1;
+
+/**
+ * Get today's date in YYYY-MM-DD format
+ */
+function getTodayDate(): string {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+}
+
+/**
+ * Get yesterday's date in YYYY-MM-DD format
+ */
+function getYesterdayDate(): string {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  return yesterday.toISOString().split('T')[0];
+}
+
+/**
+ * Get start of fire season date in YYYY-MM-DD format
+ */
+function getFireSeasonStartDate(): string {
+  const now = new Date();
+  const year = now.getMonth() < FIRE_SEASON_START_MONTH ? now.getFullYear() : now.getFullYear();
+  const fireSeasonStart = new Date(year, FIRE_SEASON_START_MONTH, FIRE_SEASON_START_DAY);
+  return fireSeasonStart.toISOString().split('T')[0];
+}
+
+/**
+ * Format date for human-readable display
+ */
+function formatDateDisplay(dateStr: string): string {
+  if (!dateStr) return 'Select a date...';
+
+  try {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+/**
+ * Format time for display
+ */
+function formatTimeDisplay(timeStr: string): string {
+  if (!timeStr) return '12:00';
+
+  try {
+    const [hours, minutes] = timeStr.split(':');
+    const date = new Date();
+    date.setHours(parseInt(hours, 10), parseInt(minutes, 10));
+    return date.toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return timeStr;
+  }
+}
 
 /**
  * Format duration for display
@@ -140,23 +268,67 @@ function isFutureDate(dateStr: string): boolean {
 }
 
 /**
+ * Check which quick select button is active
+ */
+function getActiveQuickSelect(dateStr: string): string | null {
+  if (!dateStr) return null;
+  if (dateStr === getTodayDate()) return 'today';
+  if (dateStr === getYesterdayDate()) return 'yesterday';
+  if (dateStr === getFireSeasonStartDate()) return 'fireSeason';
+  return null;
+}
+
+/**
  * Temporal Step component
  */
 export function TemporalStep() {
   const { data, setField } = useWizardData<ModelSetupData>();
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const timeInputRef = useRef<HTMLInputElement>(null);
+  const [isDateHovered, setIsDateHovered] = React.useState(false);
 
-  const temporal = data.temporal ?? {
-    startDate: '',
-    startTime: '12:00',
-    durationHours: 24,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    isForecast: false,
-  };
+  // Initialize with today's date if not set
+  const temporal = useMemo(() => {
+    const defaultTemporal = {
+      startDate: getTodayDate(),
+      startTime: '12:00',
+      durationHours: 24,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      isForecast: false,
+    };
+
+    if (!data.temporal || !data.temporal.startDate) {
+      return defaultTemporal;
+    }
+
+    return {
+      ...defaultTemporal,
+      ...data.temporal,
+    };
+  }, [data.temporal]);
+
+  // Set default date on mount if not already set
+  useEffect(() => {
+    if (!data.temporal || !data.temporal.startDate) {
+      const todayDate = getTodayDate();
+      setField('temporal', {
+        ...temporal,
+        startDate: todayDate,
+        isForecast: isFutureDate(todayDate),
+      });
+    }
+  }, []); // Only run once on mount
+
+  // Open native date picker when clicking the display button
+  const handleDateDisplayClick = useCallback(() => {
+    dateInputRef.current?.showPicker?.();
+    dateInputRef.current?.focus();
+    dateInputRef.current?.click();
+  }, []);
 
   // Update start date
   const handleDateChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newDate = e.target.value;
+    (newDate: string) => {
       setField('temporal', {
         ...temporal,
         startDate: newDate,
@@ -164,6 +336,14 @@ export function TemporalStep() {
       });
     },
     [setField, temporal]
+  );
+
+  // Handle native input change
+  const handleDateInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      handleDateChange(e.target.value);
+    },
+    [handleDateChange]
   );
 
   // Update start time
@@ -175,6 +355,28 @@ export function TemporalStep() {
       });
     },
     [setField, temporal]
+  );
+
+  // Quick select handlers
+  const handleQuickSelect = useCallback(
+    (type: 'today' | 'yesterday' | 'fireSeason') => {
+      let newDate: string;
+      switch (type) {
+        case 'today':
+          newDate = getTodayDate();
+          break;
+        case 'yesterday':
+          newDate = getYesterdayDate();
+          break;
+        case 'fireSeason':
+          newDate = getFireSeasonStartDate();
+          break;
+        default:
+          return;
+      }
+      handleDateChange(newDate);
+    },
+    [handleDateChange]
   );
 
   // Update duration
@@ -194,6 +396,8 @@ export function TemporalStep() {
     [temporal.startDate, temporal.startTime, temporal.durationHours]
   );
 
+  const activeQuickSelect = getActiveQuickSelect(temporal.startDate);
+
   return (
     <div style={containerStyle}>
       {/* Start Date/Time */}
@@ -211,21 +415,84 @@ export function TemporalStep() {
             </span>
           )}
         </label>
+
+        {/* Quick Select Buttons */}
+        <div style={quickSelectContainerStyle}>
+          <button
+            type="button"
+            style={activeQuickSelect === 'today' ? quickSelectActiveStyle : quickSelectButtonStyle}
+            onClick={() => handleQuickSelect('today')}
+          >
+            <i className="fa-solid fa-calendar-day" style={{ marginRight: '6px' }} />
+            Today
+          </button>
+          <button
+            type="button"
+            style={activeQuickSelect === 'yesterday' ? quickSelectActiveStyle : quickSelectButtonStyle}
+            onClick={() => handleQuickSelect('yesterday')}
+          >
+            <i className="fa-solid fa-clock-rotate-left" style={{ marginRight: '6px' }} />
+            Yesterday
+          </button>
+          <button
+            type="button"
+            style={activeQuickSelect === 'fireSeason' ? quickSelectActiveStyle : quickSelectButtonStyle}
+            onClick={() => handleQuickSelect('fireSeason')}
+          >
+            <i className="fa-solid fa-fire" style={{ marginRight: '6px' }} />
+            Fire Season Start
+          </button>
+        </div>
+
+        {/* Date and Time Pickers */}
         <div style={inputRowStyle}>
+          {/* Date Picker - clickable display with hidden input */}
+          <div style={datePickerWrapperStyle}>
+            <button
+              type="button"
+              style={isDateHovered ? dateDisplayButtonHoverStyle : dateDisplayButtonStyle}
+              onClick={handleDateDisplayClick}
+              onMouseEnter={() => setIsDateHovered(true)}
+              onMouseLeave={() => setIsDateHovered(false)}
+              aria-label="Select date"
+            >
+              <i className="fa-solid fa-calendar" style={{ fontSize: '18px', color: '#ff6b35' }} />
+              <span style={{ fontSize: '16px', fontWeight: 500, color: '#333', flex: 1 }}>
+                {formatDateDisplay(temporal.startDate)}
+              </span>
+              <i className="fa-solid fa-chevron-down" style={{ fontSize: '12px', color: '#999' }} />
+            </button>
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={temporal.startDate}
+              onChange={handleDateInputChange}
+              style={{
+                position: 'absolute',
+                opacity: 0,
+                width: '100%',
+                height: '100%',
+                cursor: 'pointer',
+                top: 0,
+                left: 0,
+              }}
+              aria-label="Date picker"
+            />
+          </div>
+
+          {/* Time Picker */}
           <input
-            type="date"
-            value={temporal.startDate}
-            onChange={handleDateChange}
-            style={{ ...inputStyle, width: '160px' }}
-          />
-          <input
+            ref={timeInputRef}
             type="time"
             value={temporal.startTime}
             onChange={handleTimeChange}
-            style={{ ...inputStyle, width: '120px' }}
+            style={timeInputStyle}
+            aria-label="Start time"
           />
         </div>
-        <div style={{ fontSize: '12px', color: '#666' }}>
+
+        <div style={{ fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <i className="fa-solid fa-globe" style={{ fontSize: '11px' }} />
           Timezone: {temporal.timezone}
         </div>
       </div>
@@ -241,6 +508,7 @@ export function TemporalStep() {
           {DURATION_PRESETS.map((hours) => (
             <button
               key={hours}
+              type="button"
               style={temporal.durationHours === hours ? activePresetStyle : presetButtonStyle}
               onClick={() => handleDurationChange(hours)}
             >
@@ -269,8 +537,11 @@ export function TemporalStep() {
       {/* End Time Display */}
       {endDateTime && (
         <div style={infoBoxStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ color: '#666' }}>Simulation End:</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: '#666', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <i className="fa-solid fa-flag-checkered" />
+              Simulation End:
+            </span>
             <span style={{ fontWeight: 'bold' }}>{endDateTime}</span>
           </div>
         </div>
@@ -280,12 +551,12 @@ export function TemporalStep() {
       <div style={{ ...infoBoxStyle, backgroundColor: temporal.isForecast ? '#ebf5fb' : '#eafaf1' }}>
         {temporal.isForecast ? (
           <>
-            <strong>Predictive Modelling (forecast):</strong> The simulation starts in the future.
+            <strong><i className="fa-solid fa-cloud-sun" style={{ marginRight: '8px' }} />Predictive Modelling (forecast):</strong> The simulation starts in the future.
             Weather data will be sourced from forecast models via SpotWX.
           </>
         ) : temporal.startDate ? (
           <>
-            <strong>Retroactive Modelling (historical):</strong> The simulation starts in the past.
+            <strong><i className="fa-solid fa-database" style={{ marginRight: '8px' }} />Retroactive Modelling (historical):</strong> The simulation starts in the past.
             You will need to provide historical weather data via file upload.
           </>
         ) : (
