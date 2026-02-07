@@ -8,7 +8,7 @@
     "frontend"
   ],
   "scripts": {
-    "start": "NODE_ENV=production npm run start --workspace=@nomad/backend",
+    "start": "cross-env NODE_ENV=production npm run start --workspace=@nomad/backend",
     "dev": "npm run dev:backend & npm run dev:frontend",
     "dev:backend": "npm run dev --workspace=@nomad/backend",
     "dev:frontend": "npm run dev --workspace=@nomad/frontend",
@@ -24,5 +24,8 @@
   "license": "MIT",
   "engines": {
     "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
   }
 }
