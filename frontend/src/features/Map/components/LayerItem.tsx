@@ -1,4 +1,5 @@
 import { useRef, useCallback } from 'react';
+// dragHandleRef kept for future handle-only drag if needed
 import type { LayerConfig } from '../types/layer';
 
 /**
@@ -54,16 +55,6 @@ export function LayerItem({
   onDragEnd,
 }: LayerItemProps) {
   const dragHandleRef = useRef<HTMLDivElement>(null);
-
-  // Only allow drag to start from the drag handle
-  const handleDragStart = useCallback((e: React.DragEvent) => {
-    // Check if drag originated from drag handle
-    if (dragHandleRef.current && !dragHandleRef.current.contains(e.target as Node)) {
-      e.preventDefault();
-      return;
-    }
-    onDragStart?.(e);
-  }, [onDragStart]);
 
   // Prevent slider interactions from triggering drag
   const handleSliderMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
@@ -162,8 +153,6 @@ export function LayerItem({
     <div
       style={containerStyle}
       onClick={onSelect}
-      draggable
-      onDragStart={handleDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
@@ -175,6 +164,8 @@ export function LayerItem({
           style={dragHandleStyle}
           title="Drag to reorder"
           data-testid="layer-drag-handle"
+          draggable
+          onDragStart={onDragStart}
         >
           <i className="fa-solid fa-grip-vertical" />
         </div>
