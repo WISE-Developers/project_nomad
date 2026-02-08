@@ -22,7 +22,11 @@ test.describe('Model Setup Wizard', () => {
       return;
     }
 
-    // Dismiss splash screen if present
+    // Handle splash screen login if present
+    const usernameInput = page.locator('#username');
+    if (await usernameInput.isVisible().catch(() => false)) {
+      await usernameInput.fill('Tester');
+    }
     const enterButton = page.getByRole('button', { name: 'Enter' });
     if (await enterButton.isVisible().catch(() => false)) {
       await enterButton.click();
@@ -171,7 +175,11 @@ test.describe('Time Range Date Picker', () => {
       return;
     }
 
-    // Dismiss splash screen if present
+    // Handle splash screen login if present
+    const usernameInput = page.locator('#username');
+    if (await usernameInput.isVisible().catch(() => false)) {
+      await usernameInput.fill('Tester');
+    }
     const enterButton = page.getByRole('button', { name: 'Enter' });
     if (await enterButton.isVisible().catch(() => false)) {
       await enterButton.click();
