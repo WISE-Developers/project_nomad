@@ -232,7 +232,7 @@ test.describe('Time Range Date Picker', () => {
     await expect(step2Heading).toBeVisible();
 
     // Find and verify the date picker input is visible
-    const datePicker = page.getByRole('textbox', { name: 'Date picker' });
+    const datePicker = page.locator('input[type="date"][aria-label="Start date"]');
     await expect(datePicker).toBeVisible();
 
     // Verify the date picker has a value
@@ -272,7 +272,7 @@ test.describe('Time Range Date Picker', () => {
     await page.waitForTimeout(500);
 
     // Get the date picker
-    const datePicker = page.getByRole('textbox', { name: 'Date picker' });
+    const datePicker = page.locator('input[type="date"][aria-label="Start date"]');
     await expect(datePicker).toBeVisible();
 
     // Clear and type a new date
@@ -316,7 +316,7 @@ test.describe('Time Range Date Picker', () => {
     await page.waitForTimeout(500);
 
     // Get initial date
-    const datePicker = page.getByRole('textbox', { name: 'Date picker' });
+    const datePicker = page.locator('input[type="date"][aria-label="Start date"]');
     const initialDate = await datePicker.inputValue();
 
     // Click Yesterday button
