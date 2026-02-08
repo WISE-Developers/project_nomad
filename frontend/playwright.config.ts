@@ -1,6 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import * as dotenv from 'dotenv';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Load .env from project root (parent of frontend/)
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
