@@ -9,7 +9,6 @@
 import React, { useCallback, useMemo, useRef, useEffect } from 'react';
 import { useWizardData } from '../../Wizard';
 import type { ModelSetupData } from '../types';
-import { MaskedDateInput } from '../../../components/MaskedDateInput';
 
 const containerStyle: React.CSSProperties = {
   display: 'flex',
@@ -85,32 +84,6 @@ const forecastBadgeStyle: React.CSSProperties = {
   marginLeft: '8px',
 };
 
-// Enhanced date picker styles
-const datePickerWrapperStyle: React.CSSProperties = {
-  position: 'relative',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px',
-};
-
-const dateInputContainerStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '12px',
-  padding: '12px 16px',
-  backgroundColor: 'white',
-  borderRadius: '8px',
-  border: '2px solid #e0e0e0',
-  cursor: 'pointer',
-  transition: 'all 0.2s',
-  minWidth: '200px',
-};
-
-const dateInputContainerHoverStyle: React.CSSProperties = {
-  ...dateInputContainerStyle,
-  borderColor: '#ff6b35',
-  boxShadow: '0 2px 8px rgba(255, 107, 53, 0.2)',
-};
 
 const timeInputStyle: React.CSSProperties = {
   padding: '12px 16px',
@@ -247,8 +220,6 @@ function getActiveQuickSelect(dateStr: string): string | null {
 export function TemporalStep() {
   const { data, setField } = useWizardData<ModelSetupData>();
   const timeInputRef = useRef<HTMLInputElement>(null);
-  const [isDateHovered, setIsDateHovered] = React.useState(false);
-
   // Initialize with today's date if not set
   const temporal = useMemo(() => {
     const defaultTemporal = {
@@ -393,21 +364,16 @@ export function TemporalStep() {
 
         {/* Date and Time Pickers */}
         <div style={inputRowStyle}>
-          {/* Date Picker - masked input enforcing YYYY-MM-DD format */}
-          <div style={datePickerWrapperStyle}>
-            <div
-              style={isDateHovered ? dateInputContainerHoverStyle : dateInputContainerStyle}
-              onMouseEnter={() => setIsDateHovered(true)}
-              onMouseLeave={() => setIsDateHovered(false)}
-            >
-              <i className="fa-solid fa-calendar" style={{ fontSize: '18px', color: '#ff6b35' }} />
-              <MaskedDateInput
-                value={temporal.startDate}
-                onChange={handleDateChange}
-                aria-label="Date picker"
-              />
-            </div>
-          </div>
+          {/* Date Picker */}
+          <input
+            type="date"
+            value={temporal.startDate}
+            onChange={(e) => handleDateChange(e.target.value)}
+            min="1900-01-01"
+            max="2099-12-31"
+            style={timeInputStyle}
+            aria-label="Start date"
+          />
 
           {/* Time Picker */}
           <input
