@@ -566,6 +566,13 @@ export interface Engine {
     lineIgnition: boolean;
     /** Maximum simulation duration (hours) */
     maxDurationHours: number;
+    /**
+     * Whether this engine provides real-time progress updates during execution.
+     * If false, the UI should show an indeterminate spinner instead of a progress bar.
+     * FireSTARR: false (no progress updates, jumps from 0% to 100%)
+     * WISE: true (future - provides detailed progress)
+     */
+    supportsProgressUpdates?: boolean;
   };
 }
 

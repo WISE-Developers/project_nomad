@@ -25,6 +25,9 @@
     "lint": "eslint src/**/*.{ts,tsx}",
     "test": "vitest",
     "test:watch": "vitest watch",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
     "tarball": "npm run build:lib && node scripts/validate-tarball.js && npm pack",
     "tarball:patch": "npm version patch --no-git-tag-version && npm run tarball"
   },
@@ -37,6 +40,7 @@
     "react-rnd": "^10.5.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
     "@testing-library/user-event": "^14.6.1",

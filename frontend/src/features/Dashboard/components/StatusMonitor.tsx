@@ -6,9 +6,30 @@
  * @module features/Dashboard/components
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useJobs } from '../hooks/useJobs.js';
 import type { Job, JobStatus } from '../../../openNomad/api.js';
+
+// Inject spinner keyframes animation
+const SPINNER_KEYFRAMES_ID = 'status-monitor-spinner-keyframes';
+function injectSpinnerKeyframes() {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById(SPINNER_KEYFRAMES_ID)) return;
+
+  const style = document.createElement('style');
+  style.id = SPINNER_KEYFRAMES_ID;
+  style.textContent = `
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 // =============================================================================
 // Types
@@ -118,17 +139,13 @@ function JobCard({ job, onRemove, onView }: JobCardProps) {
         </span>
       </div>
 
-      {/* Progress bar */}
+      {/* Running indicator - spinner for FireSTARR (no progress updates) */}
       {isActive && (
-        <div style={progressContainerStyle}>
-          <div
-            style={{
-              ...progressBarStyle,
-              width: `${job.progress}%`,
-              backgroundColor: statusColor,
-            }}
-          />
-          <span style={progressTextStyle}>{job.progress}%</span>
+        <div style={runningIndicatorContainerStyle}>
+          <div style={spinnerStyle} />
+          <span style={spinnerTextStyle}>
+            {job.status === 'pending' ? 'Queued...' : 'Running...'}
+          </span>
         </div>
       )}
 
@@ -183,6 +200,11 @@ export function StatusMonitor({
   onViewJob,
   className = '',
 }: StatusMonitorProps) {
+  // Inject CSS keyframes on mount
+  useEffect(() => {
+    injectSpinnerKeyframes();
+  }, []);
+
   const {
     jobs,
     runningCount,
@@ -379,31 +401,31 @@ const pulseIndicatorStyle: React.CSSProperties = {
   animation: 'pulse 1.5s infinite',
 };
 
-const progressContainerStyle: React.CSSProperties = {
-  position: 'relative',
+
+// Spinner styles for engines that don't support progress updates (e.g., FireSTARR)
+const runningIndicatorContainerStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  padding: '8px 12px',
+  backgroundColor: '#e3f2fd',
+  borderRadius: '8px',
+};
+
+const spinnerStyle: React.CSSProperties = {
+  width: '20px',
   height: '20px',
-  backgroundColor: '#f0f0f0',
-  borderRadius: '10px',
-  overflow: 'hidden',
+  border: '3px solid #e0e0e0',
+  borderTop: '3px solid #2196f3',
+  borderRadius: '50%',
+  animation: 'spin 1s linear infinite',
+  flexShrink: 0,
 };
 
-const progressBarStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  height: '100%',
-  borderRadius: '10px',
-  transition: 'width 0.3s ease',
-};
-
-const progressTextStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  fontSize: '11px',
-  fontWeight: 600,
-  color: '#333',
+const spinnerTextStyle: React.CSSProperties = {
+  fontSize: '13px',
+  fontWeight: 500,
+  color: '#1565c0',
 };
 
 const jobMetaStyle: React.CSSProperties = {

@@ -2,14 +2,20 @@
  * Wizard Navigation Component
  *
  * Provides navigation buttons for the wizard (Back, Next, Finish, Cancel).
+ * Responsive design with compact buttons on mobile.
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useWizard } from '../context/WizardContext';
 import type { WizardNavigationProps } from '../types';
 
+// Breakpoints
+const MOBILE_BREAKPOINT = 480;
+const TABLET_BREAKPOINT = 768;
+
 /**
  * WizardNavigation renders navigation buttons for the wizard.
+ * Adapts to screen size with compact buttons on mobile.
  *
  * @example
  * ```tsx
@@ -40,6 +46,18 @@ export function WizardNavigation({
   } = useWizard();
 
   const [isLoading, setIsLoading] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== 'undefined' ? window.innerWidth : 1024
+  );
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = windowWidth < MOBILE_BREAKPOINT;
+  const isTablet = windowWidth < TABLET_BREAKPOINT;
 
   const handleNext = useCallback(async () => {
     setIsLoading(true);
@@ -75,30 +93,35 @@ export function WizardNavigation({
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '16px',
+    padding: isMobile ? '12px 16px' : isTablet ? '14px 16px' : '16px',
     borderTop: '1px solid #e0e0e0',
     backgroundColor: '#fafafa',
+    gap: '8px',
+    flexWrap: 'nowrap',
   };
 
   const buttonGroupStyle: React.CSSProperties = {
     display: 'flex',
-    gap: '8px',
+    gap: isMobile ? '6px' : '8px',
+    flexShrink: 0,
   };
 
   const buttonBaseStyle: React.CSSProperties = {
-    padding: '10px 20px',
+    padding: isMobile ? '10px 14px' : isTablet ? '10px 16px' : '10px 20px',
     borderRadius: '4px',
-    fontSize: '14px',
+    fontSize: isMobile ? '13px' : '14px',
     fontWeight: 500,
     cursor: 'pointer',
     transition: 'all 0.2s',
     border: 'none',
+    whiteSpace: 'nowrap',
   };
 
   const primaryButtonStyle: React.CSSProperties = {
     ...buttonBaseStyle,
     backgroundColor: '#1976d2',
     color: 'white',
+    minWidth: isMobile ? 'auto' : '80px',
   };
 
   const secondaryButtonStyle: React.CSSProperties = {
@@ -113,6 +136,7 @@ export function WizardNavigation({
     backgroundColor: 'transparent',
     color: '#666',
     border: 'none',
+    padding: isMobile ? '10px 8px' : buttonBaseStyle.padding,
   };
 
   const disabledStyle: React.CSSProperties = {
