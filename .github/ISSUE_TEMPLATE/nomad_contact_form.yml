@@ -1,0 +1,20 @@
+name: Contact The Nomad Project
+description: Contact the Nomad project directly.
+title: "[Contact] Re: "
+labels: ["Communication Required"]
+assignees:
+  - spydmobile
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reaching out to us! This message will go into a queue and someone
+        from the team will read it and respond accordingly.
+  - type: textarea
+    id: details
+    attributes:
+      label: Message Body
+      description: A detailed message to send us.
+      placeholder: Write your message here!
+    validations:
+      required: true
