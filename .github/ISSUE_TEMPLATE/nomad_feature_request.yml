@@ -1,0 +1,33 @@
+name: Nomad Feature Request
+description: Request a new feature in Nomad
+title: "[Nomad FR]: "
+labels: ["feature", "triage"]
+assignees:
+  - spydmobile
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this feature request!
+  - type: input
+    id: contact
+    attributes:
+      label: Contact Details
+      description: How can we get in touch with you if we need more info?
+      placeholder: ex. email@example.com
+    validations:
+      required: false
+  - type: textarea
+    id: what-is-needed
+    attributes:
+      label: What is needed?
+      description: Also tell us, how you might imagine this is implemented!
+      placeholder: Tell us what you want!
+    validations:
+      required: true
+  - type: textarea
+    id: how
+    attributes:
+      label: How will this improve the project or tool?
+      description: Provide additional context.
+      placeholder: Tell us how this will help!

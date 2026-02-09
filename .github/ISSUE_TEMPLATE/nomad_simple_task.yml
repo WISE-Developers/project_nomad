@@ -1,0 +1,16 @@
+name: Nomad Project Task
+description: Creates a task for the Nomad Team
+title: "[TASK]: "
+labels: ["task", "triage"]
+assignees:
+  - spydmobile
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please complete the following project task:
+  - type: textarea
+    id: details
+    attributes:
+      label: Explain the task in detail
+      description: We ask you to use checklist items for multiple concerns.
