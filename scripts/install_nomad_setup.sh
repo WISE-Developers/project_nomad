@@ -20,7 +20,7 @@ INSTALLER_VERSION="2.1.0"
 FIRESTARR_REGISTRY="ghcr.io/cwfmf/firestarr-cpp"
 FIRESTARR_IMAGE_NAME="firestarr"
 FIRESTARR_IMAGE_TAG="latest"
-FIRESTARR_IMAGE_TAG_ARM64="latest-arm64"
+FIRESTARR_IMAGE_TAG_ARM64="latest"
 FIRESTARR_BINARY_RELEASE_TAG="firestarr-latest"
 FIRESTARR_BINARY_RELEASE_REPO="https://github.com/CWFMF/firestarr-cpp/releases/download"
 FIRESTARR_BINARY_ASSET_MACOS="firestarr-macos-arm64-clang-Release.tar.gz"
@@ -76,7 +76,7 @@ NC='\033[0m' # No Color
 print_header() {
     echo -e "${BLUE}"
     echo "╔════════════════════════════════════════════════════════════╗"
-    echo "║           Project Nomad Setup Wizard v${INSTALLER_VERSION}               ║"
+    echo "║           Project Nomad Setup Wizard v${INSTALLER_VERSION}                ║"
     echo "║           Fire Modeling System                             ║"
     if [ "$DRY_RUN" = true ]; then
     echo "║                    [DRY RUN MODE]                          ║"
