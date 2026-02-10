@@ -1,0 +1,16 @@
+{
+  "jobId": "job_20230619134600244",
+  "sourcePath": "/Users/franconogarin/localcode/wise_modeller/WISE_data/dipjobs/archive/job_20230619134600244",
+  "startTime": "2023-06-19T13:00:00-06:00",
+  "latitude": 60.82195581654469,
+  "longitude": -115.70618034667032,
+  "durationHours": 241,
+  "fwi": {
+    "ffmc": 84,
+    "dmc": 53,
+    "dc": 564
+  },
+  "ignitionSource": "fgmj",
+  "hasWiseOutputs": true,
+  "fireNumber": "2023_NT_SS005-23"
+}
