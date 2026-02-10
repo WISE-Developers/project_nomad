@@ -23,6 +23,9 @@ FIRESTARR_IMAGE_TAG="latest"
 FIRESTARR_IMAGE_TAG_ARM64="latest-arm64"
 FIRESTARR_BINARY_RELEASE_TAG="firestarr-latest"
 FIRESTARR_BINARY_RELEASE_REPO="https://github.com/CWFMF/firestarr-cpp/releases/download"
+FIRESTARR_BINARY_ASSET_MACOS="firestarr-macos-arm64-clang-Release.tar.gz"
+FIRESTARR_BINARY_ASSET_LINUX="firestarr-ubuntu-x64-gcc-Release.tar.gz"
+FIRESTARR_BINARY_ASSET_WINDOWS="firestarr-windows-x64-cl-Release.zip"
 
 # Script directory (for calling other scripts)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -1223,21 +1226,13 @@ get_default_firestarr_url() {
 
     case "$os_name" in
         darwin)
-            # macOS - only ARM64 builds available
-            # asset_name="firestarr-macos-arm64.tar.gz"
-            asset_name="firestarr-macos-arm64-clang-Release.tar.gz"
+            asset_name="${FIRESTARR_BINARY_ASSET_MACOS}"
             ;;
         linux)
-            # Linux - use Ubuntu 22.04 build (broader glibc compatibility)
-            # asset_name="firestarr-linux-ubuntu-22.04.tar.gz"
-            asset_name="firestarr-ubuntu-x64-gcc-Release.tar.gz"
-
+            asset_name="${FIRESTARR_BINARY_ASSET_LINUX}"
             ;;
         msys*|mingw*|cygwin*|windows*)
-            # Windows
-            # asset_name="firestarr-windows-x64.zip"
-            asset_name="firestarr-windows-x64-cl-Release.zip"
-
+            asset_name="${FIRESTARR_BINARY_ASSET_WINDOWS}"
             ;;
         *)
             # Unknown OS - return empty
