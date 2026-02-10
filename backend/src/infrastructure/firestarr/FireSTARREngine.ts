@@ -701,6 +701,9 @@ export class FireSTARREngine implements IFireModelingEngine {
       args.push('--output_date_offsets', JSON.stringify(params.outputDateOffsets));
     }
 
+    // Always include simulation area grids for output portability
+    args.push('--sim-area');
+
     // Add verbosity
     args.push('-v');
 
