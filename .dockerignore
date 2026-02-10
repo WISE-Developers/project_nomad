@@ -1,0 +1,17 @@
+node_modules
+.git
+.gitignore
+*.md
+dist
+.env
+.env.*
+.docker
+.claude
+.planning
+Documentation
+configuration
+scripts
+**/*.test.ts
+**/*.spec.ts
+coverage
+.DS_Store

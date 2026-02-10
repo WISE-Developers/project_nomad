@@ -4,6 +4,7 @@ FROM node:22-slim AS builder
 WORKDIR /app
 
 # Install GDAL native libraries (required for gdal-async)
+# This layer is expensive but rarely changes - cached separately
 RUN apt-get update && apt-get install -y \
     gdal-bin \
     libgdal-dev \
@@ -11,16 +12,16 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy workspace root package files first (for dependency caching)
+# Copy ONLY package manifests first (maximizes layer cache for npm ci)
 COPY package.json package-lock.json ./
-
-# Copy backend package.json (workspace member)
 COPY backend/package.json ./backend/
 
-# Install all workspace dependencies
-RUN npm ci --workspace=@nomad/backend
+# Install dependencies - this layer survives source code changes
+# Only busts when package.json or package-lock.json change
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --workspace=@nomad/backend
 
-# Copy backend source
+# Copy backend source (changes here don't bust npm ci cache above)
 COPY backend/ ./backend/
 
 # Build backend
