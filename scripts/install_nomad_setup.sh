@@ -77,7 +77,7 @@ print_header() {
     echo -e "${BLUE}"
     echo "╔════════════════════════════════════════════════════════════╗"
     echo "║           Project Nomad Setup Wizard v${INSTALLER_VERSION}                ║"
-    echo "║           Fire Modeling System                             ║"
+    echo "║                 Fire Modeling System                       ║"
     if [ "$DRY_RUN" = true ]; then
     echo "║                    [DRY RUN MODE]                          ║"
     fi
