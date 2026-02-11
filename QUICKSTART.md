@@ -154,13 +154,13 @@ Access Nomad at **http://localhost:8080**
 npm start
 ```
 
-Access Nomad at **http://localhost:3001**
+Access Nomad at **http://localhost:4901**
 
 ## Verify It's Working
 
 ```bash
 # Health check
-curl http://localhost:3001/api/health
+curl http://localhost:4901/api/health
 
 # Docker: check containers
 docker compose ps
