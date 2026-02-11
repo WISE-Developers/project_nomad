@@ -12,7 +12,7 @@ const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
 if (!configuredBaseUrl) {
   throw new Error(
     'VITE_API_BASE_URL is not configured. ' +
-    'Set it in .env (e.g., VITE_API_BASE_URL=http://localhost:3001) and rebuild.'
+    'Set it in .env (e.g., VITE_API_BASE_URL=http://your-server:4901) and rebuild.'
   );
 }
 export const API_BASE_URL = configuredBaseUrl;

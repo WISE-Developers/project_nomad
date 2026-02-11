@@ -673,8 +673,10 @@ step3_paths() {
         echo "    For local-only access, use 'localhost'."
         echo "    For network access, use the server's IP or hostname."
         echo ""
-        read -p "Server hostname [localhost]: " input_hostname
-        NOMAD_SERVER_HOSTNAME="${input_hostname:-localhost}"
+        local detected_hostname
+        detected_hostname=$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "localhost")
+        read -p "Server hostname [$detected_hostname]: " input_hostname
+        NOMAD_SERVER_HOSTNAME="${input_hostname:-$detected_hostname}"
         print_success "Server hostname: $NOMAD_SERVER_HOSTNAME"
         echo ""
     fi
@@ -1763,9 +1765,12 @@ generate_env_file() {
     if [ -n "$NOMAD_PORT" ]; then
         update_env_value "PORT" "$NOMAD_PORT"
         # Metal mode: set API URL using configured hostname and port
-        local metal_hostname="${NOMAD_SERVER_HOSTNAME:-localhost}"
+        if [ -z "$NOMAD_SERVER_HOSTNAME" ]; then
+            print_error "NOMAD_SERVER_HOSTNAME is not set. Cannot configure API URL."
+            exit 1
+        fi
         update_env_value "VITE_API_PORT" "$NOMAD_PORT"
-        update_env_value "VITE_API_BASE_URL" "http://${metal_hostname}:${NOMAD_PORT}"
+        update_env_value "VITE_API_BASE_URL" "http://${NOMAD_SERVER_HOSTNAME}:${NOMAD_PORT}"
     fi
 
     if [ -n "$NOMAD_FRONTEND_HOST_PORT" ]; then
@@ -1913,7 +1918,7 @@ install_all_docker() {
     echo "    docker compose up -d"
     echo ""
     source "$ENV_FILE"
-    local access_hostname="${NOMAD_SERVER_HOSTNAME:-localhost}"
+    local access_hostname="${NOMAD_SERVER_HOSTNAME}"
     echo "Access Nomad at: http://${access_hostname}:$NOMAD_FRONTEND_HOST_PORT"
 }
 
@@ -1986,7 +1991,7 @@ install_all_metal() {
     echo "    cd $PROJECT_DIR"
     echo "    npm run start"
     echo ""
-    echo "Access at: http://${NOMAD_SERVER_HOSTNAME:-localhost}:${NOMAD_PORT:-4901}"
+    echo "Access at: http://${NOMAD_SERVER_HOSTNAME}:${NOMAD_PORT}"
 }
 
 # ============================================
