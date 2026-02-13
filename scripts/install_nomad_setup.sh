@@ -259,7 +259,10 @@ check_metal_deps_early() {
 
         if [[ "$OSTYPE" == "linux"* ]]; then
             echo "    Install on Ubuntu/Debian:"
-            echo "        sudo apt install nodejs npm sqlite3"
+            echo "        sudo apt install sqlite3"
+            echo "        # Node.js >= 20 requires NodeSource (apt has v18):"
+            echo "        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -"
+            echo "        sudo apt install -y nodejs"
             echo ""
         elif [[ "$OSTYPE" == "darwin"* ]]; then
             echo "    Install on macOS:"

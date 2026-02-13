@@ -39,8 +39,8 @@ The national dataset is required for Canadian fire modeling:
 
 | Architecture | Image |
 |-------------|-------|
-| x86_64 | `ghcr.io/cwfmf/firestarr-cpp/firestarr:latest` |
-| ARM64 | `ghcr.io/cwfmf/firestarr-cpp/firestarr:latest-arm64` |
+| x86_64 | `ghcr.io/cwfmf/firestarr-cpp/firestarr:v0.9.7` |
+| ARM64 | `ghcr.io/cwfmf/firestarr-cpp/firestarr:v0.9.7` |
 
 ### Bare Metal
 
