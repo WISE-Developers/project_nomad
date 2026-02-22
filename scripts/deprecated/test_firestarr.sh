@@ -1,6 +1,8 @@
 #!/bin/bash
 # FireSTARR Test Script
-# ./firestarr test ~/franco/test_fire --hours 5 --fuel C-2 --ffmc 90 --ws 20
+# ./firestarr test ~/test_fire --hours 5 --fuel C-2 --ffmc 90 --ws 20
+# /root/.local/share/nomad/firestarr/firestarr test ~/test_fire --hours 5 --fuel C-2 --ffmc 90 --ws 20
+# docker compose run --rm firestarr-app /appl/firestarr/firestarr test /appl/data/sims/test_fire --hours 5 --fuel C-2 --ffmc 90 --ws 20
 
 echo "Testing FireSTARR in test mode (synthetic fuel grid)..."
 echo "This mode doesn't require fuel/DEM grids to be present."
