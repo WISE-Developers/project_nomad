@@ -222,12 +222,11 @@ function createModelsModule(authToken: string): IOpenNomadAPI['models'] {
 
 ### Jobs Module
 
-Handles model execution tracking. Consider using WebSocket for real-time updates.
+Handles model execution tracking. The Nomad backend uses **SSE (Server-Sent Events)** for real-time job status updates in SAN mode. If your agency adapter connects to a different backend, you may use polling or another mechanism.
 
 ```typescript
 function createJobsModule(authToken: string): IOpenNomadAPI['jobs'] {
   const headers = { Authorization: `Bearer ${authToken}` };
-  const activeSubscriptions = new Map<string, WebSocket>();
 
   return {
     async submit(modelId: string): Promise<Job> {
@@ -251,19 +250,17 @@ function createJobsModule(authToken: string): IOpenNomadAPI['jobs'] {
     },
 
     onStatusChange(jobId: string, callback: (status: JobStatusDetail) => void): () => void {
-      // Option 1: WebSocket (preferred for real-time)
-      const ws = new WebSocket(`wss://your-api/jobs/${jobId}/stream`);
-      ws.onmessage = (event) => {
+      // Option 1: SSE (used by Nomad SAN backend)
+      const eventSource = new EventSource(`/api/nomad/jobs/${jobId}/stream`);
+      eventSource.onmessage = (event) => {
         callback(mapToJobStatusDetail(JSON.parse(event.data)));
       };
-      activeSubscriptions.set(jobId, ws);
 
       return () => {
-        ws.close();
-        activeSubscriptions.delete(jobId);
+        eventSource.close();
       };
 
-      // Option 2: Polling (fallback)
+      // Option 2: Polling (alternative)
       // See DefaultOpenNomadAPI.ts for polling implementation
     },
   };
@@ -422,108 +419,6 @@ function createResultsModule(authToken: string): IOpenNomadAPI['results'] {
     async getTileBounds(resultId: string): Promise<BBox> {
       const response = await fetch(`/api/nomad/results/${resultId}/bounds`, { headers });
       return (await response.json()).bounds;
-    },
-  };
-}
-```
-
-### Spatial Module
-
-The spatial module has two parts:
-
-1. **Map Interaction** (must be implemented by host app)
-2. **Data Services** (query spatial data)
-
-```typescript
-function createSpatialModule(authToken: string): IOpenNomadAPI['spatial'] {
-  const headers = { Authorization: `Bearer ${authToken}` };
-
-  return {
-    // =========================================================================
-    // Map Interaction - Implement using your host app's map component
-    // =========================================================================
-
-    async drawPoint(): Promise<GeoJSON.Point> {
-      // Activate your map's point drawing tool
-      // Return geometry when user completes drawing
-      return new Promise((resolve) => {
-        yourMapDrawingTool.activate('point', (geometry) => resolve(geometry));
-      });
-    },
-
-    async drawLine(): Promise<GeoJSON.LineString> {
-      return new Promise((resolve) => {
-        yourMapDrawingTool.activate('line', (geometry) => resolve(geometry));
-      });
-    },
-
-    async drawPolygon(): Promise<GeoJSON.Polygon> {
-      return new Promise((resolve) => {
-        yourMapDrawingTool.activate('polygon', (geometry) => resolve(geometry));
-      });
-    },
-
-    onGeometryChange(callback: (geometry: GeoJSONGeometry | null) => void): Unsubscribe {
-      // Subscribe to drawing events for real-time preview
-      return yourMapDrawingTool.onUpdate(callback);
-    },
-
-    cancelDraw(): void {
-      yourMapDrawingTool.deactivate();
-    },
-
-    addLayer(layer: MapLayer): void {
-      // Add layer to your map (e.g., Mapbox GL, Leaflet)
-      yourMap.addLayer(layer.id, layer.data, layer.style);
-    },
-
-    updateLayer(id: string, updates: Partial<MapLayer>): void {
-      yourMap.updateLayer(id, updates);
-    },
-
-    removeLayer(id: string): void {
-      yourMap.removeLayer(id);
-    },
-
-    fitBounds(bounds: BBox, options?: { padding?: number; animate?: boolean }): void {
-      yourMap.fitBounds(bounds, options);
-    },
-
-    getBounds(): BBox {
-      return yourMap.getBounds();
-    },
-
-    // =========================================================================
-    // Data Services - Query spatial data from your agency's services
-    // =========================================================================
-
-    async getWeatherStations(bounds: BBox): Promise<WeatherStation[]> {
-      const [minLng, minLat, maxLng, maxLat] = bounds;
-      const response = await fetch(
-        `/api/spatial/weather-stations?bbox=${minLng},${minLat},${maxLng},${maxLat}`,
-        { headers }
-      );
-      return (await response.json()).stations;
-    },
-
-    async getFuelTypes(bounds: BBox): Promise<FuelTypeData> {
-      return {
-        bounds,
-        fuelTypes: [
-          { code: 'C-2', name: 'Boreal Spruce', color: '#228B22' },
-          // ... your fuel type legend
-        ],
-        serviceUrl: 'https://your-geoserver/wcs/fuels',
-        layerName: 'fuels',
-      };
-    },
-
-    async getElevation(bounds: BBox): Promise<ElevationData> {
-      return {
-        bounds,
-        serviceUrl: 'https://your-geoserver/wcs/dem',
-        resolutionM: 30,
-      };
     },
   };
 }
@@ -735,4 +630,3 @@ See `/frontend/src/openNomad/default/DefaultOpenNomadAPI.ts` for the complete SA
 ## Support
 
 - GitHub Issues: [WISE-Developers/project_nomad](https://github.com/WISE-Developers/project_nomad/issues)
-- Slack: #nomad-integration

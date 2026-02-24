@@ -102,9 +102,11 @@ Configuration files must conform to schema version 2.0. Below is a complete refe
 | Provider | Description | Required Fields |
 |----------|-------------|-----------------|
 | `"none"` | No authentication | - |
-| `"simple"` | Built-in username/password | - |
-| `"oidc"` | OpenID Connect | `oidc.issuer`, `oidc.clientId`, `oidc.scopes` |
-| `"saml"` | SAML 2.0 | `saml.idpMetadataUrl`, `saml.spEntityId`, `saml.acsUrl` |
+| `"simple"` | Built-in username/password (SAN mode) | - |
+| `"oidc"` | OpenID Connect (ACN mode — not yet implemented) | `oidc.issuer`, `oidc.clientId`, `oidc.scopes` |
+| `"saml"` | SAML 2.0 (ACN mode — not yet implemented) | `saml.idpMetadataUrl`, `saml.spEntityId`, `saml.acsUrl` |
+
+> **Note**: `oidc` and `saml` providers are planned for ACN (Agency Centric Nomad) mode and are not yet implemented. SAN (Stand Alone Nomad) mode uses `simple` auth.
 
 #### OIDC Configuration
 

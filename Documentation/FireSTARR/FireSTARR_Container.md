@@ -5,17 +5,16 @@
 ```yaml
 services:
   firestarr-app:
-    container_name: firestarr-app
-    image: ghcr.io/cwfmf/firestarr:dev-0.9.5.4
-
+    # Image is set via FIRESTARR_IMAGE in .env — do not hardcode the tag here.
+    # Example: FIRESTARR_IMAGE=ghcr.io/cwfmf/firestarr:dev-0.9.5.4
+    image: ${FIRESTARR_IMAGE:?FIRESTARR_IMAGE must be set in .env}
+    profiles: ["modeling"]
     volumes:
       - /etc/ssl/certs:/etc/ssl/certs
-      - ./firestarr_data:/appl/data
-      - ./firestarr_data/sims:/appl/data/sims
+      - ${FIRESTARR_DATASET_PATH}:/appl/data
+      - ${FIRESTARR_DATASET_PATH}/sims:/appl/data/sims
     env_file:
       - .env
-
-
 ```
 
 ## Sample Data Layout
@@ -107,8 +106,7 @@ services:
 │               └── fuel_9_5.tif
 ├── grids
 └── sims
-
-``
+```
 
 
 

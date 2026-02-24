@@ -37,8 +37,10 @@ The national dataset is required for Canadian fire modeling:
 
 ### Container Image
 
-| Architecture | Image |
-|-------------|-------|
+The image is configured via the `FIRESTARR_IMAGE` environment variable (set in `.env` or by the installer). The version shown below is the current default; the actual image used is always determined by `FIRESTARR_IMAGE`.
+
+| Architecture | Default Image |
+|-------------|---------------|
 | x86_64 | `ghcr.io/cwfmf/firestarr-cpp/firestarr:v0.9.7` |
 | ARM64 | `ghcr.io/cwfmf/firestarr-cpp/firestarr:v0.9.7` |
 

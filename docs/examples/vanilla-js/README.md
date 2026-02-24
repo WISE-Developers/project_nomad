@@ -40,14 +40,14 @@ The dashboard requires React 18+, loaded from CDN:
 
 ### 3. Access Exports
 
-The UMD bundle exposes everything on `window.NomadFrontend`:
+The UMD bundle exposes everything on `window.openNomad`:
 
 ```javascript
 const {
   OpenNomadProvider,
   DashboardContainer,
   createAgencyAdapter,
-} = window.NomadFrontend;
+} = window.openNomad;
 ```
 
 ### 4. Create Elements Without JSX

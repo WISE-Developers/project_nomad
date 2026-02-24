@@ -1,5 +1,7 @@
 # WISE I/O Documentation
 
+> **Note:** WISE integration in Project Nomad is currently stubbed. The WISE engine type exists as an enum value and wizard entry point, but no actual WISE engine adapter is implemented. This document serves as future reference for when WISE integration is developed.
+
 ## Input Requirements
 
 ### Ignition Point Format

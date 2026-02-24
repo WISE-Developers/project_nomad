@@ -585,6 +585,8 @@ const PROBABILITY_COLOR_RAMP = [
 
 ## Implementation Roadmap
 
+> **Note:** This roadmap is historical. FireSTARR integration has been implemented.
+
 ### Phase 1: Setup & Validation (2-3 weeks)
 
 **Week 1: Environment Setup**

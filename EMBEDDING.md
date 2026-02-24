@@ -6,14 +6,13 @@ This guide covers how to embed the Project Nomad fire modeling dashboard into yo
 
 ### 1. Install
 
-```bash
-npm install @nomad/frontend
-```
+The package is distributed as a tarball (not published to the npm registry). Install from the provided `.tgz` file:
 
-Or via tarball:
 ```bash
 npm install path/to/nomad-frontend-0.2.7.tgz
 ```
+
+The tarball contains the `dist/` directory as defined by the `files` field in `frontend/package.json`.
 
 ### 2. Create an Adapter
 
