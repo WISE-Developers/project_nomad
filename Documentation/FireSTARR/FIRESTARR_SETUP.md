@@ -2,10 +2,12 @@
 
 ## Docker Compose Configuration
 
-The `docker-compose.yaml` is configured with volume mounts for:
-- `./firestarr_config` → `/appl/firestarr` (binary, settings.ini, fuel.lut)
-- `./firestarr_data/grids` → `/appl/data/generated/grid` (fuel/DEM grids)
-- `./firestarr_data/sims` → `/appl/data/sims` (simulation inputs/outputs)
+The `docker-compose.yaml` is configured with volume mounts for the `firestarr-app` service:
+- `/etc/ssl/certs` → `/etc/ssl/certs` (SSL certificates)
+- `${FIRESTARR_DATASET_PATH}` → `/appl/data` (fuel/DEM grids + simulation I/O)
+- `${FIRESTARR_DATASET_PATH}/sims` → `/appl/data/sims` (simulation inputs/outputs)
+
+Set `FIRESTARR_DATASET_PATH` in `.env` to your local dataset directory. The FireSTARR image is set via `FIRESTARR_IMAGE` in `.env`.
 
 ## Quick Test (No Fuel Grids Required)
 
@@ -36,11 +38,11 @@ You need fuel and DEM grids for the UTM zones you want to support:
 - Zone 11: Central NWT (Yellowknife area)
 - Zone 12: Eastern NWT
 
-Place grids in: `./firestarr_data/grids/100m/default/`
+Place grids in: `${FIRESTARR_DATASET_PATH}/generated/grid/100m/default/`
 
 Required files:
 ```
-firestarr_data/grids/100m/default/
+${FIRESTARR_DATASET_PATH}/generated/grid/100m/default/
 ├── fuel_10.tif
 ├── dem_10.tif
 ├── fuel_11.tif
@@ -132,7 +134,7 @@ sudo apt update
 sudo apt install --only-upgrade proj-data
 ```
 
-The Project Nomad installer (`scripts/install_nomad_setup.sh`) automatically validates PROJ schema version and offers to fix this on Ubuntu.
+The Project Nomad installer (`install.sh`) automatically validates PROJ schema version and offers to fix this on Ubuntu.
 
 ### Platform Warning (Apple Silicon)
 ```
@@ -150,7 +152,7 @@ WARNING: The requested image's platform (linux/amd64) does not match the detecte
 ```
 [FATAL] No fuel grid found for zone XX
 ```
-**Solution:** Ensure `fuel_{zone}.tif` and `dem_{zone}.tif` exist in `./firestarr_data/grids/100m/default/`
+**Solution:** Ensure `fuel_{zone}.tif` and `dem_{zone}.tif` exist in `${FIRESTARR_DATASET_PATH}/generated/grid/100m/default/`
 
 ### Missing Weather Data
 ```
@@ -158,13 +160,6 @@ WARNING: The requested image's platform (linux/amd64) does not match the detecte
 ```
 **Solution:** Ensure weather CSV exists at the path specified in `--wx` flag and has correct format.
 
-## Next Steps for Project Nomad
+## Integration with Project Nomad
 
-1. **Get NWT fuel/DEM grids** (zones 10, 11, 12) - where do these come from?
-2. **Test with real grids** to validate setup
-3. **Weather data integration:**
-   - SpotWX API for forecast weather
-   - CWFIS API for FWI initialization
-   - FWI calculation library (Python `cffdrs` or JS implementation)
-4. **Backend development** to orchestrate FireSTARR execution from web interface
-5. **Output processing:** Convert UTM GeoTIFF → WGS84 GeoJSON for MapBox display
+FireSTARR execution is orchestrated by the Nomad backend via `DockerExecutor`, which spawns ephemeral `firestarr-app` containers per job. The backend handles weather data preparation (cffdrs for FWI calculation), job directory setup, container invocation, and GDAL-based output processing. See `ARCHITECTURE.md` for the full execution model.

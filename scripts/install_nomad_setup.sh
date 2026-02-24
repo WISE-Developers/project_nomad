@@ -16,12 +16,12 @@ set -e
 INSTALLER_VERSION="2.1.0"
 
 # FireSTARR image and binary source configuration
-# Change these to test different versions (e.g., "unstable" for pre-release)
+# This branch ONLY uses unstable (rolling pre-release from latest commit)
 FIRESTARR_REGISTRY="ghcr.io/cwfmf/firestarr-cpp"
 FIRESTARR_IMAGE_NAME="firestarr"
-FIRESTARR_IMAGE_TAG="v0.9.7"
-FIRESTARR_IMAGE_TAG_ARM64="v0.9.7"
-FIRESTARR_BINARY_RELEASE_TAG="v0.9.7"
+FIRESTARR_IMAGE_TAG="unstable"
+FIRESTARR_IMAGE_TAG_ARM64="unstable"
+FIRESTARR_BINARY_RELEASE_TAG="unstable-latest"
 FIRESTARR_BINARY_RELEASE_REPO="https://github.com/CWFMF/firestarr-cpp/releases/download"
 FIRESTARR_BINARY_ASSET_MACOS="firestarr-macos-arm64-clang-Release.tar.gz"
 FIRESTARR_BINARY_ASSET_LINUX="firestarr-ubuntu-x64-gcc-Release.tar.gz"

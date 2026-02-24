@@ -108,4 +108,4 @@ Agencies may keep their configuration data (connection strings, API keys, endpoi
 
 ---
 
-*Analysis prepared for Project Nomad national prototype planning.*
+*Analysis prepared for Project Nomad — frontend v0.2.7, backend v0.1.0.*

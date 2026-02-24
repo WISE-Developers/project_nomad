@@ -30,6 +30,13 @@ Self-hosted application for individual users or small teams:
 - Container or Metal (bare metal) infrastructure modes
 - Ideal for field operations or standalone deployments
 
+### ACN (Agency Centric Nomad)
+Component integrated into existing agency systems:
+- Nomad dashboard embedded as a React component
+- Agency-managed authentication and backend
+- PostGIS or other agency database
+- See [EMBEDDING.md](EMBEDDING.md) for integration guide
+
 ## Fire Modeling Engine
 
 ### FireSTARR
@@ -98,13 +105,13 @@ project_nomad/
 ├── backend/                   # Express API server
 ├── scripts/                   # Installer and setup scripts
 ├── docker/                    # Container build files
-├── configuration/             # Agency configuration (submodules)
+├── configuration/             # Agency configuration (generic/ ships with repo; agencies may use submodules)
 ├── docs/examples/             # Integration examples (React, vanilla JS)
 ├── Documentation/             # SME knowledge base and project docs
 ├── NOMAD_REQUIREMENTS.md      # Nomad system requirements
 ├── FIRESTARR_REQUIREMENTS.md  # FireSTARR system requirements
 ├── EMBEDDING.md               # Guide for embedding Nomad in other apps
-├── install.sh                 # Run this to install
+├── install.sh                      # Run this to install
 ├── docker-compose.yaml        # Container deployment
 └── docker-compose.dev.yaml    # Development deployment
 ```

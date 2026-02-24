@@ -13,7 +13,7 @@ This guide walks you through the interactive installer for a Stand Alone Nomad (
 ```bash
 git clone https://github.com/WISE-Developers/project_nomad.git
 cd project_nomad
-./scripts/install_nomad_setup.sh
+./install.sh
 ```
 
 You'll see the welcome screen:
@@ -146,7 +146,7 @@ After installation completes:
 docker compose up -d
 ```
 
-Access Nomad at **http://localhost:8080**
+Access Nomad at **http://localhost:3901**
 
 ### Metal Mode
 
@@ -189,7 +189,7 @@ Answer **Y** when prompted to install updated PROJ data.
 ### Permission denied
 
 ```bash
-chmod +x ./scripts/install_nomad_setup.sh
+chmod +x ./install.sh
 ```
 
 ---

@@ -100,7 +100,7 @@ The interactive installer validates all prerequisites and guides setup:
 ```bash
 git clone https://github.com/WISE-Developers/project_nomad.git
 cd project_nomad
-./scripts/install_nomad_setup.sh
+./install.sh
 ```
 
 ## See Also

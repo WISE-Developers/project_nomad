@@ -1,5 +1,7 @@
 # WISE Technology Summary
 
+> **Note:** WISE integration in Project Nomad is currently stubbed. The WISE engine type exists as an enum value and wizard entry point, but no actual WISE engine adapter is implemented. This document serves as future reference for when WISE integration is developed.
+
 ## Executive Summary
 
 WISE (Wildfire Intelligence System for the Environment) is a deterministic fire growth model that simulates fire spread using the elliptical spread model based on the Canadian Forest Fire Behavior Prediction (FBP) System (ST-X-3). Unlike FireSTARR's probabilistic Monte Carlo approach, WISE produces deterministic perimeter predictions with configurable time-stepping.
@@ -116,6 +118,8 @@ For Project Nomad integration, the recommended pattern is a **REST API wrapper**
 ---
 
 ## Integration Analysis
+
+> **Note:** The integration patterns, API contracts, and TypeScript class definitions in this section are future guidance for when WISE integration is implemented, not a description of current state.
 
 ### Recommended Integration Pattern
 
