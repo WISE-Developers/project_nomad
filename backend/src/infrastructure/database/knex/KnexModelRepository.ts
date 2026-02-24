@@ -156,11 +156,7 @@ export class KnexModelRepository implements IModelRepository {
   }
 
   async findSpatial(_filter: SpatialModelFilter, _options?: ModelQueryOptions): Promise<ModelQueryResult> {
-    // Spatial queries require PostGIS/SpatiaLite extensions
-    // For now, fall back to non-spatial find
-    // TODO: Implement spatial queries when spatial extensions are added
-    console.warn('[KnexModelRepository] Spatial queries not yet implemented, falling back to basic find');
-    return this.find(_filter, _options);
+    throw new Error('Spatial queries not yet implemented — requires PostGIS/SpatiaLite extensions');
   }
 
   async updateStatus(id: FireModelId, status: ModelStatus): Promise<FireModel> {

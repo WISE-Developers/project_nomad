@@ -42,3 +42,9 @@ frontend/.playwright-mcp/
 .claude/
 .planning/
 .vscode/
+
+# Internal config
+.mcp.json
+
+# Runtime data (SQLite, simulation outputs)
+backend/data/
