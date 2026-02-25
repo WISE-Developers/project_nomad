@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { version } from '../../package.json';
 
 const SIMPLE_AUTH_ENABLED = import.meta.env.VITE_SIMPLE_AUTH === 'true';
 const STORAGE_KEY = 'nomad_username';
@@ -96,7 +97,7 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
         }}
       >
         Fire Modeling System<br />
-        MVP Prototype v0.0<br />
+        v{version}<br />
         SAN Mode (Stand Alone Nomad)
       </p>
 
