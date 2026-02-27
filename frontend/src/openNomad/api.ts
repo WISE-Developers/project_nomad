@@ -304,6 +304,21 @@ export interface Job {
 }
 
 /**
+ * Response from submitting a model for execution.
+ *
+ * This is the shape returned by POST /models/:id/execute,
+ * which differs from the full Job entity.
+ */
+export interface JobSubmitResponse {
+  /** Job identifier for tracking execution */
+  jobId: string;
+  /** Model identifier */
+  modelId?: string;
+  /** Human-readable status message */
+  message: string;
+}
+
+/**
  * Detailed job status including progress information.
  */
 export interface JobStatusDetail extends Job {
@@ -631,15 +646,39 @@ export interface AgencyConfig {
  * const models = await api.models.list({ status: 'completed' });
  *
  * // Submit a new job
- * const job = await api.jobs.submit(modelId);
+ * const result = await api.jobs.submit(modelId);
  *
  * // Subscribe to status changes
- * const unsubscribe = api.jobs.onStatusChange(job.id, (status) => {
+ * const unsubscribe = api.jobs.onStatusChange(result.jobId, (status) => {
  *   console.log('Job status:', status.status);
  * });
  * ```
  */
 export interface IOpenNomadAPI {
+  // ===========================================================================
+  // Authenticated Fetch
+  // ===========================================================================
+
+  /**
+   * Make an authenticated fetch request through the adapter.
+   * In SAN mode: plain fetch (same-origin, no special headers needed).
+   * In ACN mode: attaches agency auth headers via the adapter's config.
+   *
+   * @param url - The URL to fetch
+   * @param init - Optional RequestInit (method, headers, body, etc.)
+   * @returns The fetch Response
+   */
+  fetch(url: string, init?: RequestInit): Promise<Response>;
+
+  /**
+   * Get the base URL for API requests.
+   * In SAN mode: returns '' (empty string, same-origin).
+   * In ACN mode: returns the agency's API base URL.
+   *
+   * @returns The base URL string
+   */
+  getBaseUrl(): string;
+
   // ===========================================================================
   // Auth Module
   // ===========================================================================
@@ -751,11 +790,11 @@ export interface IOpenNomadAPI {
      * Submit a model for execution.
      *
      * @param modelId - ID of the model to execute
-     * @returns The created job
+     * @returns The submit response containing jobId and message
      * @throws NotFoundError if model doesn't exist
      * @throws ValidationError if model cannot be executed
      */
-    submit(modelId: string): Promise<Job>;
+    submit(modelId: string): Promise<JobSubmitResponse>;
 
     /**
      * Cancel a running or pending job.

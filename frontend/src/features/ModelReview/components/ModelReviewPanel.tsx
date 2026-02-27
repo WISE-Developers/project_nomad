@@ -94,7 +94,7 @@ export function ModelReviewPanel({
         }
 
         // Fetch the GeoJSON preview
-        const response = await fetch(previewUrl);
+        const response = await api.fetch(previewUrl);
         if (!response.ok) {
           throw new Error(`Failed to fetch GeoJSON: ${response.status}`);
         }

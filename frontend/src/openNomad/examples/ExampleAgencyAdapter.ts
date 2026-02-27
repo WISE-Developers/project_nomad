@@ -16,7 +16,7 @@ import type {
   ModelFilter,
   PaginationParams,
   PaginatedResponse,
-  Job,
+  JobSubmitResponse,
   JobStatusDetail,
   ModelResults,
   ExportFormat,
@@ -192,8 +192,8 @@ export function createAgencyAdapter(options: AgencyAdapterOptions): IOpenNomadAP
   }>();
 
   const jobs: IOpenNomadAPI['jobs'] = {
-    async submit(modelId: string): Promise<Job> {
-      return apiFetch<Job>(`/models/${modelId}/execute`, {
+    async submit(modelId: string): Promise<JobSubmitResponse> {
+      return apiFetch<JobSubmitResponse>(`/models/${modelId}/execute`, {
         method: 'POST',
       });
     },
@@ -525,5 +525,16 @@ export function createAgencyAdapter(options: AgencyAdapterOptions): IOpenNomadAP
     results,
     spatial,
     config,
+
+    async fetch(url: string, init?: RequestInit): Promise<Response> {
+      return globalThis.fetch(url, {
+        ...init,
+        headers: { ...headers, ...init?.headers },
+      });
+    },
+
+    getBaseUrl(): string {
+      return apiBaseUrl;
+    },
   };
 }

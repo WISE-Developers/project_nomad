@@ -76,59 +76,59 @@ Configuration files must conform to schema version 2.0. Below is a complete refe
 | `features` | object | Feature flags and suppressions |
 | `suppressDefaultSources` | boolean | Hide default/national data sources |
 
-### Authentication (`auth`)
+### Authentication — ACN Agency Trust Model
 
-```json
-{
-  "auth": {
-    "provider": "oidc",
-    "oidc": {
-      "issuer": "https://login.agency.gov",
-      "clientId": "nomad-client",
-      "scopes": ["openid", "profile", "email"]
-    },
-    "roleMappings": [
-      { "externalRole": "AGENCY_ADMIN", "internalRole": "admin" },
-      { "externalRole": "FIRE_ANALYST", "internalRole": "fban" }
-    ],
-    "sessionTimeout": 480,
-    "allowAnonymous": false
-  }
-}
+In ACN mode, Nomad does **not** handle user authentication. The host application (e.g., EasyMap3) manages its own user authentication (FusionAuth, Okta, Azure AD, etc.) and proves its identity to Nomad using a **server-to-server trust key**.
+
+This is not a user-level API key. It is a shared secret that establishes trust between two applications: "I am a registered agency, and here is my proof."
+
+#### Why the Trust Key Exists
+
+Anyone can embed the Nomad frontend in their application. But the embedded frontend cannot communicate with the Nomad backend unless the host application sends a valid agency key. This prevents unauthorized applications from using a Nomad backend they don't own.
+
+Embedding in SAN mode is blocked at runtime — the embedded dashboard checks the backend's deployment mode on mount and refuses to render if it is not ACN. This prevents the insecure hybrid of embedded frontend with SAN simple auth, where user identity headers have no server-side validation.
+
+#### How It Works
+
+1. The host application authenticates its own users (via FusionAuth, Okta, etc.)
+2. The host application sends the agency trust key with every request to Nomad (`X-Nomad-Agency-Key` header)
+3. Once the key validates, Nomad trusts the user identity forwarded by the host via headers
+
+#### Configuration
+
+Both applications must share the **same key value**. The environment variable names are different — only the value must match.
+
+**On the Nomad side** (`.env`):
+
+```bash
+NOMAD_AGENCY_KEY_NWT=MySecurityKey_12345
 ```
 
-#### Provider Options
+The suffix (`NWT`) is the agency identifier. Multiple agencies can be registered by adding more keys (e.g., `NOMAD_AGENCY_KEY_ONTARIO`, `NOMAD_AGENCY_KEY_ALBERTA`).
 
-| Provider | Description | Required Fields |
-|----------|-------------|-----------------|
-| `"none"` | No authentication | - |
-| `"simple"` | Built-in username/password (SAN mode) | - |
-| `"oidc"` | OpenID Connect (ACN mode — not yet implemented) | `oidc.issuer`, `oidc.clientId`, `oidc.scopes` |
-| `"saml"` | SAML 2.0 (ACN mode — not yet implemented) | `saml.idpMetadataUrl`, `saml.spEntityId`, `saml.acsUrl` |
+**On the host application side** (`.env`):
 
-> **Note**: `oidc` and `saml` providers are planned for ACN (Agency Centric Nomad) mode and are not yet implemented. SAN (Stand Alone Nomad) mode uses `simple` auth.
+```bash
+VITE_NOMAD_AGENCY_KEY=MySecurityKey_12345
+```
 
-#### OIDC Configuration
+The host app's env var name is its own choice — the only requirement is that the value matches what Nomad has registered.
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `issuer` | Yes | OIDC issuer URL |
-| `clientId` | Yes | OAuth client ID |
-| `clientSecret` | No | OAuth client secret (store in env var instead) |
-| `scopes` | Yes | Requested scopes |
-| `authorizationEndpoint` | No | Override authorization endpoint |
-| `tokenEndpoint` | No | Override token endpoint |
-| `userInfoEndpoint` | No | Override userinfo endpoint |
+#### Required Headers from Host Application
 
-#### SAML Configuration
+When the host application makes requests to the Nomad backend, it must include these headers:
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `idpMetadataUrl` | Yes | Identity provider metadata URL |
-| `spEntityId` | Yes | Service provider entity ID |
-| `acsUrl` | Yes | Assertion consumer service URL |
-| `sloUrl` | No | Single logout URL |
-| `certificate` | No | SP certificate for signing |
+| Header | Required | Description |
+|--------|----------|-------------|
+| `X-Nomad-Agency-Id` | Yes | Agency identifier (e.g., `nwt`) |
+| `X-Nomad-Agency-Key` | Yes | The shared trust key value |
+| `X-Nomad-User-Id` | Yes | Unique user identifier from the host's auth system |
+| `X-Nomad-User-Role` | Yes | Nomad role (see table below) |
+| `X-Nomad-User-Name` | Recommended | Display name for audit logging |
+
+#### SAN Mode Authentication
+
+In SAN (Stand Alone Nomad) mode, Nomad uses built-in simple username authentication. The agency trust key mechanism does not apply to SAN deployments.
 
 #### Role Mappings
 

@@ -32,6 +32,7 @@ import type {
   PaginationParams,
   PaginatedResponse,
   Job,
+  JobSubmitResponse,
   JobStatusDetail,
   ModelResults,
   ModelResult,
@@ -203,6 +204,32 @@ export function createDefaultAdapter(options?: DefaultAdapterOptions): IOpenNoma
   baseUrl = baseUrl.replace(/\/$/, '');
 
   return {
+    // =========================================================================
+    // Authenticated Fetch
+    // =========================================================================
+
+    /**
+     * Make an authenticated fetch request.
+     *
+     * DEFAULT BEHAVIOR: Plain passthrough to globalThis.fetch (same-origin, no special headers).
+     *
+     * AGENCY NOTE: Your adapter should attach agency auth headers here.
+     */
+    async fetch(url: string, init?: RequestInit): Promise<Response> {
+      return globalThis.fetch(url, init);
+    },
+
+    /**
+     * Get the base URL for API requests.
+     *
+     * DEFAULT BEHAVIOR: Returns empty string (same-origin requests).
+     *
+     * AGENCY NOTE: Return your agency's API base URL.
+     */
+    getBaseUrl(): string {
+      return '';
+    },
+
     // =========================================================================
     // Auth Module
     // =========================================================================
@@ -439,7 +466,7 @@ export function createDefaultAdapter(options?: DefaultAdapterOptions): IOpenNoma
        * - Route to different compute clusters
        * - Create audit records
        */
-      async submit(_modelId: string): Promise<Job> {
+      async submit(_modelId: string): Promise<JobSubmitResponse> {
         // The default backend uses atomic runModel() operation
         // which creates and executes in one call.
         // This method would be used if we had separate create/execute

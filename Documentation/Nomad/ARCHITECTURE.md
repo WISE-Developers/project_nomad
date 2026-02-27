@@ -82,7 +82,7 @@ There is no polling. The frontend does not periodically fetch job status.
 
 **SAN mode:** Simple auth — username entry. Controlled by the `VITE_SIMPLE_AUTH` environment variable (default: `true`).
 
-**ACN mode:** Auth is deferred to the host agency application. No OIDC or SAML is built into Nomad.
+**ACN mode:** Nomad does not handle user authentication. The host application (e.g., EasyMap3) manages its own users and proves its identity to Nomad using a server-to-server trust key (`NOMAD_AGENCY_KEY_{AGENCY_ID}`). Once the key validates, Nomad trusts the user identity forwarded via request headers (`X-Nomad-Agency-Id`, `X-Nomad-User-Id`, `X-Nomad-User-Role`). See [configuration/README.md](../../configuration/README.md) for full setup details.
 
 ---
 

@@ -90,10 +90,22 @@ function getCorsOptions(): CorsOptions {
     };
   }
 
-  // SAN mode: allow all origins
-  logger.info('SAN mode - all origins allowed', 'CORS');
+  // SAN mode: same-origin only.
+  // SAN uses simple auth (X-Nomad-User header) with no server-side validation,
+  // so cross-origin requests must be blocked to prevent external apps from
+  // impersonating users against the Nomad backend.
+  logger.info('SAN mode - same-origin only (cross-origin requests blocked)', 'CORS');
   return {
-    origin: true,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (same-origin, curl, server-to-server)
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      // Block cross-origin requests in SAN mode
+      logger.warn(`SAN mode blocked cross-origin request from: ${origin}`, 'CORS');
+      callback(new Error('Cross-origin requests are not allowed in SAN mode. Use ACN deployment mode for external integration.'));
+    },
     credentials: true,
   };
 }

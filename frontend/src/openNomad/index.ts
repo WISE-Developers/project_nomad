@@ -140,6 +140,7 @@ export type {
   // Job types
   JobStatus,
   Job,
+  JobSubmitResponse,
   JobStatusDetail,
 
   // Result types

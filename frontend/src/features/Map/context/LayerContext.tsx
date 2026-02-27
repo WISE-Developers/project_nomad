@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { useMap } from './MapContext';
+import { useOpenNomad } from '../../../openNomad/context';
 import type {
   LayerConfig,
   GeoJSONLayerConfig,
@@ -52,6 +53,7 @@ interface PersistedLayerMeta {
  * Provider for shared layer state
  */
 export function LayerProvider({ children }: { children: ReactNode }) {
+  const api = useOpenNomad();
   const { map, isLoaded } = useMap();
   const [state, setState] = useState<LayerState>({
     layers: [],
@@ -274,7 +276,8 @@ export function LayerProvider({ children }: { children: ReactNode }) {
         if (meta.resultId && meta.type === 'geojson') {
           try {
             const mode = meta.breaksMode || 'dynamic';
-            const res = await fetch(`/api/v1/results/${meta.resultId}/preview?mode=${mode}`);
+            const previewUrl = api.results.getPreviewUrl(meta.resultId, mode as 'static' | 'dynamic');
+            const res = await api.fetch(previewUrl);
             if (!res.ok) {
               console.warn(`[LayerContext] Failed to restore layer ${meta.name}: ${res.status}`);
               return;
