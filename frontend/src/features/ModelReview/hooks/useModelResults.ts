@@ -62,7 +62,7 @@ export function useModelResults(
 
     try {
       const url = api.results.getModelResultsUrl(modelId);
-      const response = await fetch(url);
+      const response = await api.fetch(url);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

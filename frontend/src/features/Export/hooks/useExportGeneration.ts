@@ -5,6 +5,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { useOpenNomad } from '../../../openNomad/context';
 import type {
   ExportRequest,
   ExportResponse,
@@ -13,8 +14,6 @@ import type {
   ExportState,
   DeliveryMethod,
 } from '../types';
-
-const API_BASE = '/api/v1';
 
 interface UseExportGenerationResult {
   /** Current state of export generation */
@@ -39,6 +38,7 @@ interface UseExportGenerationResult {
  * Hook for managing export generation
  */
 export function useExportGeneration(): UseExportGenerationResult {
+  const api = useOpenNomad();
   const [state, setState] = useState<ExportState>('idle');
   const [exportId, setExportId] = useState<string | null>(null);
   const [manifest, setManifest] = useState<BundleManifest | null>(null);
@@ -54,7 +54,7 @@ export function useExportGeneration(): UseExportGenerationResult {
 
     try {
       // Step 1: Create the export bundle
-      const createRes = await fetch(`${API_BASE}/exports`, {
+      const createRes = await api.fetch(`${api.getBaseUrl()}/exports`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request),
@@ -71,7 +71,7 @@ export function useExportGeneration(): UseExportGenerationResult {
 
       // Step 2: If share delivery, create shareable link
       if (delivery === 'share') {
-        const shareRes = await fetch(`${API_BASE}/exports/${exportData.exportId}/share`, {
+        const shareRes = await api.fetch(`${api.getBaseUrl()}/exports/${exportData.exportId}/share`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({}),
@@ -93,14 +93,14 @@ export function useExportGeneration(): UseExportGenerationResult {
       setError(err instanceof Error ? err.message : 'Export failed');
       return null;
     }
-  }, []);
+  }, [api]);
 
   const download = useCallback((explicitExportId?: string) => {
     const id = explicitExportId ?? exportId;
     if (!id) return;
     // Trigger browser download
-    window.location.href = `${API_BASE}/exports/${id}/download`;
-  }, [exportId]);
+    window.location.href = `${api.getBaseUrl()}/exports/${id}/download`;
+  }, [api, exportId]);
 
   const reset = useCallback(() => {
     setState('idle');

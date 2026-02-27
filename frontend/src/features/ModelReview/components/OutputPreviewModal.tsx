@@ -70,7 +70,7 @@ export function OutputPreviewModal({
         const previewUrl = api.results.transformPreviewUrl
           ? api.results.transformPreviewUrl(output.previewUrl)
           : output.previewUrl;
-        const response = await fetch(previewUrl);
+        const response = await api.fetch(previewUrl);
         if (!response.ok) {
           throw new Error(`Failed to fetch preview: ${response.status}`);
         }

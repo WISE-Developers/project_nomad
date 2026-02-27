@@ -413,7 +413,7 @@ function AppContent() {
     try {
       // Fetch model results via adapter (supports embedded mode)
       const resultsUrl = api.results.getModelResultsUrl(modelId);
-      const response = await fetch(resultsUrl);
+      const response = await api.fetch(resultsUrl);
       if (!response.ok) {
         console.error('Failed to fetch model results:', response.status);
         return;
@@ -429,7 +429,7 @@ function AppContent() {
 
       // Fetch preview GeoJSON via adapter
       const previewUrl = api.results.getPreviewUrl(output.id);
-      const previewResponse = await fetch(previewUrl);
+      const previewResponse = await api.fetch(previewUrl);
       if (!previewResponse.ok) {
         console.error('Failed to fetch preview:', previewResponse.status);
         return;
