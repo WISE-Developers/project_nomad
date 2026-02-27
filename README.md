@@ -33,7 +33,8 @@ Self-hosted application for individual users or small teams:
 ### ACN (Agency Centric Nomad)
 Component integrated into existing agency systems:
 - Nomad dashboard embedded as a React component
-- Agency-managed authentication and backend
+- Agency-managed authentication (FusionAuth, Okta, etc.) — Nomad defers all user auth to the host
+- Server-to-server trust key required between host app and Nomad backend
 - PostGIS or other agency database
 - See [EMBEDDING.md](EMBEDDING.md) for integration guide
 

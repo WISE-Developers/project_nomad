@@ -51,6 +51,27 @@ function App() {
 }
 ```
 
+## ACN Trust Key Setup
+
+Before the embedded dashboard can communicate with the Nomad backend, both applications must be configured with a shared **agency trust key**. This is a server-to-server credential — not a user API key.
+
+**Nomad `.env`:**
+```bash
+NOMAD_AGENCY_KEY_NWT=MySecurityKey_12345
+```
+
+**Your application `.env`:**
+```bash
+# Env var name is your choice — only the value must match
+VITE_NOMAD_AGENCY_KEY=MySecurityKey_12345
+```
+
+Your application must send this key as the `X-Nomad-Agency-Key` header with every request to the Nomad backend, along with user identity headers (`X-Nomad-Agency-Id`, `X-Nomad-User-Id`, `X-Nomad-User-Role`).
+
+See [configuration/README.md](configuration/README.md) for the complete trust model and header reference.
+
+> **SAN mode blocks embedding.** If the Nomad backend is running in SAN mode (`NOMAD_DEPLOYMENT_MODE=SAN` or unset), the embedded dashboard will refuse to render and display an error. Embedding is only supported in ACN mode.
+
 ## Build Outputs
 
 The package provides multiple build formats:

@@ -32,6 +32,7 @@ import type {
   PaginationParams,
   PaginatedResponse,
   Job,
+  JobSubmitResponse,
   JobStatusDetail,
   ModelResults,
   ModelResult,
@@ -439,7 +440,7 @@ export function createDefaultAdapter(options?: DefaultAdapterOptions): IOpenNoma
        * - Route to different compute clusters
        * - Create audit records
        */
-      async submit(_modelId: string): Promise<Job> {
+      async submit(_modelId: string): Promise<JobSubmitResponse> {
         // The default backend uses atomic runModel() operation
         // which creates and executes in one call.
         // This method would be used if we had separate create/execute

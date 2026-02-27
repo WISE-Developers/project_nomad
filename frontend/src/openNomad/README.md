@@ -33,6 +33,12 @@ The openNomad API is an abstraction layer that allows the Dashboard component to
               └───────────────────────────────┘
 ```
 
+## Prerequisites
+
+Your host application must be configured with a **server trust key** that matches the Nomad backend's `NOMAD_AGENCY_KEY_{AGENCY_ID}` value. All requests to the Nomad backend must include the `X-Nomad-Agency-Key` header along with user identity headers. See [EMBEDDING.md](../../../../EMBEDDING.md) for setup and [configuration/README.md](../../../../configuration/README.md) for the complete trust model.
+
+> **ACN mode is enforced at runtime.** The embedded dashboard checks the backend's deployment mode on mount. If the backend is running in SAN mode, the dashboard will not render — it displays an error instead. This prevents insecure embedding without server trust validation.
+
 ## Quick Start
 
 ### 1. Install Dependencies
@@ -229,12 +235,12 @@ function createJobsModule(authToken: string): IOpenNomadAPI['jobs'] {
   const headers = { Authorization: `Bearer ${authToken}` };
 
   return {
-    async submit(modelId: string): Promise<Job> {
+    async submit(modelId: string): Promise<JobSubmitResponse> {
       const response = await fetch(`/api/nomad/models/${modelId}/execute`, {
         method: 'POST',
         headers,
       });
-      return mapToNomadJob(await response.json());
+      return await response.json();
     },
 
     async cancel(jobId: string): Promise<void> {
