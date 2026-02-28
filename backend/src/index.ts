@@ -124,6 +124,17 @@ app.use(express.json({ limit: '10mb' }));
 // 3. Request logging
 app.use(requestLogger);
 
+// ============================================
+// MCP Server (optional, behind feature flag)
+// Mounted BEFORE auth middleware — MCP uses its own session-based auth.
+// The MCP endpoint only exists when explicitly opted in via NOMAD_ENABLE_MCP=true.
+// ============================================
+
+if (process.env.NOMAD_ENABLE_MCP === 'true') {
+  const { mountMcpServer } = await import('./mcp/index.js');
+  mountMcpServer(app);
+}
+
 // 4. Authentication - mode-specific
 if (process.env.NOMAD_DEPLOYMENT_MODE === 'ACN') {
   logger.startup('ACN mode: Agency authentication enabled');

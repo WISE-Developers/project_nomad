@@ -29,6 +29,10 @@ const mockJobs = new Map<string, Job>();
 const mockResults = new Map<string, ModelResult[]>();
 
 vi.mock('../../../infrastructure/database/index.js', () => ({
+  getResultRepository: () => ({
+    save: vi.fn(async () => {}),
+    findByModelId: vi.fn(async (modelId: string) => mockResults.get(modelId) ?? []),
+  }),
   getModelRepository: () => ({
     save: vi.fn(async (model: FireModel) => {
       mockModels.set(model.id, model);
@@ -59,6 +63,7 @@ vi.mock('../../../infrastructure/firestarr/FireSTARREngine.js', () => ({
   getFireSTARREngine: () => ({
     initialize: vi.fn(async () => { /* no-op */ }),
     execute: vi.fn(async () => { /* no-op */ }),
+    getResults: vi.fn(async () => []),
   }),
 }));
 
@@ -75,6 +80,9 @@ vi.mock('../../../infrastructure/services/JobQueue.js', () => ({
       mockJobs.set(jobId, job);
       return Result.ok(job);
     }),
+    updateStatus: vi.fn(async () => Result.ok(undefined)),
+    complete: vi.fn(async () => Result.ok(undefined)),
+    fail: vi.fn(async () => Result.ok(undefined)),
   }),
 }));
 

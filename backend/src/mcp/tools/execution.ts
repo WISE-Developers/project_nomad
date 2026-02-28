@@ -16,7 +16,7 @@ import {
 } from '../../domain/entities/index.js';
 import { TimeRange } from '../../domain/value-objects/index.js';
 import type { WeatherConfig } from '../../infrastructure/weather/types.js';
-import { getModelRepository } from '../../infrastructure/database/index.js';
+import { getModelRepository, getResultRepository } from '../../infrastructure/database/index.js';
 import { getFireSTARREngine } from '../../infrastructure/firestarr/FireSTARREngine.js';
 import { getJobQueue } from '../../infrastructure/services/JobQueue.js';
 import {
@@ -117,10 +117,24 @@ export function registerExecutionTools(server: McpServer): void {
       }
       const job = jobResult.value;
 
-      // Start execution in background (non-blocking)
-      engine.execute(createFireModelId(modelId)).catch(() => {
-        // Errors are tracked in engine state; job status will reflect failure
-      });
+      // Start execution in background with lifecycle management
+      jobQueue.updateStatus(job.id, JobStatus.Running).catch(() => {});
+
+      engine.execute(createFireModelId(modelId))
+        .then(async () => {
+          const results = await engine.getResults(createFireModelId(modelId));
+          const resultRepo = getResultRepository();
+          for (const result of results) {
+            await resultRepo.save(result);
+          }
+          await jobQueue.complete(job.id);
+          await repo.updateStatus(createFireModelId(modelId), ModelStatus.Completed);
+        })
+        .catch(async (err) => {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          await jobQueue.fail(job.id, errMsg).catch(() => {});
+          await repo.updateStatus(createFireModelId(modelId), ModelStatus.Failed).catch(() => {});
+        });
 
       // Update model status to queued
       await repo.updateStatus(createFireModelId(modelId), ModelStatus.Queued);
@@ -214,7 +228,8 @@ export function registerExecutionTools(server: McpServer): void {
       const model = await repo.findById(createFireModelId(modelId));
       if (!model) return modelNotFound(modelId);
 
-      const results = await repo.getResults(createFireModelId(modelId));
+      const resultRepo = getResultRepository();
+      const results = await resultRepo.findByModelId(createFireModelId(modelId));
 
       if (results.length === 0) {
         return {
@@ -280,7 +295,8 @@ export function registerExecutionTools(server: McpServer): void {
       const model = await repo.findById(createFireModelId(modelId));
       if (!model) return modelNotFound(modelId);
 
-      const results = await repo.getResults(createFireModelId(modelId));
+      const resultRepo = getResultRepository();
+      const results = await resultRepo.findByModelId(createFireModelId(modelId));
 
       if (results.length === 0) {
         return {
