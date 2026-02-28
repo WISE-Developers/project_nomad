@@ -715,6 +715,9 @@ export class FireSTARREngine implements IFireModelingEngine {
     // Always include simulation area grids for output portability
     args.push('--sim-area');
 
+    // Output additional rasters (arrival time, etc.) (#150)
+    args.push('-i');
+
     // Add verbosity
     args.push('-v');
 
