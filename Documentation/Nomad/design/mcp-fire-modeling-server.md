@@ -2,7 +2,7 @@
 
 **Created:** 2026-02-27
 **Author:** Sage
-**Status:** Draft
+**Status:** Implemented (Phase 1)
 **Issue:** #167
 **Reviewed by:** Synthesis (2026-02-27)
 
@@ -40,7 +40,7 @@ MCP tool handlers call the **same service layer** as the REST API. Zero duplicat
 
 ```
 REST route handler ──┐
-                     ├──→ Service Layer ──→ Engine Manager ──→ WISE/FireSTARR
+                     ├──→ Service Layer ──→ FireSTARREngine
 MCP tool handler ────┘
 ```
 
@@ -74,22 +74,25 @@ Single new dependency. `zod` is already used by Nomad.
 
 ## Tool Catalog
 
-### v1 — Minimum Viable (One End-to-End Conversation)
+### v1 — Implemented (9 Tools)
 
 These tools enable: create model → set parameters → execute → get results.
 
 | Tool | Description | Input | Output |
 |------|-------------|-------|--------|
-| `list-models` | List existing fire models | `{ status?, limit? }` | Model summaries |
-| `create-model` | Create a new fire model | `{ name, description? }` | `{ modelId }` |
-| `set-ignition` | Set ignition point(s) | `{ modelId, points: [{lat, lng, time}] }` | Confirmation |
-| `set-weather` | Configure weather parameters | `{ modelId, temperature, rh, windSpeed, windDirection, ... }` | Confirmation |
-| `set-fuel-type` | Set fuel type for the model area | `{ modelId, fuelType }` | Confirmation |
-| `set-simulation-time` | Set start time and duration | `{ modelId, startTime, durationHours }` | Confirmation |
-| `execute-model` | Submit model for execution | `{ modelId, engine?: 'wise' \| 'firestarr' }` | `{ jobId, status }` |
-| `get-job-status` | Poll execution status | `{ jobId }` | `{ status, progress?, eta? }` |
-| `get-results-summary` | Get human-readable results | `{ modelId }` | Textual summary of fire behavior |
-| `get-results-data` | Get structured result data | `{ modelId, format? }` | Fire perimeter, area, rate of spread |
+| `list-models` | List existing fire models | `{ status?, limit? }` | Model summaries with config completeness |
+| `create-model` | Create a new fire model | `{ name, description? }` | `{ modelId }` (FireSTARR only) |
+| `set-ignition` | Set ignition geometry | `{ modelId, type: 'point'\|'polygon', coordinates: [lon,lat]\|[[lon,lat],...] }` | Confirmation |
+| `set-weather` | Configure weather data source | `{ modelId, source: 'firestarr_csv'\|'raw_weather'\|'spotwx', firestarrCsvContent?, rawWeatherContent?, startingCodes?, latitude? }` | Confirmation |
+| `set-simulation-time` | Set time range | `{ modelId, startTime, endTime }` (ISO 8601) | Confirmation |
+| `execute-model` | Submit model for execution | `{ modelId }` | `{ jobId, status }` |
+| `get-job-status` | Poll execution status | `{ jobId }` | `{ status, progress?, timestamps }` |
+| `get-results-summary` | Get templated results summary | `{ modelId }` | Deterministic textual summary |
+| `get-results-data` | Get structured result data | `{ modelId }` | Result file inventory with metadata |
+
+**Removed:** `set-fuel-type` — FireSTARR reads fuel from raster grid at ignition location. Not a user parameter.
+
+**Config storage:** Model configuration is stored in `config_json` column on `fire_models` table (database-backed, survives restarts).
 
 ### v2 — Batch and Comparison
 
@@ -294,7 +297,7 @@ Expose `nomad://server/capabilities` as a resource so agents can discover what's
 {
   "version": "1.0.0",
   "tools": ["list-models", "create-model", "set-ignition", "..."],
-  "engines": ["wise", "firestarr"],
+  "engines": ["firestarr"],
   "features": ["batch", "spatial-query"]
 }
 ```
@@ -305,18 +308,26 @@ Expose `nomad://server/capabilities` as a resource so agents can discover what's
 backend/src/
 ├── mcp/
 │   ├── index.ts                    # MCP server creation + Express mounting
+│   ├── errors.ts                   # Structured error taxonomy
 │   ├── tools/
-│   │   ├── models.ts               # create, list, configure model tools
-│   │   ├── execution.ts            # execute, status, results tools
+│   │   ├── models.ts               # create, list, configure model tools (5 tools)
+│   │   ├── execution.ts            # execute, status, results tools (4 tools)
 │   │   └── index.ts                # tool registration barrel
 │   ├── resources/
-│   │   ├── dynamic.ts              # models, jobs, results resources
+│   │   ├── dynamic.ts              # models, model detail, jobs, results resources
 │   │   ├── knowledge/
-│   │   │   ├── fuel-types.ts       # FBP fuel type catalog
-│   │   │   ├── fwi-system.ts       # Fire weather index guide
-│   │   │   └── model-params.ts     # Parameter reference
+│   │   │   ├── fuel-types.ts       # FBP fuel type catalog (20 types)
+│   │   │   ├── fwi-system.ts       # Fire weather index guide (6 components)
+│   │   │   ├── model-params.ts     # Parameter reference
+│   │   │   └── index.ts            # knowledge resource barrel
 │   │   └── index.ts                # resource registration barrel
-│   └── README.md                   # MCP module documentation
+│   └── __tests__/
+│       ├── integration.test.ts     # End-to-end MCP workflow test
+│       ├── migration.test.ts       # config_json migration tests
+│       ├── resources.test.ts       # Knowledge + dynamic resource tests
+│       └── tools/
+│           ├── models.test.ts      # Model tool tests
+│           └── execution.test.ts   # Execution tool tests
 ```
 
 ## Configuration
@@ -360,23 +371,15 @@ Dynamic import ensures zero overhead when MCP is disabled. The `services` object
 
 ## Implementation Phases
 
-### Phase 1: First Fire — End-to-End Simulation via MCP
-- MCP server module with Streamable HTTP transport (stateless)
-- Mount on Express app behind feature flag
-- Core tools: `list-models`, `create-model`, `set-ignition`, `set-weather`, `set-fuel-type`, `set-simulation-time`, `execute-model`, `get-job-status`
-- Error taxonomy implementation for all tools
-- 1 resource: `nomad://models` (dynamic model list)
-- **Milestone gate**: Claude Code creates a model, sets ignition in boreal spruce with real weather, executes, and retrieves a fire perimeter. Real fire behavior output, not a connectivity test.
-
-### Phase 2: Results and Polish
-- `get-results-summary` (templated, deterministic) and `get-results-data`
-- Dynamic resources for jobs and results
-- `nomad://server/capabilities` version resource
-
-### Phase 3: Domain Knowledge
-- Static resources: fuel types, FWI system, model parameters
-- Content authored from FBP documentation and operational experience
-- AI can query domain knowledge before/during modeling
+### Phase 1: First Fire — COMPLETE
+- MCP server module with Streamable HTTP transport (stateful sessions)
+- Mount on Express app behind `NOMAD_ENABLE_MCP` feature flag
+- 9 tools: `list-models`, `create-model`, `set-ignition`, `set-weather`, `set-simulation-time`, `execute-model`, `get-job-status`, `get-results-summary`, `get-results-data`
+- Error taxonomy with structured errors, recovery suggestions, and weather-specific error codes
+- 7 resources: 3 knowledge (fuel-types, fwi-system, model-parameters) + 4 dynamic (models, model detail, jobs, results)
+- Database-backed config storage (`config_json` column on `fire_models`)
+- 63 tests passing, full TypeScript compilation clean
+- **Milestone gate**: Claude Code creates a model, sets polygon ignition with FireSTARR CSV weather, executes, and retrieves results with deterministic summary.
 
 ### Phase 4: Batch and Comparison
 - v2 tools: clone, compare, batch execute, export
