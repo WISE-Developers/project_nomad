@@ -231,4 +231,17 @@ export class KnexModelRepository implements IModelRepository {
 
     return rows.map(rowToModel);
   }
+
+  async getConfigJson(id: FireModelId): Promise<Record<string, unknown> | null> {
+    const row = await this.knex(this.tableName).where({ id }).select('config_json').first();
+    if (!row || !row.config_json) return null;
+    return JSON.parse(row.config_json);
+  }
+
+  async saveConfigJson(id: FireModelId, config: Record<string, unknown>): Promise<void> {
+    await this.knex(this.tableName).where({ id }).update({
+      config_json: JSON.stringify(config),
+      updated_at: this.knex.fn.now(),
+    });
+  }
 }

@@ -192,4 +192,14 @@ export interface IModelRepository {
    * @returns Stale models
    */
   findStaleModels(maxAgeMinutes: number): Promise<FireModel[]>;
+
+  /**
+   * Gets the MCP configuration JSON for a model.
+   */
+  getConfigJson(id: FireModelId): Promise<Record<string, unknown> | null>;
+
+  /**
+   * Saves MCP configuration JSON for a model.
+   */
+  saveConfigJson(id: FireModelId, config: Record<string, unknown>): Promise<void>;
 }
