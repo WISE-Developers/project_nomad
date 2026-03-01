@@ -202,13 +202,15 @@ export function ModelSummary({ data }: ModelSummaryProps) {
           </span>
         </div>
         <div style={rowStyle}>
-          <span style={labelStyle}>Run Type:</span>
+          <span style={labelStyle}>Model Mode:</span>
           <span style={valueStyle}>
-            {data.model?.runType === 'deterministic'
-              ? 'Single Scenario'
-              : data.model?.runType === 'probabilistic'
-                ? 'Multi-Scenario'
-                : 'Not set'}
+            {data.model?.modelMode === 'probabilistic'
+              ? 'Probabilistic'
+              : data.model?.modelMode === 'deterministic'
+                ? 'Deterministic'
+                : data.model?.modelMode === 'long-term-risk'
+                  ? 'Long-Term Risk'
+                  : 'Probabilistic'}
           </span>
         </div>
         <div style={rowStyle}>

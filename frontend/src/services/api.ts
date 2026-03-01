@@ -222,6 +222,8 @@ export interface RunModelRequest {
   scenarios?: number;
   /** Output mode - how to post-process results */
   outputMode?: 'probabilistic' | 'pseudo-deterministic';
+  /** Model mode - type of fire modeling analysis to perform */
+  modelMode?: 'probabilistic' | 'deterministic' | 'long-term-risk';
 }
 
 export interface RunModelResponse {
