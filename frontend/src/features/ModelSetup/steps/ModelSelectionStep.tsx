@@ -108,10 +108,9 @@ const engines: EngineOption[] = [
   },
   {
     id: 'wise',
-    name: 'WISE',
-    icon: 'tree',
-    description:
-      'Wildfire Intelligence Simulation Engine. Advanced physics-based fire behavior modeling with detailed fire intensity outputs.',
+    name: 'Additional Engine',
+    icon: 'puzzle-piece',
+    description: 'Future fire modeling engine integration. Additional engines can be added to Nomad through the engine abstraction layer.',
     available: false,
   },
 ];
