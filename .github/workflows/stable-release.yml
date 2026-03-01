@@ -84,3 +84,10 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: frontend/nomad-frontend-*.tgz
+
+      - name: Sync version back to dev
+        run: |
+          git fetch origin dev
+          git checkout dev
+          git merge main -m "chore: sync v${{ steps.newversion.outputs.version }} from main [skip ci]"
+          git push origin dev
