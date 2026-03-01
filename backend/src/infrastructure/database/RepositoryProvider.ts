@@ -27,7 +27,7 @@ interface Repositories {
 
 // Singleton instances
 let repositories: Repositories | null = null;
-let currentClient: string | null = null;
+let currentKnexRef: unknown = null;
 
 /**
  * Initializes repositories using Knex.
@@ -37,8 +37,10 @@ export function initializeRepositories(): Repositories {
   const knex = getKnex();
   const client = getDatabaseClient();
 
-  // If already initialized with same client, return existing
-  if (repositories && currentClient === client) {
+  // If already initialized with the same Knex instance, return existing.
+  // Checking instance identity (not just client name) ensures repos refresh
+  // when the connection is re-initialized with different config.
+  if (repositories && currentKnexRef === knex) {
     return repositories;
   }
 
@@ -51,7 +53,7 @@ export function initializeRepositories(): Repositories {
     notificationPreferences: new KnexNotificationPreferencesRepository(knex),
   };
 
-  currentClient = client;
+  currentKnexRef = knex;
   return repositories;
 }
 
@@ -100,7 +102,7 @@ export function getNotificationPreferencesRepository(): INotificationPreferences
  */
 export function resetRepositories(): void {
   repositories = null;
-  currentClient = null;
+  currentKnexRef = null;
 }
 
 /**

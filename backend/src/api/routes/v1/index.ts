@@ -19,6 +19,15 @@ router.use(modelsRouter);   // /models/:id, /models/:id/execute, /models/:id/res
 router.use(resultsRouter);  // /results/:id/preview, /results/:id/download
 router.use(exportsRouter);  // /exports, /exports/:id/download, /exports/:id/share, /share/:token
 router.use(settingsRouter); // /settings/:key
-router.use(notificationsRouterFactory(getNotificationPreferencesRepository()));  // /notifications/preferences
+
+// Lazy-init: getNotificationPreferencesRepository() must NOT run at import time
+// because dotenv hasn't loaded yet, causing wrong database path and double-init crash
+let notificationRouter: Router | null = null;
+router.use((req, res, next) => {
+  if (!notificationRouter) {
+    notificationRouter = notificationsRouterFactory(getNotificationPreferencesRepository());
+  }
+  notificationRouter(req, res, next);
+});
 
 export default router;
