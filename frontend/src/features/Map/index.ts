@@ -14,6 +14,7 @@ export { MeasurementTool } from './components/MeasurementTool';
 export { TerrainControl } from './components/TerrainControl';
 export { MapInfoControl } from './components/MapInfoControl';
 export { MapContextMenu } from './components/MapContextMenu';
+export { RasterLegend } from './components/RasterLegend';
 
 // Context
 export { MapProvider, useMap } from './context/MapContext';

@@ -1,12 +1,12 @@
 /**
  * ModelSelectionStep Component
  *
- * Third wizard step for selecting fire modeling engine and run type.
+ * Third wizard step for selecting fire modeling engine and model mode.
  */
 
 import React, { useCallback } from 'react';
 import { useWizardData } from '../../Wizard';
-import type { ModelSetupData, FireEngine, OutputMode } from '../types';
+import type { ModelSetupData, FireEngine, ModelMode } from '../types';
 
 const containerStyle: React.CSSProperties = {
   display: 'flex',
@@ -90,11 +90,12 @@ interface EngineOption {
   available: boolean;
 }
 
-interface OutputModeOption {
-  id: OutputMode;
+interface ModelModeOption {
+  id: ModelMode;
   name: string;
   icon: string;
   description: string;
+  available: boolean;
 }
 
 const engines: EngineOption[] = [
@@ -108,28 +109,37 @@ const engines: EngineOption[] = [
   },
   {
     id: 'wise',
-    name: 'WISE',
-    icon: 'tree',
-    description:
-      'Wildfire Intelligence Simulation Engine. Advanced physics-based fire behavior modeling with detailed fire intensity outputs.',
+    name: 'Additional Engine',
+    icon: 'puzzle-piece',
+    description: 'Future fire modeling engine integration. Additional engines can be added to Nomad through the engine abstraction layer.',
     available: false,
   },
 ];
 
-const outputModes: OutputModeOption[] = [
+const modelModes: ModelModeOption[] = [
   {
     id: 'probabilistic',
-    name: 'Probability Maps',
+    name: 'Probabilistic',
     icon: 'chart-simple',
     description:
-      'Output daily probability rasters showing fire spread likelihood at each location.',
+      'Run multiple stochastic scenarios to generate daily probability rasters showing fire spread likelihood at each location.',
+    available: true,
   },
   {
-    id: 'pseudo-deterministic',
-    name: 'Fire Perimeters',
+    id: 'deterministic',
+    name: 'Deterministic',
     icon: 'draw-polygon',
     description:
-      'Output daily fire perimeter polygons at a confidence threshold (e.g., 50% probability).',
+      'Run a single scenario to produce daily fire perimeter polygons at a defined confidence threshold.',
+    available: false,
+  },
+  {
+    id: 'long-term-risk',
+    name: 'Long-Term Risk',
+    icon: 'calendar-days',
+    description:
+      'Assess burn probability over an extended season to support strategic planning and resource allocation.',
+    available: false,
   },
 ];
 
@@ -143,6 +153,7 @@ export function ModelSelectionStep() {
     engine: 'firestarr',
     runType: 'deterministic',
     outputMode: 'probabilistic',
+    modelMode: 'probabilistic',
   };
 
   // Update engine selection
@@ -160,11 +171,19 @@ export function ModelSelectionStep() {
     [setField, model]
   );
 
-  // Update output mode selection
-  const handleOutputModeChange = useCallback(
-    (outputMode: OutputMode) => {
+  // Update model mode selection
+  const handleModelModeChange = useCallback(
+    (modelMode: ModelMode) => {
+      // Only allow selection of available modes
+      const modeOption = modelModes.find((m) => m.id === modelMode);
+      if (!modeOption?.available) return;
+
+      // Derive outputMode from modelMode
+      const outputMode = modelMode === 'deterministic' ? 'pseudo-deterministic' : 'probabilistic';
+
       setField('model', {
         ...model,
+        modelMode,
         outputMode,
       });
     },
@@ -224,49 +243,60 @@ export function ModelSelectionStep() {
         </div>
       </div>
 
-      {/* Output Mode Selection */}
+      {/* Model Mode Selection */}
       <div style={sectionStyle}>
-        <label style={labelStyle}>Output Mode</label>
+        <label style={labelStyle}>Model Mode</label>
         <div style={optionsStyle}>
-          {outputModes.map((outputMode) => {
-            const isSelected = model.outputMode === outputMode.id;
-            const cardStyle = isSelected ? selectedCardStyle : optionCardStyle;
+          {modelModes.map((mode) => {
+            const isSelected = (model.modelMode ?? 'probabilistic') === mode.id;
+            const cardStyle = !mode.available
+              ? disabledCardStyle
+              : isSelected
+                ? selectedCardStyle
+                : optionCardStyle;
 
             return (
               <div
-                key={outputMode.id}
+                key={mode.id}
                 style={cardStyle}
-                onClick={() => handleOutputModeChange(outputMode.id)}
+                onClick={() => handleModelModeChange(mode.id)}
                 role="radio"
                 aria-checked={isSelected}
-                tabIndex={0}
+                {...(!mode.available ? { 'aria-disabled': true } : {})}
+                tabIndex={mode.available ? 0 : -1}
               >
                 <input
                   type="radio"
-                  name="outputMode"
-                  value={outputMode.id}
+                  name="modelMode"
+                  value={mode.id}
                   checked={isSelected}
-                  onChange={() => handleOutputModeChange(outputMode.id)}
+                  onChange={() => handleModelModeChange(mode.id)}
+                  disabled={!mode.available}
                   style={radioStyle}
                 />
                 <div style={optionTitleStyle}>
-                  <i className={`fa-solid fa-${outputMode.icon}`} />
-                  <span>{outputMode.name}</span>
-                  {isSelected && (
+                  <i className={`fa-solid fa-${mode.icon}`} />
+                  <span>{mode.name}</span>
+                  {!mode.available && (
+                    <span style={{ ...badgeStyle, backgroundColor: '#95a5a6', color: 'white' }}>
+                      Coming Soon
+                    </span>
+                  )}
+                  {mode.available && isSelected && (
                     <span style={{ ...badgeStyle, backgroundColor: '#ff6b35', color: 'white' }}>
                       Selected
                     </span>
                   )}
                 </div>
-                <div style={optionDescStyle}>{outputMode.description}</div>
+                <div style={optionDescStyle}>{mode.description}</div>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Info box for probability maps */}
-      {model.outputMode === 'probabilistic' && (
+      {/* Info box for probabilistic mode */}
+      {(model.modelMode ?? 'probabilistic') === 'probabilistic' && (
         <div
           style={{
             padding: '12px',
@@ -277,12 +307,12 @@ export function ModelSelectionStep() {
             color: '#333',
           }}
         >
-          <strong>Note:</strong> Probability maps show the likelihood of fire spread at each location
-          over time. These raster outputs are ideal for risk analysis and can be visualized with color
-          gradients representing burn probability.
+          <strong>Note:</strong> Probabilistic mode runs multiple stochastic scenarios to generate
+          probability maps showing the likelihood of fire spread at each location over time. These
+          raster outputs are ideal for risk analysis and can be visualized with color gradients
+          representing burn probability.
         </div>
       )}
-
     </div>
   );
 }

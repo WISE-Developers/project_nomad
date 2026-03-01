@@ -2117,9 +2117,11 @@ print_summary() {
     else
     echo "    Dataset Path:            $FIRESTARR_DATASET_PATH (skipped)"
     fi
-    if [ -n "$FIRESTARR_IMAGE" ]; then
+    echo "    Execution Mode:          $FIRESTARR_EXECUTION_MODE"
+    if [ "$FIRESTARR_EXECUTION_MODE" = "docker" ] && [ -n "$FIRESTARR_IMAGE" ]; then
     echo "    FireSTARR Image:         $FIRESTARR_IMAGE"
     fi
+    if [ "$FIRESTARR_EXECUTION_MODE" = "binary" ]; then
     if [ "$FIRESTARR_INSTALL_MODE" = "archive" ]; then
     echo "    FireSTARR Archive:       $FIRESTARR_ARCHIVE_SOURCE"
     echo "    FireSTARR Install Dir:   $FIRESTARR_INSTALL_DIR"
@@ -2127,6 +2129,7 @@ print_summary() {
     echo "    FireSTARR Binary:        $FIRESTARR_BINARY_PATH (existing)"
     elif [ -n "$FIRESTARR_BINARY_PATH" ]; then
     echo "    FireSTARR Binary:        $FIRESTARR_BINARY_PATH"
+    fi
     fi
     if [ "$NOMAD_DEPLOYMENT_MODE" = "ACN" ]; then
     echo "    Agency ID:               $NOMAD_AGENCY_ID"

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useLayers } from '../context/LayerContext';
 import { LayerItem } from './LayerItem';
+import { useCFSLayers } from '../hooks/useCFSLayers';
 
 /**
  * Props for LayerPanel component
@@ -46,11 +47,42 @@ export function LayerPanel({
   className = '',
 }: LayerPanelProps) {
   // Note: _initialExpanded reserved for future collapsible panel feature
-  const { state, setOpacity, toggleVisibility, removeLayer, selectLayer, reorderLayer } = useLayers();
+  const { state, setOpacity, toggleVisibility, removeLayer, selectLayer, reorderLayer, addRasterLayer } = useLayers();
+  const cfs = useCFSLayers();
 
   // Drag and drop state
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  // CFS layer toggles: layerId -> { active, visible }
+  const [cfsLayerState, setCfsLayerState] = useState<Record<string, { active: boolean }>>({});
+  const [cfsDate, setCfsDate] = useState<string>(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
+
+  const handleCFSLayerToggle = useCallback((layerId: string, layerName: string, wmsLayerName: string) => {
+    const isActive = cfsLayerState[layerId]?.active ?? false;
+
+    if (!isActive) {
+      // Add raster layer
+      const tileUrl = cfs.buildWmsUrl(wmsLayerName, cfsDate);
+      addRasterLayer({
+        id: layerId,
+        name: layerName,
+        url: tileUrl,
+        tileSize: 256,
+        opacity: 0.8,
+        visible: true,
+        zIndex: 999,
+      });
+      setCfsLayerState((prev) => ({ ...prev, [layerId]: { active: true } }));
+    } else {
+      // Remove layer
+      removeLayer(layerId);
+      setCfsLayerState((prev) => ({ ...prev, [layerId]: { active: false } }));
+    }
+  }, [cfsLayerState, cfs, cfsDate, addRasterLayer, removeLayer]);
 
   const handleDragStart = (e: React.DragEvent, layerId: string) => {
     setDraggedId(layerId);
@@ -91,11 +123,45 @@ export function LayerPanel({
     boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
     minWidth: '280px',
     maxWidth: '350px',
-    maxHeight: '400px',
+    maxHeight: cfs.available ? '550px' : '400px',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
     ...POSITION_STYLES[position],
+  };
+
+  const cfsSectionStyle: React.CSSProperties = {
+    borderTop: '1px solid #eee',
+    padding: '8px',
+  };
+
+  const cfsSectionHeaderStyle: React.CSSProperties = {
+    padding: '6px 8px',
+    fontWeight: 600,
+    fontSize: '12px',
+    color: '#555',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.05em',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  };
+
+  const cfsLayerRowStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '4px 8px',
+    fontSize: '13px',
+  };
+
+  const cfsDateRowStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '4px 8px',
+    fontSize: '13px',
+    color: '#555',
   };
 
   const headerStyle: React.CSSProperties = {
@@ -122,7 +188,56 @@ export function LayerPanel({
     fontSize: '14px',
   };
 
-  if (state.layers.length === 0) {
+  /** CFS Layers section - only rendered when API key is configured */
+  const CFSSection = cfs.available ? (
+    <div style={cfsSectionStyle}>
+      <div style={cfsSectionHeaderStyle}>
+        <i className="fa-solid fa-satellite-dish" style={{ color: '#e63946' }} />
+        CFS Layers
+      </div>
+
+      {/* Date picker for TIME parameter */}
+      <div style={cfsDateRowStyle}>
+        <label style={{ fontSize: '12px', color: '#666', minWidth: '36px' }}>Date:</label>
+        <input
+          type="date"
+          value={cfsDate}
+          onChange={(e) => setCfsDate(e.target.value)}
+          style={{
+            fontSize: '12px',
+            padding: '2px 4px',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            flex: 1,
+          }}
+        />
+      </div>
+
+      {/* Layer toggles */}
+      {cfs.layers.map((layer) => {
+        const isActive = cfsLayerState[layer.id]?.active ?? false;
+        return (
+          <div key={layer.id} style={cfsLayerRowStyle}>
+            <input
+              type="checkbox"
+              id={`cfs-${layer.id}`}
+              checked={isActive}
+              onChange={() => handleCFSLayerToggle(layer.id, layer.name, layer.layerName)}
+              style={{ cursor: 'pointer' }}
+            />
+            <label
+              htmlFor={`cfs-${layer.id}`}
+              style={{ cursor: 'pointer', flex: 1 }}
+            >
+              {layer.name}
+            </label>
+          </div>
+        );
+      })}
+    </div>
+  ) : null;
+
+  if (state.layers.length === 0 && !cfs.available) {
     return (
       <div className={`layer-panel ${className}`} style={containerStyle}>
         <div style={headerStyle}>
@@ -132,6 +247,21 @@ export function LayerPanel({
         <div style={emptyStyle}>
           No layers added yet
         </div>
+      </div>
+    );
+  }
+
+  if (state.layers.length === 0 && cfs.available) {
+    return (
+      <div className={`layer-panel ${className}`} style={containerStyle}>
+        <div style={headerStyle}>
+          <span><i className="fa-solid fa-layer-group" style={{ marginRight: '8px' }} />Layers</span>
+          <span style={{ fontSize: '12px', color: '#999' }}>0</span>
+        </div>
+        <div style={emptyStyle}>
+          No layers added yet
+        </div>
+        {CFSSection}
       </div>
     );
   }
@@ -161,6 +291,7 @@ export function LayerPanel({
           />
         ))}
       </div>
+      {CFSSection}
     </div>
   );
 }

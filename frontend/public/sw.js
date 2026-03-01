@@ -110,5 +110,25 @@ self.addEventListener('message', (event) => {
 
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
+    return;
+  }
+
+  if (event.data?.type === 'SHOW_NOTIFICATION') {
+    const { title, body, data } = event.data.payload || {};
+
+    event.waitUntil(
+      self.registration.showNotification(title || 'Model Update', {
+        body: body || '',
+        icon: '/favicon.png',
+        badge: '/favicon.png',
+        tag: 'job-notification',
+        data: data || {},
+        requireInteraction: false,
+        actions: [
+          { action: 'view', title: 'View Results' },
+          { action: 'dismiss', title: 'Dismiss' },
+        ],
+      })
+    );
   }
 });

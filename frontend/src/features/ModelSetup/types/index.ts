@@ -27,6 +27,11 @@ export type FireEngine = 'firestarr' | 'wise';
 export type RunType = 'deterministic' | 'probabilistic';
 
 /**
+ * Model mode - the type of fire modeling analysis to perform
+ */
+export type ModelMode = 'probabilistic' | 'deterministic' | 'long-term-risk';
+
+/**
  * Output mode types - how FireSTARR results should be post-processed
  */
 export type OutputMode = 'probabilistic' | 'pseudo-deterministic';
@@ -112,6 +117,8 @@ export interface ModelData {
   runType: RunType;
   /** Output mode - how to post-process FireSTARR results */
   outputMode: OutputMode;
+  /** Model mode - the type of fire modeling analysis to perform */
+  modelMode: ModelMode;
 }
 
 /**
@@ -251,6 +258,7 @@ export const DEFAULT_MODEL_SETUP_DATA: ModelSetupData = {
     engine: 'firestarr',
     runType: 'deterministic',
     outputMode: 'probabilistic',
+    modelMode: 'probabilistic',
   },
   weather: {
     source: 'firestarr_csv',

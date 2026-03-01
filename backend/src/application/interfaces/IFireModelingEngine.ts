@@ -24,6 +24,11 @@ export interface ExecutionStatus {
 }
 
 /**
+ * Model mode - the type of fire modeling analysis to perform
+ */
+export type ModelMode = 'probabilistic' | 'deterministic' | 'long-term-risk';
+
+/**
  * Output mode for model results
  */
 export type OutputMode = 'probabilistic' | 'pseudo-deterministic';

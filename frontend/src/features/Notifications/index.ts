@@ -8,3 +8,4 @@ export { useJobNotifications } from './hooks/useJobNotifications';
 export type { JobStatus } from './hooks/useJobNotifications';
 export { JobStatusToast } from './components/JobStatusToast';
 export { NotificationPermissionBanner } from './components/NotificationPermissionBanner';
+export { NotificationPreferences } from './components/NotificationPreferences';

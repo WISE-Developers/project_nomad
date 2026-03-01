@@ -19,8 +19,10 @@ import { getFireSTARREngine } from '../../../infrastructure/firestarr/index.js';
 import { getModelResultsService } from '../../../application/services/index.js';
 import { getJobQueue } from '../../../infrastructure/services/JobQueue.js';
 import { getModelRepository, getResultRepository } from '../../../infrastructure/database/index.js';
-import type { ExecutionOptions } from '../../../application/interfaces/IFireModelingEngine.js';
+import type { ExecutionOptions, ModelMode } from '../../../application/interfaces/IFireModelingEngine.js';
 import type { WeatherConfig } from '../../../infrastructure/weather/types.js';
+
+const VALID_MODEL_MODES: ModelMode[] = ['probabilistic', 'deterministic', 'long-term-risk'];
 
 const router = Router();
 
@@ -44,6 +46,7 @@ interface RunModelRequestBody {
   weather: WeatherConfig;
   scenarios?: number;
   outputMode?: 'probabilistic' | 'pseudo-deterministic';
+  modelMode?: ModelMode;
 }
 
 /**
@@ -122,6 +125,24 @@ router.post(
       ]);
     }
 
+    // Validate and resolve modelMode (default: probabilistic)
+    const modelMode: ModelMode = body.modelMode ?? 'probabilistic';
+    if (!VALID_MODEL_MODES.includes(modelMode)) {
+      throw new ValidationError('Invalid model mode', [
+        { field: 'modelMode', message: `Must be one of: ${VALID_MODEL_MODES.join(', ')}` },
+      ]);
+    }
+
+    // Derive outputMode from modelMode before availability gate
+    const derivedOutputMode: 'probabilistic' | 'pseudo-deterministic' =
+      modelMode === 'deterministic' ? 'pseudo-deterministic' : 'probabilistic';
+
+    if (modelMode !== 'probabilistic') {
+      throw new ValidationError('Model mode not available', [
+        { field: 'modelMode', message: `'${modelMode}' mode is coming soon and cannot be selected` },
+      ]);
+    }
+
     // Create model with queued status (skip draft)
     const modelId = createFireModelId(crypto.randomUUID());
     const model = new FireModel({
@@ -164,7 +185,7 @@ router.post(
       timeRange,
       weatherConfig: body.weather,
       simulationCount: body.scenarios ?? 100,
-      outputMode: body.outputMode === 'pseudo-deterministic' ? 'pseudo-deterministic' : 'probabilistic',
+      outputMode: derivedOutputMode,
       confidenceInterval: 1,
       smoothPerimeter: false,
     };

@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, useRef, ty
 import mapboxgl from 'mapbox-gl';
 import { useMap } from './MapContext';
 import { useOpenNomad } from '../../../openNomad/context';
+import { useRasterHover } from '../hooks/useRasterHover';
 import type {
   LayerConfig,
   GeoJSONLayerConfig,
@@ -615,6 +616,12 @@ export function LayerProvider({ children }: { children: ReactNode }) {
   const clearLayers = useCallback(() => {
     state.layers.forEach((layer) => removeLayer(layer.id));
   }, [state.layers, removeLayer]);
+
+  // Raster hover tooltip — WebGL pixel sampling for burn probability
+  const hasVisibleRasterLayer = state.layers.some(
+    (layer) => layer.type === 'raster' && layer.visible,
+  );
+  useRasterHover({ map, hasVisibleRasterLayer });
 
   return (
     <LayerContext.Provider

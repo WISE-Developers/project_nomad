@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { SplashScreen } from './components/SplashScreen';
 import { DeploymentModeProvider } from './core/deployment';
 import {
@@ -11,6 +11,7 @@ import {
   TerrainControl,
   MapInfoControl,
   MapContextMenu,
+  RasterLegend,
   useDraw,
   useMap,
   useLayers,
@@ -26,9 +27,11 @@ import {
   NotificationPermissionBanner,
 } from './features/Notifications';
 import { runModel } from './services/api';
+import { registerServiceWorker } from './services/serviceWorker';
 import type { ModelResultsResponse } from './features/ModelReview/types';
 import { OpenNomadProvider, createDefaultAdapter, useOpenNomad } from './openNomad';
 import { DashboardContainer } from './features/Dashboard';
+import { SettingsModal } from './features/Settings/SettingsModal';
 
 /**
  * Calculate bounding box from GeoJSON
@@ -113,6 +116,7 @@ function AppContent() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [reviewModelId, setReviewModelId] = useState<string | null>(null);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const { deleteAll } = useDraw();
   const { map, isLoaded } = useMap();
   const { addGeoJSONLayer, addRasterLayer } = useLayers();
@@ -245,6 +249,7 @@ function AppContent() {
         weather: weatherConfig,
         scenarios: data.model.runType === 'probabilistic' ? 100 : 1,
         outputMode: data.model.outputMode,
+        modelMode: data.model.modelMode ?? 'probabilistic',
       });
 
       console.log('Model created and execution started:', result);
@@ -471,7 +476,19 @@ function AppContent() {
           >
             <i className="fa-solid fa-clipboard-list" style={{ marginRight: '8px' }} />Dashboard
           </button>
+          <button
+            style={{ ...headerButtonStyle, backgroundColor: '#4b5563', padding: '12px 16px' }}
+            onClick={() => setShowSettings(true)}
+            title="Settings"
+          >
+            <i className="fa-solid fa-gear" />
+          </button>
         </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <SettingsModal onClose={() => setShowSettings(false)} />
       )}
 
       {/* Dashboard Panel - now self-contained with internal wizard */}
@@ -563,6 +580,7 @@ function AppContent() {
           <TerrainControl position="top-right" />
           <MapInfoControl />
           <MapContextMenu />
+          <RasterLegend />
         </>
       )}
 
@@ -581,6 +599,11 @@ function AppContent() {
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
+
+  // Register service worker once on mount for push notification support
+  useEffect(() => {
+    void registerServiceWorker();
+  }, []);
 
   // Create the openNomad API adapter (memoized to prevent re-creation)
   const openNomadAdapter = useMemo(() => createDefaultAdapter(), []);
