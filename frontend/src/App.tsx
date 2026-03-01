@@ -30,6 +30,7 @@ import { runModel } from './services/api';
 import type { ModelResultsResponse } from './features/ModelReview/types';
 import { OpenNomadProvider, createDefaultAdapter, useOpenNomad } from './openNomad';
 import { DashboardContainer } from './features/Dashboard';
+import { SettingsModal } from './features/Settings/SettingsModal';
 
 /**
  * Calculate bounding box from GeoJSON
@@ -114,6 +115,7 @@ function AppContent() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [reviewModelId, setReviewModelId] = useState<string | null>(null);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const { deleteAll } = useDraw();
   const { map, isLoaded } = useMap();
   const { addGeoJSONLayer, addRasterLayer } = useLayers();
@@ -473,7 +475,19 @@ function AppContent() {
           >
             <i className="fa-solid fa-clipboard-list" style={{ marginRight: '8px' }} />Dashboard
           </button>
+          <button
+            style={{ ...headerButtonStyle, backgroundColor: '#4b5563', padding: '12px 16px' }}
+            onClick={() => setShowSettings(true)}
+            title="Settings"
+          >
+            <i className="fa-solid fa-gear" />
+          </button>
         </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <SettingsModal onClose={() => setShowSettings(false)} />
       )}
 
       {/* Dashboard Panel - now self-contained with internal wizard */}
