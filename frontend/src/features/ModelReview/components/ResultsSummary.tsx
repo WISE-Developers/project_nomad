@@ -71,7 +71,14 @@ function formatDuration(seconds: number | null): string {
 function formatTime(timestamp: string | null): string {
   if (!timestamp) return '-';
   try {
-    return new Date(timestamp).toLocaleString();
+    return new Date(timestamp).toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
   } catch {
     return timestamp;
   }
