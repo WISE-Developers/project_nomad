@@ -29,3 +29,4 @@ export {
 export { KnexModelRepository } from './KnexModelRepository.js';
 export { KnexJobRepository } from './KnexJobRepository.js';
 export { KnexResultRepository } from './KnexResultRepository.js';
+export { KnexNotificationPreferencesRepository } from './KnexNotificationPreferencesRepository.js';

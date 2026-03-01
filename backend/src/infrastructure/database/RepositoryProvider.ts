@@ -6,8 +6,9 @@
  */
 
 import { IModelRepository, IJobRepository, IResultRepository } from '../../application/interfaces/index.js';
+import { INotificationPreferencesRepository } from '../../application/interfaces/INotificationPreferencesRepository.js';
 import { getKnex, getDatabaseClient } from './knex/index.js';
-import { KnexModelRepository, KnexJobRepository, KnexResultRepository } from './knex/index.js';
+import { KnexModelRepository, KnexJobRepository, KnexResultRepository, KnexNotificationPreferencesRepository } from './knex/index.js';
 
 /**
  * Deployment mode determines which database backend to use
@@ -21,6 +22,7 @@ interface Repositories {
   model: IModelRepository;
   job: IJobRepository;
   result: IResultRepository;
+  notificationPreferences: INotificationPreferencesRepository;
 }
 
 // Singleton instances
@@ -46,6 +48,7 @@ export function initializeRepositories(): Repositories {
     model: new KnexModelRepository(knex),
     job: new KnexJobRepository(knex),
     result: new KnexResultRepository(knex),
+    notificationPreferences: new KnexNotificationPreferencesRepository(knex),
   };
 
   currentClient = client;
@@ -80,6 +83,16 @@ export function getResultRepository(): IResultRepository {
     initializeRepositories();
   }
   return repositories!.result;
+}
+
+/**
+ * Gets the notification preferences repository instance
+ */
+export function getNotificationPreferencesRepository(): INotificationPreferencesRepository {
+  if (!repositories) {
+    initializeRepositories();
+  }
+  return repositories!.notificationPreferences;
 }
 
 /**

@@ -285,3 +285,51 @@ export interface ConfigResponse {
 export async function getConfig(): Promise<ConfigResponse> {
   return request<ConfigResponse>('/config');
 }
+
+// ============================================================================
+// Notification Preferences API
+// ============================================================================
+
+export type NotificationEventType =
+  | 'model_completed'
+  | 'model_failed'
+  | 'import_completed'
+  | 'import_failed';
+
+export interface NotificationPreference {
+  userId: string;
+  eventType: NotificationEventType;
+  toastEnabled: boolean;
+  browserEnabled: boolean;
+}
+
+export interface GetNotificationPreferencesResponse {
+  preferences: NotificationPreference[];
+}
+
+/**
+ * Get all notification preferences for the current user
+ */
+export async function getNotificationPreferences(): Promise<GetNotificationPreferencesResponse> {
+  return request<GetNotificationPreferencesResponse>('/notifications/preferences');
+}
+
+export interface UpdateNotificationPreferencesRequest {
+  preferences: Array<{
+    eventType: NotificationEventType;
+    toastEnabled: boolean;
+    browserEnabled: boolean;
+  }>;
+}
+
+/**
+ * Update notification preferences for the current user
+ */
+export async function updateNotificationPreferences(
+  data: UpdateNotificationPreferencesRequest
+): Promise<GetNotificationPreferencesResponse> {
+  return request<GetNotificationPreferencesResponse>('/notifications/preferences', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}

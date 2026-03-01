@@ -99,3 +99,9 @@ export {
   type ParsedOutput,
   type ExecutionSummary,
 } from './IOutputParser.js';
+
+// Notification Preferences Repository
+export {
+  type INotificationPreferencesRepository,
+  type NotificationPreference,
+} from './INotificationPreferencesRepository.js';

@@ -22,6 +22,7 @@ export {
   getModelRepository,
   getJobRepository,
   getResultRepository,
+  getNotificationPreferencesRepository,
   getRepositories,
   resetRepositories,
   type DeploymentMode,
@@ -46,6 +47,7 @@ export {
   KnexModelRepository,
   KnexJobRepository,
   KnexResultRepository,
+  KnexNotificationPreferencesRepository,
 } from './knex/index.js';
 
 // Migrations

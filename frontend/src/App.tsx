@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { SplashScreen } from './components/SplashScreen';
 import { DeploymentModeProvider } from './core/deployment';
 import {
@@ -26,6 +26,7 @@ import {
   NotificationPermissionBanner,
 } from './features/Notifications';
 import { runModel } from './services/api';
+import { registerServiceWorker } from './services/serviceWorker';
 import type { ModelResultsResponse } from './features/ModelReview/types';
 import { OpenNomadProvider, createDefaultAdapter, useOpenNomad } from './openNomad';
 import { DashboardContainer } from './features/Dashboard';
@@ -581,6 +582,11 @@ function AppContent() {
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
+
+  // Register service worker once on mount for push notification support
+  useEffect(() => {
+    void registerServiceWorker();
+  }, []);
 
   // Create the openNomad API adapter (memoized to prevent re-creation)
   const openNomadAdapter = useMemo(() => createDefaultAdapter(), []);
