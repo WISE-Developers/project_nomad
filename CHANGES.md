@@ -4,10 +4,43 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.2.14
+## v0.3.0
+
+### 2026-03-01
+
+- [`401b277`](https://github.com/WISE-Developers/project_nomad/commit/401b2774a614cdee570d59e9dabd627ec25861ee) Merge pull request #171 from WISE-Developers/dev — *Franco Nogarin, 07:53*
+- [`c7966b1`](https://github.com/WISE-Developers/project_nomad/commit/c7966b1cfcd5f9502975fc9689bb909894951cfa) Fix update-changes workflow: use RELEASE_TOKEN to push to protected main — *Franco Nogarin, 07:53*
+- [`1017d3d`](https://github.com/WISE-Developers/project_nomad/commit/1017d3dd90c7fa98db7e0791f0c54a2913861020) Merge pull request #170 from WISE-Developers/dev — *Franco Nogarin, 07:09*
+- [`eb64ab5`](https://github.com/WISE-Developers/project_nomad/commit/eb64ab5478904a9270f566b896570c78a5401487) Merge hotFix: fix ACN+SQLite startup crash (#169) — *Franco Nogarin, 07:06*
+- [`a60d0aa`](https://github.com/WISE-Developers/project_nomad/commit/a60d0aa5153fcb92ad4c0c0c635eadfd4b823b97) Include v0.3.0 lockfile and binary updates from release — *Franco Nogarin, 07:05*
+- [`1a23097`](https://github.com/WISE-Developers/project_nomad/commit/1a23097bb98582a989558cd769b3833a23a975aa) Fix ACN+SQLite startup crash from import-time double Knex init — *Franco Nogarin, 07:04*
+
+---
+
+## v0.3.0
 
 ### 2026-02-28
 
+- [`81bdf48`](https://github.com/WISE-Developers/project_nomad/commit/81bdf480861dae7a925eef0a3836e3bd638d9704) chore: bump to v0.3.0 [skip ci] — *Franco Nogarin, 18:27*
+- [`5a6b04f`](https://github.com/WISE-Developers/project_nomad/commit/5a6b04fd7d24a34168ef8a8661b4098376d47f84) Merge pull request #168 from WISE-Developers/sprint6/integration — *Franco Nogarin, 18:13*
+- [`ec33834`](https://github.com/WISE-Developers/project_nomad/commit/ec3383499a5b03715a983e88d3a3ed92dc0907cf) Merge branch 'sprint6/notifications' into sprint6/integration — *Franco Nogarin, 18:05*
+- [`1603e7d`](https://github.com/WISE-Developers/project_nomad/commit/1603e7dc428a5d55d640ab558ca00cc739e57388) Merge branch 'sprint6/cfs-integration' into sprint6/integration — *Franco Nogarin, 18:05*
+- [`49df9f7`](https://github.com/WISE-Developers/project_nomad/commit/49df9f7f0678a7c19a81a6d0419d75ff7b1a4f49) Merge branch 'sprint6/map-features' into sprint6/integration — *Franco Nogarin, 18:05*
+- [`651909f`](https://github.com/WISE-Developers/project_nomad/commit/651909f2f848fc3df3c617d8d14ce3527718926a) Merge branch 'sprint6/engine-modes' into sprint6/integration — *Franco Nogarin, 18:05*
+- [`347b47e`](https://github.com/WISE-Developers/project_nomad/commit/347b47ee3d7f05d8892e150a0c86d03d0f865752) feat: add push notification system with browser native support and preferences (#135) — *Franco Nogarin, 18:03*
+- [`2df0ac5`](https://github.com/WISE-Developers/project_nomad/commit/2df0ac55857422963d4563f5786fb9652e2b1d2b) feat: add model mode selector with probabilistic, deterministic, and long-term risk cards (#156) — *Franco Nogarin, 18:00*
+- [`fd6c64e`](https://github.com/WISE-Developers/project_nomad/commit/fd6c64ebf8ca7edeefcf05bd2a9db201978c9335) feat: add burn probability raster legend to map UI (#152) — *Franco Nogarin, 17:57*
+- [`92956bc`](https://github.com/WISE-Developers/project_nomad/commit/92956bc60c9de8d7ff648204e46624c31f19c422) feat: add raster hover tooltip showing burn probability percentage (#149) — *Franco Nogarin, 17:57*
+- [`6400756`](https://github.com/WISE-Developers/project_nomad/commit/6400756a0e895ab1e9cc66a0484b77e66297c01c) feat: add CFS FireSTARR WMS layer integration with date picker (#153) — *Franco Nogarin, 17:56*
+- [`62a4899`](https://github.com/WISE-Developers/project_nomad/commit/62a489900305dd8245cf45a2099e6b5029aa7fd6) fix: anonymize second engine card, remove WISE branding (#155) — *Franco Nogarin, 17:55*
+- [`46b3372`](https://github.com/WISE-Developers/project_nomad/commit/46b3372e976bce5932ccf4d027745b236427c9be) fix: use 24-hour clock format throughout UI (#145) — *Franco Nogarin, 17:55*
+- [`7b420fe`](https://github.com/WISE-Developers/project_nomad/commit/7b420feb08de8f96016bb6a9dbe2b2f0686a29c6) fix: guard Docker image display by execution mode in config summary (#143) — *Franco Nogarin, 17:54*
+- [`5715c49`](https://github.com/WISE-Developers/project_nomad/commit/5715c49f0d41b4c6b80a0b202b939f978f2fec82) feat: add settings table and CFS API key management UI (#154) — *Franco Nogarin, 17:09*
+- [`9cfa7d6`](https://github.com/WISE-Developers/project_nomad/commit/9cfa7d6f453145b4c683c0060023d33d74c0579a) Add -i flag to all FireSTARR CLI invocations (#150) — *Franco Nogarin, 15:47*
+- [`5dd1549`](https://github.com/WISE-Developers/project_nomad/commit/5dd1549e04a196193ccda63ad7a290f2646dfae7) Update backend SQLite database — *Franco Nogarin, 15:40*
+- [`507cc36`](https://github.com/WISE-Developers/project_nomad/commit/507cc36ce052d638beea7b6469d2a48b4b336813) Add three-tier release pipeline (dev/stable/lts) — *Franco Nogarin, 15:38*
+- [`a669622`](https://github.com/WISE-Developers/project_nomad/commit/a669622512d78c0801bd082f50ef42e98b0abebc) Add CHANGES.md automation, release workflow, splash screen link (#146) — *Franco Nogarin, 14:30*
+- [`9c6bcaa`](https://github.com/WISE-Developers/project_nomad/commit/9c6bcaa3ea6afc89aba55dd21988b69a1243e205) Remove perimeter params from UI, hardcode threshold (#146) — *Franco Nogarin, 13:06*
 - [`6fe8e52`](https://github.com/WISE-Developers/project_nomad/commit/6fe8e526122e621908c45a253925e44148f1fa73) Fix year mismatch in simulation date passed to FireSTARR (#147) — *Franco Nogarin, 10:37*
 - [`1fc32cd`](https://github.com/WISE-Developers/project_nomad/commit/1fc32cdab46f37a7503921f9763e6058364c86fc) Fix hardcoded localhost in QUICKSTART.md (#148) — *Franco Nogarin, 10:30*
 - [`ff6d3b6`](https://github.com/WISE-Developers/project_nomad/commit/ff6d3b6ca83bb2353bc3dd69c6011bc584f900f7) Merge mcp_integration: MCP Phase 1+2 complete, E2E tested (#167) — *Franco Nogarin, 09:47*
