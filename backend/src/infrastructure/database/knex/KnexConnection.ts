@@ -26,8 +26,11 @@ export function initKnex(config?: DatabaseConfig): Knex {
   // Close existing connection if config changed
   if (knexInstance) {
     console.log('[KnexConnection] Config changed, closing existing connection');
-    knexInstance.destroy();
+    const old = knexInstance;
     knexInstance = null;
+    old.destroy().catch((err: unknown) => {
+      console.warn('[KnexConnection] Error closing previous connection:', err);
+    });
   }
 
   const knexConfig = createKnexConfig(dbConfig);

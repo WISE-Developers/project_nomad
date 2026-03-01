@@ -64,6 +64,15 @@ export function getDatabaseConfig(): DatabaseConfig {
 
   // ACN mode: read from environment
   const client = (env.get('NOMAD_DB_CLIENT') || 'pg') as DatabaseClient;
+
+  // ACN mode with SQLite — use the same SQLite path as SAN mode
+  if (client === 'sqlite3' || client === 'better-sqlite3') {
+    return {
+      client: 'better-sqlite3',
+      database: env.get('NOMAD_DB_NAME') || getSqlitePath(),
+    };
+  }
+
   const host = env.get('NOMAD_DB_HOST');
   const port = env.get('NOMAD_DB_PORT');
   const database = env.get('NOMAD_DB_NAME') || 'nomad';
@@ -73,14 +82,11 @@ export function getDatabaseConfig(): DatabaseConfig {
   const poolMin = parseInt(env.get('NOMAD_DB_POOL_MIN') || '2', 10);
   const poolMax = parseInt(env.get('NOMAD_DB_POOL_MAX') || '10', 10);
 
-  // Validate required fields for non-SQLite clients
-  if (client !== 'sqlite3' && client !== 'better-sqlite3') {
-    if (!host) {
-      throw new Error('NOMAD_DB_HOST is required for ACN mode with non-SQLite database');
-    }
-    if (!user) {
-      throw new Error('NOMAD_DB_USER is required for ACN mode with non-SQLite database');
-    }
+  if (!host) {
+    throw new Error('NOMAD_DB_HOST is required for ACN mode with non-SQLite database');
+  }
+  if (!user) {
+    throw new Error('NOMAD_DB_USER is required for ACN mode with non-SQLite database');
   }
 
   return {
