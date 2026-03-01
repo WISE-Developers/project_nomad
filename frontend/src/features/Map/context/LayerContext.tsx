@@ -176,7 +176,7 @@ export function LayerProvider({ children }: { children: ReactNode }) {
             type: 'raster',
             tiles: Array.isArray(rasterLayer.url) ? rasterLayer.url : [rasterLayer.url],
             tileSize: rasterLayer.tileSize || 256,
-            bounds: rasterLayer.bounds,
+            ...(rasterLayer.bounds ? { bounds: rasterLayer.bounds } : {}),
           });
 
           // Re-add raster layer
@@ -495,7 +495,7 @@ export function LayerProvider({ children }: { children: ReactNode }) {
           type: 'raster',
           tiles: Array.isArray(config.url) ? config.url : [config.url],
           tileSize: config.tileSize || 256,
-          bounds: config.bounds,
+          ...(config.bounds ? { bounds: config.bounds } : {}),
         });
       }
 

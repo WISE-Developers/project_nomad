@@ -190,7 +190,7 @@ export function useLayers(): UseLayersReturn {
           type: 'raster',
           tiles: Array.isArray(config.url) ? config.url : [config.url],
           tileSize: config.tileSize || 256,
-          bounds: config.bounds,
+          ...(config.bounds ? { bounds: config.bounds } : {}),
         });
       }
 

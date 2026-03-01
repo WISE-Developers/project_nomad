@@ -56,17 +56,32 @@ export function LayerPanel({
 
   // CFS layer toggles: layerId -> { active, visible }
   const [cfsLayerState, setCfsLayerState] = useState<Record<string, { active: boolean }>>({});
+  const [cfsError, setCfsError] = useState<string | null>(null);
   const [cfsDate, setCfsDate] = useState<string>(() => {
     const today = new Date();
     return today.toISOString().split('T')[0];
   });
 
-  const handleCFSLayerToggle = useCallback((layerId: string, layerName: string, wmsLayerName: string) => {
+  const handleCFSLayerToggle = useCallback(async (layerId: string, layerName: string, wmsLayerName: string) => {
     const isActive = cfsLayerState[layerId]?.active ?? false;
+    setCfsError(null);
 
     if (!isActive) {
-      // Add raster layer
+      // Probe a single tile to check if WMS has data for this layer/date
       const tileUrl = cfs.buildWmsUrl(wmsLayerName, cfsDate);
+      const probeTile = tileUrl.replace('{bbox-epsg-3857}', '-13775786,7514065,-13462822,7827030');
+      try {
+        const res = await fetch(probeTile, { method: 'HEAD' });
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.startsWith('image/')) {
+          setCfsError(`No ${layerName} data available for ${cfsDate}`);
+          return;
+        }
+      } catch {
+        setCfsError(`Unable to reach CFS server for ${layerName}`);
+        return;
+      }
+
       addRasterLayer({
         id: layerId,
         name: layerName,
@@ -212,6 +227,21 @@ export function LayerPanel({
           }}
         />
       </div>
+
+      {/* Data availability warning */}
+      {cfsError && (
+        <div style={{
+          padding: '6px 8px',
+          margin: '4px 8px',
+          fontSize: '12px',
+          color: '#92400e',
+          backgroundColor: '#fef3c7',
+          borderRadius: '4px',
+          border: '1px solid #fcd34d',
+        }}>
+          {cfsError}
+        </div>
+      )}
 
       {/* Layer toggles */}
       {cfs.layers.map((layer) => {
