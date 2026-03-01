@@ -36,5 +36,6 @@ jobs:
             echo "No changes to CHANGES.md"
           else
             git commit -m "chore: auto-update CHANGES.md [skip ci]"
+            git pull --rebase origin main
             git push
           fi
