@@ -15,20 +15,33 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Determine dev tag
+      - name: Increment dev build counter
         id: version
         run: |
           CURRENT=$(node -p "require('./frontend/package.json').version")
-          BUILD_NUMBER=${{ github.run_number }}
+          COUNT_FILE=".github/dev-build-count"
+          BUILD_NUMBER=$(( $(cat "$COUNT_FILE") + 1 ))
+          echo "$BUILD_NUMBER" > "$COUNT_FILE"
           DEV_TAG="v${CURRENT}-dev.${BUILD_NUMBER}"
           echo "current=${CURRENT}" >> $GITHUB_OUTPUT
           echo "tag=${DEV_TAG}" >> $GITHUB_OUTPUT
+          echo "build_number=${BUILD_NUMBER}" >> $GITHUB_OUTPUT
+
+      - name: Commit build counter
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/dev-build-count
+          git commit -m "chore: dev build ${{ steps.version.outputs.build_number }} [skip ci]"
+          git push
 
       - name: Install dependencies
         run: npm ci
@@ -54,6 +67,6 @@ jobs:
             **Unstable pre-release** — not for production use.
 
             Branch: `dev`
-            Build: `${{ github.run_number }}`
+            Build: `${{ steps.version.outputs.build_number }}`
             Base version: `v${{ steps.version.outputs.current }}`
             Commit: `${{ github.sha }}`
