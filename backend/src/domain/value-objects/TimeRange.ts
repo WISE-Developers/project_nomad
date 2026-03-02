@@ -1,3 +1,5 @@
+import { ValidationError } from '../errors/index.js';
+
 /**
  * Immutable value object representing a time range with start, end, and duration.
  *
@@ -171,13 +173,19 @@ export class TimeRange {
 
   private validateDates(start: Date, end: Date): void {
     if (!(start instanceof Date) || isNaN(start.getTime())) {
-      throw new Error('Invalid start date');
+      throw new ValidationError('Invalid time range', [
+        { field: 'timeRange.start', message: 'Invalid start date' },
+      ]);
     }
     if (!(end instanceof Date) || isNaN(end.getTime())) {
-      throw new Error('Invalid end date');
+      throw new ValidationError('Invalid time range', [
+        { field: 'timeRange.end', message: 'Invalid end date' },
+      ]);
     }
     if (end <= start) {
-      throw new Error('End date must be after start date');
+      throw new ValidationError('Invalid time range', [
+        { field: 'timeRange', message: 'End date must be after start date' },
+      ]);
     }
   }
 }

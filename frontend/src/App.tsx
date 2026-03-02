@@ -164,7 +164,16 @@ function AppContent() {
           coordinates = feature.geometry.coordinates as [number, number];
           ignitionType = 'point';
         } else if (geomType === 'Polygon') {
-          coordinates = feature.geometry.coordinates as [number, number][][];
+          // Ensure polygon rings are closed (GeoJSON spec: first === last coordinate)
+          const rawRings = feature.geometry.coordinates as [number, number][][];
+          coordinates = rawRings.map((ring) => {
+            const first = ring[0];
+            const last = ring[ring.length - 1];
+            if (first[0] !== last[0] || first[1] !== last[1]) {
+              return [...ring, first];
+            }
+            return ring;
+          });
           ignitionType = 'polygon';
           console.log('[App] Using polygon ignition with coordinates:', coordinates);
         } else if (geomType === 'LineString') {
