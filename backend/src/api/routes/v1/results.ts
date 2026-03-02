@@ -12,8 +12,10 @@ import { asyncHandler } from '../../middleware/index.js';
 import { NotFoundError } from '../../../domain/errors/index.js';
 import { createModelResultId, OutputFormat } from '../../../domain/entities/index.js';
 import { getModelResultsService } from '../../../application/services/index.js';
-import { getFireSTARREngine, generateContours, generateRasterTile, getRasterBounds, type BreaksMode } from '../../../infrastructure/firestarr/index.js';
+import { getFireSTARREngine, generateContours, generateRasterTile, getRasterBounds, type BreaksMode, ContourError } from '../../../infrastructure/firestarr/index.js';
 import { resolveResultFilePath } from '../../../infrastructure/firestarr/FireSTARRInputGenerator.js';
+import { EngineError } from '../../../domain/errors/index.js';
+import { EngineType } from '../../../domain/entities/index.js';
 
 const router = Router();
 
@@ -87,7 +89,18 @@ router.get(
     }
 
     // Generate contours from GeoTIFF with specified mode
-    const contours = await generateContours(filePath, breaksMode);
+    let contours;
+    try {
+      contours = await generateContours(filePath, breaksMode);
+    } catch (err) {
+      if (err instanceof ContourError) {
+        throw EngineError.outputFailed(
+          EngineType.FireSTARR,
+          `Contour generation failed: ${err.message}`
+        );
+      }
+      throw err;
+    }
 
     res.setHeader('Content-Type', 'application/geo+json');
     res.json(contours);
@@ -188,12 +201,20 @@ router.get(
     }
 
     // Generate tile
-    const tileBuffer = await generateRasterTile(
-      filePath,
-      parseInt(z, 10),
-      parseInt(x, 10),
-      parseInt(y, 10)
-    );
+    let tileBuffer;
+    try {
+      tileBuffer = await generateRasterTile(
+        filePath,
+        parseInt(z, 10),
+        parseInt(x, 10),
+        parseInt(y, 10)
+      );
+    } catch (err) {
+      throw EngineError.outputFailed(
+        EngineType.FireSTARR,
+        `Tile generation failed for z=${z} x=${x} y=${y}: ${err instanceof Error ? err.message : err}`
+      );
+    }
 
     if (!tileBuffer) {
       // Return transparent 256x256 PNG for tiles outside bounds
@@ -270,7 +291,15 @@ router.get(
     }
 
     // Get bounds
-    const bounds = await getRasterBounds(filePath);
+    let bounds;
+    try {
+      bounds = await getRasterBounds(filePath);
+    } catch (err) {
+      throw EngineError.outputFailed(
+        EngineType.FireSTARR,
+        `Failed to read raster bounds: ${err instanceof Error ? err.message : err}`
+      );
+    }
 
     res.json({ bounds });
   })

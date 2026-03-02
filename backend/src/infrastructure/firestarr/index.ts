@@ -46,6 +46,7 @@ export {
   clearTileCache,
   generateRasterTile,
   getRasterBounds,
+  ContourError,
   type BreaksMode,
 } from './ContourGenerator.js';
 

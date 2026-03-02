@@ -13,6 +13,20 @@ import { randomUUID } from 'crypto';
 import type { FeatureCollection, Feature, Polygon, MultiPolygon } from 'geojson';
 
 /**
+ * Error thrown during contour generation.
+ * Caught by the route handler and converted to EngineError.outputFailed().
+ */
+export class ContourError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message);
+    this.name = 'ContourError';
+    if (options?.cause) {
+      this.cause = options.cause;
+    }
+  }
+}
+
+/**
  * Number of quantile breaks to generate for dynamic mode
  */
 const NUM_QUANTILE_BREAKS = 8;
@@ -193,11 +207,17 @@ export async function generateContours(
     const gdalModule = await import('gdal-async');
     gdal = gdalModule.default;
   } catch (err) {
-    throw new Error(`GDAL not available - required for contour generation: ${err}`);
+    throw new ContourError('GDAL not available - install gdal-async native bindings', { cause: err });
   }
 
   // Get raster info (pixel size for simplification tolerance)
-  const dataset = await gdal.openAsync(filePath);
+  let dataset: Awaited<ReturnType<typeof gdal.openAsync>>;
+  try {
+    dataset = await gdal.openAsync(filePath);
+  } catch (err) {
+    throw new ContourError(`Failed to open raster: ${filePath}`, { cause: err });
+  }
+
   const geoTransform = dataset.geoTransform;
   const { x: width, y: height } = dataset.rasterSize;
   const band = dataset.bands.get(1);
@@ -205,7 +225,7 @@ export async function generateContours(
 
   if (!geoTransform || !band) {
     dataset.close();
-    throw new Error(`Invalid raster - missing geotransform or band: ${filePath}`);
+    throw new ContourError(`Invalid raster - missing geotransform or band: ${filePath}`);
   }
 
   // Get WKT for coordinate transformation
@@ -220,7 +240,13 @@ export async function generateContours(
   const pixelSize = Math.max(pixelSizeX, pixelSizeY);
 
   // Read all pixels to create binary masks
-  const data = band.pixels.read(0, 0, width, height) as Float32Array;
+  let data: Float32Array;
+  try {
+    data = band.pixels.read(0, 0, width, height) as Float32Array;
+  } catch (err) {
+    dataset.close();
+    throw new ContourError(`Failed to read raster pixels (${width}x${height}): ${filePath}`, { cause: err });
+  }
   dataset.close();
 
   // Get thresholds based on mode
@@ -332,7 +358,12 @@ async function generatePolygonsForThreshold(
 
     // 2. Run gdal_polygonize to GeoPackage (preserves CRS)
     const polygonizeCmd = `gdal_polygonize.py "${maskPath}" -f GPKG "${polyPath}" -q`;
-    execSync(polygonizeCmd, { encoding: 'utf8', stdio: 'pipe' });
+    try {
+      execSync(polygonizeCmd, { encoding: 'utf8', stdio: 'pipe' });
+    } catch (err) {
+      const stderr = (err as { stderr?: string }).stderr || '';
+      throw new ContourError(`gdal_polygonize failed for threshold ${threshold}: ${stderr}`, { cause: err });
+    }
 
     if (!existsSync(polyPath)) {
       console.warn(`[ContourGenerator] Polygonize produced no output for threshold ${threshold}`);
@@ -343,7 +374,12 @@ async function generatePolygonsForThreshold(
     // Write WKT to temp file for ogr2ogr -s_srs
     writeFileSync(wktPath, sourceWkt);
     const simplifyCmd = `ogr2ogr -f GeoJSON -simplify ${pixelSize} -s_srs "${wktPath}" -t_srs EPSG:4326 "${smoothPath}" "${polyPath}"`;
-    execSync(simplifyCmd, { encoding: 'utf8', stdio: 'pipe' });
+    try {
+      execSync(simplifyCmd, { encoding: 'utf8', stdio: 'pipe' });
+    } catch (err) {
+      const stderr = (err as { stderr?: string }).stderr || '';
+      throw new ContourError(`ogr2ogr simplify/reproject failed for threshold ${threshold}: ${stderr}`, { cause: err });
+    }
 
     if (!existsSync(smoothPath)) {
       console.warn(`[ContourGenerator] Simplification produced no output for threshold ${threshold}`);
@@ -400,7 +436,12 @@ async function createBinaryMask(
   }
 
   // Get spatial reference from original file
-  const origDataset = await gdal.openAsync(originalPath);
+  let origDataset: Awaited<ReturnType<typeof gdal.openAsync>>;
+  try {
+    origDataset = await gdal.openAsync(originalPath);
+  } catch (err) {
+    throw new ContourError(`Failed to re-open raster for mask creation: ${originalPath}`, { cause: err });
+  }
   const srs = origDataset.srs;
   origDataset.close();
 
