@@ -1,3 +1,5 @@
+import { ValidationError } from '../errors/index.js';
+
 /**
  * Supported geometry types following GeoJSON specification
  */
@@ -239,50 +241,70 @@ export class SpatialGeometry {
 
   private validatePosition(pos: Position): void {
     if (!Array.isArray(pos) || pos.length < 2) {
-      throw new Error('Position must be an array of at least 2 numbers [lon, lat]');
+      throw new ValidationError('Invalid position', [
+        { field: 'coordinates', message: 'Position must be an array of at least 2 numbers [lon, lat]' },
+      ]);
     }
     const [lon, lat] = pos;
     if (lon < -180 || lon > 180) {
-      throw new Error(`Longitude must be between -180 and 180, got ${lon}`);
+      throw new ValidationError('Invalid coordinates', [
+        { field: 'coordinates', message: `Longitude must be between -180 and 180, got ${lon}` },
+      ]);
     }
     if (lat < -90 || lat > 90) {
-      throw new Error(`Latitude must be between -90 and 90, got ${lat}`);
+      throw new ValidationError('Invalid coordinates', [
+        { field: 'coordinates', message: `Latitude must be between -90 and 90, got ${lat}` },
+      ]);
     }
   }
 
   private validateLineString(coords: LineStringCoordinates): void {
     if (!Array.isArray(coords) || coords.length < 2) {
-      throw new Error('LineString requires at least 2 positions');
+      throw new ValidationError('Invalid geometry', [
+        { field: 'coordinates', message: 'LineString requires at least 2 positions' },
+      ]);
     }
     coords.forEach((pos, i) => {
       try {
         this.validatePosition(pos);
       } catch (e) {
-        throw new Error(`Invalid position at index ${i}: ${(e as Error).message}`);
+        if (e instanceof ValidationError) throw e;
+        throw new ValidationError('Invalid geometry', [
+          { field: 'coordinates', message: `Invalid position at index ${i}: ${(e as Error).message}` },
+        ]);
       }
     });
   }
 
   private validatePolygon(coords: PolygonCoordinates): void {
     if (!Array.isArray(coords) || coords.length < 1) {
-      throw new Error('Polygon requires at least one ring');
+      throw new ValidationError('Invalid geometry', [
+        { field: 'coordinates', message: 'Polygon requires at least one ring' },
+      ]);
     }
     coords.forEach((ring, ringIndex) => {
       if (!Array.isArray(ring) || ring.length < 4) {
-        throw new Error(`Ring ${ringIndex} requires at least 4 positions`);
+        throw new ValidationError('Invalid geometry', [
+          { field: 'coordinates', message: `Ring ${ringIndex} requires at least 4 positions` },
+        ]);
       }
       ring.forEach((pos, posIndex) => {
         try {
           this.validatePosition(pos);
         } catch (e) {
-          throw new Error(`Invalid position at ring ${ringIndex}, index ${posIndex}: ${(e as Error).message}`);
+          if (e instanceof ValidationError) throw e;
+          throw new ValidationError('Invalid geometry', [
+            { field: 'coordinates', message: `Invalid position at ring ${ringIndex}, index ${posIndex}: ${(e as Error).message}` },
+          ]);
         }
       });
       // Check if ring is closed
       const first = ring[0];
       const last = ring[ring.length - 1];
       if (first[0] !== last[0] || first[1] !== last[1]) {
-        throw new Error(`Ring ${ringIndex} must be closed (first and last position must match)`);
+        throw new ValidationError('Invalid geometry', [
+          { field: 'coordinates', message: `Ring ${ringIndex} must be closed (first and last position must match)` },
+        ]);
       }
     });
   }

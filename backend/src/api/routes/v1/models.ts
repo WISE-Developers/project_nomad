@@ -143,6 +143,17 @@ router.post(
       ]);
     }
 
+    // Validate geometry and time range BEFORE creating DB records (prevents orphaned rows)
+    const geometryType = body.ignition.type === 'point' ? GeometryType.Point : GeometryType.Polygon;
+    const ignitionGeometry = new SpatialGeometry({
+      type: geometryType,
+      coordinates: body.ignition.coordinates,
+    });
+    const timeRange = new TimeRange(
+      new Date(body.timeRange.start),
+      new Date(body.timeRange.end)
+    );
+
     // Create model with queued status (skip draft)
     const modelId = createFireModelId(crypto.randomUUID());
     const model = new FireModel({
@@ -152,6 +163,9 @@ router.post(
       status: ModelStatus.Queued,
       userId: req.user,  // Capture user ownership
     });
+
+    logger.model(`Creating ignition geometry: type=${body.ignition.type} -> ${geometryType}`, modelId);
+    logger.model(`Ignition geometry created: ${ignitionGeometry.type}, coords length: ${Array.isArray(body.ignition.coordinates[0]) ? body.ignition.coordinates.length : 1}`, modelId);
 
     const modelRepo = getModelRepository();
     await modelRepo.save(model);
@@ -169,17 +183,6 @@ router.post(
     const jobId = jobResult.value.id;
 
     // Build execution options
-    const geometryType = body.ignition.type === 'point' ? GeometryType.Point : GeometryType.Polygon;
-    logger.model(`Creating ignition geometry: type=${body.ignition.type} -> ${geometryType}`, modelId);
-    const ignitionGeometry = new SpatialGeometry({
-      type: geometryType,
-      coordinates: body.ignition.coordinates,
-    });
-    logger.model(`Ignition geometry created: ${ignitionGeometry.type}, coords length: ${Array.isArray(body.ignition.coordinates[0]) ? body.ignition.coordinates.length : 1}`, modelId);
-    const timeRange = new TimeRange(
-      new Date(body.timeRange.start),
-      new Date(body.timeRange.end)
-    );
     const executionOptions: ExecutionOptions = {
       ignitionGeometry,
       timeRange,
