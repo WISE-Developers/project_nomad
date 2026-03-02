@@ -90,15 +90,29 @@ function getCorsOptions(): CorsOptions {
     };
   }
 
-  // SAN mode: same-origin only.
+  // SAN mode: same-origin only (with dev exception).
   // SAN uses simple auth (X-Nomad-User header) with no server-side validation,
   // so cross-origin requests must be blocked to prevent external apps from
   // impersonating users against the Nomad backend.
-  logger.info('SAN mode - same-origin only (cross-origin requests blocked)', 'CORS');
+  const isProduction = process.env.NODE_ENV === 'production';
+  const devPort = process.env.VITE_DEV_PORT || '5173';
+  const devOrigin = `http://localhost:${devPort}`;
+
+  if (!isProduction) {
+    logger.info(`SAN mode - dev: allowing ${devOrigin}, blocking other origins`, 'CORS');
+  } else {
+    logger.info('SAN mode - same-origin only (cross-origin requests blocked)', 'CORS');
+  }
+
   return {
     origin: (origin, callback) => {
       // Allow requests with no origin (same-origin, curl, server-to-server)
       if (!origin) {
+        callback(null, true);
+        return;
+      }
+      // In dev mode, allow the Vite dev server origin
+      if (!isProduction && origin === devOrigin) {
         callback(null, true);
         return;
       }
