@@ -1,14 +1,20 @@
 services:
   # ===========================================
-  # Nomad Services
+  # Nomad (single container — API + frontend)
   # ===========================================
-  nomad-backend:
-    container_name: nomad-backend
+  # In SAN mode the backend serves the built frontend (same-origin).
+  # No separate frontend container or nginx proxy needed.
+  nomad:
+    container_name: nomad
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        - VITE_MAPBOX_TOKEN=${VITE_MAPBOX_TOKEN}
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-}
+        - VITE_SIMPLE_AUTH=${VITE_SIMPLE_AUTH:-true}
     ports:
-      - "${NOMAD_BACKEND_HOST_PORT}:3001"
+      - "${NOMAD_FRONTEND_HOST_PORT}:3001"
     volumes:
       # WARNING: Docker socket mount - see Security Considerations in README
       - /var/run/docker.sock:/var/run/docker.sock
@@ -27,21 +33,6 @@ services:
       - VITE_SIMPLE_AUTH=${VITE_SIMPLE_AUTH:-true}
     env_file:
       - .env
-    restart: unless-stopped
-
-  nomad-frontend:
-    container_name: nomad-frontend
-    build:
-      context: .
-      dockerfile: frontend/Dockerfile
-      args:
-        - VITE_MAPBOX_TOKEN=${VITE_MAPBOX_TOKEN}
-        - VITE_API_BASE_URL=${VITE_API_BASE_URL}
-        - VITE_SIMPLE_AUTH=${VITE_SIMPLE_AUTH:-true}
-    ports:
-      - "${NOMAD_FRONTEND_HOST_PORT}:80"
-    depends_on:
-      - nomad-backend
     restart: unless-stopped
 
   # ===========================================

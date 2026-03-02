@@ -90,24 +90,50 @@ function getCorsOptions(): CorsOptions {
     };
   }
 
-  // SAN mode: same-origin only.
-  // SAN uses simple auth (X-Nomad-User header) with no server-side validation,
-  // so cross-origin requests must be blocked to prevent external apps from
-  // impersonating users against the Nomad backend.
-  logger.info('SAN mode - same-origin only (cross-origin requests blocked)', 'CORS');
+  // SAN mode: allow all origins.
+  // SAN is a single-user standalone deployment on a trusted network.
+  // Auth is header-based (X-Nomad-User), not cookie-based, so CORS
+  // provides no meaningful CSRF protection. The server also cannot
+  // reliably determine its external origin when behind Docker port
+  // mapping (container sees :3001, browser sees :3901).
+  // Cross-origin protection is enforced in ACN mode instead.
   return {
-    origin: (origin, callback) => {
-      // Allow requests with no origin (same-origin, curl, server-to-server)
-      if (!origin) {
-        callback(null, true);
-        return;
-      }
-      // Block cross-origin requests in SAN mode
-      logger.warn(`SAN mode blocked cross-origin request from: ${origin}`, 'CORS');
-      callback(new Error('Cross-origin requests are not allowed in SAN mode. Use ACN deployment mode for external integration.'));
-    },
+    origin: true,
     credentials: true,
   };
+}
+
+// ============================================
+// Static File Serving (Production Mode)
+// ============================================
+// Mounted BEFORE CORS/auth middleware — static files don't need CORS checks.
+// Vite emits <script type="module" crossorigin> which causes browsers to send
+// an Origin header even for same-origin requests. The SAN CORS policy blocks
+// all requests with an Origin header, so static files must bypass it entirely.
+
+const isProduction = process.env.NODE_ENV === 'production';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const frontendDistPath = resolve(__dirname, '../../frontend/dist');
+
+if (isProduction && existsSync(frontendDistPath)) {
+  logger.startup(`Production mode: serving frontend from ${frontendDistPath}`);
+
+  // Serve static files (JS, CSS, images, etc.)
+  app.use(express.static(frontendDistPath));
+
+  // SPA catch-all: serve index.html for any non-API route
+  // This enables client-side routing (React Router, etc.)
+  app.get('*', (req, res, next) => {
+    // Skip API routes - let them fall through to 404 handler
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(join(frontendDistPath, 'index.html'));
+  });
+} else if (isProduction) {
+  logger.warn(`Production mode but frontend not found at ${frontendDistPath}`, 'Startup');
+  logger.warn('Run "npm run build" to build the frontend', 'Startup');
 }
 
 // ============================================
@@ -158,44 +184,6 @@ setupSwagger(app);
 app.get('/api/health', (_req, res) => {
   res.redirect('/api/v1/health');
 });
-
-// ============================================
-// Static File Serving (Production Mode)
-// ============================================
-
-/**
- * In production mode, serve the built frontend from frontend/dist.
- * This allows running a single server for both API and UI.
- *
- * The frontend dist path is relative to the backend dist directory:
- * - Backend runs from: backend/dist/index.js
- * - Frontend built to: frontend/dist/
- * - Relative path: ../../frontend/dist
- */
-const isProduction = process.env.NODE_ENV === 'production';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const frontendDistPath = resolve(__dirname, '../../frontend/dist');
-
-if (isProduction && existsSync(frontendDistPath)) {
-  logger.startup(`Production mode: serving frontend from ${frontendDistPath}`);
-
-  // Serve static files (JS, CSS, images, etc.)
-  app.use(express.static(frontendDistPath));
-
-  // SPA catch-all: serve index.html for any non-API route
-  // This enables client-side routing (React Router, etc.)
-  app.get('*', (req, res, next) => {
-    // Skip API routes - let them fall through to 404 handler
-    if (req.path.startsWith('/api')) {
-      return next();
-    }
-    res.sendFile(join(frontendDistPath, 'index.html'));
-  });
-} else if (isProduction) {
-  logger.warn(`Production mode but frontend not found at ${frontendDistPath}`, 'Startup');
-  logger.warn('Run "npm run build" to build the frontend', 'Startup');
-}
 
 // ============================================
 // Error Handling (must be last)

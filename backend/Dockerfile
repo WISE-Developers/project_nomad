@@ -1,10 +1,33 @@
-# Backend Dockerfile
-FROM node:22-slim AS builder
+# Nomad SAN Dockerfile — single container serving both API and frontend
+# In SAN mode, the backend serves the built frontend (same-origin).
+# This eliminates the need for a separate frontend container and nginx proxy.
+
+# ---- Stage 1: Build frontend ----
+FROM node:22-alpine AS frontend-builder
+
+ARG VITE_MAPBOX_TOKEN
+ARG VITE_API_BASE_URL
+ARG VITE_SIMPLE_AUTH=true
+
+ENV VITE_MAPBOX_TOKEN=$VITE_MAPBOX_TOKEN
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_SIMPLE_AUTH=$VITE_SIMPLE_AUTH
+
+WORKDIR /app
+
+COPY frontend/package*.json ./
+COPY package-lock.json ./
+RUN npm ci
+
+COPY frontend/ .
+RUN npm run build
+
+# ---- Stage 2: Build backend ----
+FROM node:22-slim AS backend-builder
 
 WORKDIR /app
 
 # Install GDAL native libraries (required for gdal-async)
-# This layer is expensive but rarely changes - cached separately
 RUN apt-get update && apt-get install -y \
     gdal-bin \
     libgdal-dev \
@@ -17,7 +40,6 @@ COPY package.json package-lock.json ./
 COPY backend/package.json ./backend/
 
 # Install dependencies - this layer survives source code changes
-# Only busts when package.json or package-lock.json change
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --workspace=@nomad/backend
 
@@ -27,7 +49,7 @@ COPY backend/ ./backend/
 # Build backend
 RUN npm run build --workspace=@nomad/backend
 
-# Production stage
+# ---- Stage 3: Production ----
 FROM node:22-slim AS production
 
 # Install GDAL runtime libraries and Docker CLI (for spawning FireSTARR containers)
@@ -47,10 +69,16 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Copy built app and node_modules from workspace structure
-COPY --from=builder /app/backend/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/backend/package.json ./
+# Preserve workspace-relative paths so the backend can find frontend/dist
+# Backend code: resolve(__dirname, '../../frontend/dist')
+# __dirname = /app/backend/dist → ../../frontend/dist = /app/frontend/dist
+COPY --from=backend-builder /app/backend/dist ./backend/dist
+COPY --from=backend-builder /app/node_modules ./node_modules
+COPY --from=backend-builder /app/backend/package.json ./backend/
+
+# Copy built frontend into workspace-relative location
+COPY --from=frontend-builder /app/dist ./frontend/dist
 
 EXPOSE 3001
+WORKDIR /app/backend
 CMD ["node", "dist/index.js"]
