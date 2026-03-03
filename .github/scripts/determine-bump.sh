@@ -15,8 +15,8 @@ set -euo pipefail
 
 PR_NUMBER="${1:-}"
 if [[ -z "$PR_NUMBER" ]]; then
-    echo "ERROR: PR number required" >&2
-    exit 1
+    echo "patch"
+    exit 0
 fi
 
 if [[ -z "${GH_TOKEN:-}" ]]; then

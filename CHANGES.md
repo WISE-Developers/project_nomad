@@ -4,10 +4,44 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.3.6
+## v0.3.7
 
 ### 2026-03-02
 
+- [`63cebb5`](https://github.com/WISE-Developers/project_nomad/commit/63cebb527e69f2c863ed8413b50570050481e43e) CI: default to patch bump when no PR number (manual dispatch) — *Franco Nogarin, 21:51*
+- [`6e76efa`](https://github.com/WISE-Developers/project_nomad/commit/6e76efade4b43819596cf03f5fa8f2ddbe5c8d9e) CI: add workflow_dispatch trigger to stable release — *Franco Nogarin, 21:50*
+- [`418027e`](https://github.com/WISE-Developers/project_nomad/commit/418027ed9b1ed4f0ffb22f6c8530100e41d5c24a) Merge pull request #188 from WISE-Developers/dev — *Franco Nogarin, 21:43*
+
+### 2026-03-03
+
+- [`669d5cb`](https://github.com/WISE-Developers/project_nomad/commit/669d5cb7c5437d0a60ac7ac7d820dc350030f114) chore: dev build 5 [skip ci] — *github-actions[bot], 04:43*
+
+### 2026-03-02
+
+- [`28646ba`](https://github.com/WISE-Developers/project_nomad/commit/28646ba3183775e2581211f958b2650bc6067624) Pin installer to FireSTARR v0.9.5.8 — stop defaulting to unstable (#184) — *Franco Nogarin, 21:41*
+- [`133f004`](https://github.com/WISE-Developers/project_nomad/commit/133f0042149dfa7a03c34f175ee2e3b74171972a) Pin FireSTARR to v0.9.5.8 — v0.9.6+ has raster corruption (#184) — *Franco Nogarin, 21:40*
+
+### 2026-03-03
+
+- [`b8e46e3`](https://github.com/WISE-Developers/project_nomad/commit/b8e46e337238aca62cccbcea979c26462992e0d7) chore: dev build 4 [skip ci] — *github-actions[bot], 00:58*
+
+### 2026-03-02
+
+- [`e2b6562`](https://github.com/WISE-Developers/project_nomad/commit/e2b6562370d13cf54baf225d3ee559cf3bc1dd78) Show API error details in browser when adding results to map — *Franco Nogarin, 17:58*
+
+### 2026-03-03
+
+- [`147406f`](https://github.com/WISE-Developers/project_nomad/commit/147406ff2a1bfda0a99dc6d9e06f009ded5c1c75) chore: dev build 3 [skip ci] — *github-actions[bot], 00:44*
+
+### 2026-03-02
+
+- [`f94b8c3`](https://github.com/WISE-Developers/project_nomad/commit/f94b8c3a55001a29fec3eb2f223fe03424e7adbd) Fix: Override NOMAD_DATA_PATH in container to use mounted volume — *Franco Nogarin, 17:37*
+- [`a54cb36`](https://github.com/WISE-Developers/project_nomad/commit/a54cb36e15608246a04aeeb14e281941c46fb64d) chore: dev build 2 [skip ci] — *github-actions[bot], 21:29*
+- [`82dc780`](https://github.com/WISE-Developers/project_nomad/commit/82dc7801c41ca7cab9f0e27d332bc97735ba20a9) Fix #185: Eliminate 500s from results endpoints with proper error handling — *Franco Nogarin, 14:09*
+- [`2ad53d2`](https://github.com/WISE-Developers/project_nomad/commit/2ad53d2ffb6a88c9b87fefa65b6826a57e172bec) chore: dev build 1 [skip ci] — *github-actions[bot], 19:05*
+- [`b6afd1f`](https://github.com/WISE-Developers/project_nomad/commit/b6afd1fe2311db63780dca3a29096f0b86be368f) Fix #183: Reset dev build counter after stable releases — *Franco Nogarin, 12:04*
+- [`c286562`](https://github.com/WISE-Developers/project_nomad/commit/c2865628f240028768be8eed8976537410e4044f) Fix result URLs: prefer window.location.origin over build-time VITE_API_BASE_URL — *Franco Nogarin, 10:08*
+- [`d23dbbb`](https://github.com/WISE-Developers/project_nomad/commit/d23dbbbe7b1d7868bd7e5ca6e76f66c8da6d5fc8) chore: release v0.3.6 [skip ci] — *github-actions[bot], 15:59*
 - [`6a43701`](https://github.com/WISE-Developers/project_nomad/commit/6a437013b469a3771eae814e8c5615ef024961cb) Merge pull request #182 from WISE-Developers/dev — *Franco Nogarin, 08:58*
 - [`e56e1d8`](https://github.com/WISE-Developers/project_nomad/commit/e56e1d8d067e5dbaa323a6d0fed209fe6721e123) Fix SAN CORS: allow all origins in standalone mode — *Franco Nogarin, 08:54*
 - [`069fb43`](https://github.com/WISE-Developers/project_nomad/commit/069fb4343cd082f7296e098787e2c102aa0c8fad) Fix SAN static file 500: move express.static before CORS middleware — *Franco Nogarin, 08:47*
