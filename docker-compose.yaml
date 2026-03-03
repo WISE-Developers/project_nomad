@@ -29,6 +29,7 @@ services:
       - PORT=3001
       # Override to use container path (not host relative path from .env)
       - FIRESTARR_DATASET_PATH=/appl/data
+      - NOMAD_DATA_PATH=/appl/data
       # Simple auth for SAN mode
       - VITE_SIMPLE_AUTH=${VITE_SIMPLE_AUTH:-true}
     env_file:
