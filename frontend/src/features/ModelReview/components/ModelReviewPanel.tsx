@@ -23,6 +23,8 @@ interface ModelReviewPanelProps {
   modelId: string;
   /** Called when panel is closed */
   onClose: () => void;
+  /** Display mode: floating uses Rnd (drag/resize), embedded uses plain scrollable div */
+  mode?: 'floating' | 'embedded';
   /** Called when output is added to main map (contours/GeoJSON) */
   onAddToMap?: (output: OutputItem, geoJson: GeoJSON.GeoJSON, modelInfo?: { modelId: string; modelName: string; engineType: string }) => void;
   /** Called when raster output is added to main map */
@@ -40,6 +42,7 @@ const MIN_HEIGHT = 400;
 export function ModelReviewPanel({
   modelId,
   onClose,
+  mode = 'floating',
   onAddToMap,
   onAddRasterToMap,
 }: ModelReviewPanelProps) {
@@ -257,6 +260,69 @@ export function ModelReviewPanel({
     );
   };
 
+  const renderHeader = () => {
+    if (mode === 'embedded') {
+      return (
+        <div style={headerStyle}>
+          <h2 style={titleStyle}>Model Results</h2>
+          <button style={closeButtonStyle} onClick={onClose} aria-label="Close results panel">
+            &times;
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div style={headerStyle} className="model-results-drag-handle">
+        <h2 style={titleStyle}>Model Results</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={dragHintStyle}>drag to move</span>
+          <button style={closeButtonStyle} onClick={onClose} aria-label="Close results panel">
+            &times;
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderModals = () => (
+    <>
+      {previewOutput && (
+        <OutputPreviewModal
+          output={previewOutput}
+          onClose={handleClosePreview}
+          onAddToMap={handleAddToMap}
+        />
+      )}
+      {showExportPanel && results && (
+        <div style={exportModalOverlayStyle}>
+          <ExportPanel
+            modelId={modelId}
+            modelName={results.modelName}
+            outputs={results.outputs.map((o) => ({
+              resultId: o.id,
+              name: o.name,
+              format: o.format,
+              type: o.type,
+            }))}
+            onClose={handleCloseExport}
+          />
+        </div>
+      )}
+    </>
+  );
+
+  if (mode === 'embedded') {
+    return (
+      <>
+        <div style={embeddedPanelStyle} data-testid="model-review-embedded">
+          {renderHeader()}
+          {renderContent()}
+        </div>
+        {renderModals()}
+      </>
+    );
+  }
+
   return (
     <>
       <Rnd
@@ -290,47 +356,11 @@ export function ModelReviewPanel({
         }}
       >
         <div style={{ ...panelStyle, width: size.width, height: size.height }}>
-          {/* Header - Drag Handle */}
-          <div style={headerStyle} className="model-results-drag-handle">
-            <h2 style={titleStyle}>Model Results</h2>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={dragHintStyle}>drag to move</span>
-              <button style={closeButtonStyle} onClick={onClose}>
-                &times;
-              </button>
-            </div>
-          </div>
-
-          {/* Content */}
+          {renderHeader()}
           {renderContent()}
         </div>
       </Rnd>
-
-      {/* Preview modal */}
-      {previewOutput && (
-        <OutputPreviewModal
-          output={previewOutput}
-          onClose={handleClosePreview}
-          onAddToMap={handleAddToMap}
-        />
-      )}
-
-      {/* Export panel modal */}
-      {showExportPanel && results && (
-        <div style={exportModalOverlayStyle}>
-          <ExportPanel
-            modelId={modelId}
-            modelName={results.modelName}
-            outputs={results.outputs.map((o) => ({
-              resultId: o.id,
-              name: o.name,
-              format: o.format,
-              type: o.type,
-            }))}
-            onClose={handleCloseExport}
-          />
-        </div>
-      )}
+      {renderModals()}
     </>
   );
 }
@@ -472,4 +502,12 @@ const emptyStyle: React.CSSProperties = {
   padding: '40px 20px',
   textAlign: 'center',
   color: '#666',
+};
+
+const embeddedPanelStyle: React.CSSProperties = {
+  backgroundColor: 'white',
+  display: 'flex',
+  flexDirection: 'column',
+  height: '100%',
+  overflow: 'hidden',
 };

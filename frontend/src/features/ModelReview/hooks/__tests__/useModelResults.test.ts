@@ -1,11 +1,11 @@
 /**
- * Tests for useModelResults consumer migration
+ * Tests for useModelResults hook
  *
- * Verifies that useModelResults uses api.fetch() instead of bare fetch().
- *
- * Expected state: These tests FAIL until the consumer migration is applied.
- * Once useModelResults is updated to call api.fetch(url) instead of fetch(url),
- * these tests should pass.
+ * Verifies:
+ * 1. Hook uses api.results.get() (adapter method) for fetching
+ * 2. modelName is properly populated from adapter response
+ * 3. Polling works via adapter
+ * 4. api.fetch() is NOT called directly for results fetching
  *
  * @vitest-environment jsdom
  */
@@ -44,44 +44,50 @@ const mockResultsResponse: ModelResultsResponse = {
   outputs: [],
 };
 
+function createTestApi() {
+  const baseApi = createMockOpenNomadAPI();
+  const mockApi = {
+    ...baseApi,
+    fetch: vi.fn(),
+    getBaseUrl: vi.fn().mockReturnValue(''),
+    results: {
+      ...baseApi.results,
+      get: vi.fn().mockResolvedValue(mockResultsResponse),
+      getModelResultsUrl: vi.fn().mockImplementation(
+        (modelId: string) => `/api/v1/models/${modelId}/results`
+      ),
+      getPreviewUrl: vi.fn().mockImplementation(
+        (resultId: string) => `/api/v1/results/${resultId}/preview`
+      ),
+      getDownloadUrl: vi.fn().mockImplementation(
+        (resultId: string) => `/api/v1/results/${resultId}/download`
+      ),
+      getTileUrlTemplate: vi.fn().mockReturnValue('/tiles/{z}/{x}/{y}'),
+      getTileBounds: vi.fn().mockResolvedValue([-115, 62, -114, 63]),
+    },
+  };
+
+  // api.fetch returns the same data (for backwards compat if still used)
+  mockApi.fetch.mockResolvedValue(
+    new Response(JSON.stringify(mockResultsResponse), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  );
+
+  return mockApi;
+}
+
 // =============================================================================
 // Tests
 // =============================================================================
 
-describe('useModelResults - api.fetch() usage', () => {
-  let mockApi: IOpenNomadAPI & { fetch: ReturnType<typeof vi.fn> };
+describe('useModelResults - adapter integration', () => {
+  let mockApi: ReturnType<typeof createTestApi>;
   let globalFetchSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    // Create a mock api with fetch spy and getBaseUrl
-    const baseApi = createMockOpenNomadAPI();
-    mockApi = {
-      ...baseApi,
-      fetch: vi.fn(),
-      getBaseUrl: vi.fn().mockReturnValue(''),
-      results: {
-        ...baseApi.results,
-        getModelResultsUrl: vi.fn().mockImplementation(
-          (modelId: string) => `/api/v1/models/${modelId}/results`
-        ),
-        getPreviewUrl: vi.fn().mockImplementation(
-          (resultId: string) => `/api/v1/results/${resultId}/preview`
-        ),
-        getDownloadUrl: vi.fn().mockImplementation(
-          (resultId: string) => `/api/v1/results/${resultId}/download`
-        ),
-      },
-    };
-
-    // Set up api.fetch to return a successful response
-    mockApi.fetch.mockResolvedValue(
-      new Response(JSON.stringify(mockResultsResponse), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    );
-
-    // Set up globalThis.fetch as a spy that should NOT be called
+    mockApi = createTestApi();
     globalFetchSpy = vi.fn();
     vi.stubGlobal('fetch', globalFetchSpy);
   });
@@ -91,7 +97,7 @@ describe('useModelResults - api.fetch() usage', () => {
     vi.clearAllMocks();
   });
 
-  it('calls api.fetch() when fetching results', async () => {
+  it('calls api.results.get() when fetching results', async () => {
     const { result } = renderHook(
       () => useModelResults(),
       { wrapper: createWrapper(mockApi) }
@@ -101,8 +107,8 @@ describe('useModelResults - api.fetch() usage', () => {
       await result.current.fetchResults('model-1');
     });
 
-    expect(mockApi.fetch).toHaveBeenCalledTimes(1);
-    expect(mockApi.fetch).toHaveBeenCalledWith('/api/v1/models/model-1/results');
+    expect(mockApi.results.get).toHaveBeenCalledTimes(1);
+    expect(mockApi.results.get).toHaveBeenCalledWith('model-1');
   });
 
   it('does NOT call bare globalThis.fetch directly', async () => {
@@ -115,25 +121,24 @@ describe('useModelResults - api.fetch() usage', () => {
       await result.current.fetchResults('model-1');
     });
 
-    // bare fetch must not be called - api.fetch handles it
     expect(globalFetchSpy).not.toHaveBeenCalled();
   });
 
-  it('uses the URL from api.results.getModelResultsUrl()', async () => {
+  it('populates modelName from adapter response', async () => {
     const { result } = renderHook(
       () => useModelResults(),
       { wrapper: createWrapper(mockApi) }
     );
 
     await act(async () => {
-      await result.current.fetchResults('model-42');
+      await result.current.fetchResults('model-1');
     });
 
-    // getModelResultsUrl must have been called to generate the URL
-    expect(mockApi.results.getModelResultsUrl).toHaveBeenCalledWith('model-42');
+    await waitFor(() => {
+      expect(result.current.results).not.toBeNull();
+    });
 
-    // api.fetch must have been called with that URL
-    expect(mockApi.fetch).toHaveBeenCalledWith('/api/v1/models/model-42/results');
+    expect(result.current.results?.modelName).toBe('Test Model');
   });
 
   it('stores the fetched results in state', async () => {
@@ -153,5 +158,57 @@ describe('useModelResults - api.fetch() usage', () => {
     expect(result.current.results?.modelId).toBe('model-1');
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();
+  });
+
+  it('sets error state when adapter throws', async () => {
+    mockApi.results.get.mockRejectedValueOnce(new Error('Network error'));
+
+    const { result } = renderHook(
+      () => useModelResults(),
+      { wrapper: createWrapper(mockApi) }
+    );
+
+    await act(async () => {
+      await result.current.fetchResults('model-1');
+    });
+
+    expect(result.current.error).toBe('Network error');
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('polls via adapter when model is in progress', async () => {
+    vi.useFakeTimers();
+
+    const runningResponse: ModelResultsResponse = {
+      ...mockResultsResponse,
+      executionSummary: {
+        ...mockResultsResponse.executionSummary,
+        status: 'running',
+        progress: 50,
+        completedAt: null,
+      },
+    };
+
+    mockApi.results.get.mockResolvedValue(runningResponse);
+
+    const { result } = renderHook(
+      () => useModelResults(undefined, 1000),
+      { wrapper: createWrapper(mockApi) }
+    );
+
+    await act(async () => {
+      await result.current.fetchResults('model-1');
+    });
+
+    expect(mockApi.results.get).toHaveBeenCalledTimes(1);
+
+    // Advance timer to trigger poll
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(mockApi.results.get).toHaveBeenCalledTimes(2);
+
+    vi.useRealTimers();
   });
 });

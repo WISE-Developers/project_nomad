@@ -35,7 +35,6 @@ import type {
   JobSubmitResponse,
   JobStatusDetail,
   ModelResults,
-  ModelResult,
   ExportFormat,
   ExportParams,
   MapLayer,
@@ -604,35 +603,20 @@ export function createDefaultAdapter(options?: DefaultAdapterOptions): IOpenNoma
        * AGENCY NOTE: Return results from your results storage system.
        */
       async get(modelId: string): Promise<ModelResults> {
-        // Get the model to check status
-        const model = await getModel(modelId);
+        // Fetch full results from the backend results endpoint.
+        // The backend returns a richer response than the ModelResults type;
+        // we return it as-is so consumers get all available data.
+        const url = `${baseUrl}/api/v1/models/${modelId}/results`;
+        const response = await fetch(url);
 
-        // Stub response - real implementation would fetch actual results
-        const results: ModelResult[] = [];
-
-        // If model is completed, it has results
-        // In the real implementation, we'd fetch from a results endpoint
-        if (model.status === 'completed') {
-          // Placeholder - backend doesn't have results listing API yet
-          results.push({
-            id: `${modelId}-probability`,
-            modelId,
-            outputType: 'probability',
-            displayName: 'Burn Probability',
-            createdAt: model.updatedAt ?? model.createdAt,
-            metadata: {
-              crs: 'EPSG:4326',
-            },
-          });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.message || `Failed to fetch results: ${response.status}`
+          );
         }
 
-        return {
-          model: mapModelResponse(model),
-          results,
-          summary: {
-            durationHours: model.durationDays ? model.durationDays * 24 : 72,
-          },
-        };
+        return await response.json();
       },
 
       /**

@@ -54,24 +54,18 @@ export function useModelResults(
   );
 
   /**
-   * Fetch results from API using adapter-provided URL
+   * Fetch results from API using the adapter's results.get() method.
+   * This ensures ACN adapters can normalize their backend responses.
    */
   const fetchResults = useCallback(async (modelId: string) => {
     setCurrentModelId(modelId);
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const url = api.results.getModelResultsUrl(modelId);
-      const response = await api.fetch(url);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || `Failed to fetch results: ${response.status}`
-        );
-      }
-
-      const data: ModelResultsResponse = await response.json();
+      // The adapter's get() returns ModelResults (nominal type), but the actual
+      // runtime data includes all fields needed by ModelResultsResponse.
+      // ACN adapters normalize their backend response to include these fields.
+      const data = await api.results.get(modelId) as unknown as ModelResultsResponse;
       setState({
         results: data,
         isLoading: false,
@@ -122,7 +116,7 @@ export function useModelResults(
    * Poll for updates when model is in progress
    */
   useEffect(() => {
-    const status = state.results?.executionSummary.status;
+    const status = state.results?.executionSummary?.status;
     const shouldPoll =
       currentModelId &&
       status &&
@@ -135,7 +129,7 @@ export function useModelResults(
     }, pollInterval);
 
     return () => clearInterval(timer);
-  }, [currentModelId, state.results?.executionSummary.status, pollInterval, fetchResults]);
+  }, [currentModelId, state.results?.executionSummary?.status, pollInterval, fetchResults]);
 
   /**
    * Fetch initial model if provided
