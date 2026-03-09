@@ -348,6 +348,7 @@ function FloatingDashboard({
       <ModelReviewPanel
         modelId={resultsModelId}
         onClose={showDashboard}
+        mode="floating"
         onAddToMap={onAddGeoJsonToMap}
         onAddRasterToMap={onAddRasterToMap}
       />
@@ -501,6 +502,7 @@ function EmbeddedDashboard({
       <ModelReviewPanel
         modelId={resultsModelId}
         onClose={showDashboard}
+        mode="embedded"
         onAddToMap={onAddGeoJsonToMap}
         onAddRasterToMap={onAddRasterToMap}
       />
