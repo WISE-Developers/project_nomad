@@ -1973,9 +1973,17 @@ install_all_metal() {
             ;;
     esac
 
-    # 6. Install Node.js dependencies
+    # 6. Install Node.js dependencies (including devDependencies for build)
+    # Explicitly include dev deps — tsc and vite are needed to compile.
+    # Override NODE_ENV to prevent npm from skipping devDependencies
+    # when NODE_ENV=production is set in the environment or .env.
     print_step "Installing Node.js dependencies..."
-    run_cmd npm --prefix "$PROJECT_DIR" install
+    run_cmd env NODE_ENV=development npm --prefix "$PROJECT_DIR" install --include=dev
+
+    # 7. Rebuild native modules (handles Node.js version changes)
+    # Native addons like better-sqlite3 must match the running Node ABI.
+    print_step "Rebuilding native modules..."
+    run_cmd npm --prefix "$PROJECT_DIR" rebuild
 
     # 8. Clear Vite cache to ensure fresh build with new .env values
     print_step "Clearing Vite cache..."
