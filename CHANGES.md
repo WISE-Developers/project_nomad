@@ -4,10 +4,15 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.3.12
+## v0.3.13
 
 ### 2026-03-11
 
+- [`9925b17`](https://github.com/WISE-Developers/project_nomad/commit/9925b171de0850f87b414e38e7adc91973814b2c) Merge pull request #204 from WISE-Developers/dev — *Franco Nogarin, 10:13*
+- [`61cb357`](https://github.com/WISE-Developers/project_nomad/commit/61cb357c4958d44980d3b6b3c2cbffdb0d2a9690) chore: dev build 1 [skip ci] — *github-actions[bot], 16:12*
+- [`2056985`](https://github.com/WISE-Developers/project_nomad/commit/20569858ed0824e551d1f2b39f48f6ef044bdf7b) Fix stable-release: trigger on push to main instead of pull_request:closed — *Franco Nogarin, 10:12*
+- [`5abdbf8`](https://github.com/WISE-Developers/project_nomad/commit/5abdbf8eaf58aa66a058612fd708474e0a7df3d9) chore: reset dev build counter after v0.3.12 [skip ci] — *github-actions[bot], 16:10*
+- [`6af9e4c`](https://github.com/WISE-Developers/project_nomad/commit/6af9e4ce7c9efe60b416a02b95f83e375461c3e1) chore: release v0.3.12 [skip ci] — *github-actions[bot], 16:10*
 - [`ecc2001`](https://github.com/WISE-Developers/project_nomad/commit/ecc20012a9b5af6db34d66cc0b4739de7e728e17) Merge pull request #203 from WISE-Developers/dev — *Franco Nogarin, 10:07*
 - [`fd760a7`](https://github.com/WISE-Developers/project_nomad/commit/fd760a7b3e1764bcf19b7331237aab60dc1b60c4) chore: dev build 1 [skip ci] — *github-actions[bot], 15:57*
 - [`f4f6d41`](https://github.com/WISE-Developers/project_nomad/commit/f4f6d411dc34941c81472b317908dd5f1b816e62) Fix #202: Persist model notes and store outputMode on entity at creation — *Franco Nogarin, 09:57*
