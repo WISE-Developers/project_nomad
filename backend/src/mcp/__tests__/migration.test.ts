@@ -16,7 +16,7 @@ async function createInMemoryDb(): Promise<Knex> {
     useNullAsDefault: true,
   });
 
-  // Create the base fire_models table (mirrors 001_create_tables)
+  // Create the base fire_models table (mirrors 001_create_tables + subsequent migrations)
   await db.schema.createTable('fire_models', (table) => {
     table.string('id').primary();
     table.string('name').notNullable();
@@ -25,6 +25,8 @@ async function createInMemoryDb(): Promise<Knex> {
     table.timestamp('created_at').notNullable();
     table.timestamp('updated_at').notNullable();
     table.string('user_id').nullable();
+    table.text('notes').nullable();
+    table.text('output_mode').nullable();
   });
 
   return db;

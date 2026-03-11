@@ -32,6 +32,8 @@ interface ModelRow {
   created_at: string;
   updated_at: string;
   user_id: string | null;
+  notes: string | null;
+  output_mode: string | null;
 }
 
 /**
@@ -46,6 +48,8 @@ function rowToModel(row: ModelRow): FireModel {
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
     userId: row.user_id ?? undefined,
+    notes: row.notes ?? undefined,
+    outputMode: row.output_mode ?? undefined,
   });
 }
 
@@ -66,6 +70,8 @@ export class KnexModelRepository implements IModelRepository {
       created_at: model.createdAt.toISOString(),
       updated_at: model.updatedAt.toISOString(),
       user_id: model.userId ?? null,
+      notes: model.notes ?? null,
+      output_mode: model.outputMode ?? null,
     };
 
     // Use onConflict().merge() for upsert behavior (works across databases)

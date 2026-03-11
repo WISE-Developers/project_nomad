@@ -259,6 +259,7 @@ function AppContent() {
         scenarios: data.model.runType === 'probabilistic' ? 100 : 1,
         outputMode: data.model.outputMode,
         modelMode: data.model.modelMode ?? 'probabilistic',
+        notes: data.execution?.notes,
       });
 
       console.log('Model created and execution started:', result);

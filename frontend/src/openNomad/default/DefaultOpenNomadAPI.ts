@@ -79,7 +79,7 @@ function mapModelResponse(response: ModelResponse): Model {
     createdAt: response.createdAt,
     updatedAt: response.updatedAt ?? response.createdAt,
     outputMode: response.outputMode ?? null,
-    notes: undefined, // Backend doesn't store notes yet
+    notes: response.notes ?? undefined,
   };
 }
 

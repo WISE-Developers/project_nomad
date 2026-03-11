@@ -50,6 +50,10 @@ export interface FireModelProps {
   readonly updatedAt?: Date;
   /** User who created this model (for ownership filtering) */
   readonly userId?: string;
+  /** Optional user-provided notes for this model run */
+  readonly notes?: string;
+  /** Output mode selected at model creation time (probabilistic, pseudo-deterministic) */
+  readonly outputMode?: string;
 }
 
 /**
@@ -80,6 +84,12 @@ export class FireModel {
   /** User who created this model (for ownership filtering) */
   readonly userId?: string;
 
+  /** Optional user-provided notes for this model run */
+  readonly notes?: string;
+
+  /** Output mode selected at model creation time (probabilistic, pseudo-deterministic) */
+  readonly outputMode?: string;
+
   constructor(props: FireModelProps) {
     if (!props.name || props.name.trim().length === 0) {
       throw new Error('FireModel name cannot be empty');
@@ -92,6 +102,8 @@ export class FireModel {
     this.createdAt = props.createdAt ?? new Date();
     this.updatedAt = props.updatedAt ?? new Date();
     this.userId = props.userId;
+    this.notes = props.notes;
+    this.outputMode = props.outputMode;
   }
 
   /**
@@ -106,6 +118,8 @@ export class FireModel {
       createdAt: this.createdAt,
       updatedAt: new Date(),
       userId: this.userId,
+      notes: this.notes,
+      outputMode: this.outputMode,
     });
   }
 
@@ -121,6 +135,8 @@ export class FireModel {
       createdAt: this.createdAt,
       updatedAt: new Date(),
       userId: this.userId,
+      notes: this.notes,
+      outputMode: this.outputMode,
     });
   }
 

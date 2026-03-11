@@ -14,6 +14,8 @@ import * as migration002 from './002_add_user_ownership.js';
 import * as migration003 from './003_add_model_config.js';
 import * as migration004 from './004_create_settings.js';
 import * as migration005 from './005_create_notification_preferences.js';
+import * as migration006 from './006_add_notes_column.js';
+import * as migration007 from './007_add_output_mode_column.js';
 
 /**
  * Migration definition
@@ -33,6 +35,8 @@ const migrations: Migration[] = [
   { name: '003_add_model_config', ...migration003 },
   { name: '004_create_settings', ...migration004 },
   { name: '005_create_notification_preferences', ...migration005 },
+  { name: '006_add_notes_column', ...migration006 },
+  { name: '007_add_output_mode_column', ...migration007 },
 ];
 
 /**

@@ -139,6 +139,7 @@ export interface ModelResponse {
   userId: string | null;
   outputMode?: string | null;
   durationDays?: number | null;
+  notes?: string | null;
 }
 
 /**
@@ -224,6 +225,8 @@ export interface RunModelRequest {
   outputMode?: 'probabilistic' | 'pseudo-deterministic';
   /** Model mode - type of fire modeling analysis to perform */
   modelMode?: 'probabilistic' | 'deterministic' | 'long-term-risk';
+  /** Optional user-provided notes for this model run */
+  notes?: string;
 }
 
 export interface RunModelResponse {

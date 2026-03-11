@@ -45,6 +45,7 @@ interface RunModelRequestBody {
   scenarios?: number;
   outputMode?: 'probabilistic' | 'pseudo-deterministic';
   modelMode?: ModelMode;
+  notes?: string;
 }
 
 /**
@@ -160,6 +161,8 @@ router.post(
       engineType: body.engineType,
       status: ModelStatus.Queued,
       userId: resolveUserId(req),
+      notes: body.notes,
+      outputMode: derivedOutputMode,
     });
 
     logger.model(`Creating ignition geometry: type=${body.ignition.type} -> ${geometryType}`, modelId);
@@ -304,12 +307,14 @@ router.post(
 
     // Create model
     const id = createFireModelId(crypto.randomUUID());
+    const { notes } = req.body;
     const model = new FireModel({
       id,
       name,
       engineType,
       status: ModelStatus.Draft,
       userId: resolveUserId(req),
+      notes: typeof notes === 'string' ? notes : undefined,
     });
 
     // Persist to database
@@ -384,6 +389,8 @@ router.get(
       status: model.status,
       createdAt: model.createdAt.toISOString(),
       updatedAt: model.updatedAt.toISOString(),
+      notes: model.notes ?? null,
+      outputMode: model.outputMode ?? null,
     });
   })
 );
@@ -1182,33 +1189,24 @@ router.get(
         status: model.status,
         createdAt: model.createdAt.toISOString(),
         userId: model.userId ?? null,
-        outputMode: null as string | null,
+        notes: model.notes ?? null,
+        outputMode: model.outputMode ?? null,
         confidenceInterval: null as number | null,
         durationDays: null as number | null,
       };
 
-      // Try to read output config for completed models
+      // Try to read duration from filesystem for completed models
       if (model.status === ModelStatus.Completed) {
         try {
           const workingDir = (engine as import('../../../infrastructure/firestarr/FireSTARREngine.js').FireSTARREngine).getWorkingDirectory(model.id);
           if (workingDir) {
-            // Read output config
-            const configPath = `${workingDir}/output-config.json`;
-            if (fs.existsSync(configPath)) {
-              const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-              baseInfo.outputMode = config.outputMode || 'probabilistic';
-              if (config.outputMode === 'pseudo-deterministic') {
-                baseInfo.confidenceInterval = config.confidenceInterval || null;
-              }
-            }
-
             // Count probability rasters to get duration in days
             const files = fs.readdirSync(workingDir);
             const probFiles = files.filter(f => f.match(/^probability_\d+(?:_[\d-]+)?\.tif$/));
             baseInfo.durationDays = probFiles.length;
           }
         } catch (e) {
-          // Ignore errors reading config - just return null values
+          // Ignore errors reading filesystem - just return null for durationDays
         }
       }
 
