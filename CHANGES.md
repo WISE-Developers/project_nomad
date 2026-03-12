@@ -4,10 +4,19 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.3.14
+## v0.3.15
 
 ### 2026-03-12
 
+- [`64b98c3`](https://github.com/WISE-Developers/project_nomad/commit/64b98c39df8a719407a7ec57ca9dcd94423ed334) Merge pull request #206 from WISE-Developers/dev — *Franco Nogarin, 10:04*
+- [`68c3513`](https://github.com/WISE-Developers/project_nomad/commit/68c3513af0879eece9616d33442499331967f802) chore: dev build 2 [skip ci] — *github-actions[bot], 16:02*
+- [`4bbf576`](https://github.com/WISE-Developers/project_nomad/commit/4bbf57664c20a4dea1a0f850c100c35516e96c55) Merge branch 'dev' of https://github.com/WISE-Developers/project_nomad into dev — *Franco Nogarin, 10:02*
+- [`116c88e`](https://github.com/WISE-Developers/project_nomad/commit/116c88e195f5f7fa73cdcd00dbf1d0d908edd54f) Pin Docker image to unstable-latest, binaries remain v0.9.5.10 — *Franco Nogarin, 10:02*
+- [`d84ca37`](https://github.com/WISE-Developers/project_nomad/commit/d84ca37310906a0b5cc47324237cb6fb43997c80) chore: dev build 1 [skip ci] — *github-actions[bot], 15:56*
+- [`1d1bfdf`](https://github.com/WISE-Developers/project_nomad/commit/1d1bfdf0f9e0633e950b9e0b48e48943cd6c48d3) Merge branch 'dev' of https://github.com/WISE-Developers/project_nomad into dev — *Franco Nogarin, 09:56*
+- [`5014366`](https://github.com/WISE-Developers/project_nomad/commit/5014366af801add302497a73574f89b8395d760d) Fix installer: stale .env values bypassing FireSTARR image configuration — *Franco Nogarin, 09:56*
+- [`701869c`](https://github.com/WISE-Developers/project_nomad/commit/701869c227b286c49870173922eb4931c8c03d00) chore: reset dev build counter after v0.3.14 [skip ci] — *github-actions[bot], 14:44*
+- [`d16cc2c`](https://github.com/WISE-Developers/project_nomad/commit/d16cc2cbb9bdf4744377c3dce88f3b2e4e2eabf9) chore: release v0.3.14 [skip ci] — *github-actions[bot], 14:44*
 - [`b81a566`](https://github.com/WISE-Developers/project_nomad/commit/b81a566afc78d6e5773e7b24722e5e77ee32f25c) Merge pull request #205 from WISE-Developers/dev — *Franco Nogarin, 08:44*
 - [`085e944`](https://github.com/WISE-Developers/project_nomad/commit/085e944862f21e49ba3a28a2c366b14ecdbb4c68) chore: dev build 1 [skip ci] — *github-actions[bot], 14:40*
 - [`2e005bb`](https://github.com/WISE-Developers/project_nomad/commit/2e005bbedc0782126f7606e3c276c8b4965223ab) Merge branch 'dev' of https://github.com/WISE-Developers/project_nomad into dev — *Franco Nogarin, 08:39*
