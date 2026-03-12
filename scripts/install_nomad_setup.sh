@@ -16,12 +16,12 @@ set -e
 INSTALLER_VERSION="2.1.1"
 
 # FireSTARR image and binary source configuration
-# PINNED to v0.9.5.10:
+# Docker: unstable-latest (no tagged images available yet), Binaries: v0.9.5.10
 # See: https://github.com/WISE-Developers/project_nomad/issues/184
 FIRESTARR_REGISTRY="ghcr.io/cwfmf/firestarr-cpp"
 FIRESTARR_IMAGE_NAME="firestarr"
-FIRESTARR_IMAGE_TAG="v0.9.5.10"
-FIRESTARR_IMAGE_TAG_ARM64="v0.9.5.10"
+FIRESTARR_IMAGE_TAG="unstable-latest"
+FIRESTARR_IMAGE_TAG_ARM64="unstable-latest"
 FIRESTARR_BINARY_RELEASE_TAG="v0.9.5.10"
 FIRESTARR_BINARY_RELEASE_REPO="https://github.com/CWFMF/firestarr-cpp/releases/download"
 FIRESTARR_BINARY_ASSET_MACOS="firestarr-macos-arm64-clang-Release.tar.gz"
