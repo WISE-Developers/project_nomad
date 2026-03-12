@@ -4,10 +4,19 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.3.13
+## v0.3.14
+
+### 2026-03-12
+
+- [`b81a566`](https://github.com/WISE-Developers/project_nomad/commit/b81a566afc78d6e5773e7b24722e5e77ee32f25c) Merge pull request #205 from WISE-Developers/dev — *Franco Nogarin, 08:44*
+- [`085e944`](https://github.com/WISE-Developers/project_nomad/commit/085e944862f21e49ba3a28a2c366b14ecdbb4c68) chore: dev build 1 [skip ci] — *github-actions[bot], 14:40*
+- [`2e005bb`](https://github.com/WISE-Developers/project_nomad/commit/2e005bbedc0782126f7606e3c276c8b4965223ab) Merge branch 'dev' of https://github.com/WISE-Developers/project_nomad into dev — *Franco Nogarin, 08:39*
+- [`c9e849c`](https://github.com/WISE-Developers/project_nomad/commit/c9e849c908b582d481c03a72602849447aa24862) Bump FireSTARR pin to v0.9.5.10 — *Franco Nogarin, 08:39*
 
 ### 2026-03-11
 
+- [`032c3d8`](https://github.com/WISE-Developers/project_nomad/commit/032c3d8209263693d544edd6b5486cc0e470aff4) chore: reset dev build counter after v0.3.13 [skip ci] — *github-actions[bot], 16:13*
+- [`b5547ae`](https://github.com/WISE-Developers/project_nomad/commit/b5547ae988a50163702e61980792bd3fee37d0e8) chore: release v0.3.13 [skip ci] — *github-actions[bot], 16:13*
 - [`9925b17`](https://github.com/WISE-Developers/project_nomad/commit/9925b171de0850f87b414e38e7adc91973814b2c) Merge pull request #204 from WISE-Developers/dev — *Franco Nogarin, 10:13*
 - [`61cb357`](https://github.com/WISE-Developers/project_nomad/commit/61cb357c4958d44980d3b6b3c2cbffdb0d2a9690) chore: dev build 1 [skip ci] — *github-actions[bot], 16:12*
 - [`2056985`](https://github.com/WISE-Developers/project_nomad/commit/20569858ed0824e551d1f2b39f48f6ef044bdf7b) Fix stable-release: trigger on push to main instead of pull_request:closed — *Franco Nogarin, 10:12*
