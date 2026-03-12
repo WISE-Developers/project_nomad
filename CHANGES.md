@@ -4,10 +4,16 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.3.15
+## v0.3.16
 
 ### 2026-03-12
 
+- [`c8ad2d3`](https://github.com/WISE-Developers/project_nomad/commit/c8ad2d3f7a77f0994b117e9f97f10d05f9dc51c2) Merge pull request #207 from WISE-Developers/dev — *Franco Nogarin, 10:13*
+- [`ca3ce11`](https://github.com/WISE-Developers/project_nomad/commit/ca3ce111727cd9a749b92651da9b31f02f7fe89d) chore: dev build 1 [skip ci] — *github-actions[bot], 16:12*
+- [`b9aec1f`](https://github.com/WISE-Developers/project_nomad/commit/b9aec1f5764de398c50da28a2c0af3c93aa08d14) Merge branch 'dev' of https://github.com/WISE-Developers/project_nomad into dev — *Franco Nogarin, 10:12*
+- [`4a7af97`](https://github.com/WISE-Developers/project_nomad/commit/4a7af9702b0c1c7bcd4c3862fd5647488ba78bfd) Pin Docker image to unstable tag (exists on GHCR) — *Franco Nogarin, 10:12*
+- [`da558e3`](https://github.com/WISE-Developers/project_nomad/commit/da558e39937aa174cc6099673ed7df665bbd2547) chore: reset dev build counter after v0.3.15 [skip ci] — *github-actions[bot], 16:05*
+- [`282e681`](https://github.com/WISE-Developers/project_nomad/commit/282e681e63ce5c0cd138596c5a879b0633cfc672) chore: release v0.3.15 [skip ci] — *github-actions[bot], 16:05*
 - [`64b98c3`](https://github.com/WISE-Developers/project_nomad/commit/64b98c39df8a719407a7ec57ca9dcd94423ed334) Merge pull request #206 from WISE-Developers/dev — *Franco Nogarin, 10:04*
 - [`68c3513`](https://github.com/WISE-Developers/project_nomad/commit/68c3513af0879eece9616d33442499331967f802) chore: dev build 2 [skip ci] — *github-actions[bot], 16:02*
 - [`4bbf576`](https://github.com/WISE-Developers/project_nomad/commit/4bbf57664c20a4dea1a0f850c100c35516e96c55) Merge branch 'dev' of https://github.com/WISE-Developers/project_nomad into dev — *Franco Nogarin, 10:02*
