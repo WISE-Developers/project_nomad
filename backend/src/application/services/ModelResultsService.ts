@@ -90,6 +90,7 @@ export interface ModelResultsResponse {
   modelName: string;
   engineType: string;
   userId: string | null;
+  notes: string | null;
   executionSummary: ExecutionSummary;
   inputs?: ModelInputs;
   outputs: OutputItem[];
@@ -125,7 +126,8 @@ export class ModelResultsService {
     modelId: FireModelId,
     modelName: string,
     engineType: string,
-    userId?: string
+    userId?: string,
+    notes?: string | null
   ): Promise<Result<ModelResultsResponse, DomainError>> {
     // Get execution status - handle engine not being configured
     let status: ExecutionStatus;
@@ -168,6 +170,7 @@ export class ModelResultsService {
           modelName,
           engineType,
           userId: userId ?? null,
+          notes: notes ?? null,
           executionSummary: {
             startedAt: null,
             completedAt: null,
@@ -204,6 +207,7 @@ export class ModelResultsService {
         modelName,
         engineType,
         userId: userId ?? null,
+        notes: notes ?? null,
         executionSummary,
         outputs: [],
       });
@@ -399,6 +403,7 @@ export class ModelResultsService {
         modelName,
         engineType,
         userId: userId ?? null,
+        notes: notes ?? null,
         executionSummary,
         inputs,
         outputs,
