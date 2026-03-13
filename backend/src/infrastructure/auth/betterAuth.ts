@@ -1,0 +1,116 @@
+/**
+ * Better Auth Configuration
+ *
+ * Configures Better Auth for OAuth social login in SAN mode.
+ * Only initialized when NOMAD_AUTH_MODE=oauth.
+ * Supports Google, Microsoft, and GitHub providers.
+ */
+
+import { betterAuth, type BetterAuthOptions } from 'better-auth';
+import { resolve } from 'path';
+import { logger } from '../logging/index.js';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let authInstance: any = null;
+
+/**
+ * Build Better Auth social provider config from environment variables.
+ * Only includes providers that have both client ID and secret configured.
+ */
+function buildSocialProviders(): BetterAuthOptions['socialProviders'] {
+  const providers: BetterAuthOptions['socialProviders'] = {};
+
+  if (process.env.NOMAD_OAUTH_GOOGLE_CLIENT_ID && process.env.NOMAD_OAUTH_GOOGLE_CLIENT_SECRET) {
+    providers.google = {
+      clientId: process.env.NOMAD_OAUTH_GOOGLE_CLIENT_ID,
+      clientSecret: process.env.NOMAD_OAUTH_GOOGLE_CLIENT_SECRET,
+    };
+    logger.startup('  OAuth provider: Google');
+  }
+
+  if (process.env.NOMAD_OAUTH_MICROSOFT_CLIENT_ID && process.env.NOMAD_OAUTH_MICROSOFT_CLIENT_SECRET) {
+    providers.microsoft = {
+      clientId: process.env.NOMAD_OAUTH_MICROSOFT_CLIENT_ID,
+      clientSecret: process.env.NOMAD_OAUTH_MICROSOFT_CLIENT_SECRET,
+    };
+    logger.startup('  OAuth provider: Microsoft');
+  }
+
+  if (process.env.NOMAD_OAUTH_GITHUB_CLIENT_ID && process.env.NOMAD_OAUTH_GITHUB_CLIENT_SECRET) {
+    providers.github = {
+      clientId: process.env.NOMAD_OAUTH_GITHUB_CLIENT_ID,
+      clientSecret: process.env.NOMAD_OAUTH_GITHUB_CLIENT_SECRET,
+    };
+    logger.startup('  OAuth provider: GitHub');
+  }
+
+  return providers;
+}
+
+/**
+ * Resolve the SQLite database path for Better Auth.
+ * Uses the same data directory as Nomad's main database.
+ */
+function resolveAuthDbPath(): string {
+  const dataPath = process.env.NOMAD_DATA_PATH
+    || process.env.FIRESTARR_DATASET_PATH
+    || process.cwd();
+  return resolve(dataPath, 'nomad_auth.db');
+}
+
+/**
+ * Initialize Better Auth. Call once at startup when NOMAD_AUTH_MODE=oauth.
+ * Throws if no providers are configured.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function initBetterAuth(): any {
+  if (authInstance) return authInstance;
+
+  const socialProviders = buildSocialProviders();
+  const providerCount = Object.keys(socialProviders ?? {}).length;
+
+  if (providerCount === 0) {
+    throw new Error(
+      'NOMAD_AUTH_MODE=oauth but no OAuth providers configured. ' +
+      'Set at least one provider (NOMAD_OAUTH_GOOGLE_CLIENT_ID/SECRET, ' +
+      'NOMAD_OAUTH_MICROSOFT_CLIENT_ID/SECRET, or NOMAD_OAUTH_GITHUB_CLIENT_ID/SECRET).'
+    );
+  }
+
+  const dbPath = resolveAuthDbPath();
+  logger.startup(`  OAuth database: ${dbPath}`);
+
+  authInstance = betterAuth({
+    database: {
+      provider: 'sqlite',
+      url: dbPath,
+    },
+    basePath: '/api/auth',
+    socialProviders,
+    user: {
+      modelName: 'auth_user',
+    },
+    session: {
+      modelName: 'auth_session',
+    },
+  });
+
+  logger.startup(`  OAuth initialized with ${providerCount} provider(s)`);
+  return authInstance;
+}
+
+/**
+ * Get the initialized Better Auth instance.
+ * Returns null if OAuth is not enabled.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getBetterAuth(): any | null {
+  return authInstance;
+}
+
+/**
+ * Reset the auth instance (for testing).
+ */
+export function resetBetterAuth(): void {
+  authInstance = null;
+}

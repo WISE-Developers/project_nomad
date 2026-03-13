@@ -14,6 +14,7 @@ export {
   simpleAuthMiddleware,
   acnAuthMiddleware,
   resolveAuthMode,
+  betterAuthSessionMiddleware,
   requireRoles,
   type ApiErrorResponse,
   type AuthMode,

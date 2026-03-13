@@ -13,6 +13,7 @@ import {
   acnAuthMiddleware,
   simpleAuthMiddleware,
   resolveAuthMode,
+  betterAuthSessionMiddleware,
 } from './api/index.js';
 import { initDatabase, initializeRepositories, getJobRepository } from './infrastructure/database/index.js';
 import { logger } from './infrastructure/logging/index.js';
@@ -145,6 +146,15 @@ if (isProduction && existsSync(frontendDistPath)) {
 const corsOptions = getCorsOptions();
 app.use(cors(corsOptions));
 
+// 1.5. Better Auth handler (must be mounted BEFORE express.json() per Better Auth docs)
+const isOAuthMode = process.env.NOMAD_DEPLOYMENT_MODE !== 'ACN' && resolveAuthMode() === 'oauth';
+if (isOAuthMode) {
+  const { initBetterAuth } = await import('./infrastructure/auth/index.js');
+  const { toNodeHandler } = await import('better-auth/node');
+  const auth = initBetterAuth();
+  app.all('/api/auth/*', toNodeHandler(auth));
+}
+
 // 2. JSON body parser with size limit (10mb for large geometries)
 app.use(express.json({ limit: '10mb' }));
 
@@ -175,9 +185,8 @@ if (process.env.NOMAD_DEPLOYMENT_MODE === 'ACN') {
       break;
     case 'oauth':
       logger.startup('SAN mode: OAuth authentication enabled');
-      // OAuth middleware will be added in Phase 1
-      // For now, fall through to simple auth as placeholder
-      app.use(simpleAuthMiddleware);
+      // Better Auth route handler already mounted before express.json() above
+      app.use(betterAuthSessionMiddleware);
       break;
     case 'none':
       logger.startup('SAN mode: No authentication (open access)');
