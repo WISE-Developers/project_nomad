@@ -27,6 +27,8 @@ interface ResultsSummaryProps {
   inputs?: ModelInputs;
   /** Output configuration used */
   outputConfig?: OutputConfig;
+  /** User notes for this model */
+  notes?: string;
   /** Callback to add ignition to map */
   onAddIgnitionToMap?: () => void;
 }
@@ -96,6 +98,7 @@ export function ResultsSummary({
   outputCount,
   inputs,
   outputConfig,
+  notes,
   onAddIgnitionToMap,
 }: ResultsSummaryProps) {
   const ignition = inputs?.ignition;
@@ -267,6 +270,19 @@ export function ResultsSummary({
           {statusInfo.label}
         </div>
       </div>
+
+      {/* Notes */}
+      {notes && (
+        <p style={{
+          fontSize: '14px',
+          color: '#555',
+          margin: '0 0 16px 0',
+          fontStyle: 'italic',
+          lineHeight: 1.4,
+        }}>
+          {notes}
+        </p>
+      )}
 
       {/* Progress bar (shown during execution) */}
       {isInProgress && (

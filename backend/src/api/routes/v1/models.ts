@@ -741,7 +741,8 @@ router.get(
         id as FireModelId,
         model.name,
         model.engineType,
-        model.userId
+        model.userId,
+        model.notes
       );
 
       logger.debug(`Got result, success=${result.success}`, 'Results');

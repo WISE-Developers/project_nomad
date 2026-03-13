@@ -230,6 +230,7 @@ export function ModelReviewPanel({
           outputCount={results.outputs.length}
           inputs={results.inputs}
           outputConfig={results.outputConfig}
+          notes={results.notes}
           onAddIgnitionToMap={handleAddIgnitionToMap}
         />
         <OutputList

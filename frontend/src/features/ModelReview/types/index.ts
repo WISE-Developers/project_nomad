@@ -102,6 +102,7 @@ export interface ModelResultsResponse {
   modelName: string;
   engineType: string;
   userId: string | null;
+  notes?: string;
   executionSummary: ExecutionSummary;
   inputs?: ModelInputs;
   outputs: OutputItem[];

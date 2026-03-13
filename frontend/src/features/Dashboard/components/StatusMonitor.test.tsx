@@ -165,7 +165,7 @@ describe('StatusMonitor', () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /remove from list/i })).toBeInTheDocument();
       });
     });
   });
