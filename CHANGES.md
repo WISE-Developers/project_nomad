@@ -4,10 +4,22 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.3.16
+## v0.3.17
+
+### 2026-03-13
+
+- [`53fd95c`](https://github.com/WISE-Developers/project_nomad/commit/53fd95c763b4b37fdb537348cf39a4e0326cb5da) Merge pull request #209 from WISE-Developers/dev — *Franco Nogarin, 13:13*
+- [`3e0f17e`](https://github.com/WISE-Developers/project_nomad/commit/3e0f17ec2854d8f33594b2eb0f162f5433ffb1d8) chore: dev build 3 [skip ci] — *github-actions[bot], 18:56*
+- [`c0e5f60`](https://github.com/WISE-Developers/project_nomad/commit/c0e5f60f5d5f8f3b2618d0983bce799b14215d2b) Fix #208: Include notes in model results API response — *Franco Nogarin, 12:56*
+- [`8b88669`](https://github.com/WISE-Developers/project_nomad/commit/8b88669ed9623cbe1b8d0c55c5e534a3bfe91ccc) chore: dev build 2 [skip ci] — *github-actions[bot], 17:04*
+- [`40ed3c1`](https://github.com/WISE-Developers/project_nomad/commit/40ed3c1ba668e60a70b25247a0d4fbfcc620d398) Fix #208: Display model notes in Results panel — *Franco Nogarin, 11:03*
+- [`2e974f0`](https://github.com/WISE-Developers/project_nomad/commit/2e974f090150dc6d1df6bef79c342adf89645411) chore: dev build 1 [skip ci] — *github-actions[bot], 16:45*
+- [`648528d`](https://github.com/WISE-Developers/project_nomad/commit/648528d6f24d34297add9a654b3b88c45877bb95) Fix StatusMonitor test: match aria-label instead of visible text — *Franco Nogarin, 10:44*
 
 ### 2026-03-12
 
+- [`c6b335a`](https://github.com/WISE-Developers/project_nomad/commit/c6b335ae681a891b490277030f7c121815992fcc) chore: reset dev build counter after v0.3.16 [skip ci] — *github-actions[bot], 16:13*
+- [`13a8f20`](https://github.com/WISE-Developers/project_nomad/commit/13a8f2036ea6b5478adb065e0bf4460a7f4dd05f) chore: release v0.3.16 [skip ci] — *github-actions[bot], 16:13*
 - [`c8ad2d3`](https://github.com/WISE-Developers/project_nomad/commit/c8ad2d3f7a77f0994b117e9f97f10d05f9dc51c2) Merge pull request #207 from WISE-Developers/dev — *Franco Nogarin, 10:13*
 - [`ca3ce11`](https://github.com/WISE-Developers/project_nomad/commit/ca3ce111727cd9a749b92651da9b31f02f7fe89d) chore: dev build 1 [skip ci] — *github-actions[bot], 16:12*
 - [`b9aec1f`](https://github.com/WISE-Developers/project_nomad/commit/b9aec1f5764de398c50da28a2c0af3c93aa08d14) Merge branch 'dev' of https://github.com/WISE-Developers/project_nomad into dev — *Franco Nogarin, 10:12*
