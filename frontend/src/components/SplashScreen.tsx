@@ -5,7 +5,7 @@
  * Auth mode determines behavior:
  *   'none'   — click anywhere to enter
  *   'simple' — username input field
- *   'oauth'  — OAuth provider buttons (Phase 2)
+ *   'oauth'  — OAuth provider buttons (dynamically loaded from backend)
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -30,12 +30,30 @@ function resolveAuthMode(): AuthMode {
 const AUTH_MODE = resolveAuthMode();
 const STORAGE_KEY = 'nomad_username';
 
+/** Brand colors and labels for each OAuth provider */
+const PROVIDER_STYLES: Record<string, { bg: string; border?: string; label: string }> = {
+  google:    { bg: '#4285F4', label: 'Google' },
+  microsoft: { bg: '#2F2F2F', border: '1px solid #555', label: 'Microsoft' },
+  github:    { bg: '#24292e', border: '1px solid #555', label: 'GitHub' },
+  apple:     { bg: '#000000', border: '1px solid #555', label: 'Apple' },
+  discord:   { bg: '#5865F2', label: 'Discord' },
+  facebook:  { bg: '#1877F2', label: 'Facebook' },
+  twitter:   { bg: '#1DA1F2', label: 'Twitter/X' },
+};
+
+interface ProviderInfo {
+  id: string;
+  name: string;
+}
+
 interface SplashScreenProps {
   onEnter: () => void;
 }
 
 export function SplashScreen({ onEnter }: SplashScreenProps) {
   const [username, setUsername] = useState('');
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [loadingProviders, setLoadingProviders] = useState(AUTH_MODE === 'oauth');
 
   // Load saved username from localStorage
   useEffect(() => {
@@ -45,11 +63,26 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
     }
   }, []);
 
+  // Fetch available OAuth providers from backend
+  useEffect(() => {
+    if (AUTH_MODE !== 'oauth') return;
+
+    const apiBase = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    fetch(`${apiBase}/api/v1/auth/providers`, { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        setProviders(data.providers ?? []);
+        setLoadingProviders(false);
+      })
+      .catch(() => {
+        setLoadingProviders(false);
+      });
+  }, []);
+
   const handleSubmit = useCallback(() => {
     if (AUTH_MODE === 'simple' && !username.trim()) {
-      return; // Don't allow empty username when auth is required
+      return;
     }
-    // Save username to localStorage
     if (username.trim()) {
       localStorage.setItem(STORAGE_KEY, username.trim());
     }
@@ -161,72 +194,46 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
         </div>
       )}
 
-      {/* OAuth provider buttons */}
+      {/* OAuth provider buttons (dynamically loaded) */}
       {AUTH_MODE === 'oauth' && (
         <div style={{ marginBottom: '16px', width: '280px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <p style={{ color: '#94a3b8', fontSize: '14px', margin: '0 0 4px 0', textAlign: 'center' }}>
             Sign in to continue
           </p>
-          <button
-            onClick={() => authClient.signIn.social({ provider: 'google', callbackURL: '/' })}
-            style={{
-              width: '100%',
-              padding: '12px 16px',
-              fontSize: '16px',
-              fontWeight: 600,
-              color: '#ffffff',
-              backgroundColor: '#4285F4',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-            }}
-          >
-            Sign in with Google
-          </button>
-          <button
-            onClick={() => authClient.signIn.social({ provider: 'microsoft', callbackURL: '/' })}
-            style={{
-              width: '100%',
-              padding: '12px 16px',
-              fontSize: '16px',
-              fontWeight: 600,
-              color: '#ffffff',
-              backgroundColor: '#2F2F2F',
-              border: '1px solid #555',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-            }}
-          >
-            Sign in with Microsoft
-          </button>
-          <button
-            onClick={() => authClient.signIn.social({ provider: 'github', callbackURL: '/' })}
-            style={{
-              width: '100%',
-              padding: '12px 16px',
-              fontSize: '16px',
-              fontWeight: 600,
-              color: '#ffffff',
-              backgroundColor: '#24292e',
-              border: '1px solid #555',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-            }}
-          >
-            Sign in with GitHub
-          </button>
+          {loadingProviders && (
+            <p style={{ color: '#64748b', fontSize: '14px', textAlign: 'center' }}>Loading providers...</p>
+          )}
+          {!loadingProviders && providers.length === 0 && (
+            <p style={{ color: '#ef4444', fontSize: '14px', textAlign: 'center' }}>
+              No OAuth providers configured. Check your .env file.
+            </p>
+          )}
+          {providers.map(provider => {
+            const style = PROVIDER_STYLES[provider.id] ?? { bg: '#475569', label: provider.name };
+            return (
+              <button
+                key={provider.id}
+                onClick={() => authClient.signIn.social({ provider: provider.id as 'google', callbackURL: '/' })}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  fontSize: '16px',
+                  fontWeight: 600,
+                  color: '#ffffff',
+                  backgroundColor: style.bg,
+                  border: style.border ?? 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+              >
+                Sign in with {style.label}
+              </button>
+            );
+          })}
         </div>
       )}
 

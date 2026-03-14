@@ -3,7 +3,7 @@
  *
  * Configures Better Auth for OAuth social login in SAN mode.
  * Only initialized when NOMAD_AUTH_MODE=oauth.
- * Supports Google, Microsoft, and GitHub providers.
+ * Supports Google, Microsoft, GitHub, Apple, Discord, Facebook, and Twitter providers.
  */
 
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
@@ -42,6 +42,38 @@ function buildSocialProviders(): BetterAuthOptions['socialProviders'] {
       clientSecret: process.env.NOMAD_OAUTH_GITHUB_CLIENT_SECRET,
     };
     logger.startup('  OAuth provider: GitHub');
+  }
+
+  if (process.env.NOMAD_OAUTH_APPLE_CLIENT_ID && process.env.NOMAD_OAUTH_APPLE_CLIENT_SECRET) {
+    providers.apple = {
+      clientId: process.env.NOMAD_OAUTH_APPLE_CLIENT_ID,
+      clientSecret: process.env.NOMAD_OAUTH_APPLE_CLIENT_SECRET,
+    };
+    logger.startup('  OAuth provider: Apple');
+  }
+
+  if (process.env.NOMAD_OAUTH_DISCORD_CLIENT_ID && process.env.NOMAD_OAUTH_DISCORD_CLIENT_SECRET) {
+    providers.discord = {
+      clientId: process.env.NOMAD_OAUTH_DISCORD_CLIENT_ID,
+      clientSecret: process.env.NOMAD_OAUTH_DISCORD_CLIENT_SECRET,
+    };
+    logger.startup('  OAuth provider: Discord');
+  }
+
+  if (process.env.NOMAD_OAUTH_FACEBOOK_CLIENT_ID && process.env.NOMAD_OAUTH_FACEBOOK_CLIENT_SECRET) {
+    providers.facebook = {
+      clientId: process.env.NOMAD_OAUTH_FACEBOOK_CLIENT_ID,
+      clientSecret: process.env.NOMAD_OAUTH_FACEBOOK_CLIENT_SECRET,
+    };
+    logger.startup('  OAuth provider: Facebook');
+  }
+
+  if (process.env.NOMAD_OAUTH_TWITTER_CLIENT_ID && process.env.NOMAD_OAUTH_TWITTER_CLIENT_SECRET) {
+    providers.twitter = {
+      clientId: process.env.NOMAD_OAUTH_TWITTER_CLIENT_ID,
+      clientSecret: process.env.NOMAD_OAUTH_TWITTER_CLIENT_SECRET,
+    };
+    logger.startup('  OAuth provider: Twitter/X');
   }
 
   return providers;
