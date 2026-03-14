@@ -119,10 +119,18 @@ export async function initBetterAuth(): Promise<any> {
     || process.env.BETTER_AUTH_SECRET
     || createHash('sha256').update(dbPath + 'nomad-oauth').digest('hex');
 
+  // Determine the public-facing URL for OAuth callbacks
+  const baseURL = process.env.BETTER_AUTH_URL
+    || process.env.VITE_API_BASE_URL
+    || `http://localhost:${process.env.PORT || 3001}`;
+  logger.startup(`  OAuth base URL: ${baseURL}`);
+
   authInstance = betterAuth({
     database: new Database(dbPath),
     secret,
+    baseURL,
     basePath: '/api/auth',
+    trustedOrigins: [baseURL],
     socialProviders,
     user: {
       modelName: 'auth_user',
