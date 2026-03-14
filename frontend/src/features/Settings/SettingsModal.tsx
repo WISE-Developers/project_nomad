@@ -212,9 +212,18 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                 width: '100%',
               }}
               onClick={async () => {
-                await authClient.signOut();
+                await authClient.signOut({ fetchOptions: { credentials: 'include' } });
                 localStorage.removeItem('nomad_username');
-                window.location.reload();
+                // Also revoke the OAuth token server-side
+                try {
+                  await fetch(`${window.location.origin}/api/auth/revoke`, {
+                    method: 'POST',
+                    credentials: 'include',
+                  });
+                } catch {
+                  // Best effort — revocation endpoint may not exist
+                }
+                window.location.href = '/';
               }}
             >
               Sign Out

@@ -47,7 +47,7 @@ function buildSocialProviders(): BetterAuthOptions['socialProviders'] {
     providers.github = {
       clientId: process.env.NOMAD_OAUTH_GITHUB_CLIENT_ID,
       clientSecret: process.env.NOMAD_OAUTH_GITHUB_CLIENT_SECRET,
-      prompt: 'login',
+      prompt: 'select_account',
     };
     logger.startup('  OAuth provider: GitHub');
   }
