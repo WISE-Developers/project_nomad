@@ -8,6 +8,7 @@
 
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import Database from 'better-sqlite3';
+import { createHash } from 'crypto';
 import { resolve } from 'path';
 import { logger } from '../logging/index.js';
 
@@ -113,8 +114,14 @@ export function initBetterAuth(): any {
   const dbPath = resolveAuthDbPath();
   logger.startup(`  OAuth database: ${dbPath}`);
 
+  // Session signing secret — use env var or generate a stable one from the DB path
+  const secret = process.env.NOMAD_OAUTH_SECRET
+    || process.env.BETTER_AUTH_SECRET
+    || createHash('sha256').update(dbPath + 'nomad-oauth').digest('hex');
+
   authInstance = betterAuth({
     database: new Database(dbPath),
+    secret,
     basePath: '/api/auth',
     socialProviders,
     user: {
