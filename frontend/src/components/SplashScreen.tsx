@@ -67,8 +67,7 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
   useEffect(() => {
     if (AUTH_MODE !== 'oauth') return;
 
-    const apiBase = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-    fetch(`${apiBase}/api/v1/auth/providers`, { credentials: 'include' })
+    fetch(`${window.location.origin}/api/v1/auth/providers`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         setProviders(data.providers ?? []);
