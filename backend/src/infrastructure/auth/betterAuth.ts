@@ -120,19 +120,12 @@ export async function initBetterAuth(): Promise<any> {
     || createHash('sha256').update(dbPath + 'nomad-oauth').digest('hex');
 
   // Determine the public-facing URL for OAuth callbacks.
-  // Strategy: parse hostname from VITE_API_BASE_URL, use NOMAD_FRONTEND_HOST_PORT for the port.
-  // This works for both Docker (different host/container ports) and metal (same port).
-  let baseURL = process.env.BETTER_AUTH_URL;
-  if (!baseURL) {
-    const apiBaseUrl = process.env.VITE_API_BASE_URL;
-    if (apiBaseUrl) {
-      const parsed = new URL(apiBaseUrl);
-      const publicPort = process.env.NOMAD_FRONTEND_HOST_PORT || parsed.port || process.env.PORT || '3001';
-      baseURL = `${parsed.protocol}//${parsed.hostname}:${publicPort}`;
-    } else {
-      baseURL = `http://localhost:${process.env.PORT || 3001}`;
-    }
-  }
+  // The installer sets NOMAD_SERVER_HOSTNAME. The public port is:
+  //   Docker: NOMAD_FRONTEND_HOST_PORT (what the browser hits)
+  //   Metal:  PORT (backend serves frontend same-origin)
+  const hostname = process.env.NOMAD_SERVER_HOSTNAME || 'localhost';
+  const publicPort = process.env.NOMAD_FRONTEND_HOST_PORT || process.env.PORT || '3001';
+  const baseURL = process.env.BETTER_AUTH_URL || `http://${hostname}:${publicPort}`;
   logger.startup(`  OAuth base URL: ${baseURL}`);
 
   authInstance = betterAuth({

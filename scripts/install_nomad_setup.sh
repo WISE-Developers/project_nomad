@@ -1785,6 +1785,11 @@ generate_env_file() {
         update_env_value "NOMAD_BACKEND_HOST_PORT" "$NOMAD_BACKEND_HOST_PORT"
     fi
 
+    # Persist server hostname (used by OAuth to construct callback URLs)
+    if [ -n "$NOMAD_SERVER_HOSTNAME" ]; then
+        update_env_value "NOMAD_SERVER_HOSTNAME" "$NOMAD_SERVER_HOSTNAME"
+    fi
+
     # Set API base URL for Docker deployments (frontend needs to know where backend is)
     # Only apply in Docker mode - metal mode already set these correctly above
     if [ "$NOMAD_INFRA" = "docker" ] && [ -n "$NOMAD_SERVER_HOSTNAME" ] && [ -n "$NOMAD_BACKEND_HOST_PORT" ]; then
