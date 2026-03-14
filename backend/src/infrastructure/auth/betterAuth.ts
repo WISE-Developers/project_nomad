@@ -7,6 +7,7 @@
  */
 
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
+import Database from 'better-sqlite3';
 import { resolve } from 'path';
 import { logger } from '../logging/index.js';
 
@@ -113,10 +114,7 @@ export function initBetterAuth(): any {
   logger.startup(`  OAuth database: ${dbPath}`);
 
   authInstance = betterAuth({
-    database: {
-      provider: 'sqlite',
-      url: dbPath,
-    },
+    database: new Database(dbPath),
     basePath: '/api/auth',
     socialProviders,
     user: {
