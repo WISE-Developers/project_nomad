@@ -22,10 +22,14 @@ let authInstance: any = null;
 function buildSocialProviders(): BetterAuthOptions['socialProviders'] {
   const providers: BetterAuthOptions['socialProviders'] = {};
 
+  // Each provider uses prompt: 'select_account' so that after sign-out,
+  // a different user can choose their own account instead of auto-re-authenticating.
+
   if (process.env.NOMAD_OAUTH_GOOGLE_CLIENT_ID && process.env.NOMAD_OAUTH_GOOGLE_CLIENT_SECRET) {
     providers.google = {
       clientId: process.env.NOMAD_OAUTH_GOOGLE_CLIENT_ID,
       clientSecret: process.env.NOMAD_OAUTH_GOOGLE_CLIENT_SECRET,
+      prompt: 'select_account',
     };
     logger.startup('  OAuth provider: Google');
   }
@@ -34,6 +38,7 @@ function buildSocialProviders(): BetterAuthOptions['socialProviders'] {
     providers.microsoft = {
       clientId: process.env.NOMAD_OAUTH_MICROSOFT_CLIENT_ID,
       clientSecret: process.env.NOMAD_OAUTH_MICROSOFT_CLIENT_SECRET,
+      prompt: 'select_account',
     };
     logger.startup('  OAuth provider: Microsoft');
   }
@@ -42,6 +47,7 @@ function buildSocialProviders(): BetterAuthOptions['socialProviders'] {
     providers.github = {
       clientId: process.env.NOMAD_OAUTH_GITHUB_CLIENT_ID,
       clientSecret: process.env.NOMAD_OAUTH_GITHUB_CLIENT_SECRET,
+      prompt: 'login',
     };
     logger.startup('  OAuth provider: GitHub');
   }
@@ -58,6 +64,7 @@ function buildSocialProviders(): BetterAuthOptions['socialProviders'] {
     providers.discord = {
       clientId: process.env.NOMAD_OAUTH_DISCORD_CLIENT_ID,
       clientSecret: process.env.NOMAD_OAUTH_DISCORD_CLIENT_SECRET,
+      prompt: 'consent',
     };
     logger.startup('  OAuth provider: Discord');
   }
