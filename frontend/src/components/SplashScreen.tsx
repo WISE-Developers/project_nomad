@@ -63,9 +63,22 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
     }
   }, []);
 
-  // Fetch available OAuth providers from backend
+  // Check for existing OAuth session and fetch available providers
   useEffect(() => {
     if (AUTH_MODE !== 'oauth') return;
+
+    // Check if user already has a valid session (e.g., returning from OAuth redirect)
+    authClient.getSession().then((session) => {
+      if (session?.data?.user) {
+        // Already authenticated — save username and enter
+        const name = session.data.user.name || session.data.user.email || 'OAuth User';
+        localStorage.setItem(STORAGE_KEY, name);
+        onEnter();
+        return;
+      }
+    }).catch(() => {
+      // No session — continue showing login buttons
+    });
 
     fetch(`${window.location.origin}/api/v1/auth/providers`, { credentials: 'include' })
       .then(res => res.json())
@@ -76,7 +89,7 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
       .catch(() => {
         setLoadingProviders(false);
       });
-  }, []);
+  }, [onEnter]);
 
   const handleSubmit = useCallback(() => {
     if (AUTH_MODE === 'simple' && !username.trim()) {
