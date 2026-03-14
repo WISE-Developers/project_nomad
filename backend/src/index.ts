@@ -151,7 +151,7 @@ const isOAuthMode = process.env.NOMAD_DEPLOYMENT_MODE !== 'ACN' && resolveAuthMo
 if (isOAuthMode) {
   const { initBetterAuth } = await import('./infrastructure/auth/index.js');
   const { toNodeHandler } = await import('better-auth/node');
-  const auth = initBetterAuth();
+  const auth = await initBetterAuth();
   app.all('/api/auth/*', toNodeHandler(auth));
 }
 

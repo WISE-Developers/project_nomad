@@ -97,7 +97,7 @@ function resolveAuthDbPath(): string {
  * Throws if no providers are configured.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function initBetterAuth(): any {
+export async function initBetterAuth(): Promise<any> {
   if (authInstance) return authInstance;
 
   const socialProviders = buildSocialProviders();
@@ -131,6 +131,11 @@ export function initBetterAuth(): any {
       modelName: 'auth_session',
     },
   });
+
+  // Auto-create Better Auth tables if they don't exist
+  const { runMigrations } = await (await import('better-auth/db/migration')).getMigrations(authInstance.options);
+  await runMigrations();
+  logger.startup('  OAuth database tables verified');
 
   logger.startup(`  OAuth initialized with ${providerCount} provider(s)`);
   return authInstance;
