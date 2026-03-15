@@ -32,17 +32,22 @@ const tabsStyle: React.CSSProperties = {
   gap: '4px',
   borderBottom: '1px solid #ddd',
   paddingBottom: '8px',
+  overflowX: 'auto',
+  WebkitOverflowScrolling: 'touch',
+  scrollbarWidth: 'none',
 };
 
 const tabStyle: React.CSSProperties = {
-  padding: '8px 16px',
+  padding: '8px 12px',
   border: 'none',
   backgroundColor: 'transparent',
   cursor: 'pointer',
-  fontSize: '14px',
+  fontSize: '13px',
   color: '#666',
   borderRadius: '4px 4px 0 0',
   transition: 'background-color 0.2s',
+  whiteSpace: 'nowrap',
+  flexShrink: 0,
 };
 
 const activeTabStyle: React.CSSProperties = {

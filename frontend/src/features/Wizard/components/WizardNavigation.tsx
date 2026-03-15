@@ -89,22 +89,38 @@ export function WizardNavigation({
     }
   }, [handleNext, handleBack, isLoading, canGoPrev]);
 
-  const containerStyle: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: isMobile ? '12px 16px' : isTablet ? '14px 16px' : '16px',
-    borderTop: '1px solid #e0e0e0',
-    backgroundColor: '#fafafa',
-    gap: '8px',
-    flexWrap: 'nowrap',
-  };
+  const containerStyle: React.CSSProperties = isMobile
+    ? {
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '12px 16px',
+        borderTop: '1px solid #e0e0e0',
+        backgroundColor: '#fafafa',
+        gap: '8px',
+      }
+    : {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: isTablet ? '14px 16px' : '16px',
+        borderTop: '1px solid #e0e0e0',
+        backgroundColor: '#fafafa',
+        gap: '8px',
+        flexWrap: 'nowrap' as const,
+      };
 
-  const buttonGroupStyle: React.CSSProperties = {
-    display: 'flex',
-    gap: isMobile ? '6px' : '8px',
-    flexShrink: 0,
-  };
+  const buttonGroupStyle: React.CSSProperties = isMobile
+    ? {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px',
+        width: '100%',
+      }
+    : {
+        display: 'flex',
+        gap: '8px',
+        flexShrink: 0,
+      };
 
   const buttonBaseStyle: React.CSSProperties = {
     padding: isMobile ? '10px 14px' : isTablet ? '10px 16px' : '10px 20px',
@@ -117,8 +133,11 @@ export function WizardNavigation({
     whiteSpace: 'nowrap',
   };
 
+  const mobileFullWidth = isMobile ? { width: '100%', minHeight: '44px' } : {};
+
   const primaryButtonStyle: React.CSSProperties = {
     ...buttonBaseStyle,
+    ...mobileFullWidth,
     backgroundColor: '#1976d2',
     color: 'white',
     minWidth: isMobile ? 'auto' : '80px',
@@ -126,6 +145,7 @@ export function WizardNavigation({
 
   const secondaryButtonStyle: React.CSSProperties = {
     ...buttonBaseStyle,
+    ...mobileFullWidth,
     backgroundColor: 'white',
     color: '#333',
     border: '1px solid #ccc',
@@ -133,6 +153,7 @@ export function WizardNavigation({
 
   const cancelButtonStyle: React.CSSProperties = {
     ...buttonBaseStyle,
+    ...mobileFullWidth,
     backgroundColor: 'transparent',
     color: '#666',
     border: 'none',
@@ -144,6 +165,50 @@ export function WizardNavigation({
     cursor: 'not-allowed',
   };
 
+  // Mobile: single column — Continue (primary) on top, Back middle, Cancel bottom
+  if (isMobile) {
+    return (
+      <div
+        className={`wizard-navigation ${className}`}
+        style={containerStyle}
+        onKeyDown={handleKeyDown}
+      >
+        <button
+          type="button"
+          onClick={handleNext}
+          style={{
+            ...primaryButtonStyle,
+            ...(isLoading ? disabledStyle : {}),
+          }}
+          disabled={isLoading}
+        >
+          {isLoading ? 'Loading...' : isLastStep ? finishLabel : nextLabel}
+        </button>
+
+        {!isFirstStep && (
+          <button
+            type="button"
+            onClick={handleBack}
+            style={secondaryButtonStyle}
+            disabled={isLoading}
+          >
+            {backLabel}
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={handleCancel}
+          style={cancelButtonStyle}
+          disabled={isLoading}
+        >
+          {cancelLabel}
+        </button>
+      </div>
+    );
+  }
+
+  // Tablet/Desktop: horizontal layout
   return (
     <div
       className={`wizard-navigation ${className}`}

@@ -115,7 +115,7 @@ function getStyles(isMobile: boolean, isTablet: boolean) {
   const progressWrapperStyle: React.CSSProperties = {
     borderBottom: '1px solid #eee',
     flexShrink: 0,
-    overflow: 'hidden',
+    overflow: isTablet ? 'auto' : 'hidden',
   };
 
   const contentWrapperStyle: React.CSSProperties = {
@@ -307,10 +307,10 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId }: ModelSetupWi
     );
   }
 
-  // Tablet/Desktop: Draggable/resizable panel
-  // Adjust dimensions for tablet
+  // Tablet: constrained panel that leaves map visible
+  // Desktop: draggable/resizable panel
   const effectiveMinWidth = isTablet ? 320 : MIN_WIDTH;
-  const effectiveMaxWidth = isTablet ? windowSize.width - 20 : 800;
+  const effectiveMaxWidth = isTablet ? Math.min(520, windowSize.width - 20) : 800;
   const effectiveMaxHeight = windowSize.height - (isTablet ? 20 : VIEWPORT_MARGIN);
 
   return (
@@ -318,8 +318,8 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId }: ModelSetupWi
       default={{
         x: initialDimensions.x,
         y: initialDimensions.y,
-        width: isTablet ? Math.min(initialDimensions.width, windowSize.width - 20) : initialDimensions.width,
-        height: isTablet ? Math.min(initialDimensions.height, windowSize.height - 20) : initialDimensions.height,
+        width: isTablet ? Math.min(480, windowSize.width - 20) : initialDimensions.width,
+        height: isTablet ? Math.min(650, windowSize.height - 20) : initialDimensions.height,
       }}
       minWidth={effectiveMinWidth}
       minHeight={MIN_HEIGHT}

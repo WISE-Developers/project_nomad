@@ -62,8 +62,8 @@ export function WizardProgress({
 
   const isHorizontal = direction === 'horizontal';
 
-  // Mobile compact view - show current step with expand toggle
-  if (isMobile && !isCollapsed) {
+  // Mobile/Tablet compact view - show current step with expand toggle
+  if ((isMobile || isTablet) && !isCollapsed) {
     const currentStep = state.steps[currentStepIndex];
     return (
       <div
@@ -119,8 +119,8 @@ export function WizardProgress({
     );
   }
 
-  // Mobile expanded view - vertical list
-  if (isMobile && isCollapsed) {
+  // Mobile/Tablet expanded view - vertical list
+  if ((isMobile || isTablet) && isCollapsed) {
     return (
       <div
         className={`wizard-progress wizard-progress--mobile-expanded ${className}`}
