@@ -112,8 +112,8 @@ export function ResultsSummary({
     backgroundColor: 'white',
     borderRadius: '8px',
     border: '1px solid #e0e0e0',
-    padding: '20px',
-    marginBottom: '16px',
+    padding: '12px',
+    marginBottom: '12px',
   };
 
   const headerStyle: React.CSSProperties = {
@@ -151,11 +151,6 @@ export function ResultsSummary({
     fontSize: '11px',
     textTransform: 'uppercase',
     textAlign: 'left',
-  };
-
-  const infoTableCellStyle: React.CSSProperties = {
-    padding: '4px 12px 4px 0',
-    verticalAlign: 'middle',
   };
 
   const statusBadgeStyle: React.CSSProperties = {
@@ -198,8 +193,8 @@ export function ResultsSummary({
 
   const statsGridStyle: React.CSSProperties = {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-    gap: '16px',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+    gap: '8px',
   };
 
   const statItemStyle: React.CSSProperties = {
@@ -236,32 +231,24 @@ export function ResultsSummary({
       <div style={headerStyle}>
         <div style={titleSectionStyle}>
           <h2 style={titleStyle}>{modelName}</h2>
-          <table style={{ marginTop: '8px', borderCollapse: 'collapse', fontSize: '12px' }}>
-            <thead>
-              <tr>
-                <th style={infoTableHeaderStyle}>Modeller</th>
-                <th style={infoTableHeaderStyle}>Mode</th>
-                <th style={infoTableHeaderStyle}>User</th>
-                <th style={infoTableHeaderStyle}>Model Run ID</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td style={infoTableCellStyle}>
-                  <span style={engineTagStyle}>{engineType.toUpperCase()}</span>
-                </td>
-                <td style={infoTableCellStyle}>
-                  <span style={{ ...engineTagStyle, backgroundColor: '#e8f5e9', color: '#2e7d32' }}>{simLabel}</span>
-                </td>
-                <td style={infoTableCellStyle}>
-                  <span style={{ ...engineTagStyle, backgroundColor: '#e3f2fd', color: '#1565c0' }}>{userId ?? '-'}</span>
-                </td>
-                <td style={infoTableCellStyle}>
-                  <span style={{ ...engineTagStyle, fontFamily: 'monospace', fontSize: '11px' }}>{modelId}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px 12px', fontSize: '12px' }}>
+            <div>
+              <div style={infoTableHeaderStyle}>Modeller</div>
+              <span style={engineTagStyle}>{engineType.toUpperCase()}</span>
+            </div>
+            <div>
+              <div style={infoTableHeaderStyle}>Mode</div>
+              <span style={{ ...engineTagStyle, backgroundColor: '#e8f5e9', color: '#2e7d32' }}>{simLabel}</span>
+            </div>
+            <div>
+              <div style={infoTableHeaderStyle}>User</div>
+              <span style={{ ...engineTagStyle, backgroundColor: '#e3f2fd', color: '#1565c0' }}>{userId ?? '-'}</span>
+            </div>
+            <div>
+              <div style={infoTableHeaderStyle}>Model Run ID</div>
+              <span style={{ ...engineTagStyle, fontFamily: 'monospace', fontSize: '11px', wordBreak: 'break-all' }}>{modelId}</span>
+            </div>
+          </div>
         </div>
         <div style={statusBadgeStyle}>
           {isInProgress && (
@@ -377,6 +364,8 @@ export function ResultsSummary({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '8px',
               borderBottom: ignition ? '1px solid #e0e0e0' : 'none',
             }}>
               <div>
@@ -414,6 +403,8 @@ export function ResultsSummary({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '8px',
             }}>
               <div>
                 <div style={{ fontSize: '14px', fontWeight: 500, color: '#e65100' }}>

@@ -264,7 +264,7 @@ function OutputListItem({
   const actionsStyle: React.CSSProperties = {
     display: 'flex',
     gap: '4px',
-    flexShrink: 0,
+    flexWrap: 'wrap',
   };
 
   const buttonStyle: React.CSSProperties = {
