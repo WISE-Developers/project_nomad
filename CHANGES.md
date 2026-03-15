@@ -4,10 +4,41 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.3.17
+## v0.3.18
+
+### 2026-03-15
+
+- [`0889d2c`](https://github.com/WISE-Developers/project_nomad/commit/0889d2c37ca05e2d3102562122615bc7b8c94d2d) Merge pull request #211 from WISE-Developers/dev — *Franco Nogarin, 06:33*
+- [`65a2506`](https://github.com/WISE-Developers/project_nomad/commit/65a250644ba6cb4e7ade7dc977e157f4e8a31f6b) chore: dev build 1 [skip ci] — *github-actions[bot], 12:33*
+- [`981b2e8`](https://github.com/WISE-Developers/project_nomad/commit/981b2e864827066fab3a8e5fb2683cd96622af3c) Merge branch 'feature/oauth-social-login' into dev — *Franco Nogarin, 06:32*
+
+### 2026-03-14
+
+- [`3cc8cf8`](https://github.com/WISE-Developers/project_nomad/commit/3cc8cf80eb5277ee18b1c859ce9a62475704e438) Re-enable placeholder credential filter (#210) — *Franco Nogarin, 10:22*
+- [`68a1aeb`](https://github.com/WISE-Developers/project_nomad/commit/68a1aebd971f12721025f1aeab9913e98c4c3047) Improve sign-out: revoke token, GitHub select_account prompt (#210) — *Franco Nogarin, 09:04*
+- [`2f7a4bb`](https://github.com/WISE-Developers/project_nomad/commit/2f7a4bbd517fc396282ce60d548a273158191aa7) Force account selection on OAuth sign-in (#210) — *Franco Nogarin, 08:32*
+- [`4eba992`](https://github.com/WISE-Developers/project_nomad/commit/4eba992ebd7fe9563bdf027e2effd02ea07571b2) Add Sign Out button to Settings modal for OAuth mode (#210) — *Franco Nogarin, 08:26*
+- [`0e63ce2`](https://github.com/WISE-Developers/project_nomad/commit/0e63ce213a3df859ac44ce4a96493dab5d8f82c3) Auto-enter on existing OAuth session after redirect (#210) — *Franco Nogarin, 08:11*
+- [`6fcc45f`](https://github.com/WISE-Developers/project_nomad/commit/6fcc45fd22a1c12a8a09724f80197339ab6b1707) Use NOMAD_SERVER_HOSTNAME for OAuth baseURL (#210) — *Franco Nogarin, 07:18*
+- [`d6d9636`](https://github.com/WISE-Developers/project_nomad/commit/d6d9636d5d276c1ef84ed3dd4c2495b972b7491c) Derive OAuth baseURL from existing env vars (#210) — *Franco Nogarin, 07:15*
+- [`712714b`](https://github.com/WISE-Developers/project_nomad/commit/712714b9245973137902530e38afd938837e8609) Add baseURL and trustedOrigins to Better Auth config (#210) — *Franco Nogarin, 07:10*
+- [`61f0a2c`](https://github.com/WISE-Developers/project_nomad/commit/61f0a2c1722e6420cc8251a02afd41206493fe01) Auto-migrate Better Auth tables on startup (#210) — *Franco Nogarin, 07:01*
+- [`4a60ec1`](https://github.com/WISE-Developers/project_nomad/commit/4a60ec15afeaaf480785f55085ee19d114e3bccf) Fix authClient baseURL - use window.location.origin (#210) — *Franco Nogarin, 06:56*
+- [`48d94c6`](https://github.com/WISE-Developers/project_nomad/commit/48d94c66c3ab12ba0a02a5d609197f4e35ad364d) Fix providers fetch URL - use window.location.origin (#210) — *Franco Nogarin, 06:51*
 
 ### 2026-03-13
 
+- [`e84d9d6`](https://github.com/WISE-Developers/project_nomad/commit/e84d9d6cfd2cdc91457a19cebfd8b9337ecef9c9) Fix Better Auth secret - auto-derive if not configured (#210) — *Franco Nogarin, 20:23*
+- [`be00842`](https://github.com/WISE-Developers/project_nomad/commit/be008426898d03baee7d377ffff3024b86092cb8) Fix Better Auth SQLite adapter — use Database instance (#210) — *Franco Nogarin, 19:08*
+- [`fff163d`](https://github.com/WISE-Developers/project_nomad/commit/fff163d78aa655083c82132b29aaff608261fd5f) Temporarily disable placeholder credential filter (#210) — *Franco Nogarin, 18:33*
+- [`6e546f3`](https://github.com/WISE-Developers/project_nomad/commit/6e546f31678969cffd785b36bf0248f55f3f6605) Add all 7 OAuth providers, dynamic button rendering (#210) — *Franco Nogarin, 18:31*
+- [`ba5e796`](https://github.com/WISE-Developers/project_nomad/commit/ba5e796933c9ad636c16663656e3da74007e4a06) Improve OAuth setup docs in .env.example (#210) — *Franco Nogarin, 18:26*
+- [`646c40b`](https://github.com/WISE-Developers/project_nomad/commit/646c40b0641ab73cf1db4617dad68e2fe4f95d13) Update ARCHITECTURE.md with auth mode documentation (#210 Phase 3) — *Franco Nogarin, 18:03*
+- [`2a43ad3`](https://github.com/WISE-Developers/project_nomad/commit/2a43ad373617a4e9ba3bdfb98e0fbc6f62457b64) Add Better Auth frontend integration (#210 Phase 2) — *Franco Nogarin, 18:01*
+- [`f435b11`](https://github.com/WISE-Developers/project_nomad/commit/f435b11b9b74b7cb4aad067635e85571ea944011) Add Better Auth backend integration (#210 Phase 1) — *Franco Nogarin, 17:43*
+- [`6a0756f`](https://github.com/WISE-Developers/project_nomad/commit/6a0756f7802e12b24db605375b4ef527ff7b1156) Consolidate SAN auth into NOMAD_AUTH_MODE enum (#210 Phase 0) — *Franco Nogarin, 16:04*
+- [`b4e32ca`](https://github.com/WISE-Developers/project_nomad/commit/b4e32cab4a321bde1e9c0d3d02a53a74a3287413) chore: reset dev build counter after v0.3.17 [skip ci] — *github-actions[bot], 19:14*
+- [`3cb3cf8`](https://github.com/WISE-Developers/project_nomad/commit/3cb3cf8dfb7d0dbc1d63799fcba8aac44e9a5e53) chore: release v0.3.17 [skip ci] — *github-actions[bot], 19:14*
 - [`53fd95c`](https://github.com/WISE-Developers/project_nomad/commit/53fd95c763b4b37fdb537348cf39a4e0326cb5da) Merge pull request #209 from WISE-Developers/dev — *Franco Nogarin, 13:13*
 - [`3e0f17e`](https://github.com/WISE-Developers/project_nomad/commit/3e0f17ec2854d8f33594b2eb0f162f5433ffb1d8) chore: dev build 3 [skip ci] — *github-actions[bot], 18:56*
 - [`c0e5f60`](https://github.com/WISE-Developers/project_nomad/commit/c0e5f60f5d5f8f3b2618d0983bce799b14215d2b) Fix #208: Include notes in model results API response — *Franco Nogarin, 12:56*
