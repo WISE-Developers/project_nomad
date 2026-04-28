@@ -18,7 +18,6 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { randomUUID } from 'crypto';
 import { getRasterBounds } from './ContourGenerator.js';
-import { tileToMercatorBounds } from './webMercator.js';
 
 const TILE_SIZE = 256;
 const tileCache: Map<string, Buffer | null> = new Map();
@@ -145,35 +144,28 @@ export async function generateArrivalTile(
   const outPng = join(workDir, 'tile.png');
 
   try {
-    // Bounding-box gate is in WGS84 (rasterBounds is lat/lon from getRasterBounds).
-    const lonW = tileToLon(x, z);
-    const lonE = tileToLon(x + 1, z);
-    const latN = tileToLat(y, z);
-    const latS = tileToLat(y + 1, z);
+    const west = tileToLon(x, z);
+    const east = tileToLon(x + 1, z);
+    const north = tileToLat(y, z);
+    const south = tileToLat(y + 1, z);
+
+    const lonBuffer = (east - west) / TILE_SIZE;
+    const latBuffer = (north - south) / TILE_SIZE;
 
     const rasterBounds = await getRasterBounds(filePath);
     if (
-      lonE < rasterBounds[0] ||
-      lonW > rasterBounds[2] ||
-      latN < rasterBounds[1] ||
-      latS > rasterBounds[3]
+      east < rasterBounds[0] ||
+      west > rasterBounds[2] ||
+      north < rasterBounds[1] ||
+      south > rasterBounds[3]
     ) {
       tileCache.set(cacheKey, null);
       return null;
     }
 
-    // Warp into Web Mercator (EPSG:3857) so each tile pixel row aligns with
-    // what MapLibre's tile renderer expects. Using EPSG:4326 here previously
-    // distributed pixel rows evenly in latitude degrees, producing a uniform
-    // ~50–100m N/S shift at mid-latitudes (refs #242). One-pixel buffer on
-    // each edge eliminates seams.
-    const { west, south, east, north } = tileToMercatorBounds(z, x, y);
-    const xBuffer = (east - west) / TILE_SIZE;
-    const yBuffer = (north - south) / TILE_SIZE;
-
     execSync(
-      `gdalwarp -t_srs EPSG:3857 ` +
-        `-te ${west - xBuffer} ${south - yBuffer} ${east + xBuffer} ${north + yBuffer} ` +
+      `gdalwarp -t_srs EPSG:4326 ` +
+        `-te ${west - lonBuffer} ${south - latBuffer} ${east + lonBuffer} ${north + latBuffer} ` +
         `-ts ${TILE_SIZE} ${TILE_SIZE} -r near -srcnodata 0 -dstnodata 0 -of VRT ` +
         `"${filePath}" "${vrtPath}"`,
       { stdio: 'pipe' },
