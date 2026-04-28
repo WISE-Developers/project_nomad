@@ -11,6 +11,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { randomUUID } from 'crypto';
 import type { FeatureCollection, Feature, Polygon, MultiPolygon } from 'geojson';
+import { tileToMercatorBounds, bufferMercatorBounds } from './webMercator.js';
 
 /**
  * Error thrown during contour generation.
@@ -594,43 +595,38 @@ export async function generateRasterTile(
   try {
     const tileSize = 256;
 
-    // Standard Web Mercator tile to longitude
-    const tileToLon = (tileX: number, zoom: number): number => {
-      return (tileX / Math.pow(2, zoom)) * 360 - 180;
-    };
-
-    // Standard Web Mercator tile to latitude (correct formula)
+    // Tile bounds in WGS84 — used only to gate against the raster's
+    // lat/lon bounding box (getRasterBounds returns EPSG:4326).
+    const tileToLon = (tileX: number, zoom: number): number =>
+      (tileX / Math.pow(2, zoom)) * 360 - 180;
     const tileToLat = (tileY: number, zoom: number): number => {
       const n = Math.PI - (2 * Math.PI * tileY) / Math.pow(2, zoom);
       return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
     };
+    const lonW = tileToLon(x, z);
+    const lonE = tileToLon(x + 1, z);
+    const latN = tileToLat(y, z);
+    const latS = tileToLat(y + 1, z);
 
-    // Calculate tile bounds in WGS84
-    const west = tileToLon(x, z);
-    const east = tileToLon(x + 1, z);
-    const north = tileToLat(y, z);
-    const south = tileToLat(y + 1, z);
-
-    // Add small buffer (~1 pixel) to ensure tiles overlap slightly and eliminate seams
-    const lonBuffer = (east - west) / tileSize;
-    const latBuffer = (north - south) / tileSize;
-    const westBuf = west - lonBuffer;
-    const eastBuf = east + lonBuffer;
-    const northBuf = north + latBuffer;
-    const southBuf = south - latBuffer;
-
-    // Check if tile intersects raster bounds (use unbuffered for check)
+    // Check if tile intersects raster bounds (lat/lon, unbuffered).
     const rasterBounds = await getRasterBounds(filePath);
     if (
-      east < rasterBounds[0] ||
-      west > rasterBounds[2] ||
-      north < rasterBounds[1] ||
-      south > rasterBounds[3]
+      lonE < rasterBounds[0] ||
+      lonW > rasterBounds[2] ||
+      latN < rasterBounds[1] ||
+      latS > rasterBounds[3]
     ) {
       // Tile is outside raster bounds - cache the null result
       tileCache.set(cacheKey, null);
       return null;
     }
+
+    // Warp into Web Mercator (EPSG:3857) so tile rows align with what
+    // MapLibre's tile renderer expects. Using EPSG:4326 here previously
+    // caused a uniform N/S shift visible at mid-latitudes (refs #242).
+    // One-pixel buffer eliminates seams.
+    const { west: westBuf, south: southBuf, east: eastBuf, north: northBuf } =
+      bufferMercatorBounds(tileToMercatorBounds(z, x, y), tileSize);
 
     // Get the actual value range from the raster
     const { max: maxVal } = await getRasterValueRange(filePath);
@@ -674,7 +670,7 @@ nv 0 0 0 0
     // Using bilinear interpolation for smoother results
     // -srcnodata 0 -dstnodata 0 ensures zeros are treated as nodata and stay transparent
     // Use buffered bounds to eliminate seams at tile edges
-    const warpCmd = `gdalwarp -t_srs EPSG:4326 -te ${westBuf} ${southBuf} ${eastBuf} ${northBuf} -ts ${tileSize} ${tileSize} -r bilinear -srcnodata 0 -dstnodata 0 -of VRT "${filePath}" "${vrtPath}" 2>/dev/null`;
+    const warpCmd = `gdalwarp -t_srs EPSG:3857 -te ${westBuf} ${southBuf} ${eastBuf} ${northBuf} -ts ${tileSize} ${tileSize} -r bilinear -srcnodata 0 -dstnodata 0 -of VRT "${filePath}" "${vrtPath}" 2>/dev/null`;
 
     try {
       execSync(warpCmd, { encoding: 'utf8', stdio: 'pipe' });
