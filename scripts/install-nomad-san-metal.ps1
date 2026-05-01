@@ -48,7 +48,7 @@ param(
     [switch]$SkipGdalInstall = [bool]$env:SKIP_GDAL_INSTALL
 )
 
-$InstallerVersion = "0.2.1"
+$InstallerVersion = "0.2.2"
 $RequiredPSMajor = 7
 $RequiredPSMinor = 6
 $RequiredNodeMajor = 20
@@ -241,6 +241,38 @@ function Install-NodeIfMissing {
         exit 1
     }
     Write-NomadSuccess "Node $((& node --version))"
+}
+
+# Locate GDAL_DATA and PROJ data directories. firestarr.exe and the
+# Node backend's gdal-async bindings both initialize PROJ at startup; if
+# proj.db cannot be found, PROJ_LIB/PROJ_DATA falls through and the
+# binary crashes hard (Windows status 0xC0000409).
+function Get-GdalDataPaths {
+    $candidates = @(
+        Join-Path $OSGeo4WInstallDir "share"
+    )
+    # If gdalinfo is on PATH from a non-OSGeo4W install, look near its exe.
+    $gdalCmd = Get-Command gdalinfo -ErrorAction SilentlyContinue
+    if ($gdalCmd) {
+        $exeDir = Split-Path -Parent $gdalCmd.Source
+        $candidates += @(
+            (Join-Path (Split-Path -Parent $exeDir) "share"),
+            (Join-Path $exeDir "..\share"),
+            (Join-Path $exeDir "..\..\share")
+        )
+    }
+
+    $gdalData = $null
+    $projData = $null
+    foreach ($base in $candidates) {
+        if (-not (Test-Path $base)) { continue }
+        $g = Join-Path $base "gdal"
+        $p = Join-Path $base "proj"
+        if (-not $gdalData -and (Test-Path (Join-Path $g "gdalvrt.xsd"))) { $gdalData = (Resolve-Path $g).Path }
+        if (-not $projData -and (Test-Path (Join-Path $p "proj.db"))) { $projData = (Resolve-Path $p).Path }
+    }
+
+    return @{ GdalData = $gdalData; ProjData = $projData }
 }
 
 function Install-GdalIfMissing {
@@ -441,6 +473,27 @@ function New-EnvironmentFile {
     Update-EnvValue "NOMAD_SERVER_HOSTNAME"      $ServerHostname
     Update-EnvValue "NOMAD_AUTH_MODE"            "simple"
     Update-EnvValue "VITE_AUTH_MODE"             "simple"
+
+    # GDAL/PROJ data dirs. The Node backend inherits these via process.env
+    # and passes them to firestarr.exe on spawn; without PROJ_DATA pointing
+    # at proj.db the FireSTARR binary fast-fails with Windows status
+    # 0xC0000409 right after start (PROJ init failure).
+    $paths = Get-GdalDataPaths
+    if ($paths.GdalData) {
+        Update-EnvValue "GDAL_DATA" $paths.GdalData
+        Write-NomadInfo "GDAL_DATA -> $($paths.GdalData)"
+    } else {
+        Write-NomadWarn "Could not locate GDAL data directory. Set GDAL_DATA in .env manually if backend errors at startup."
+    }
+    if ($paths.ProjData) {
+        # PROJ_DATA is the modern name (PROJ 9+); PROJ_LIB is the legacy
+        # alias still respected by older builds. Set both to be safe.
+        Update-EnvValue "PROJ_DATA" $paths.ProjData
+        Update-EnvValue "PROJ_LIB"  $paths.ProjData
+        Write-NomadInfo "PROJ_DATA -> $($paths.ProjData)"
+    } else {
+        Write-NomadWarn "Could not locate PROJ data directory (proj.db). Set PROJ_DATA in .env manually — firestarr.exe will crash without it."
+    }
 
     Write-NomadSuccess ".env written to $envFile"
 }
