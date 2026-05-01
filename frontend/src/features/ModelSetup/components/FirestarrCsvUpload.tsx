@@ -355,23 +355,27 @@ export function FirestarrCsvUpload({ onUpload, fileName, parsed, error }: Firest
         }}
       >
         <strong>Expected CSV Format:</strong>
-        <code
+        <pre
           style={{
             display: 'block',
-            marginTop: '8px',
+            margin: '8px 0 0 0',
             padding: '8px',
             backgroundColor: '#fff',
             borderRadius: '4px',
             fontFamily: 'monospace',
             fontSize: '11px',
             overflowX: 'auto',
+            whiteSpace: 'pre',
           }}
         >
-          Scenario,Date,PREC,TEMP,RH,WS,WD,FFMC,DMC,DC,ISI,BUI,FWI
-        </code>
+{`Scenario,Date,PREC,TEMP,RH,WS,WD,FFMC,DMC,DC,ISI,BUI,FWI
+0,2023-06-19 06:00:00,0.0,8.2,73.0,5.0,20.0,83.5,53.7,568.9,2.21,86.84,9.46
+0,2023-06-19 07:00:00,0.0,10.3,63.0,6.0,18.0,83.5,54.8,574.1,2.34,88.45,10.05`}
+        </pre>
         <div style={{ marginTop: '8px' }}>
-          This file should contain pre-calculated FWI indices. If you have raw weather data without
-          FWI values, use the "Raw Weather + Codes" tab instead.
+          Pre-calculated FWI indices are required. One row per hour, local time matching the
+          model's timezone. If you only have raw weather observations, use the "Raw Weather +
+          Codes" tab — Nomad will compute the indices for you.
         </div>
       </div>
     </div>
