@@ -42,6 +42,10 @@ $RequiredPSMinor = 6
 $RepoOwner = "WISE-Developers"
 $RepoName = "project_nomad"
 
+# Force UTF-8 console output so box-drawing + status glyphs render instead
+# of `?` on default Windows codepages (cp437/1252).
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
+
 # Set defaults if not provided
 if (-not $InstallDir) { $InstallDir = ".\project_nomad" }
 if (-not $DatasetPath) { $DatasetPath = "$env:USERPROFILE\firestarr_data" }
