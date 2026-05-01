@@ -4,10 +4,40 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.8.2
+## v0.9.0
+
+### 2026-05-01
+
+- [`bb1368d`](https://github.com/WISE-Developers/project_nomad/commit/bb1368d23a00f9b9bc5278fb71970bf845cda609) Merge pull request #260 from WISE-Developers/dev — *Franco Nogarin, 11:54*
+- [`4691af3`](https://github.com/WISE-Developers/project_nomad/commit/4691af3a0d40e435e78eba53586f55c740e90ffe) chore: dev build 6 [skip ci] — *github-actions[bot], 17:46*
+- [`ce9b303`](https://github.com/WISE-Developers/project_nomad/commit/ce9b303637632fb9153a0052816d4e4584bf6d49) fix(installer-metal): relax GDAL_DATA probe to detect OSGeo4W share dir — *Franco Nogarin, 11:46*
+- [`7af9a1d`](https://github.com/WISE-Developers/project_nomad/commit/7af9a1d67b839d7788b548893062768ee3439356) chore: dev build 5 [skip ci] — *github-actions[bot], 17:06*
+- [`9d4940b`](https://github.com/WISE-Developers/project_nomad/commit/9d4940b9839f01a38cf71ba30edc5fb91fdac771) fix(installer): write GDAL_DATA/PROJ_DATA/PROJ_LIB to .env (#240) — *Franco Nogarin, 11:06*
+- [`4bfd465`](https://github.com/WISE-Developers/project_nomad/commit/4bfd4655ae998a253982d885b5884eaae7b5c8b8) chore: dev build 4 [skip ci] — *github-actions[bot], 16:25*
+- [`9293ead`](https://github.com/WISE-Developers/project_nomad/commit/9293ead69f2eb770166126d6d190c5db5a08bad8) Merge feat/240-bare-metal-installer into dev (closes #240) — *Franco Nogarin, 10:24*
+- [`c044868`](https://github.com/WISE-Developers/project_nomad/commit/c0448682dc764813bfd80cf03e98237d82c26f1c) Merge fix/windows-absolute-path-resolve into dev — *Franco Nogarin, 10:24*
+- [`090ddc6`](https://github.com/WISE-Developers/project_nomad/commit/090ddc6409e47d133cf58fe37ff6481526309abf) fix(installer): default Version to "latest" + accept branch refs (#240) — *Franco Nogarin, 10:24*
+- [`155f110`](https://github.com/WISE-Developers/project_nomad/commit/155f1104bdb9af1b2abf2e1d20ea87c270ebc5b7) fix(firestarr): cross-platform absolute-path detection for FIRESTARR_DATASET_PATH — *Franco Nogarin, 10:15*
+- [`9a262cd`](https://github.com/WISE-Developers/project_nomad/commit/9a262cde8eec3355f677af061650deeba3ea87a6) fix(installer): bare-metal port/URL bugs + interactive prompts (#240) — *Franco Nogarin, 10:06*
+- [`aea1e62`](https://github.com/WISE-Developers/project_nomad/commit/aea1e629c939c8d875190d99aab897772a719fa5) feat(installer): Windows bare-metal installer for #240 — *Franco Nogarin, 09:48*
+- [`0949d02`](https://github.com/WISE-Developers/project_nomad/commit/0949d02c3cbbe330851d8d1c869c2326395ba9a3) chore: dev build 3 [skip ci] — *github-actions[bot], 15:32*
+- [`c11de49`](https://github.com/WISE-Developers/project_nomad/commit/c11de494fcc9f2da8838261fd149227da0f1317b) Merge fix/227-installer-improvements into dev (closes #227) — *Franco Nogarin, 09:32*
+- [`aefbfc3`](https://github.com/WISE-Developers/project_nomad/commit/aefbfc3af71189b3d81b1f786f3789f84adaafe6) fix(installer): force UTF-8 console output so glyphs render on Windows — *Franco Nogarin, 09:32*
+- [`2f50f61`](https://github.com/WISE-Developers/project_nomad/commit/2f50f613b71c59d9579b9c7308b1a192fe0e5759) fix(installer): harden Windows Docker installer per #227 feedback — *Franco Nogarin, 08:53*
+- [`6baf2c0`](https://github.com/WISE-Developers/project_nomad/commit/6baf2c001d5aa807e46c01f4072a394e88e0320f) chore: dev build 2 [skip ci] — *github-actions[bot], 13:35*
+- [`dfce9c4`](https://github.com/WISE-Developers/project_nomad/commit/dfce9c4f8ddc8e9d2802e5f0d1718980a0ff3c83) Merge docs/241-weather-csv-format into dev (closes #241) — *Franco Nogarin, 07:35*
+- [`d24402b`](https://github.com/WISE-Developers/project_nomad/commit/d24402b1d6ddb767836628c6e112a62055d77af0) docs(weather): document FireSTARR CSV format with example (closes #241) — *Franco Nogarin, 07:27*
+
+### 2026-04-30
+
+- [`2412944`](https://github.com/WISE-Developers/project_nomad/commit/24129449f8faa3d6d1be6e3b9f54992041c1093f) chore: dev build 1 [skip ci] — *github-actions[bot], 23:20*
+- [`c9505e0`](https://github.com/WISE-Developers/project_nomad/commit/c9505e0c8416c299a853d955d893d7ad0469836c) Merge fix/export-zip-streaming into dev (closes #259) — *Franco Nogarin, 17:19*
+- [`5baa10a`](https://github.com/WISE-Developers/project_nomad/commit/5baa10a7f7894930d4ff073f6b5a118fa244e761) fix(export): surface archiver failures in /exports/files — *Franco Nogarin, 17:12*
 
 ### 2026-04-27
 
+- [`8ecf5e9`](https://github.com/WISE-Developers/project_nomad/commit/8ecf5e95db82d62209adc55da03b105f189a1984) chore: reset dev build counter after v0.8.2 [skip ci] — *github-actions[bot], 15:12*
+- [`63e14bc`](https://github.com/WISE-Developers/project_nomad/commit/63e14bcbbabef16dd5c0312de8cc2a4298ef4bba) chore: release v0.8.2 [skip ci] — *github-actions[bot], 15:12*
 - [`d1b1e73`](https://github.com/WISE-Developers/project_nomad/commit/d1b1e7384d21ba94849c94fa22b59c38b0d5a104) Merge pull request #256 from WISE-Developers/dev — *Franco Nogarin, 09:11*
 - [`b9fe3bf`](https://github.com/WISE-Developers/project_nomad/commit/b9fe3bf91caaedffd2c533fec50731f9e2e80dca) chore: dev build 1 [skip ci] — *github-actions[bot], 15:08*
 - [`fa56e6d`](https://github.com/WISE-Developers/project_nomad/commit/fa56e6d4e590832e0cc03f09bcddb1c4e34f2961) fix(animation): drop `-s_srs` — let GPKG carry the SRS through to ogr2ogr — *Franco Nogarin, 09:08*
