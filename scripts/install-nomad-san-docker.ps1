@@ -1,33 +1,44 @@
 #!/usr/bin/env pwsh
 #
 # Project Nomad - SAN + Docker Headless Installer (Windows)
-# Quick install for SAN mode with Docker infrastructure on Windows
+# Quick install for SAN mode with Docker infrastructure on Windows.
+#
+# REQUIRES PowerShell 7.6 or newer. Run with `pwsh`, not `powershell`.
+#   winget install --id Microsoft.PowerShell -e --accept-source-agreements --accept-package-agreements
 #
 # Usage:
-#   .\install-nomad-san-docker.ps1
-#   or (PowerShell 7+):
-#   iwr -Uri https://.../install-nomad-san-docker.ps1 -UseBasicParsing | iex
-#   or (keep window open on error):
-#   powershell -NoExit -Command "iwr -Uri https://.../install-nomad-san-docker.ps1 | iex"
+#   pwsh .\install-nomad-san-docker.ps1
 #
-# Optional Environment Variables (defaults shown):
-#   $env:INSTALL_DIR=.\project_nomad     Where to extract Nomad
-#   $env:FIRESTARR_DATASET_PATH=$env:USERPROFILE\firestarr_data   Dataset location
-#   $env:NOMAD_PORT=4901                Backend/server port
+#   Streamed (use -NoExit so the window stays open on errors):
+#   pwsh -NoExit -Command "iwr -Uri https://raw.githubusercontent.com/WISE-Developers/project_nomad/dev/scripts/install-nomad-san-docker.ps1 -UseBasicParsing | iex"
 #
-# Example:
-#   .\install-nomad-san-docker.ps1
+# Parameters / matching env vars (defaults shown):
+#   -InstallDir          $env:INSTALL_DIR              .\project_nomad
+#   -DatasetPath         $env:FIRESTARR_DATASET_PATH   $env:USERPROFILE\firestarr_data
+#   -Version             $env:VERSION                  latest
+#   -EnvFile             $env:NOMAD_ENV_FILE           (none — uses .env.example)
+#   -SkipStart           $env:SKIP_START               $false
+#   -AutoInstallDataset  $env:AUTO_INSTALL_DATASET     $false
+#
+# Honors an existing .env in two ways:
+#   1. Pass -EnvFile pointing at your custom file, OR
+#   2. Place .env adjacent to -InstallDir (one level up). The installer
+#      preserves user-set keys and only overwrites installer-controlled
+#      ones (paths, ports, image tags).
 #
 
 param(
     [string]$InstallDir = $env:INSTALL_DIR,
     [string]$DatasetPath = $env:FIRESTARR_DATASET_PATH,
     [string]$Version = $env:VERSION,
+    [string]$EnvFile = $env:NOMAD_ENV_FILE,
     [switch]$SkipStart = [bool]$env:SKIP_START,
     [switch]$AutoInstallDataset = [bool]$env:AUTO_INSTALL_DATASET
 )
 
-$InstallerVersion = "1.0.0"
+$InstallerVersion = "1.1.0"
+$RequiredPSMajor = 7
+$RequiredPSMinor = 6
 $RepoOwner = "WISE-Developers"
 $RepoName = "project_nomad"
 
@@ -47,38 +58,54 @@ $FirestarrRegistry = "ghcr.io/cwfmf/firestarr-cpp"
 $FirestarrImageName = "firestarr"
 $FirestarrImageTag = "unstable-latest"
 
-# Colors for output
-function Write-Header { param($text) Write-Host $text -ForegroundColor Cyan }
-function Write-Step { param($text) Write-Host "▶ $text" -ForegroundColor Green }
-function Write-Warning { param($text) Write-Host "⚠ $text" -ForegroundColor Yellow }
-function Write-Error { param($text) Write-Host "✖ $text" -ForegroundColor Red }
-function Write-Success { param($text) Write-Host "✔ $text" -ForegroundColor Green }
-function Write-Info { param($text) Write-Host "ℹ $text" -ForegroundColor Blue }
+# Colors for output. Prefixed with "Nomad-" so they don't shadow the
+# built-in cmdlets (Write-Error, Write-Warning) — overriding those swallows
+# real errors that ride ErrorAction Stop.
+function Write-NomadHeader  { param($text) Write-Host $text -ForegroundColor Cyan }
+function Write-NomadStep    { param($text) Write-Host "▶ $text" -ForegroundColor Green }
+function Write-NomadWarn    { param($text) Write-Host "⚠ $text" -ForegroundColor Yellow }
+function Write-NomadFail    { param($text) Write-Host "✖ $text" -ForegroundColor Red }
+function Write-NomadSuccess { param($text) Write-Host "✔ $text" -ForegroundColor Green }
+function Write-NomadInfo    { param($text) Write-Host "ℹ $text" -ForegroundColor Blue }
 
 function Show-Header {
     Write-Host ""
-    Write-Header "╔════════════════════════════════════════════════════════════╗"
-    Write-Header "║   Project Nomad - SAN + Docker Installer v$InstallerVersion       ║"
-    Write-Header "║              Headless / Non-Interactive Mode             ║"
-    Write-Header "╚════════════════════════════════════════════════════════════╝"
+    Write-NomadHeader "╔════════════════════════════════════════════════════════════╗"
+    Write-NomadHeader "║   Project Nomad - SAN + Docker Installer v$InstallerVersion       ║"
+    Write-NomadHeader "║              Headless / Non-Interactive Mode             ║"
+    Write-NomadHeader "╚════════════════════════════════════════════════════════════╝"
     Write-Host ""
 }
 
-# Check PowerShell version
-function Test-PowerShellVersion {
-    if ($PSVersionTable.PSVersion.Major -lt 7) {
-        Write-Warning "PowerShell $($PSVersionTable.PSVersion) detected. PowerShell 7+ recommended."
-        Write-Host "  Install: https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows"
-        Write-Host "  Then run with: pwsh .\install-nomad-san-docker.ps1"
+# Enforce PowerShell 7.6+. Old PS5 users see cryptic later-stage failures
+# (different cmdlet behaviour, syntax differences, json handling) so we
+# stop here with a clear upgrade path.
+function Assert-PowerShellVersion {
+    $v = $PSVersionTable.PSVersion
+    $tooOld = ($v.Major -lt $RequiredPSMajor) -or
+              ($v.Major -eq $RequiredPSMajor -and $v.Minor -lt $RequiredPSMinor)
+    if ($tooOld) {
+        Write-NomadFail "PowerShell $v detected. PowerShell $RequiredPSMajor.$RequiredPSMinor+ is required."
         Write-Host ""
+        Write-Host "  Install via winget:"
+        Write-Host "    winget install --id Microsoft.PowerShell -e --accept-source-agreements --accept-package-agreements"
+        Write-Host ""
+        Write-Host "  Or download:"
+        Write-Host "    https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows"
+        Write-Host ""
+        Write-Host "  Then re-run with the pwsh shell, not the legacy one:"
+        Write-Host "    pwsh .\install-nomad-san-docker.ps1"
+        Write-Host ""
+        exit 1
     }
+    Write-NomadSuccess "PowerShell $v"
 }
 
 # Check prerequisites
 function Test-Prerequisites {
-    Write-Step "Checking prerequisites..."
+    Write-NomadStep "Checking prerequisites..."
 
-    Test-PowerShellVersion
+    Assert-PowerShellVersion
 
     # Check Docker
     try {
@@ -86,9 +113,9 @@ function Test-Prerequisites {
         if (-not $dockerVersion) {
             throw "Docker not running"
         }
-        Write-Success "Docker available (v$dockerVersion)"
+        Write-NomadSuccess "Docker available (v$dockerVersion)"
     } catch {
-        Write-Error "Docker Desktop is required but not available"
+        Write-NomadFail "Docker Desktop is required but not available"
         Write-Host "Install from: https://docs.docker.com/desktop/install/windows/"
         exit 1
     }
@@ -99,40 +126,39 @@ function Test-Prerequisites {
         if (-not $composeVersion) {
             throw "Docker Compose not available"
         }
-        Write-Success "Docker Compose available (v$composeVersion)"
+        Write-NomadSuccess "Docker Compose available (v$composeVersion)"
     } catch {
-        Write-Error "Docker Compose v2 is required"
+        Write-NomadFail "Docker Compose v2 is required"
         exit 1
     }
 
     # Check curl
-    try {
-        $curlVersion = curl --version 2>$null | Select-Object -First 1
-        Write-Success "curl available"
-    } catch {
-        Write-Warning "curl not found, using Invoke-WebRequest"
+    if (Get-Command curl.exe -ErrorAction SilentlyContinue) {
+        Write-NomadSuccess "curl available"
+    } else {
+        Write-NomadWarn "curl.exe not found, will fall back to Invoke-WebRequest"
     }
 
-    Write-Success "Prerequisites satisfied"
+    Write-NomadSuccess "Prerequisites satisfied"
 }
 
 # Get latest version from GitHub
 function Get-LatestVersion {
     if ($Version -ne "latest") {
-        Write-Info "Using specified version: $Version"
+        Write-NomadInfo "Using specified version: $Version"
         return $Version
     }
 
-    Write-Step "Fetching latest release version..."
+    Write-NomadStep "Fetching latest release version..."
     $apiUrl = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
 
     try {
         $response = Invoke-RestMethod -Uri $apiUrl -Method Get -ErrorAction Stop
         $Version = $response.tag_name
-        Write-Success "Latest version: $Version"
+        Write-NomadSuccess "Latest version: $Version"
         return $Version
     } catch {
-        Write-Warning "Could not fetch latest version, using 'main'"
+        Write-NomadWarn "Could not fetch latest version, using 'main'"
         return "main"
     }
 }
@@ -141,7 +167,7 @@ function Get-LatestVersion {
 function Get-NomadRelease {
     param($version)
 
-    Write-Step "Downloading Nomad $version..."
+    Write-NomadStep "Downloading Nomad $version..."
 
     $tarballUrl = "https://github.com/$RepoOwner/$RepoName/archive/refs/tags/$version.tar.gz"
     $tempFile = [System.IO.Path]::GetTempFileName() + ".tar.gz"
@@ -158,10 +184,10 @@ function Get-NomadRelease {
             throw "Download failed"
         }
 
-        Write-Success "Downloaded Nomad $version"
+        Write-NomadSuccess "Downloaded Nomad $version"
         return $tempFile
     } catch {
-        Write-Error "Failed to download Nomad $version"
+        Write-NomadFail "Failed to download Nomad $version"
         Write-Host "Error: $_"
         if (Test-Path $tempFile) { Remove-Item $tempFile -Force }
         exit 1
@@ -172,7 +198,7 @@ function Get-NomadRelease {
 function Expand-NomadArchive {
     param($tarball, $destination)
 
-    Write-Step "Extracting to $destination..."
+    Write-NomadStep "Extracting to $destination..."
 
     # Resolve full path
     $destination = Resolve-Path -Path $destination -ErrorAction SilentlyContinue
@@ -182,10 +208,10 @@ function Expand-NomadArchive {
 
     # Backup existing
     if (Test-Path $destination) {
-        Write-Warning "Directory exists: $destination"
+        Write-NomadWarn "Directory exists: $destination"
         $backupPath = "$destination.backup.$(Get-Date -Format 'yyyyMMdd_HHmmss')"
         Move-Item $destination $backupPath -Force
-        Write-Info "Backed up to $backupPath"
+        Write-NomadInfo "Backed up to $backupPath"
     }
 
     New-Item -ItemType Directory -Path $destination -Force | Out-Null
@@ -206,10 +232,10 @@ function Expand-NomadArchive {
         Move-Item "$($extractedDir.FullName)\*" $destination -Force
         Remove-Item $tempExtract -Recurse -Force
 
-        Write-Success "Extracted to $destination"
+        Write-NomadSuccess "Extracted to $destination"
         return $destination
     } catch {
-        Write-Error "Failed to extract archive"
+        Write-NomadFail "Failed to extract archive"
         Write-Host "Error: $_"
         exit 1
     }
@@ -219,13 +245,34 @@ function Expand-NomadArchive {
 function New-EnvironmentFile {
     param($projectDir)
 
-    Write-Step "Generating configuration..."
+    Write-NomadStep "Generating configuration..."
 
     $envFile = Join-Path $projectDir ".env"
     $envExample = Join-Path $projectDir ".env.example"
 
-    # Start from example if exists
-    if (Test-Path $envExample) {
+    # Source-of-truth precedence:
+    #   1. -EnvFile parameter / $env:NOMAD_ENV_FILE — explicit user override, copy verbatim
+    #   2. .env adjacent to the install dir (one level up) — preserve from previous run
+    #   3. .env.example bundled in the release
+    #   4. fresh empty file
+    # The script then layers installer-derived values (paths, ports, image
+    # tags) on top via Update-EnvValue, so user-set keys are preserved unless
+    # the installer needs to set them deterministically.
+    $userEnv = $null
+    if ($EnvFile -and (Test-Path $EnvFile)) {
+        $userEnv = (Resolve-Path $EnvFile).Path
+        Write-NomadInfo "Using user-supplied env file: $userEnv"
+    } else {
+        $adjacentEnv = Join-Path (Split-Path $projectDir -Parent) ".env"
+        if (Test-Path $adjacentEnv) {
+            $userEnv = $adjacentEnv
+            Write-NomadInfo "Found adjacent .env, preserving user config: $userEnv"
+        }
+    }
+
+    if ($userEnv) {
+        Copy-Item $userEnv $envFile -Force
+    } elseif (Test-Path $envExample) {
         Copy-Item $envExample $envFile -Force
     } else {
         New-Item $envFile -ItemType File -Force | Out-Null
@@ -270,21 +317,21 @@ function New-EnvironmentFile {
     Update-EnvValue "NOMAD_AUTH_MODE" "simple"
     Update-EnvValue "VITE_AUTH_MODE" "simple"
 
-    Write-Success "Configuration saved to $envFile"
+    Write-NomadSuccess "Configuration saved to $envFile"
 }
 
 # Check dataset
 function Test-Dataset {
-    Write-Step "Checking FireSTARR dataset..."
+    Write-NomadStep "Checking FireSTARR dataset..."
 
     $gridPath = Join-Path $DatasetPath "generated\grid"
 
     if (Test-Path $gridPath) {
-        Write-Success "Existing dataset found at $DatasetPath"
+        Write-NomadSuccess "Existing dataset found at $DatasetPath"
         return
     }
 
-    Write-Warning "Dataset not found at $DatasetPath"
+    Write-NomadWarn "Dataset not found at $DatasetPath"
     Write-Host ""
     Write-Host "The FireSTARR dataset (~50GB) is required for fire modeling."
     Write-Host ""
@@ -296,7 +343,7 @@ function Test-Dataset {
         Write-Host "Or download manually later:"
         Write-Host "  cd $InstallDir; .\scripts\install-firestarr-dataset.sh"
     } else {
-        Write-Step "Auto-downloading dataset..."
+        Write-NomadStep "Auto-downloading dataset..."
         Set-Location $InstallDir
         & .\scripts\install-firestarr-dataset.ps1
     }
@@ -306,7 +353,7 @@ function Test-Dataset {
 function Initialize-DockerEnvironment {
     param($projectDir)
 
-    Write-Step "Setting up Docker environment..."
+    Write-NomadStep "Setting up Docker environment..."
 
     Set-Location $projectDir
 
@@ -314,14 +361,14 @@ function Initialize-DockerEnvironment {
     New-Item -ItemType Directory -Path $SimsPath -Force | Out-Null
 
     # Pull FireSTARR image
-    Write-Step "Pulling FireSTARR image..."
+    Write-NomadStep "Pulling FireSTARR image..."
     docker compose pull firestarr-app 2>$null
 
     # Build Nomad
-    Write-Step "Building Nomad containers..."
+    Write-NomadStep "Building Nomad containers..."
     docker compose build
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Docker build failed (exit code $LASTEXITCODE)"
+        Write-NomadFail "Docker build failed (exit code $LASTEXITCODE)"
         Write-Host ""
         Write-Host "Common fixes:"
         Write-Host "  - Check Docker Desktop is running"
@@ -333,15 +380,15 @@ function Initialize-DockerEnvironment {
         return
     }
 
-    Write-Success "Docker setup complete"
+    Write-NomadSuccess "Docker setup complete"
 }
 
 # Summary and start
 function Show-Summary {
     Write-Host ""
-    Write-Header "════════════════════════════════════════════════════════════"
-    Write-Header "              Installation Summary"
-    Write-Header "════════════════════════════════════════════════════════════"
+    Write-NomadHeader "════════════════════════════════════════════════════════════"
+    Write-NomadHeader "              Installation Summary"
+    Write-NomadHeader "════════════════════════════════════════════════════════════"
     Write-Host ""
     Write-Host "  Deployment Mode:   SAN (Stand Alone Nomad)"
     Write-Host "  Infrastructure:      Docker"
@@ -351,35 +398,81 @@ function Show-Summary {
     Write-Host ""
 }
 
+function Wait-NomadHealthy {
+    param(
+        [string]$projectDir,
+        [int]$TimeoutSeconds = 90
+    )
+
+    Write-NomadStep "Verifying containers came up healthy..."
+
+    Set-Location $projectDir
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $url = "http://${Hostname}:$FrontendPort"
+
+    while ((Get-Date) -lt $deadline) {
+        # Containers must be in Running state with no restarts
+        $running = docker compose ps --format json 2>$null |
+            ForEach-Object { $_ | ConvertFrom-Json -ErrorAction SilentlyContinue } |
+            Where-Object { $_.State -eq 'running' }
+
+        if ($running.Count -gt 0) {
+            try {
+                $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
+                if ($resp.StatusCode -ge 200 -and $resp.StatusCode -lt 500) {
+                    Write-NomadSuccess "Frontend reachable at $url (HTTP $($resp.StatusCode))"
+                    return $true
+                }
+            } catch {
+                # Not reachable yet — keep waiting until deadline
+            }
+        }
+        Start-Sleep -Seconds 3
+    }
+
+    Write-NomadFail "Containers did not become healthy within $TimeoutSeconds seconds."
+    Write-Host ""
+    Write-Host "Diagnose:"
+    Write-Host "  cd $projectDir"
+    Write-Host "  docker compose ps"
+    Write-Host "  docker compose logs --tail=200"
+    return $false
+}
+
 function Start-Nomad {
     param($projectDir)
 
     if ($script:BuildFailed) {
-        Write-Error "Skipping start — Docker build failed. Fix the errors above and re-run."
+        Write-NomadFail "Skipping start — Docker build failed. Fix the errors above and re-run."
         exit 1
     }
 
-    Write-Step "Starting Project Nomad..."
-
     Set-Location $projectDir
 
-    if (-not $SkipStart) {
-        docker compose up -d
-        if ($LASTEXITCODE -ne 0) {
-            Write-Error "Failed to start containers (exit code $LASTEXITCODE)"
-            exit 1
-        }
-        Write-Success "Project Nomad is starting!"
-        Write-Host ""
-        Write-Host "Access Nomad at: http://${Hostname}:$FrontendPort"
-        Write-Host ""
-        Write-Host "View logs: docker compose logs -f"
-        Write-Host "Stop:      docker compose down"
-    } else {
-        Write-Info "Skip start requested. To start manually:"
+    if ($SkipStart) {
+        Write-NomadInfo "Skip start requested. To start manually:"
         Write-Host "  cd $projectDir"
         Write-Host "  docker compose up -d"
+        return
     }
+
+    Write-NomadStep "Starting Project Nomad..."
+    docker compose up -d
+    if ($LASTEXITCODE -ne 0) {
+        Write-NomadFail "Failed to start containers (exit code $LASTEXITCODE)"
+        exit 1
+    }
+
+    if (-not (Wait-NomadHealthy -projectDir $projectDir)) {
+        exit 1
+    }
+
+    Write-NomadSuccess "Project Nomad is up."
+    Write-Host ""
+    Write-Host "Access Nomad at: http://${Hostname}:$FrontendPort"
+    Write-Host ""
+    Write-Host "View logs: docker compose logs -f"
+    Write-Host "Stop:      docker compose down"
 }
 
 # Main
