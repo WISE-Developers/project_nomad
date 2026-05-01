@@ -48,7 +48,7 @@ param(
     [switch]$SkipGdalInstall = [bool]$env:SKIP_GDAL_INSTALL
 )
 
-$InstallerVersion = "0.2.2"
+$InstallerVersion = "0.2.3"
 $RequiredPSMajor = 7
 $RequiredPSMinor = 6
 $RequiredNodeMajor = 20
@@ -268,7 +268,13 @@ function Get-GdalDataPaths {
         if (-not (Test-Path $base)) { continue }
         $g = Join-Path $base "gdal"
         $p = Join-Path $base "proj"
-        if (-not $gdalData -and (Test-Path (Join-Path $g "gdalvrt.xsd"))) { $gdalData = (Resolve-Path $g).Path }
+        # GDAL: marker files vary by version (gdalvrt.xsd, header.dxf, gt_datum.csv,
+        # pcs.csv all appear in different builds). Treat the directory as valid if
+        # it exists and contains any file.
+        if (-not $gdalData -and (Test-Path $g) -and
+            (Get-ChildItem -Path $g -File -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+            $gdalData = (Resolve-Path $g).Path
+        }
         if (-not $projData -and (Test-Path (Join-Path $p "proj.db"))) { $projData = (Resolve-Path $p).Path }
     }
 
