@@ -48,7 +48,7 @@ param(
     [switch]$SkipGdalInstall = [bool]$env:SKIP_GDAL_INSTALL
 )
 
-$InstallerVersion = "0.2.0"
+$InstallerVersion = "0.2.1"
 $RequiredPSMajor = 7
 $RequiredPSMinor = 6
 $RequiredNodeMajor = 20
@@ -67,6 +67,13 @@ $DefaultDatasetPath  = "$env:USERPROFILE\firestarr_data"
 $DefaultServerPort   = 4901
 $DefaultHostname     = "localhost"
 $DefaultFirestarrTag = "unstable-latest"
+$DefaultVersion      = "latest"
+
+# Apply non-interactive defaults eagerly so downstream code is never handed
+# an empty value. -Version is not prompted because most users want "latest";
+# pass -Version dev to pull dev-branch HEAD instead.
+if (-not $Version) { $Version = $DefaultVersion }
+if (-not $FirestarrTag) { $FirestarrTag = $DefaultFirestarrTag }
 
 # Force UTF-8 console output so glyphs render on default Windows codepages.
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
@@ -317,7 +324,10 @@ function Get-LatestNomadVersion {
 function Get-NomadRelease {
     param($version)
     Write-NomadStep "Downloading Nomad $version source..."
-    $url = "https://github.com/$RepoOwner/$RepoName/archive/refs/tags/$version.tar.gz"
+    # GitHub's `/archive/<ref>.tar.gz` accepts tags, branches, and commits.
+    # That lets users pass -Version dev / -Version main to pull a branch
+    # head without us needing branch-vs-tag detection logic.
+    $url = "https://github.com/$RepoOwner/$RepoName/archive/$version.tar.gz"
     $tmp = [System.IO.Path]::GetTempFileName() + ".tar.gz"
     Invoke-WebRequest -Uri $url -OutFile $tmp -UseBasicParsing
     if (-not (Test-Path $tmp) -or (Get-Item $tmp).Length -eq 0) {
