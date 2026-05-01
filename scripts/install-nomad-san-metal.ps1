@@ -14,12 +14,21 @@
 #   Streamed:
 #   pwsh -NoExit -Command "iwr -Uri https://raw.githubusercontent.com/WISE-Developers/project_nomad/dev/scripts/install-nomad-san-metal.ps1 -UseBasicParsing | iex"
 #
-# Parameters / matching env vars (defaults shown):
+# By default the installer runs INTERACTIVE — it prompts for install
+# directory, dataset path, server port, and hostname, with sensible
+# defaults you can accept by pressing Enter. Pass -NonInteractive (or
+# set NOMAD_NONINTERACTIVE=1) to silently use the defaults.
+#
+# Parameters / matching env vars (defaults shown). Anything you supply
+# up front skips the matching prompt:
 #   -InstallDir            $env:INSTALL_DIR              .\project_nomad
 #   -DatasetPath           $env:FIRESTARR_DATASET_PATH   $env:USERPROFILE\firestarr_data
-#   -Version               $env:VERSION                  latest        (Nomad release tag)
+#   -ServerPort            $env:NOMAD_PORT               4901    (one port serves frontend + API)
+#   -ServerHostname        $env:NOMAD_SERVER_HOSTNAME    localhost
+#   -Version               $env:VERSION                  latest  (Nomad release tag)
 #   -FirestarrTag          $env:FIRESTARR_BINARY_TAG     unstable-latest
 #   -EnvFile               $env:NOMAD_ENV_FILE           (none)
+#   -NonInteractive        $env:NOMAD_NONINTERACTIVE     $false
 #   -SkipStart             $env:SKIP_START               $false
 #   -SkipNodeInstall       $env:SKIP_NODE_INSTALL        $false
 #   -SkipGdalInstall       $env:SKIP_GDAL_INSTALL        $false
@@ -31,12 +40,15 @@ param(
     [string]$Version = $env:VERSION,
     [string]$FirestarrTag = $env:FIRESTARR_BINARY_TAG,
     [string]$EnvFile = $env:NOMAD_ENV_FILE,
+    [int]$ServerPort = $(if ($env:NOMAD_PORT) { [int]$env:NOMAD_PORT } else { 0 }),
+    [string]$ServerHostname = $env:NOMAD_SERVER_HOSTNAME,
+    [switch]$NonInteractive = [bool]$env:NOMAD_NONINTERACTIVE,
     [switch]$SkipStart = [bool]$env:SKIP_START,
     [switch]$SkipNodeInstall = [bool]$env:SKIP_NODE_INSTALL,
     [switch]$SkipGdalInstall = [bool]$env:SKIP_GDAL_INSTALL
 )
 
-$InstallerVersion = "0.1.0"
+$InstallerVersion = "0.2.0"
 $RequiredPSMajor = 7
 $RequiredPSMinor = 6
 $RequiredNodeMajor = 20
@@ -47,20 +59,17 @@ $FirestarrAsset = "firestarr-windows-x64-cl-Release.zip"
 $OSGeo4WSetupUrl = "https://download.osgeo.org/osgeo4w/v2/osgeo4w-setup.exe"
 $OSGeo4WInstallDir = "C:\OSGeo4W"
 
+# Defaults applied later only if the user didn't override and didn't enter
+# a value at the prompt. We don't bake them in at param-time so the prompt
+# can show the default cleanly.
+$DefaultInstallDir   = ".\project_nomad"
+$DefaultDatasetPath  = "$env:USERPROFILE\firestarr_data"
+$DefaultServerPort   = 4901
+$DefaultHostname     = "localhost"
+$DefaultFirestarrTag = "unstable-latest"
+
 # Force UTF-8 console output so glyphs render on default Windows codepages.
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
-
-# Defaults
-if (-not $InstallDir) { $InstallDir = ".\project_nomad" }
-if (-not $DatasetPath) { $DatasetPath = "$env:USERPROFILE\firestarr_data" }
-if (-not $Version) { $Version = "latest" }
-if (-not $FirestarrTag) { $FirestarrTag = "unstable-latest" }
-$NomadPort     = if ($env:NOMAD_PORT)                 { $env:NOMAD_PORT }                 else { 4901 }
-$FrontendPort  = if ($env:NOMAD_FRONTEND_HOST_PORT)   { $env:NOMAD_FRONTEND_HOST_PORT }   else { 3901 }
-$BackendPort   = if ($env:NOMAD_BACKEND_HOST_PORT)    { $env:NOMAD_BACKEND_HOST_PORT }    else { 4901 }
-$Hostname      = if ($env:NOMAD_SERVER_HOSTNAME)      { $env:NOMAD_SERVER_HOSTNAME }      else { "localhost" }
-$NomadDataPath = if ($env:NOMAD_DATA_PATH)            { $env:NOMAD_DATA_PATH }            else { $DatasetPath }
-$SimsPath      = if ($env:SIMS_OUTPUT_PATH)           { $env:SIMS_OUTPUT_PATH }           else { "$DatasetPath\sims" }
 
 # Status helpers prefixed so they don't shadow built-in cmdlets.
 function Write-NomadHeader  { param($text) Write-Host $text -ForegroundColor Cyan }
@@ -69,6 +78,77 @@ function Write-NomadWarn    { param($text) Write-Host "⚠ $text" -ForegroundCol
 function Write-NomadFail    { param($text) Write-Host "✖ $text" -ForegroundColor Red }
 function Write-NomadSuccess { param($text) Write-Host "✔ $text" -ForegroundColor Green }
 function Write-NomadInfo    { param($text) Write-Host "ℹ $text" -ForegroundColor Blue }
+
+# Read a value from the user with a default. In -NonInteractive mode the
+# default is returned silently. If the caller already passed a value (via
+# parameter or env var), that wins and the prompt is skipped.
+function Read-NomadValue {
+    param(
+        [string]$Prompt,
+        [string]$Default,
+        [string]$Existing
+    )
+    if ($Existing) { return $Existing }
+    if ($NonInteractive) { return $Default }
+    $entered = Read-Host -Prompt "$Prompt [$Default]"
+    if ([string]::IsNullOrWhiteSpace($entered)) { return $Default }
+    return $entered
+}
+
+function Read-NomadInt {
+    param(
+        [string]$Prompt,
+        [int]$Default,
+        [int]$Existing
+    )
+    if ($Existing -gt 0) { return $Existing }
+    if ($NonInteractive) { return $Default }
+    while ($true) {
+        $entered = Read-Host -Prompt "$Prompt [$Default]"
+        if ([string]::IsNullOrWhiteSpace($entered)) { return $Default }
+        $parsed = 0
+        if ([int]::TryParse($entered, [ref]$parsed) -and $parsed -gt 0 -and $parsed -lt 65536) {
+            return $parsed
+        }
+        Write-NomadWarn "  Enter a TCP port between 1 and 65535, or press Enter for the default."
+    }
+}
+
+# Resolve all user-config values, prompting interactively where the user
+# hasn't supplied a parameter / env var. Sets script-scoped variables
+# the rest of the installer reads.
+function Get-UserConfig {
+    Write-Host ""
+    Write-NomadHeader "── Configuration ──────────────────────────────────────────"
+    Write-Host "Press Enter to accept the default shown in [brackets]."
+    Write-Host ""
+
+    $script:InstallDir    = Read-NomadValue -Prompt "Install directory" -Default $DefaultInstallDir   -Existing $InstallDir
+    $script:DatasetPath   = Read-NomadValue -Prompt "FireSTARR dataset path"  -Default $DefaultDatasetPath  -Existing $DatasetPath
+    $script:ServerPort    = Read-NomadInt   -Prompt "Server port (one port serves frontend + API in bare-metal)" -Default $DefaultServerPort -Existing $ServerPort
+    $script:ServerHostname = Read-NomadValue -Prompt "Server hostname" -Default $DefaultHostname -Existing $ServerHostname
+    if (-not $FirestarrTag) { $script:FirestarrTag = $DefaultFirestarrTag }
+
+    # Derived values
+    $script:NomadDataPath = if ($env:NOMAD_DATA_PATH)  { $env:NOMAD_DATA_PATH }  else { $script:DatasetPath }
+    $script:SimsPath      = if ($env:SIMS_OUTPUT_PATH) { $env:SIMS_OUTPUT_PATH } else { (Join-Path $script:DatasetPath "sims") }
+
+    Write-Host ""
+    Write-NomadInfo "Configuration:"
+    Write-Host "  Install directory:    $($script:InstallDir)"
+    Write-Host "  Dataset path:         $($script:DatasetPath)"
+    Write-Host "  Server port:          $($script:ServerPort)"
+    Write-Host "  Hostname:             $($script:ServerHostname)"
+    Write-Host "  Access URL:           http://$($script:ServerHostname):$($script:ServerPort)/"
+    Write-Host ""
+    if (-not $NonInteractive) {
+        $confirm = Read-Host -Prompt "Proceed with this configuration? [Y/n]"
+        if ($confirm -match '^(n|no)$') {
+            Write-NomadInfo "Cancelled by user."
+            exit 0
+        }
+    }
+}
 
 function Show-Header {
     Write-Host ""
@@ -342,12 +422,13 @@ function New-EnvironmentFile {
     Update-EnvValue "FIRESTARR_BINARY_PATH"      $firestarrBinary
     Update-EnvValue "NOMAD_DATA_PATH"            $NomadDataPath
     Update-EnvValue "SIMS_OUTPUT_PATH"           $SimsPath
-    Update-EnvValue "PORT"                       $BackendPort
-    Update-EnvValue "NOMAD_FRONTEND_HOST_PORT"   $FrontendPort
-    Update-EnvValue "NOMAD_BACKEND_HOST_PORT"    $BackendPort
-    Update-EnvValue "VITE_API_PORT"              $BackendPort
-    Update-EnvValue "VITE_API_BASE_URL"          "http://${Hostname}:$BackendPort"
-    Update-EnvValue "NOMAD_SERVER_HOSTNAME"      $Hostname
+    # Bare-metal: one Node process serves both the API and the built
+    # frontend on a single port. There is no separate frontend host port.
+    Update-EnvValue "PORT"                       $ServerPort
+    Update-EnvValue "NOMAD_BACKEND_HOST_PORT"    $ServerPort
+    Update-EnvValue "VITE_API_PORT"              $ServerPort
+    Update-EnvValue "VITE_API_BASE_URL"          "http://${ServerHostname}:$ServerPort"
+    Update-EnvValue "NOMAD_SERVER_HOSTNAME"      $ServerHostname
     Update-EnvValue "NOMAD_AUTH_MODE"            "simple"
     Update-EnvValue "VITE_AUTH_MODE"             "simple"
 
@@ -400,7 +481,7 @@ function Wait-NomadHealthy {
     param([int]$TimeoutSeconds = 90)
     Write-NomadStep "Verifying backend came up healthy..."
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-    $url = "http://${Hostname}:$BackendPort/api/v1/health"
+    $url = "http://${ServerHostname}:$ServerPort/api/v1/health"
     while ((Get-Date) -lt $deadline) {
         try {
             $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
@@ -438,8 +519,7 @@ function Start-Nomad {
 
     Write-NomadSuccess "Project Nomad is up."
     Write-Host ""
-    Write-Host "Access Nomad at: http://${Hostname}:$FrontendPort"
-    Write-Host "Backend API:     http://${Hostname}:$BackendPort"
+    Write-Host "Access Nomad at: http://${ServerHostname}:$ServerPort/"
     Write-Host ""
     Write-Host "The server is running in a separate pwsh window — close that window to stop."
 }
@@ -455,14 +535,14 @@ function Show-Summary {
     Write-Host "  Install Directory:  $projectDir"
     Write-Host "  FireSTARR Binary:   $firestarrBinary"
     Write-Host "  Dataset Path:       $DatasetPath"
-    Write-Host "  Frontend URL:       http://${Hostname}:$FrontendPort"
-    Write-Host "  Backend URL:        http://${Hostname}:$BackendPort"
+    Write-Host "  Access URL:         http://${ServerHostname}:$ServerPort/"
     Write-Host ""
 }
 
 function Main {
     Show-Header
     Test-Prerequisites
+    Get-UserConfig
     $version = Get-LatestNomadVersion
     $tarball = Get-NomadRelease -version $version
     $projectDir = Expand-NomadArchive -tarball $tarball -destination $InstallDir
