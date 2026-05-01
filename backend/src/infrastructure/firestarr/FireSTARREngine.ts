@@ -5,7 +5,7 @@
  * Orchestrates Docker execution, input generation, and output parsing.
  */
 
-import { join } from 'path';
+import { join, posix, win32 } from 'path';
 import { existsSync } from 'fs';
 import {
   IFireModelingEngine,
@@ -325,9 +325,11 @@ export class FireSTARREngine implements IFireModelingEngine {
       logger.warn('FIRESTARR_DATASET_PATH not set', 'FireSTARR');
       return null;
     }
-    // Resolve paths from project root (parent of backend dir) to match InputGenerator
+    // Resolve paths from project root (parent of backend dir) to match InputGenerator.
+    // Cross-platform: a Windows absolute path like C:\... is recognised on POSIX too.
     const projectRoot = join(process.cwd(), '..');
-    const resolvedDatasetPath = datasetPath.startsWith('/') ? datasetPath : join(projectRoot, datasetPath);
+    const isAbsolute = posix.isAbsolute(datasetPath) || win32.isAbsolute(datasetPath);
+    const resolvedDatasetPath = isAbsolute ? datasetPath : join(projectRoot, datasetPath);
     const standardPath = join(resolvedDatasetPath, 'sims', modelId);
     if (existsSync(standardPath)) {
       return standardPath;

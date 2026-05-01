@@ -8,8 +8,15 @@
  */
 
 import { mkdir, rm, access, writeFile, readdir, chmod } from 'fs/promises';
-import { join } from 'path';
+import { join, posix, win32 } from 'path';
 import { existsSync } from 'fs';
+
+// Cross-platform absolute-path detection. The Node defaults follow the
+// host OS, but FIRESTARR_DATASET_PATH may be a Windows path (`C:\...`)
+// even when tests run on POSIX, so we accept either shape regardless of
+// the runtime platform.
+const isAbsolutePath = (p: string): boolean =>
+    posix.isAbsolute(p) || win32.isAbsolute(p);
 import type { Feature, Geometry } from 'geojson';
 import { IInputGenerator, InputGenerationResult } from '../../application/interfaces/IInputGenerator.js';
 import { Result } from '../../application/common/index.js';
@@ -330,7 +337,7 @@ export function createFireSTARRInputGenerator(): FireSTARRInputGenerator {
   // Resolve relative paths from project root (parent of backend dir)
   // This matches where docker-compose.yaml resolves paths from
   const projectRoot = join(process.cwd(), '..');
-  const resolvedPath = datasetPath.startsWith('/')
+  const resolvedPath = isAbsolutePath(datasetPath)
     ? datasetPath
     : join(projectRoot, datasetPath);
 
@@ -354,7 +361,7 @@ export function resolveResultFilePath(filePath: string): string {
   }
 
   const projectRoot = join(process.cwd(), '..');
-  const resolvedBase = datasetPath.startsWith('/')
+  const resolvedBase = isAbsolutePath(datasetPath)
     ? datasetPath
     : join(projectRoot, datasetPath);
 
@@ -365,11 +372,11 @@ export function resolveResultFilePath(filePath: string): string {
     return join(resolvedBase, 'sims', relativePart);
   }
 
-  // Relative path - resolve using environment
-  if (!filePath.startsWith('/')) {
-    return join(resolvedBase, 'sims', filePath);
+  // Already a host absolute path (POSIX or Windows) — return as-is
+  if (isAbsolutePath(filePath)) {
+    return filePath;
   }
 
-  // Already a host absolute path - return as-is
-  return filePath;
+  // Relative path - resolve using environment
+  return join(resolvedBase, 'sims', filePath);
 }
