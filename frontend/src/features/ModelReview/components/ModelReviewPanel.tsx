@@ -29,6 +29,12 @@ interface ModelReviewPanelProps {
   onAddToMap?: (output: OutputItem, geoJson: GeoJSON.GeoJSON, modelInfo?: { modelId: string; modelName: string; engineType: string }) => void;
   /** Called when raster output is added to main map */
   onAddRasterToMap?: (output: OutputItem, bounds: [number, number, number, number], tileUrl: string, modelInfo?: { modelId: string; modelName: string; engineType: string }) => void;
+  /**
+   * Reserved space at the top of the viewport (e.g. an embedding host's
+   * header). The panel will not initialize, drag, or resize above this y.
+   * Defaults to 0 for standalone Nomad.
+   */
+  topGutter?: number;
 }
 
 /**
@@ -47,11 +53,11 @@ export function ModelReviewPanel({
   mode = 'floating',
   onAddToMap,
   onAddRasterToMap,
+  topGutter = 0,
 }: ModelReviewPanelProps) {
   const api = useOpenNomad();
   const { results, isLoading, error, refetch } = useModelResults(modelId);
   const [showExportPanel, setShowExportPanel] = useState(false);
-  const [size, setSize] = useState({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
 
   // Responsive
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -82,6 +88,16 @@ export function ModelReviewPanel({
   // Calculate initial position — viewport-aware
   const [initialX] = useState(() => Math.min(180, Math.max(10, windowWidth - DEFAULT_WIDTH - 20)));
   const [initialY] = useState(() => Math.min(70, Math.max(10, windowHeight - DEFAULT_HEIGHT - 20)));
+
+  // Effective bounds account for an optional top gutter (e.g. an embedding
+  // host's header). The panel can never initialize, drag, or resize above this
+  // y; the bottom margin (32px) keeps the resize handle off-screen.
+  const effectiveMaxHeight = Math.max(MIN_HEIGHT, windowHeight - topGutter - 32);
+  const clampedInitialY = Math.max(initialY, topGutter);
+  const clampedDefaultHeight = Math.min(DEFAULT_HEIGHT, effectiveMaxHeight);
+
+  // Controlled position so onDragStop can re-clamp y above the gutter.
+  const [position, setPosition] = useState({ x: initialX, y: clampedInitialY });
 
   /**
    * Handle download request
@@ -405,21 +421,22 @@ export function ModelReviewPanel({
       <Rnd
         default={{
           x: initialX,
-          y: initialY,
+          y: clampedInitialY,
           width: DEFAULT_WIDTH,
-          height: DEFAULT_HEIGHT,
+          height: clampedDefaultHeight,
         }}
+        position={position}
         minWidth={MIN_WIDTH}
         minHeight={MIN_HEIGHT}
-        maxHeight={windowHeight - 32}
+        maxHeight={effectiveMaxHeight}
         bounds="parent"
         dragHandleClassName="model-results-drag-handle"
         style={{ zIndex: 1000 }}
-        onResize={(_e, _dir, ref) => {
-          setSize({
-            width: ref.offsetWidth,
-            height: ref.offsetHeight,
-          });
+        onDragStop={(_e, data) => {
+          setPosition({ x: data.x, y: Math.max(data.y, topGutter) });
+        }}
+        onResizeStop={(_e, _dir, _ref, _delta, pos) => {
+          setPosition({ x: pos.x, y: Math.max(pos.y, topGutter) });
         }}
         enableResizing={{
           top: false,
@@ -432,7 +449,7 @@ export function ModelReviewPanel({
           topLeft: false,
         }}
       >
-        <div style={{ ...panelStyle, width: size.width, height: size.height }}>
+        <div style={{ ...panelStyle, width: '100%', height: '100%' }}>
           {renderHeader()}
           {renderContent()}
         </div>

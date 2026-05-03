@@ -53,6 +53,12 @@ export interface ModelSetupWizardProps {
   onCancel?: () => void;
   /** Optional draft ID to resume */
   draftId?: string;
+  /**
+   * Reserved space at the top of the viewport (e.g. an embedding host's
+   * header). The wizard will not initialize, drag, or resize above this y.
+   * Defaults to 0 for standalone Nomad.
+   */
+  topGutter?: number;
 }
 
 // Breakpoints
@@ -208,23 +214,30 @@ function StepRouter() {
 /**
  * Model Setup Wizard component
  */
-export function ModelSetupWizard({ onComplete, onCancel, draftId }: ModelSetupWizardProps) {
+export function ModelSetupWizard({ onComplete, onCancel, draftId, topGutter = 0 }: ModelSetupWizardProps) {
   const { windowSize, isMobile, isTablet } = useResponsive();
   const styles = getStyles(isMobile, isTablet);
 
-  // Calculate initial dimensions - respect viewport size
+  // Calculate initial dimensions - respect viewport size and top gutter
   const [initialDimensions] = useState(() => {
-    const maxHeight = window.innerHeight - VIEWPORT_MARGIN;
+    const maxHeight = window.innerHeight - VIEWPORT_MARGIN - topGutter;
     const height = Math.min(DEFAULT_HEIGHT, maxHeight);
     const width = Math.min(DEFAULT_WIDTH, window.innerWidth - VIEWPORT_MARGIN);
     const x = Math.max(VIEWPORT_MARGIN / 2, (window.innerWidth - width) / 2);
-    const y = Math.max(VIEWPORT_MARGIN / 2, (window.innerHeight - height) / 2);
+    const yCentered = Math.max(VIEWPORT_MARGIN / 2, (window.innerHeight - height) / 2);
+    const y = Math.max(yCentered, topGutter);
     return { x, y, width, height };
   });
 
-  const [size, setSize] = useState({
-    width: initialDimensions.width,
-    height: initialDimensions.height
+  // Effective bounds for the floating Rnd. Mirrors the topGutter contract used
+  // by ModelReviewPanel and DashboardContainer so an embedding host (e.g. EM3)
+  // can pass a single prop and have all panels respect its header.
+  const effectiveMaxHeight = Math.max(MIN_HEIGHT, windowSize.height - VIEWPORT_MARGIN - topGutter);
+
+  // Controlled position so onDragStop can re-clamp y above the gutter.
+  const [position, setPosition] = useState({
+    x: initialDimensions.x,
+    y: initialDimensions.y,
   });
 
   const handleComplete = useCallback(
@@ -378,18 +391,19 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId }: ModelSetupWi
         width: initialDimensions.width,
         height: initialDimensions.height,
       }}
+      position={position}
       minWidth={MIN_WIDTH}
       minHeight={MIN_HEIGHT}
       maxWidth={800}
-      maxHeight={windowSize.height - VIEWPORT_MARGIN}
+      maxHeight={effectiveMaxHeight}
       bounds="parent"
       dragHandleClassName="wizard-drag-handle"
       style={{ zIndex: 1000 }}
-      onResize={(_e, _direction, ref) => {
-        setSize({
-          width: ref.offsetWidth,
-          height: ref.offsetHeight,
-        });
+      onDragStop={(_e, data) => {
+        setPosition({ x: data.x, y: Math.max(data.y, topGutter) });
+      }}
+      onResizeStop={(_e, _dir, _ref, _delta, pos) => {
+        setPosition({ x: pos.x, y: Math.max(pos.y, topGutter) });
       }}
       enableResizing={{
         top: false,
@@ -402,7 +416,7 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId }: ModelSetupWi
         topLeft: false,
       }}
     >
-      <div style={{ ...styles.wizardInnerStyle, width: size.width, height: size.height }}>
+      <div style={{ ...styles.wizardInnerStyle, width: '100%', height: '100%' }}>
         <WizardContainer config={config}>
           <div style={styles.headerStyle} className="wizard-drag-handle">
             <h2 style={styles.titleStyle}>
