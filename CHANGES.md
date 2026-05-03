@@ -4,10 +4,19 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.9.0
+## v0.9.1
+
+### 2026-05-03
+
+- [`70663f3`](https://github.com/WISE-Developers/project_nomad/commit/70663f3959ee2146329ff859a5cbc7922686e4bf) Merge pull request #264 from WISE-Developers/dev — *Franco Nogarin, 09:44*
+- [`5246745`](https://github.com/WISE-Developers/project_nomad/commit/52467454d90004d2199481ea397f0cb70f03a4d0) chore: dev build 1 [skip ci] — *github-actions[bot], 15:29*
+- [`524a1ad`](https://github.com/WISE-Developers/project_nomad/commit/524a1adfc31fea55db7c8b21fc76a813cdb38493) Merge pull request #263 from WISE-Developers/fix/em3-468-rnd-bounds — *Franco Nogarin, 09:29*
+- [`3e5608c`](https://github.com/WISE-Developers/project_nomad/commit/3e5608cffa26cce1cc39a81d7dd73b217109b3ff) fix(rnd): topGutter prop + viewport-aware bounds for floating panels — *Franco Nogarin, 09:28*
 
 ### 2026-05-01
 
+- [`9390c26`](https://github.com/WISE-Developers/project_nomad/commit/9390c26e1c92ad86342f5dfefd6faed8addad7ac) chore: reset dev build counter after v0.9.0 [skip ci] — *github-actions[bot], 17:55*
+- [`7a2753d`](https://github.com/WISE-Developers/project_nomad/commit/7a2753d4440080caf77737c11eb4364462ce9a30) chore: release v0.9.0 [skip ci] — *github-actions[bot], 17:54*
 - [`bb1368d`](https://github.com/WISE-Developers/project_nomad/commit/bb1368d23a00f9b9bc5278fb71970bf845cda609) Merge pull request #260 from WISE-Developers/dev — *Franco Nogarin, 11:54*
 - [`4691af3`](https://github.com/WISE-Developers/project_nomad/commit/4691af3a0d40e435e78eba53586f55c740e90ffe) chore: dev build 6 [skip ci] — *github-actions[bot], 17:46*
 - [`ce9b303`](https://github.com/WISE-Developers/project_nomad/commit/ce9b303637632fb9153a0052816d4e4584bf6d49) fix(installer-metal): relax GDAL_DATA probe to detect OSGeo4W share dir — *Franco Nogarin, 11:46*
