@@ -114,6 +114,13 @@ export interface DashboardContainerProps {
    * @example { export: true, compare: false, drafts: true }
    */
   features?: NomadFeaturesType;
+
+  /**
+   * Reserved space at the top of the viewport (e.g. an embedding host's
+   * header). The dashboard will not initialize, drag, or resize above this y
+   * in floating mode. Defaults to 0 for standalone Nomad.
+   */
+  topGutter?: number;
 }
 
 // =============================================================================
@@ -301,6 +308,7 @@ interface FloatingDashboardProps extends DashboardContentProps {
   onAddGeoJsonToMap?: (output: OutputItem, geoJson: GeoJSON.GeoJSON, modelInfo?: { modelId: string; modelName: string; engineType: string }) => void;
   onAddRasterToMap?: (output: OutputItem, bounds: [number, number, number, number], tileUrl: string, modelInfo?: { modelId: string; modelName: string; engineType: string }) => void;
   className?: string;
+  topGutter?: number;
 }
 
 function FloatingDashboard({
@@ -312,8 +320,8 @@ function FloatingDashboard({
   onAddGeoJsonToMap,
   onAddRasterToMap,
   className = '',
+  topGutter = 0,
 }: FloatingDashboardProps) {
-  const [size, setSize] = useState({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
   const { activeView, wizardDraftId, resultsModelId, showDashboard } = useDashboardView();
   const labels = useNomadLabels();
   const { theme } = useNomadCustomizationOptional();
@@ -332,6 +340,16 @@ function FloatingDashboard({
   // Calculate initial position (right side of screen)
   const [initialX] = useState(() => Math.max(20, window.innerWidth - DEFAULT_WIDTH - 40));
   const [initialY] = useState(() => 70);
+
+  // Effective bounds account for an optional top gutter (e.g. an embedding
+  // host's header). Mirrors the contract in ModelReviewPanel and
+  // ModelSetupWizard so a single topGutter prop handles all floating panels.
+  const effectiveMaxHeight = Math.max(MIN_HEIGHT, windowHeight - topGutter - 32);
+  const clampedInitialY = Math.max(initialY, topGutter);
+  const clampedDefaultHeight = Math.min(DEFAULT_HEIGHT, effectiveMaxHeight);
+
+  // Controlled position so onDragStop can re-clamp y above the gutter.
+  const [position, setPosition] = useState({ x: initialX, y: clampedInitialY });
 
   // Handle wizard completion
   const handleWizardComplete = useCallback(async (data: ModelSetupData) => {
@@ -354,6 +372,7 @@ function FloatingDashboard({
         onComplete={handleWizardComplete}
         onCancel={handleWizardCancel}
         draftId={wizardDraftId ?? undefined}
+        topGutter={topGutter}
       />
     );
   }
@@ -367,15 +386,18 @@ function FloatingDashboard({
         mode="floating"
         onAddToMap={onAddGeoJsonToMap}
         onAddRasterToMap={onAddRasterToMap}
+        topGutter={topGutter}
       />
     );
   }
 
-  // Dynamic panel styles using theme
+  // Dynamic panel styles using theme. The inner div fills the Rnd wrapper so
+  // resize/drag changes flow purely through react-rnd; no inline width/height
+  // here keeps the panel from drifting out of sync after a window resize.
   const panelDynamic: CSSProperties = {
     ...panelStyle,
-    width: size.width,
-    height: size.height,
+    width: '100%',
+    height: '100%',
     backgroundColor: theme['--nomad-surface'],
     borderRadius: theme['--nomad-border-radius'],
     boxShadow: theme['--nomad-shadow'],
@@ -449,21 +471,22 @@ function FloatingDashboard({
     <Rnd
       default={{
         x: initialX,
-        y: initialY,
+        y: clampedInitialY,
         width: DEFAULT_WIDTH,
-        height: DEFAULT_HEIGHT,
+        height: clampedDefaultHeight,
       }}
+      position={position}
       minWidth={MIN_WIDTH}
       minHeight={MIN_HEIGHT}
-      maxHeight={windowHeight - 32}
+      maxHeight={effectiveMaxHeight}
       bounds="parent"
       dragHandleClassName="dashboard-drag-handle"
       style={{ zIndex: 900 }}
-      onResize={(_e, _dir, ref) => {
-        setSize({
-          width: ref.offsetWidth,
-          height: ref.offsetHeight,
-        });
+      onDragStop={(_e, data) => {
+        setPosition({ x: data.x, y: Math.max(data.y, topGutter) });
+      }}
+      onResizeStop={(_e, _dir, _ref, _delta, pos) => {
+        setPosition({ x: pos.x, y: Math.max(pos.y, topGutter) });
       }}
       enableResizing={{
         top: false,
@@ -623,6 +646,7 @@ function InnerDashboard({
   onAddRasterToMap,
   initialTab = 'models',
   className,
+  topGutter,
 }: InnerDashboardProps) {
   // Initial state for context
   const initialState = useMemo(() => ({ activeTab: initialTab }), [initialTab]);
@@ -639,6 +663,7 @@ function InnerDashboard({
           onAddGeoJsonToMap={onAddGeoJsonToMap}
           onAddRasterToMap={onAddRasterToMap}
           className={className}
+          topGutter={topGutter}
         />
       ) : (
         <EmbeddedDashboard

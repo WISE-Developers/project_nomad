@@ -21,10 +21,15 @@ import type { ModelResultsResponse } from '../../types';
 // Mocks
 // =============================================================================
 
-// Mock react-rnd to detect when Rnd is rendered
+// Mock react-rnd: capture props for inspection while still rendering children.
+// HTML attributes can't carry object props faithfully, so we keep them in a
+// module-level slot that tests read directly.
+let lastRndProps: Record<string, unknown> = {};
 vi.mock('react-rnd', () => ({
-  Rnd: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) =>
-    React.createElement('div', { 'data-testid': 'rnd-wrapper', ...props }, children),
+  Rnd: ({ children, ...props }: { children: React.ReactNode; [key: string]: unknown }) => {
+    lastRndProps = props;
+    return React.createElement('div', { 'data-testid': 'rnd-wrapper' }, children);
+  },
 }));
 
 const mockResultsResponse: ModelResultsResponse = {
@@ -157,5 +162,55 @@ describe('ModelReviewPanel - mode awareness', () => {
 
     renderPanel({ mode: 'embedded' });
     expect(screen.getByText('Model Results')).toBeTruthy();
+  });
+});
+
+// =============================================================================
+// EM3 #468 — topGutter / viewport-aware bounds
+// =============================================================================
+
+describe('ModelReviewPanel - topGutter / Rnd bounds', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('innerWidth', 1440);
+    vi.stubGlobal('innerHeight', 900);
+    lastRndProps = {};
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+  });
+
+  it('without topGutter, default.y stays at the panel-derived initial y', () => {
+    renderPanel({ mode: 'floating' });
+    const def = lastRndProps.default as { x: number; y: number; width: number; height: number };
+    expect(def.y).toBeGreaterThanOrEqual(0);
+  });
+
+  it('with topGutter=60, default.y is clamped to be at least 60', () => {
+    renderPanel({ mode: 'floating', topGutter: 60 });
+    const def = lastRndProps.default as { x: number; y: number; width: number; height: number };
+    expect(def.y).toBeGreaterThanOrEqual(60);
+  });
+
+  it('with topGutter=60, maxHeight reserves space for the gutter and bottom margin', () => {
+    renderPanel({ mode: 'floating', topGutter: 60 });
+    expect(lastRndProps.maxHeight).toBe(900 - 60 - 32);
+  });
+
+  it('default.height never exceeds the effective maxHeight', () => {
+    renderPanel({ mode: 'floating', topGutter: 60 });
+    const def = lastRndProps.default as { x: number; y: number; width: number; height: number };
+    const max = lastRndProps.maxHeight as number;
+    expect(def.height).toBeLessThanOrEqual(max);
+  });
+
+  it('exposes a controlled position so onDragStop can clamp y', () => {
+    renderPanel({ mode: 'floating', topGutter: 60 });
+    expect(lastRndProps.position).toBeDefined();
+    const pos = lastRndProps.position as { x: number; y: number };
+    expect(pos.y).toBeGreaterThanOrEqual(60);
+    expect(typeof lastRndProps.onDragStop).toBe('function');
   });
 });
