@@ -4,10 +4,18 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.9.1
+## v0.9.2
+
+### 2026-05-13
+
+- [`4caa9a4`](https://github.com/WISE-Developers/project_nomad/commit/4caa9a44797d880a2b755ff391fdf1b6be9ced20) Merge pull request #266 from WISE-Developers/dev — *Franco Nogarin, 07:07*
+- [`62d5cc5`](https://github.com/WISE-Developers/project_nomad/commit/62d5cc5679a5589380b0bbfa13f126fe634c2468) chore: dev build 1 [skip ci] — *github-actions[bot], 13:06*
+- [`c32b371`](https://github.com/WISE-Developers/project_nomad/commit/c32b371326b1b2e938561e36b6d81ef716857869) fix(arrival-raster): shift bucket thresholds to FireSTARR 0-indexed Julian (#261) — *Franco Nogarin, 07:05*
 
 ### 2026-05-03
 
+- [`760181a`](https://github.com/WISE-Developers/project_nomad/commit/760181a38c82f0607b1da718f225d047da319fed) chore: reset dev build counter after v0.9.1 [skip ci] — *github-actions[bot], 15:45*
+- [`4c7d12e`](https://github.com/WISE-Developers/project_nomad/commit/4c7d12e1ee998b6b0fe6c87ff5a70356e90b5c47) chore: release v0.9.1 [skip ci] — *github-actions[bot], 15:45*
 - [`70663f3`](https://github.com/WISE-Developers/project_nomad/commit/70663f3959ee2146329ff859a5cbc7922686e4bf) Merge pull request #264 from WISE-Developers/dev — *Franco Nogarin, 09:44*
 - [`5246745`](https://github.com/WISE-Developers/project_nomad/commit/52467454d90004d2199481ea397f0cb70f03a4d0) chore: dev build 1 [skip ci] — *github-actions[bot], 15:29*
 - [`524a1ad`](https://github.com/WISE-Developers/project_nomad/commit/524a1adfc31fea55db7c8b21fc76a813cdb38493) Merge pull request #263 from WISE-Developers/fix/em3-468-rnd-bounds — *Franco Nogarin, 09:29*
