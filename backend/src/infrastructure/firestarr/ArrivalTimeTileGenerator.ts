@@ -94,6 +94,12 @@ function rampColor(index: number, total: number): [number, number, number] {
  * Build a gdaldem color-relief table that paints each classification bucket
  * as a discrete band (start and end of bucket share the same color; a small
  * epsilon gap before the next bucket prevents interpolation).
+ *
+ * `offsetDay`/`endJulian` are 1-indexed Julian (matching filenames and
+ * `dayOfYear`). FireSTARR writes 0-indexed Julian values inside the raster
+ * (Jan 1 = 0.0), so thresholds shift down by 1 to land in raster-value
+ * space — same convention as `toFireSTARRRasterJulianDay` in
+ * arrivalAnimation.ts (refs #253, #261).
  */
 export function buildArrivalColorTable(
   offsetDay: number,
@@ -107,12 +113,13 @@ export function buildArrivalColorTable(
       : Math.max(1, Math.ceil(spanDays * 24));
   const step = timestep === 'daily' ? 1 : 1 / 24;
   const epsilon = step * 0.001;
+  const rasterOffset = offsetDay - 1;
 
   const lines: string[] = ['0 0 0 0 0'];
   for (let i = 0; i < bucketCount; i++) {
     const [r, g, b] = rampColor(i, bucketCount);
-    const bucketMin = offsetDay + i * step;
-    const bucketMax = offsetDay + (i + 1) * step - epsilon;
+    const bucketMin = rasterOffset + i * step;
+    const bucketMax = rasterOffset + (i + 1) * step - epsilon;
     lines.push(`${bucketMin.toFixed(8)} ${r} ${g} ${b} 220`);
     lines.push(`${bucketMax.toFixed(8)} ${r} ${g} ${b} 220`);
   }
