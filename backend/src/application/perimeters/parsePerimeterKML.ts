@@ -1,5 +1,6 @@
-import { XMLParser } from 'fast-xml-parser';
+import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import type { Feature, LineString, Point, Polygon, Position } from 'geojson';
+import { ValidationError } from '../../domain/errors/ValidationError.js';
 import type { PerimeterFeatureCollection } from './parsePerimeterGeoJSON.js';
 
 const xmlParser = new XMLParser({
@@ -41,6 +42,10 @@ function collect<T>(node: unknown, tag: string, acc: T[], visit: (n: any) => T |
 }
 
 export function parsePerimeterKML(input: string): PerimeterFeatureCollection {
+  const validation = XMLValidator.validate(input);
+  if (validation !== true) {
+    throw ValidationError.forField('content', 'must be valid XML');
+  }
   const doc = xmlParser.parse(input);
   const features: Feature[] = [];
 
@@ -88,5 +93,8 @@ export function parsePerimeterKML(input: string): PerimeterFeatureCollection {
     return feature;
   });
 
+  if (features.length === 0) {
+    throw ValidationError.forField('content', 'no valid geometries found in KML');
+  }
   return { type: 'FeatureCollection', features };
 }
