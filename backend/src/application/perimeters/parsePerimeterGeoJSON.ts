@@ -1,8 +1,14 @@
-import type { Feature, FeatureCollection, Polygon, MultiPolygon } from 'geojson';
+import type { FeatureCollection, Polygon, MultiPolygon } from 'geojson';
+import { ValidationError } from '../../domain/errors/ValidationError.js';
 
 export type PerimeterFeatureCollection = FeatureCollection<Polygon | MultiPolygon>;
 
 export function parsePerimeterGeoJSON(input: string): PerimeterFeatureCollection {
-  const parsed = JSON.parse(input) as PerimeterFeatureCollection;
-  return parsed;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(input);
+  } catch {
+    throw ValidationError.forField('content', 'must be valid JSON');
+  }
+  return parsed as PerimeterFeatureCollection;
 }
