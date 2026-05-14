@@ -41,6 +41,46 @@ describe('parsePerimeterGeoJSON — happy path', () => {
   });
 });
 
+describe('parsePerimeterGeoJSON — structural rules', () => {
+  it('accepts a single Feature and wraps it in a FeatureCollection', () => {
+    const feature = VALID_FEATURE_COLLECTION.features[0];
+    const result = parsePerimeterGeoJSON(JSON.stringify(feature));
+    expect(result.type).toBe('FeatureCollection');
+    expect(result.features).toHaveLength(1);
+    expect(result.features[0].geometry.type).toBe('Polygon');
+  });
+
+  it('accepts a raw geometry object and wraps it in a Feature + FeatureCollection', () => {
+    const geometry = VALID_FEATURE_COLLECTION.features[0].geometry;
+    const result = parsePerimeterGeoJSON(JSON.stringify(geometry));
+    expect(result.type).toBe('FeatureCollection');
+    expect(result.features).toHaveLength(1);
+    expect(result.features[0].geometry.type).toBe('Polygon');
+  });
+
+  it('filters out features whose geometry type is not Point/LineString/Polygon', () => {
+    const mixed = {
+      type: 'FeatureCollection',
+      features: [
+        VALID_FEATURE_COLLECTION.features[0],
+        {
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'GeometryCollection', geometries: [] },
+        },
+      ],
+    };
+    const result = parsePerimeterGeoJSON(JSON.stringify(mixed));
+    expect(result.features).toHaveLength(1);
+    expect(result.features[0].geometry.type).toBe('Polygon');
+  });
+
+  it('throws ValidationError when payload is not a Feature, FeatureCollection, or geometry', () => {
+    const payload = { type: 'NotAThing', foo: 'bar' };
+    expect(() => parsePerimeterGeoJSON(JSON.stringify(payload))).toThrow(ValidationError);
+  });
+});
+
 describe('parsePerimeterGeoJSON — invalid JSON', () => {
   it('throws ValidationError for malformed JSON', () => {
     expect(() => parsePerimeterGeoJSON('not json {')).toThrow(ValidationError);

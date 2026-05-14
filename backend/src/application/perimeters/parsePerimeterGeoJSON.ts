@@ -1,14 +1,55 @@
-import type { FeatureCollection, Polygon, MultiPolygon } from 'geojson';
+import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import { ValidationError } from '../../domain/errors/ValidationError.js';
 
-export type PerimeterFeatureCollection = FeatureCollection<Polygon | MultiPolygon>;
+export type PerimeterFeatureCollection = FeatureCollection;
+
+const SUPPORTED_GEOMETRY_TYPES = new Set(['Point', 'LineString', 'Polygon']);
 
 export function parsePerimeterGeoJSON(input: string): PerimeterFeatureCollection {
-  let parsed: unknown;
+  let json: unknown;
   try {
-    parsed = JSON.parse(input);
+    json = JSON.parse(input);
   } catch {
     throw ValidationError.forField('content', 'must be valid JSON');
   }
-  return parsed as PerimeterFeatureCollection;
+
+  if (!isObject(json) || typeof json.type !== 'string') {
+    throw ValidationError.forField(
+      'content',
+      'must be a Feature, FeatureCollection, or geometry object',
+    );
+  }
+
+  if (json.type === 'FeatureCollection' && Array.isArray(json.features)) {
+    const features = (json.features as Feature[]).filter((f) =>
+      SUPPORTED_GEOMETRY_TYPES.has(f.geometry?.type),
+    );
+    return { type: 'FeatureCollection', features };
+  }
+
+  if (json.type === 'Feature' && isObject(json.geometry)) {
+    const geom = json.geometry as Geometry;
+    if (SUPPORTED_GEOMETRY_TYPES.has(geom.type)) {
+      return { type: 'FeatureCollection', features: [json as Feature] };
+    }
+  }
+
+  if (SUPPORTED_GEOMETRY_TYPES.has(json.type)) {
+    const feature: Feature = {
+      type: 'Feature',
+      id: `upload-${Date.now()}`,
+      properties: {},
+      geometry: json as unknown as Geometry,
+    };
+    return { type: 'FeatureCollection', features: [feature] };
+  }
+
+  throw ValidationError.forField(
+    'content',
+    'must be a Feature, FeatureCollection, or geometry object',
+  );
+}
+
+function isObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null;
 }
