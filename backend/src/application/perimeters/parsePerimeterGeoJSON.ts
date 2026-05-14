@@ -9,8 +9,9 @@ export function parsePerimeterGeoJSON(input: string): PerimeterFeatureCollection
   let json: unknown;
   try {
     json = JSON.parse(input);
-  } catch {
-    throw ValidationError.forField('content', 'must be valid JSON');
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : 'unknown parse error';
+    throw ValidationError.forField('content', `must be valid JSON — ${detail}`);
   }
 
   if (!isObject(json) || typeof json.type !== 'string') {

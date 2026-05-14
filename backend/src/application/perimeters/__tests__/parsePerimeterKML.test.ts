@@ -54,6 +54,17 @@ describe('parsePerimeterKML — structural rules', () => {
     expect(() => parsePerimeterKML('<<not xml>>')).toThrow(ValidationError);
   });
 
+  it('surfaces the underlying XML parse-error hint (line/column or reason)', () => {
+    try {
+      parsePerimeterKML('<<not xml>>');
+      expect.fail('expected ValidationError');
+    } catch (e) {
+      const err = e as ValidationError;
+      // fast-xml-parser validator emits "Invalid XML: ... line:N col:N" style messages
+      expect(err.fieldErrors[0].message).toMatch(/line|col|invalid|expected|tag/i);
+    }
+  });
+
   it('throws ValidationError when no valid geometries are present', () => {
     const emptyKml = `<?xml version="1.0"?>
       <kml xmlns="http://www.opengis.net/kml/2.2"><Document>

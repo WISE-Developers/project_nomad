@@ -98,4 +98,15 @@ describe('parsePerimeterGeoJSON — invalid JSON', () => {
       expect(err.fieldErrors[0].message).toMatch(/valid JSON/i);
     }
   });
+
+  it('surfaces the underlying parse-error hint (token/position)', () => {
+    try {
+      parsePerimeterGeoJSON('{"type": "FeatureCollection", "features": [,]}');
+      expect.fail('expected ValidationError');
+    } catch (e) {
+      const err = e as ValidationError;
+      // V8 SyntaxError messages mention either the offending token or a position
+      expect(err.fieldErrors[0].message).toMatch(/token|position|expected/i);
+    }
+  });
 });

@@ -44,7 +44,10 @@ function collect<T>(node: unknown, tag: string, acc: T[], visit: (n: any) => T |
 export function parsePerimeterKML(input: string): PerimeterFeatureCollection {
   const validation = XMLValidator.validate(input);
   if (validation !== true) {
-    throw ValidationError.forField('content', 'must be valid XML');
+    const e = validation.err;
+    const where = e && typeof e.line === 'number' ? ` (line ${e.line}, col ${e.col})` : '';
+    const reason = e?.msg ?? 'unknown XML error';
+    throw ValidationError.forField('content', `must be valid XML — ${reason}${where}`);
   }
   const doc = xmlParser.parse(input);
   const features: Feature[] = [];
