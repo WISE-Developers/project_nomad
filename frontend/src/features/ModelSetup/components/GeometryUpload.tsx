@@ -188,17 +188,22 @@ export function GeometryUpload({ onUpload }: GeometryUploadProps) {
       }
 
       try {
-        const content = await file.text();
-        let features: DrawnFeature[];
+        const form = new FormData();
+        form.append('file', file);
+        const res = await fetch('/api/v1/perimeters/import', { method: 'POST', body: form });
 
-        if (extension === 'kml') {
-          features = parseKML(content);
-        } else {
-          features = parseGeoJSON(content);
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          const msg =
+            body?.error?.details?.fieldErrors?.[0]?.message ??
+            body?.error?.message ??
+            'Failed to validate file';
+          setError(msg);
+          return;
         }
 
-        // Add input method to properties
-        features = features.map((f) => ({
+        const fc = (await res.json()) as { features: DrawnFeature[] };
+        const features = fc.features.map((f) => ({
           ...f,
           properties: {
             ...f.properties,
@@ -210,7 +215,7 @@ export function GeometryUpload({ onUpload }: GeometryUploadProps) {
         setSuccess(`Successfully loaded ${features.length} feature(s) from ${file.name}`);
         onUpload(features);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to parse file');
+        setError(err instanceof Error ? err.message : 'Failed to upload file');
       }
     },
     [onUpload]
