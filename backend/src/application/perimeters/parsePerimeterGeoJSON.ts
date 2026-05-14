@@ -28,9 +28,9 @@ export function parsePerimeterGeoJSON(input: string): PerimeterFeatureCollection
   }
 
   if (json.type === 'Feature' && isObject(json.geometry)) {
-    const geom = json.geometry as Geometry;
+    const geom = json.geometry as unknown as Geometry;
     if (SUPPORTED_GEOMETRY_TYPES.has(geom.type)) {
-      return { type: 'FeatureCollection', features: [json as Feature] };
+      return { type: 'FeatureCollection', features: [json as unknown as Feature] };
     }
   }
 
