@@ -138,6 +138,13 @@ export function GeometryUpload({ onUpload }: GeometryUploadProps) {
       const file = files[0];
       const extension = getExtension(file.name);
 
+      if (extension === 'shp') {
+        setError(
+          "A single .shp file isn't enough \u2014 also select its .shx, .dbf, and .prj sidecars together, or upload a .zip bundle."
+        );
+        return;
+      }
+
       if (!SINGLE_FILE_EXTENSIONS.includes(extension)) {
         setError(
           'Unsupported file format. Please use GeoJSON (.json, .geojson), KML (.kml), or Shapefile (.zip).'
