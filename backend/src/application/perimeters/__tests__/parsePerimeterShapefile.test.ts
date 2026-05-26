@@ -69,3 +69,21 @@ describe('parsePerimeterShapefile — happy path', () => {
     expect(coords[0][0][1]).toBeCloseTo(60.8, 4);
   });
 });
+
+describe('parsePerimeterShapefile — CRS validation', () => {
+  it('throws ValidationError when .prj is present but the CRS is unreadable', async () => {
+    const files = buildShapefileFiles();
+    // Corrupt the .prj so gdal cannot read a SRS from the layer
+    files['fixture.prj'] = Buffer.from('NOT A REAL WKT', 'utf-8');
+    const zip = (await import('./shapefileFixtures.js')).zipShapefileFiles(files);
+
+    await expect(parsePerimeterShapefile(zip)).rejects.toThrow(ValidationError);
+    try {
+      await parsePerimeterShapefile(zip);
+    } catch (e) {
+      const err = e as ValidationError;
+      expect(err.fieldErrors[0].field).toBe('prj');
+      expect(err.fieldErrors[0].message).toMatch(/crs|projection|srs|unreadable/i);
+    }
+  });
+});

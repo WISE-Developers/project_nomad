@@ -94,8 +94,14 @@ async function readShapefileFeatures(shpPath: string): Promise<Feature[]> {
     const layer = ds.layers.get(0);
     const wgs84 = gdal.SpatialReference.fromEPSG(4326);
     const srcSrs = layer.srs;
-    const needsReproject = !!srcSrs && srcSrs.toWKT() !== wgs84.toWKT();
-    const transform = needsReproject && srcSrs
+    if (!srcSrs) {
+      throw ValidationError.forField(
+        'prj',
+        'CRS could not be read from .prj — projection is missing or unreadable',
+      );
+    }
+    const needsReproject = srcSrs.toWKT() !== wgs84.toWKT();
+    const transform = needsReproject
       ? new gdal.CoordinateTransformation(srcSrs, wgs84)
       : null;
 
