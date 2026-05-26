@@ -87,3 +87,22 @@ describe('parsePerimeterShapefile — CRS validation', () => {
     }
   });
 });
+
+describe('parsePerimeterShapefile — geometry type validation', () => {
+  it('throws ValidationError when the shapefile contains points instead of polygons', async () => {
+    const files = buildShapefileFiles({
+      geometry: 'point',
+      coordinates: [[-115.7, 60.8]],
+    });
+    const zip = (await import('./shapefileFixtures.js')).zipShapefileFiles(files);
+
+    await expect(parsePerimeterShapefile(zip)).rejects.toThrow(ValidationError);
+    try {
+      await parsePerimeterShapefile(zip);
+    } catch (e) {
+      const err = e as ValidationError;
+      expect(err.fieldErrors[0].field).toBe('geometry');
+      expect(err.fieldErrors[0].message).toMatch(/polygon|multipolygon/i);
+    }
+  });
+});

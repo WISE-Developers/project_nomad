@@ -113,7 +113,13 @@ async function readShapefileFeatures(shpPath: string): Promise<Feature[]> {
       if (transform) {
         geom.transform(transform);
       }
-      const geojson = geom.toObject() as Polygon | MultiPolygon;
+      const geojson = geom.toObject() as { type: string } & (Polygon | MultiPolygon);
+      if (geojson.type !== 'Polygon' && geojson.type !== 'MultiPolygon') {
+        throw ValidationError.forField(
+          'geometry',
+          `must be Polygon or MultiPolygon — got ${geojson.type}`,
+        );
+      }
       features.push({
         type: 'Feature',
         id: `shapefile-${idx++}`,
