@@ -113,23 +113,51 @@ async function readShapefileFeatures(shpPath: string): Promise<Feature[]> {
       if (transform) {
         geom.transform(transform);
       }
-      const geojson = geom.toObject() as { type: string } & (Polygon | MultiPolygon);
+      const geojson = geom.toObject() as { type: string };
       if (geojson.type !== 'Polygon' && geojson.type !== 'MultiPolygon') {
         throw ValidationError.forField(
           'geometry',
           `must be Polygon or MultiPolygon — got ${geojson.type}`,
         );
       }
+      const polyGeom = geojson as Polygon | MultiPolygon;
+      assertWgs84Range(polyGeom);
       features.push({
         type: 'Feature',
         id: `shapefile-${idx++}`,
         properties: { source: 'shapefile' },
-        geometry: geojson,
+        geometry: polyGeom,
       });
     });
     return features;
   } finally {
     ds.close();
+  }
+}
+
+
+function assertWgs84Range(geom: Polygon | MultiPolygon): void {
+  const rings: number[][][] =
+    geom.type === 'Polygon'
+      ? geom.coordinates
+      : geom.coordinates.flat();
+  for (const ring of rings) {
+    for (const pt of ring) {
+      const [lon, lat] = pt;
+      if (
+        !Number.isFinite(lon) ||
+        !Number.isFinite(lat) ||
+        lon < -180 ||
+        lon > 180 ||
+        lat < -90 ||
+        lat > 90
+      ) {
+        throw ValidationError.forField(
+          'coordinates',
+          `coordinate (${lon}, ${lat}) is outside plausible WGS84 range — lon must be in [-180, 180], lat in [-90, 90]`,
+        );
+      }
+    }
   }
 }
 

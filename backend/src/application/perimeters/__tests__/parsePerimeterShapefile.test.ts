@@ -106,3 +106,28 @@ describe('parsePerimeterShapefile — geometry type validation', () => {
     }
   });
 });
+
+describe('parsePerimeterShapefile — coordinate range validation', () => {
+  it('throws ValidationError when reprojected coordinates fall outside plausible WGS84 range', async () => {
+    // Build a polygon declared in WGS84 but with longitude values outside [-180, 180].
+    const files = buildShapefileFiles({
+      coordinates: [
+        [500, 60.8],
+        [500, 60.81],
+        [501, 60.81],
+        [501, 60.8],
+        [500, 60.8],
+      ],
+    });
+    const zip = (await import('./shapefileFixtures.js')).zipShapefileFiles(files);
+
+    await expect(parsePerimeterShapefile(zip)).rejects.toThrow(ValidationError);
+    try {
+      await parsePerimeterShapefile(zip);
+    } catch (e) {
+      const err = e as ValidationError;
+      expect(err.fieldErrors[0].field).toBe('coordinates');
+      expect(err.fieldErrors[0].message).toMatch(/range|outside|plausible|wgs84|lon|lat/i);
+    }
+  });
+});
