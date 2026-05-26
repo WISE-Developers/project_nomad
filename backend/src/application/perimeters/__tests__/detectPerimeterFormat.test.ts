@@ -24,8 +24,16 @@ describe('detectPerimeterFormat', () => {
     expect(detectPerimeterFormat('IGNITION.KML')).toBe('kml');
   });
 
+  it('resolves .shp to shapefile', () => {
+    expect(detectPerimeterFormat('ignition.shp')).toBe('shapefile');
+  });
+
+  it('resolves .zip to shapefile (bundled sidecars)', () => {
+    expect(detectPerimeterFormat('ignition.zip')).toBe('shapefile');
+  });
+
   it('throws ValidationError for an unknown extension', () => {
-    expect(() => detectPerimeterFormat('ignition.shp')).toThrow(ValidationError);
+    expect(() => detectPerimeterFormat('ignition.xyz')).toThrow(ValidationError);
   });
 
   it('throws ValidationError for a file with no extension', () => {

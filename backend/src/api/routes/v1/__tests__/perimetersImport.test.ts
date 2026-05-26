@@ -63,7 +63,7 @@ describe('POST /api/v1/perimeters/import — GeoJSON', () => {
   it('returns 400 for an unsupported file extension', async () => {
     const res = await request(app)
       .post('/api/v1/perimeters/import')
-      .attach('file', Buffer.from(VALID_GEOJSON), 'ignition.shp');
+      .attach('file', Buffer.from(VALID_GEOJSON), 'ignition.xyz');
 
     expect(res.status).toBe(400);
     expect(res.body.error.details.fieldErrors[0].field).toBe('filename');
@@ -119,5 +119,48 @@ describe('POST /api/v1/perimeters/import — KML', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error.details.fieldErrors[0].field).toBe('content');
+  });
+});
+
+describe('POST /api/v1/perimeters/import — Shapefile (#269)', () => {
+  let app: express.Application;
+
+  beforeAll(() => {
+    app = express();
+    app.use('/api/v1', perimetersImportRouter);
+    app.use(errorHandler);
+  });
+
+  it('returns 201 + normalized FeatureCollection for a valid zipped shapefile upload', async () => {
+    const { buildShapefileZip } = await import(
+      '../../../../application/perimeters/__tests__/shapefileFixtures.js'
+    );
+    const zipBuf = buildShapefileZip();
+
+    const res = await request(app)
+      .post('/api/v1/perimeters/import')
+      .attach('file', zipBuf, 'perimeter.zip');
+
+    expect(res.status).toBe(201);
+    expect(res.body.type).toBe('FeatureCollection');
+    expect(res.body.features).toHaveLength(1);
+    expect(res.body.features[0].geometry.type).toBe('Polygon');
+  });
+
+  it('returns 400 + structured fieldErrors when the zipped shapefile is missing the .prj sidecar', async () => {
+    const { buildShapefileFiles, zipShapefileFiles } = await import(
+      '../../../../application/perimeters/__tests__/shapefileFixtures.js'
+    );
+    const files = buildShapefileFiles();
+    delete files['fixture.prj'];
+    const zipBuf = zipShapefileFiles(files);
+
+    const res = await request(app)
+      .post('/api/v1/perimeters/import')
+      .attach('file', zipBuf, 'perimeter.zip');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.details.fieldErrors).toBeDefined();
+    expect(res.body.error.details.fieldErrors[0].field).toBe('prj');
   });
 });

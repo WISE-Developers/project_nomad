@@ -1,11 +1,13 @@
 import { ValidationError } from '../../domain/errors/ValidationError.js';
 
-export type PerimeterFormat = 'geojson' | 'kml';
+export type PerimeterFormat = 'geojson' | 'kml' | 'shapefile';
 
 const EXTENSIONS: Record<string, PerimeterFormat> = {
   geojson: 'geojson',
   json: 'geojson',
   kml: 'kml',
+  shp: 'shapefile',
+  zip: 'shapefile',
 };
 
 export function detectPerimeterFormat(filename: string): PerimeterFormat {
@@ -13,7 +15,7 @@ export function detectPerimeterFormat(filename: string): PerimeterFormat {
   if (!ext || ext === filename.toLowerCase()) {
     throw ValidationError.forField(
       'filename',
-      'must have a supported extension (.geojson, .json, .kml)',
+      'must have a supported extension (.geojson, .json, .kml, .shp, .zip)',
       filename,
     );
   }
