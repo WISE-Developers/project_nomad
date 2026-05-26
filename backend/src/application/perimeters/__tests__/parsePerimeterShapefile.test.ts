@@ -36,3 +36,19 @@ describe('parsePerimeterShapefile — sidecar presence (zip)', () => {
     }
   });
 });
+
+describe('parsePerimeterShapefile — sidecar presence (raw multi-file)', () => {
+  it('throws ValidationError with missing_sidecar when .shx is absent from a raw payload', async () => {
+    const files = buildShapefileFiles();
+    delete files['fixture.shx'];
+
+    await expect(parsePerimeterShapefile(files)).rejects.toThrow(ValidationError);
+    try {
+      await parsePerimeterShapefile(files);
+    } catch (e) {
+      const err = e as ValidationError;
+      expect(err.fieldErrors[0].field).toBe('shx');
+      expect(err.fieldErrors[0].message).toMatch(/missing/i);
+    }
+  });
+});
