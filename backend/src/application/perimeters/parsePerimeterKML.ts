@@ -1,6 +1,7 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import type { Feature, LineString, Point, Polygon, Position } from 'geojson';
 import { ValidationError } from '../../domain/errors/ValidationError.js';
+import { roundCoord } from './coordinatePrecision.js';
 import type { PerimeterFeatureCollection } from './parsePerimeterGeoJSON.js';
 
 const xmlParser = new XMLParser({
@@ -16,7 +17,7 @@ function parseCoords(coordStr: string): Position[] {
     .split(/\s+/)
     .map((coord) => {
       const parts = coord.split(',').map(Number);
-      return [parts[0], parts[1]] as Position;
+      return [roundCoord(parts[0]), roundCoord(parts[1])] as Position;
     })
     .filter((c) => Number.isFinite(c[0]) && Number.isFinite(c[1]));
 }
