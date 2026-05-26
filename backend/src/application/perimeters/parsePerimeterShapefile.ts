@@ -6,13 +6,18 @@
  * filename -> Buffer). Returns a normalized WGS84 FeatureCollection.
  */
 
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import AdmZip from 'adm-zip';
+import type { Feature, Polygon, MultiPolygon } from 'geojson';
 import { ValidationError, type FieldError } from '../../domain/errors/ValidationError.js';
 import type { PerimeterFeatureCollection } from './parsePerimeterGeoJSON.js';
 
 export type ShapefileInput = Buffer | Record<string, Buffer>;
 
 const REQUIRED_SIDECARS = ['shp', 'shx', 'dbf', 'prj'] as const;
+const BASENAME = 'fixture';
 
 interface ExtractedBundle {
   /** Map of lowercase extension (no dot) -> file buffer */
@@ -37,7 +42,6 @@ function extractZip(zipBuf: Buffer): ExtractedBundle {
     const name = entry.entryName.split('/').pop() ?? entry.entryName;
     const ext = name.toLowerCase().split('.').pop();
     if (!ext || ext === name.toLowerCase()) continue;
-    // First occurrence wins; ignore duplicates in nested dirs
     if (!(ext in byExt)) {
       byExt[ext] = entry.getData();
     }
@@ -70,11 +74,67 @@ function checkSidecars(bundle: ExtractedBundle): void {
   }
 }
 
+function writeBundleToTmp(bundle: ExtractedBundle): { dir: string; shpPath: string } {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'shp-import-'));
+  for (const ext of Object.keys(bundle.byExt)) {
+    fs.writeFileSync(path.join(dir, `${BASENAME}.${ext}`), bundle.byExt[ext]);
+  }
+  return { dir, shpPath: path.join(dir, `${BASENAME}.shp`) };
+}
+
+async function readShapefileFeatures(shpPath: string): Promise<Feature[]> {
+  const gdalModule = await import('gdal-async');
+  const gdal = gdalModule.default;
+
+  const ds = gdal.open(shpPath);
+  try {
+    if (ds.layers.count() === 0) {
+      throw ValidationError.forField('content', 'shapefile contains no layers');
+    }
+    const layer = ds.layers.get(0);
+    const wgs84 = gdal.SpatialReference.fromEPSG(4326);
+    const srcSrs = layer.srs;
+    const needsReproject = !!srcSrs && srcSrs.toWKT() !== wgs84.toWKT();
+    const transform = needsReproject && srcSrs
+      ? new gdal.CoordinateTransformation(srcSrs, wgs84)
+      : null;
+
+    const features: Feature[] = [];
+    let idx = 0;
+    layer.features.forEach((f) => {
+      const geom = f.getGeometry();
+      if (!geom) return;
+      if (transform) {
+        geom.transform(transform);
+      }
+      const geojson = geom.toObject() as Polygon | MultiPolygon;
+      features.push({
+        type: 'Feature',
+        id: `shapefile-${idx++}`,
+        properties: { source: 'shapefile' },
+        geometry: geojson,
+      });
+    });
+    return features;
+  } finally {
+    ds.close();
+  }
+}
+
 export async function parsePerimeterShapefile(
   input: ShapefileInput,
 ): Promise<PerimeterFeatureCollection> {
   const bundle = isBuffer(input) ? extractZip(input) : extractRecord(input);
   checkSidecars(bundle);
-  // Subsequent slices: write to tmp dir + gdal parse + reproject + validate
-  throw new Error('parsePerimeterShapefile: parsing not yet implemented');
+
+  const { dir, shpPath } = writeBundleToTmp(bundle);
+  try {
+    const features = await readShapefileFeatures(shpPath);
+    if (features.length === 0) {
+      throw ValidationError.forField('content', 'no valid geometries found in shapefile');
+    }
+    return { type: 'FeatureCollection', features };
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 }

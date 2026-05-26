@@ -52,3 +52,20 @@ describe('parsePerimeterShapefile — sidecar presence (raw multi-file)', () => 
     }
   });
 });
+
+describe('parsePerimeterShapefile — happy path', () => {
+  it('parses a single-polygon WGS84 shapefile into a normalized FeatureCollection', async () => {
+    const zip = (await import('./shapefileFixtures.js')).zipShapefileFiles(
+      (await import('./shapefileFixtures.js')).buildShapefileFiles(),
+    );
+    const result = await parsePerimeterShapefile(zip);
+    expect(result.type).toBe('FeatureCollection');
+    expect(result.features).toHaveLength(1);
+    expect(result.features[0].geometry.type).toBe('Polygon');
+    const coords = (result.features[0].geometry as { coordinates: number[][][] }).coordinates;
+    expect(coords[0].length).toBeGreaterThanOrEqual(4);
+    // First vertex should match the fixture (lon, lat) and be in WGS84 range
+    expect(coords[0][0][0]).toBeCloseTo(-115.7, 4);
+    expect(coords[0][0][1]).toBeCloseTo(60.8, 4);
+  });
+});

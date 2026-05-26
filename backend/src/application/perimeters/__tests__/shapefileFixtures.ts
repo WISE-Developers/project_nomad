@@ -43,18 +43,14 @@ export function buildShapefileFiles(opts: BuildOpts = {}): Record<string, Buffer
   const base = path.join(dir, 'fixture');
   const drv = gdal.drivers.get('ESRI Shapefile');
   const srs = epsg === null ? null : gdal.SpatialReference.fromEPSG(epsg);
-  const ds = drv.create(base + '.shp', 0, 0, 0, (gdal as unknown as { GDT_Unknown: number }).GDT_Unknown);
-  const wkb = geomKind === 'point'
-    ? (gdal as unknown as { wkbPoint: number }).wkbPoint
-    : gdal.wkbPolygon;
+  const ds = drv.create(base + '.shp', 0, 0, 0, gdal.GDT_Unknown);
+  const wkb = geomKind === 'point' ? gdal.wkbPoint : gdal.wkbPolygon;
   const layer = ds.layers.create('fixture', srs, wkb);
 
   if (geomKind === 'polygon') {
-    const Ring = (gdal as unknown as { LinearRing: new () => any }).LinearRing;
-    const Poly = (gdal as unknown as { Polygon: new () => any }).Polygon;
-    const ring = new Ring();
+    const ring = new gdal.LinearRing();
     for (const [x, y] of coords) ring.points.add(x, y);
-    const poly = new Poly();
+    const poly = new gdal.Polygon();
     poly.rings.add(ring);
     const feat = new gdal.Feature(layer);
     feat.setGeometry(poly);
@@ -63,7 +59,7 @@ export function buildShapefileFiles(opts: BuildOpts = {}): Record<string, Buffer
     for (const [x, y] of coords) {
       const pt = new gdal.Point(x, y);
       const feat = new gdal.Feature(layer);
-      feat.setGeometry(pt as unknown as gdal.Geometry);
+      feat.setGeometry(pt);
       layer.features.add(feat);
     }
   }
