@@ -240,4 +240,18 @@ describe('GeometryUpload — Shapefile support (#268)', () => {
     );
     expect(onUpload).not.toHaveBeenCalled();
   });
+
+
+  it('shows a sidecar-aware error when only a single .shp file is selected', async () => {
+    const onUpload = vi.fn();
+    render(<GeometryUpload onUpload={onUpload} />);
+    const file = new File(['shp-bytes'], 'fire.shp', { type: 'application/octet-stream' });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, file);
+    await waitFor(() =>
+      expect(screen.getByText(/single \.shp file isn't enough/i)).toBeInTheDocument()
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(onUpload).not.toHaveBeenCalled();
+  });
 });
