@@ -13,6 +13,7 @@ import AdmZip from 'adm-zip';
 import type { Feature, Polygon, MultiPolygon } from 'geojson';
 import { ValidationError, type FieldError } from '../../domain/errors/ValidationError.js';
 import type { PerimeterFeatureCollection } from './parsePerimeterGeoJSON.js';
+import { roundPolygonCoordinates } from './coordinatePrecision.js';
 
 export type ShapefileInput = Buffer | Record<string, Buffer>;
 
@@ -122,6 +123,7 @@ async function readShapefileFeatures(shpPath: string): Promise<Feature[]> {
       }
       const polyGeom = geojson as Polygon | MultiPolygon;
       assertWgs84Range(polyGeom);
+      roundPolygonCoordinates(polyGeom);
       features.push({
         type: 'Feature',
         id: `shapefile-${idx++}`,
