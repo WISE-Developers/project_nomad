@@ -1,9 +1,13 @@
 /**
  * useSplash hook (#275)
  *
- * Fetches /api/v1/splash on mount, decides whether the content splash
- * should be shown based on the response + acknowledged-version state in
- * localStorage, and exposes a dismiss() that records the current version.
+ * Fetches /api/v1/splash on mount and exposes the content + a dismiss()
+ * that closes the modal for the current page load only.
+ *
+ * Intentionally has NO persistence. The splash re-appears on every app
+ * load (when enabled and content is valid) — operators bump version in
+ * the markdown frontmatter to signal "new content"; users see it again
+ * regardless because nothing is suppressed.
  *
  * Fail-closed: any network/server error → not visible. Splash must never
  * block the app from loading.
@@ -11,7 +15,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-export const SPLASH_LAST_ACKED_KEY = 'splash:lastAckedVersion';
 export const SPLASH_ENDPOINT = '/api/v1/splash';
 
 export interface SplashContent {
@@ -75,26 +78,10 @@ export function useSplash(): UseSplashResult {
   }, []);
 
   const dismiss = useCallback(() => {
-    if (content) {
-      try {
-        localStorage.setItem(SPLASH_LAST_ACKED_KEY, content.version);
-      } catch {
-        // localStorage may be unavailable (private mode / SSR); no-op
-      }
-    }
     setDismissed(true);
-  }, [content]);
+  }, []);
 
-  let alreadyAcked = false;
-  if (content) {
-    try {
-      alreadyAcked = localStorage.getItem(SPLASH_LAST_ACKED_KEY) === content.version;
-    } catch {
-      alreadyAcked = false;
-    }
-  }
-
-  const visible = !loading && !dismissed && content !== null && !alreadyAcked;
+  const visible = !loading && !dismissed && content !== null;
 
   return { loading, visible, content, dismiss };
 }

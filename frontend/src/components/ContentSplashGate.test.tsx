@@ -6,7 +6,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { ContentSplashGate } from './ContentSplashGate';
-import { SPLASH_LAST_ACKED_KEY } from '../hooks/useSplash';
 
 function mockFetch(payload: unknown, ok = true) {
   return vi.fn().mockResolvedValue({
@@ -17,9 +16,6 @@ function mockFetch(payload: unknown, ok = true) {
 }
 
 describe('ContentSplashGate', () => {
-  beforeEach(() => {
-    localStorage.clear();
-  });
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -30,7 +26,7 @@ describe('ContentSplashGate', () => {
     await waitFor(() => expect(container.querySelector('[role="dialog"]')).toBeNull());
   });
 
-  it('renders SplashModal when enabled and unacknowledged', async () => {
+  it('renders SplashModal when enabled', async () => {
     vi.stubGlobal(
       'fetch',
       mockFetch({
@@ -47,7 +43,7 @@ describe('ContentSplashGate', () => {
     );
   });
 
-  it('dismiss button persists version and unmounts the modal', async () => {
+  it('dismiss button closes the modal for the current load', async () => {
     vi.stubGlobal(
       'fetch',
       mockFetch({
@@ -64,6 +60,5 @@ describe('ContentSplashGate', () => {
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: /got it/i })).toBeNull(),
     );
-    expect(localStorage.getItem(SPLASH_LAST_ACKED_KEY)).toBe('4.2.0');
   });
 });
