@@ -31,7 +31,6 @@ describe('ContentSplashGate', () => {
       'fetch',
       mockFetch({
         enabled: true,
-        version: '1.0.0',
         title: 'Welcome to Nomad',
         body: 'body text',
         dismissable: true,
@@ -48,7 +47,6 @@ describe('ContentSplashGate', () => {
       'fetch',
       mockFetch({
         enabled: true,
-        version: '4.2.0',
         title: 'T',
         body: 'b',
         dismissable: true,

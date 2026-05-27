@@ -4,10 +4,9 @@
  * Fetches /api/v1/splash on mount and exposes the content + a dismiss()
  * that closes the modal for the current page load only.
  *
- * Intentionally has NO persistence. The splash re-appears on every app
- * load (when enabled and content is valid) — operators bump version in
- * the markdown frontmatter to signal "new content"; users see it again
- * regardless because nothing is suppressed.
+ * No persistence by design — splash re-appears on every load when
+ * enabled. Operators control content via the markdown file; nothing on
+ * the client side suppresses it.
  *
  * Fail-closed: any network/server error → not visible. Splash must never
  * block the app from loading.
@@ -18,7 +17,6 @@ import { useCallback, useEffect, useState } from 'react';
 export const SPLASH_ENDPOINT = '/api/v1/splash';
 
 export interface SplashContent {
-  version: string;
   title: string;
   body: string;
   dismissable: boolean;
@@ -26,7 +24,6 @@ export interface SplashContent {
 
 interface SplashResponse {
   enabled: boolean;
-  version?: string;
   title?: string;
   body?: string;
   dismissable?: boolean;
@@ -56,12 +53,11 @@ export function useSplash(): UseSplashResult {
         }
         const data: SplashResponse = await resp.json();
         if (cancelled) return;
-        if (!data.enabled || !data.version || !data.title || data.body === undefined) {
+        if (!data.enabled || !data.title || data.body === undefined) {
           setLoading(false);
           return;
         }
         setContent({
-          version: data.version,
           title: data.title,
           body: data.body,
           dismissable: data.dismissable !== false,

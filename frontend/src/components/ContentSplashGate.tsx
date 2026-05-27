@@ -15,7 +15,6 @@ export function ContentSplashGate(): React.ReactElement | null {
   if (!visible || !content) return null;
   return (
     <SplashModal
-      version={content.version}
       title={content.title}
       body={content.body}
       onDismiss={dismiss}

@@ -63,7 +63,6 @@ router.get('/splash', (_req, res) => {
 
   return res.json({
     enabled: true,
-    version: parsed.version,
     title: parsed.title,
     body: parsed.body,
     dismissable: true,
