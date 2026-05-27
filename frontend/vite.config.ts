@@ -15,6 +15,10 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     envDir,
+    define: {
+      // Build-time constant baked into the bundle. ISO date string.
+      __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

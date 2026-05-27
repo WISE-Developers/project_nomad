@@ -9,7 +9,22 @@
 
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
+import { version } from '../../package.json';
 import './SplashModal.css';
+
+const RELEASE_URL = `https://github.com/WISE-Developers/project_nomad/releases/tag/v${version}`;
+
+const BUILD_DATE_DISPLAY = (() => {
+  try {
+    return new Date(__BUILD_DATE__).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return '';
+  }
+})();
 
 export interface SplashModalProps {
   title: string;
@@ -61,6 +76,14 @@ export function SplashModal({ title, body, onDismiss }: SplashModalProps): React
         <h1 className="splash-modal-title">{title}</h1>
         <div className="splash-modal-body">
           <ReactMarkdown>{body}</ReactMarkdown>
+        </div>
+        <div className="splash-modal-meta">
+          v{version}
+          {BUILD_DATE_DISPLAY ? ` · ${BUILD_DATE_DISPLAY}` : ''}
+          {' · '}
+          <a href={RELEASE_URL} target="_blank" rel="noopener noreferrer">
+            view release
+          </a>
         </div>
         <button type="button" style={buttonStyle} onClick={onDismiss}>
           Got it
