@@ -40,7 +40,6 @@ describe('useSplash', () => {
   it('visible when backend returns enabled=true with content', async () => {
     globalThis.fetch = mockFetchResponse({
       enabled: true,
-      version: '1.0.0',
       title: 'Hello',
       body: '## hi',
       dismissable: true,
@@ -48,7 +47,6 @@ describe('useSplash', () => {
     const { result } = renderHook(() => useSplash());
     await waitFor(() => expect(result.current.visible).toBe(true));
     expect(result.current.content).toEqual({
-      version: '1.0.0',
       title: 'Hello',
       body: '## hi',
       dismissable: true,
@@ -58,7 +56,6 @@ describe('useSplash', () => {
   it('dismiss() closes the modal for the current load', async () => {
     globalThis.fetch = mockFetchResponse({
       enabled: true,
-      version: '1.0.0',
       title: 'Hello',
       body: '## hi',
     });
@@ -74,7 +71,6 @@ describe('useSplash', () => {
     // show it again because we deliberately store no state.
     globalThis.fetch = mockFetchResponse({
       enabled: true,
-      version: '1.0.0',
       title: 'Hello',
       body: '## hi',
     });

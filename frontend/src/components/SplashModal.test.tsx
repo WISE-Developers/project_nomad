@@ -13,7 +13,6 @@ describe('SplashModal', () => {
   it('renders title and body when given enabled content', () => {
     render(
       <SplashModal
-        version="1.0.0"
         title="Welcome to Nomad"
         body="Hello world"
         onDismiss={() => {}}
@@ -26,7 +25,6 @@ describe('SplashModal', () => {
   it('renders markdown body as HTML elements (## becomes h2)', () => {
     render(
       <SplashModal
-        version="1.0.0"
         title="T"
         body={'## A heading\n\nSome paragraph.'}
         onDismiss={() => {}}
@@ -36,17 +34,16 @@ describe('SplashModal', () => {
     expect(h2).toBeInTheDocument();
   });
 
-  it('clicking the dismiss button calls onDismiss with the version', () => {
+  it('clicking the dismiss button calls onDismiss', () => {
     const onDismiss = vi.fn();
     render(
       <SplashModal
-        version="2.3.4"
         title="T"
         body="b"
         onDismiss={onDismiss}
       />,
     );
     fireEvent.click(screen.getByRole('button', { name: /got it/i }));
-    expect(onDismiss).toHaveBeenCalledWith('2.3.4');
+    expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 });

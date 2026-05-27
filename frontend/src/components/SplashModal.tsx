@@ -4,17 +4,16 @@
  * Renders the configurable content splash. Markdown body is rendered
  * via react-markdown, which ignores raw HTML by default — safe.
  *
- * Stateless: parent owns visibility and version tracking.
+ * Stateless: parent owns visibility.
  */
 
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 
 export interface SplashModalProps {
-  version: string;
   title: string;
   body: string;
-  onDismiss: (version: string) => void;
+  onDismiss: () => void;
 }
 
 const overlayStyle: React.CSSProperties = {
@@ -60,7 +59,7 @@ const buttonStyle: React.CSSProperties = {
   fontSize: '15px',
 };
 
-export function SplashModal({ version, title, body, onDismiss }: SplashModalProps): React.ReactElement {
+export function SplashModal({ title, body, onDismiss }: SplashModalProps): React.ReactElement {
   return (
     <div style={overlayStyle} role="dialog" aria-modal="true" aria-label={title}>
       <div style={modalStyle}>
@@ -68,7 +67,7 @@ export function SplashModal({ version, title, body, onDismiss }: SplashModalProp
         <div className="splash-modal-body">
           <ReactMarkdown>{body}</ReactMarkdown>
         </div>
-        <button type="button" style={buttonStyle} onClick={() => onDismiss(version)}>
+        <button type="button" style={buttonStyle} onClick={onDismiss}>
           Got it
         </button>
       </div>

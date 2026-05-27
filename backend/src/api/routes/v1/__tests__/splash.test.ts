@@ -18,7 +18,6 @@ function buildApp() {
 
 const VALID = [
   '---',
-  'version: 1.2.3',
   'title: Hello Nomad',
   '---',
   '',
@@ -54,7 +53,6 @@ describe('GET /api/v1/splash', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       enabled: true,
-      version: '1.2.3',
       title: 'Hello Nomad',
       body: expect.stringContaining('## Body heading'),
       dismissable: true,
@@ -125,12 +123,12 @@ describe('GET /api/v1/splash', () => {
 
     const app = buildApp();
     const r1 = await request(app).get('/api/v1/splash');
-    expect(r1.body.version).toBe('1.2.3');
+    expect(r1.body.title).toBe('Hello Nomad');
 
-    const updated = VALID.replace('1.2.3', '2.0.0');
+    const updated = VALID.replace('Hello Nomad', 'Hello Updated');
     fs.writeFileSync(splashFile, updated);
 
     const r2 = await request(app).get('/api/v1/splash');
-    expect(r2.body.version).toBe('2.0.0');
+    expect(r2.body.title).toBe('Hello Updated');
   });
 });
