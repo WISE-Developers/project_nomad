@@ -14,9 +14,12 @@ import './SplashModal.css';
 
 const RELEASE_URL = `https://github.com/WISE-Developers/project_nomad/releases/tag/v${version}`;
 
-const BUILD_DATE_DISPLAY = (() => {
+const RELEASE_DATE_DISPLAY = (() => {
+  // __RELEASE_DATE__ is a Vite-injected define; undefined in raw test envs.
+  const raw = typeof __RELEASE_DATE__ !== 'undefined' ? __RELEASE_DATE__ : '';
+  if (!raw) return '';
   try {
-    return new Date(__BUILD_DATE__).toLocaleDateString(undefined, {
+    return new Date(raw).toLocaleDateString(undefined, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -79,7 +82,7 @@ export function SplashModal({ title, body, onDismiss }: SplashModalProps): React
         </div>
         <div className="splash-modal-meta">
           v{version}
-          {BUILD_DATE_DISPLAY ? ` · ${BUILD_DATE_DISPLAY}` : ''}
+          {RELEASE_DATE_DISPLAY ? ` · ${RELEASE_DATE_DISPLAY}` : ''}
           {' · '}
           <a href={RELEASE_URL} target="_blank" rel="noopener noreferrer">
             view release
