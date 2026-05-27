@@ -23,30 +23,54 @@ declare module 'gdal-async' {
   }
 
   // Point Geometry
-  export class Point {
+  export class Point extends Geometry {
     constructor(x: number, y: number);
     x: number;
     y: number;
-    transform(transformation: CoordinateTransformation): void;
   }
 
   // Geometry
   export class Geometry {
     static fromWKT(wkt: string): Geometry;
     transform(transformation: CoordinateTransformation): void;
+    /** GeoJSON-style plain-object representation of the geometry */
+    toObject(): unknown;
+    /** wkbXxx constant identifying the concrete geometry type */
+    wkbType: number;
+  }
+
+  // LinearRing (subset of LineString used to build Polygon rings)
+  export class LinearRing extends Geometry {
+    constructor();
+    points: {
+      add(x: number, y: number, z?: number): void;
+    };
+  }
+
+  // Polygon (extends Geometry; built from one or more LinearRings)
+  export class Polygon extends Geometry {
+    constructor();
+    rings: {
+      add(ring: LinearRing): void;
+    };
   }
 
   // Feature
   export class Feature {
     constructor(layer: Layer);
     setGeometry(geometry: Geometry): void;
+    getGeometry(): Geometry | null;
   }
 
   // Layer
   export interface Layer {
     name: string;
+    srs: SpatialReference | null;
+    geomType: number;
     features: {
       add(feature: Feature): void;
+      count(): number;
+      forEach(callback: (feature: Feature) => void): void;
     };
   }
 
@@ -69,6 +93,8 @@ declare module 'gdal-async' {
   // Layers collection
   export interface Layers {
     create(name: string, srs: SpatialReference | null, geometryType: number): Layer;
+    count(): number;
+    get(index: number): Layer;
   }
 
   // Dataset
@@ -102,7 +128,10 @@ declare module 'gdal-async' {
     GDT_Int32: number;
     GDT_Float32: number;
     GDT_Float64: number;
+    GDT_Unknown: number;
+    wkbPoint: number;
     wkbPolygon: number;
+    wkbMultiPolygon: number;
 
     // Collections
     drivers: Drivers;
@@ -112,9 +141,12 @@ declare module 'gdal-async' {
     CoordinateTransformation: typeof CoordinateTransformation;
     Point: typeof Point;
     Geometry: typeof Geometry;
+    LinearRing: typeof LinearRing;
+    Polygon: typeof Polygon;
     Feature: typeof Feature;
 
     // Functions
+    open(path: string): Dataset;
     openAsync(path: string): Promise<Dataset>;
     rasterizeAsync(
       dataset: Dataset,
@@ -144,8 +176,12 @@ declare module 'gdal-async' {
   export const GDT_Int32: number;
   export const GDT_Float32: number;
   export const GDT_Float64: number;
+  export const GDT_Unknown: number;
+  export const wkbPoint: number;
   export const wkbPolygon: number;
+  export const wkbMultiPolygon: number;
   export const drivers: Drivers;
+  export function open(path: string): Dataset;
   export function openAsync(path: string): Promise<Dataset>;
   export function rasterizeAsync(
     dataset: Dataset,

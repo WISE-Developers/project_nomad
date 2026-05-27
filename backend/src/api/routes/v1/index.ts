@@ -9,6 +9,8 @@ import settingsRouter from './settings.js';
 import authProvidersRouter from './authProviders.js';
 import exportManifestRouter from './exportManifest.js';
 import importRouter from './import.js';
+import perimetersImportRouter from './perimetersImport.js';
+import splashRouter from './splash.js';
 import notificationsRouterFactory from './notifications.js';
 import { getNotificationPreferencesRepository } from '../../../infrastructure/database/index.js';
 
@@ -25,6 +27,8 @@ router.use(settingsRouter);       // /settings/:key
 router.use(authProvidersRouter);  // /auth/providers
 router.use(exportManifestRouter); // /models/:id/export-manifest
 router.use(importRouter);         // /import
+router.use(perimetersImportRouter); // /perimeters/import
+router.use(splashRouter);           // /splash
 
 // Lazy-init: getNotificationPreferencesRepository() must NOT run at import time
 // because dotenv hasn't loaded yet, causing wrong database path and double-init crash

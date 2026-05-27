@@ -1,10 +1,17 @@
 /**
  * GeometryUpload Component
  *
- * Upload GeoJSON or KML files to import geometry.
+ * Upload GeoJSON, KML, or Shapefile (zipped or raw multi-file) files to
+ * import geometry. Files are POSTed to the unified server endpoint
+ * /api/v1/perimeters/import which auto-detects format from filename.
+ *
+ * Shapefiles can be provided either as a single .zip bundle, or by selecting
+ * the raw .shp + sidecar files together; the component zips raw selections
+ * client-side before upload because the backend accepts a single file.
  */
 
 import React, { useState, useCallback, useRef } from 'react';
+import JSZip from 'jszip';
 import type { DrawnFeature } from '../../Map/types/geometry';
 
 export interface GeometryUploadProps {
@@ -39,135 +46,26 @@ const successStyle: React.CSSProperties = {
   marginTop: '8px',
 };
 
-/**
- * Parse GeoJSON file content
- */
-function parseGeoJSON(content: string): DrawnFeature[] {
-  const json = JSON.parse(content);
+const SHAPEFILE_SIDECAR_EXTENSIONS = ['shp', 'shx', 'dbf', 'prj', 'cpg', 'sbn', 'sbx'];
+const SINGLE_FILE_EXTENSIONS = ['json', 'geojson', 'kml', 'zip'];
 
-  // Handle FeatureCollection
-  if (json.type === 'FeatureCollection' && Array.isArray(json.features)) {
-    return json.features.filter((f: GeoJSON.Feature) => {
-      const type = f.geometry?.type;
-      return type === 'Point' || type === 'LineString' || type === 'Polygon';
-    });
+function getExtension(name: string): string {
+  return name.split('.').pop()?.toLowerCase() ?? '';
+}
+
+/** Zip a raw multi-file shapefile selection into a single Blob for upload. */
+async function zipShapefileFiles(files: File[]): Promise<Blob> {
+  const zip = new JSZip();
+  for (const f of files) {
+    // Pass the File/Blob directly — JSZip handles streaming the contents.
+    // (Avoid f.arrayBuffer() because some test environments lack it on File.)
+    zip.file(f.name, f);
   }
-
-  // Handle single Feature
-  if (json.type === 'Feature' && json.geometry) {
-    const type = json.geometry.type;
-    if (type === 'Point' || type === 'LineString' || type === 'Polygon') {
-      return [json];
-    }
-  }
-
-  // Handle raw geometry
-  if (json.type === 'Point' || json.type === 'LineString' || json.type === 'Polygon') {
-    return [
-      {
-        type: 'Feature',
-        id: `upload-${Date.now()}`,
-        properties: {},
-        geometry: json,
-      },
-    ];
-  }
-
-  throw new Error('Invalid GeoJSON format. Expected Feature, FeatureCollection, or geometry object.');
+  return zip.generateAsync({ type: 'blob' });
 }
 
 /**
- * Basic KML parser (simplified - handles Point, LineString, Polygon)
- */
-function parseKML(content: string): DrawnFeature[] {
-  const features: DrawnFeature[] = [];
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(content, 'text/xml');
-
-  // Helper to parse coordinate string
-  const parseCoords = (coordStr: string): number[][] => {
-    return coordStr
-      .trim()
-      .split(/\s+/)
-      .map((coord) => {
-        const parts = coord.split(',').map(Number);
-        return [parts[0], parts[1]]; // [lng, lat]
-      })
-      .filter((c) => !isNaN(c[0]) && !isNaN(c[1]));
-  };
-
-  // Extract Points
-  const points = doc.getElementsByTagName('Point');
-  for (let i = 0; i < points.length; i++) {
-    const coordsEl = points[i].getElementsByTagName('coordinates')[0];
-    if (coordsEl) {
-      const coords = parseCoords(coordsEl.textContent || '');
-      if (coords.length > 0) {
-        features.push({
-          type: 'Feature',
-          id: `kml-point-${i}`,
-          properties: { source: 'kml' },
-          geometry: {
-            type: 'Point',
-            coordinates: coords[0],
-          },
-        });
-      }
-    }
-  }
-
-  // Extract LineStrings
-  const lines = doc.getElementsByTagName('LineString');
-  for (let i = 0; i < lines.length; i++) {
-    const coordsEl = lines[i].getElementsByTagName('coordinates')[0];
-    if (coordsEl) {
-      const coords = parseCoords(coordsEl.textContent || '');
-      if (coords.length >= 2) {
-        features.push({
-          type: 'Feature',
-          id: `kml-line-${i}`,
-          properties: { source: 'kml' },
-          geometry: {
-            type: 'LineString',
-            coordinates: coords,
-          },
-        });
-      }
-    }
-  }
-
-  // Extract Polygons
-  const polygons = doc.getElementsByTagName('Polygon');
-  for (let i = 0; i < polygons.length; i++) {
-    const outerBoundary = polygons[i].getElementsByTagName('outerBoundaryIs')[0];
-    if (outerBoundary) {
-      const coordsEl = outerBoundary.getElementsByTagName('coordinates')[0];
-      if (coordsEl) {
-        const coords = parseCoords(coordsEl.textContent || '');
-        if (coords.length >= 3) {
-          features.push({
-            type: 'Feature',
-            id: `kml-polygon-${i}`,
-            properties: { source: 'kml' },
-            geometry: {
-              type: 'Polygon',
-              coordinates: [coords],
-            },
-          });
-        }
-      }
-    }
-  }
-
-  if (features.length === 0) {
-    throw new Error('No valid geometries found in KML file');
-  }
-
-  return features;
-}
-
-/**
- * Component for uploading geometry files
+ * Component for uploading geometry files (GeoJSON / KML / Shapefile).
  */
 export function GeometryUpload({ onUpload }: GeometryUploadProps) {
   const [isDragActive, setIsDragActive] = useState(false);
@@ -175,45 +73,92 @@ export function GeometryUpload({ onUpload }: GeometryUploadProps) {
   const [success, setSuccess] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const processFile = useCallback(
-    async (file: File) => {
+  const postFile = useCallback(
+    async (uploadFile: File | Blob, fileName: string) => {
+      const form = new FormData();
+      form.append('file', uploadFile, fileName);
+      const res = await fetch('/api/v1/perimeters/import', { method: 'POST', body: form });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        const msg =
+          body?.error?.details?.fieldErrors?.[0]?.message ??
+          body?.error?.message ??
+          'Failed to validate file';
+        setError(msg);
+        return;
+      }
+
+      const fc = (await res.json()) as { features: DrawnFeature[] };
+      const features = fc.features.map((f) => ({
+        ...f,
+        properties: {
+          ...f.properties,
+          inputMethod: 'upload',
+          fileName,
+        },
+      }));
+
+      setSuccess(`Successfully loaded ${features.length} feature(s) from ${fileName}`);
+      onUpload(features);
+    },
+    [onUpload]
+  );
+
+  const processFiles = useCallback(
+    async (files: File[]) => {
       setError('');
       setSuccess('');
 
-      const extension = file.name.split('.').pop()?.toLowerCase();
+      if (files.length === 0) return;
 
-      if (!['json', 'geojson', 'kml'].includes(extension || '')) {
-        setError('Unsupported file format. Please use GeoJSON (.json, .geojson) or KML (.kml)');
+      // Multi-file selection — assumed to be a raw shapefile bundle.
+      if (files.length > 1) {
+        const extensions = files.map((f) => getExtension(f.name));
+        if (!extensions.includes('shp')) {
+          setError(
+            'Multi-file uploads must include a .shp file (with sidecars: .shx, .dbf, .prj).'
+          );
+          return;
+        }
+        try {
+          const baseName = files.find((f) => getExtension(f.name) === 'shp')!.name.replace(
+            /\.shp$/i,
+            ''
+          );
+          const zipBlob = await zipShapefileFiles(files);
+          await postFile(zipBlob, `${baseName}.zip`);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to upload shapefile bundle');
+        }
+        return;
+      }
+
+      // Single-file selection — must be one of the supported single-file formats.
+      const file = files[0];
+      const extension = getExtension(file.name);
+
+      if (extension === 'shp') {
+        setError(
+          "A single .shp file isn't enough \u2014 also select its .shx, .dbf, and .prj sidecars together, or upload a .zip bundle."
+        );
+        return;
+      }
+
+      if (!SINGLE_FILE_EXTENSIONS.includes(extension)) {
+        setError(
+          'Unsupported file format. Please use GeoJSON (.json, .geojson), KML (.kml), or Shapefile (.zip).'
+        );
         return;
       }
 
       try {
-        const content = await file.text();
-        let features: DrawnFeature[];
-
-        if (extension === 'kml') {
-          features = parseKML(content);
-        } else {
-          features = parseGeoJSON(content);
-        }
-
-        // Add input method to properties
-        features = features.map((f) => ({
-          ...f,
-          properties: {
-            ...f.properties,
-            inputMethod: 'upload',
-            fileName: file.name,
-          },
-        }));
-
-        setSuccess(`Successfully loaded ${features.length} feature(s) from ${file.name}`);
-        onUpload(features);
+        await postFile(file, file.name);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to parse file');
+        setError(err instanceof Error ? err.message : 'Failed to upload file');
       }
     },
-    [onUpload]
+    [postFile]
   );
 
   const handleDrop = useCallback(
@@ -221,12 +166,12 @@ export function GeometryUpload({ onUpload }: GeometryUploadProps) {
       e.preventDefault();
       setIsDragActive(false);
 
-      const file = e.dataTransfer.files[0];
-      if (file) {
-        processFile(file);
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length > 0) {
+        processFiles(files);
       }
     },
-    [processFile]
+    [processFiles]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -245,13 +190,18 @@ export function GeometryUpload({ onUpload }: GeometryUploadProps) {
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        processFile(file);
+      const files = Array.from(e.target.files ?? []);
+      if (files.length > 0) {
+        processFiles(files);
       }
     },
-    [processFile]
+    [processFiles]
   );
+
+  const acceptAttr = [
+    ...SINGLE_FILE_EXTENSIONS.map((e) => `.${e}`),
+    ...SHAPEFILE_SIDECAR_EXTENSIONS.map((e) => `.${e}`),
+  ].join(',');
 
   return (
     <div style={{ padding: '16px' }}>
@@ -265,16 +215,21 @@ export function GeometryUpload({ onUpload }: GeometryUploadProps) {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".json,.geojson,.kml"
+          accept={acceptAttr}
+          multiple
           onChange={handleFileChange}
           style={{ display: 'none' }}
+          title="Upload GeoJSON, KML, or Shapefile (zip or .shp + sidecars)"
         />
-        <div style={{ fontSize: '24px', marginBottom: '8px', color: '#666' }}><i className="fa-solid fa-folder-open" /></div>
+        <div style={{ fontSize: '24px', marginBottom: '8px', color: '#666' }}>
+          <i className="fa-solid fa-folder-open" />
+        </div>
         <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#333' }}>
           {isDragActive ? 'Drop file here' : 'Click or drag file to upload'}
         </div>
         <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
-          Supports GeoJSON (.json, .geojson) and KML (.kml)
+          Supports GeoJSON (.json, .geojson), KML (.kml), and Shapefile (.zip, or
+          select .shp + sidecars together)
         </div>
       </div>
 
