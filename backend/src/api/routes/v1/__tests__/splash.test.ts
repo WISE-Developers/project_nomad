@@ -37,7 +37,6 @@ describe('GET /api/v1/splash', () => {
     splashFile = path.join(tmpDir, 'splash.md');
     delete process.env.NOMAD_SPLASH_ENABLED;
     delete process.env.NOMAD_SPLASH_PATH;
-    delete process.env.NOMAD_DATA_PATH;
   });
 
   afterEach(() => {
