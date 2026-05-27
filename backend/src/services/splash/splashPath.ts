@@ -13,16 +13,13 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// __dirname at runtime: dist/services/splash. Default file lives at
-// backend/data/default-splash.md relative to the backend root.
-// From dist/services/splash -> ../../../data/default-splash.md (backend/data)
-// From src/services/splash -> ../../../data/default-splash.md (backend/data)
+// __dirname at runtime resolves to either src/services/splash (vitest) or
+// dist/services/splash (built). In both cases the asset is colocated with
+// this module under ./assets/default-splash.md so the same relative path
+// works in test and production.
 export const DEFAULT_SPLASH_PATH = path.resolve(
   __dirname,
-  '..',
-  '..',
-  '..',
-  'data',
+  'assets',
   'default-splash.md',
 );
 
