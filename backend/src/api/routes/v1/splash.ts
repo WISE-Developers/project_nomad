@@ -47,7 +47,6 @@ router.get('/splash', (_req, res) => {
 
   const filePath = resolveSplashPath({
     NOMAD_SPLASH_PATH: process.env.NOMAD_SPLASH_PATH,
-    NOMAD_DATA_PATH: process.env.NOMAD_DATA_PATH,
   });
 
   let parsed = tryReadAndParse(filePath);

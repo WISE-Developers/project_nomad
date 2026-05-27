@@ -3,8 +3,12 @@
  *
  * Precedence:
  *   1. NOMAD_SPLASH_PATH (absolute file path)
- *   2. NOMAD_DATA_PATH/splash.md
- *   3. backend/data/default-splash.md (bundled default)
+ *   2. backend/src/services/splash/assets/default-splash.md (bundled default)
+ *
+ * Intentionally does NOT derive from NOMAD_DATA_PATH — that var is for
+ * runtime data (sim outputs, sqlite db) and is conceptually separate from
+ * app-level config like splash content. To customise the splash, set
+ * NOMAD_SPLASH_PATH explicitly.
  */
 
 import path from 'path';
@@ -25,11 +29,9 @@ export const DEFAULT_SPLASH_PATH = path.resolve(
 
 export interface SplashEnv {
   NOMAD_SPLASH_PATH?: string;
-  NOMAD_DATA_PATH?: string;
 }
 
 export function resolveSplashPath(env: SplashEnv): string {
   if (env.NOMAD_SPLASH_PATH) return env.NOMAD_SPLASH_PATH;
-  if (env.NOMAD_DATA_PATH) return path.join(env.NOMAD_DATA_PATH, 'splash.md');
   return DEFAULT_SPLASH_PATH;
 }

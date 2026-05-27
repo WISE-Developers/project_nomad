@@ -1,34 +1,33 @@
 /**
- * Tests for splash file path resolution (refs #275).
+ * Tests for resolveSplashPath (refs #275).
+ *
+ * Precedence-only: NOMAD_SPLASH_PATH overrides everything, otherwise
+ * the bundled default file path is returned.
  */
 
 import { describe, it, expect } from 'vitest';
-import path from 'path';
-import { resolveSplashPath, DEFAULT_SPLASH_PATH } from '../splashPath.js';
+import { resolveSplashPath, DEFAULT_SPLASH_PATH } from '../splashPath';
 
 describe('resolveSplashPath', () => {
   it('returns NOMAD_SPLASH_PATH when set', () => {
-    expect(resolveSplashPath({ NOMAD_SPLASH_PATH: '/etc/nomad/splash.md' }))
-      .toBe('/etc/nomad/splash.md');
+    const p = resolveSplashPath({ NOMAD_SPLASH_PATH: '/etc/nomad/custom-splash.md' });
+    expect(p).toBe('/etc/nomad/custom-splash.md');
   });
 
-  it('falls back to NOMAD_DATA_PATH/splash.md when NOMAD_SPLASH_PATH not set', () => {
-    expect(resolveSplashPath({ NOMAD_DATA_PATH: '/var/nomad' }))
-      .toBe(path.join('/var/nomad', 'splash.md'));
+  it('returns the bundled default when no override is set', () => {
+    const p = resolveSplashPath({});
+    expect(p).toBe(DEFAULT_SPLASH_PATH);
   });
 
-  it('prefers NOMAD_SPLASH_PATH over NOMAD_DATA_PATH', () => {
-    expect(resolveSplashPath({
-      NOMAD_SPLASH_PATH: '/explicit/splash.md',
-      NOMAD_DATA_PATH: '/data',
-    })).toBe('/explicit/splash.md');
+  it('does not derive from NOMAD_DATA_PATH (data vs config separation)', () => {
+    // NOMAD_DATA_PATH is for runtime data (sims, db, outputs) and must never
+    // be used as a splash content source. The SplashEnv type should not
+    // accept it either — passing it as an extra key is silently ignored.
+    const p = resolveSplashPath({ NOMAD_SPLASH_PATH: undefined } as any);
+    expect(p).toBe(DEFAULT_SPLASH_PATH);
   });
 
-  it('falls back to bundled default when neither env var set', () => {
-    expect(resolveSplashPath({})).toBe(DEFAULT_SPLASH_PATH);
-  });
-
-  it('DEFAULT_SPLASH_PATH points at backend/data/default-splash.md', () => {
-    expect(DEFAULT_SPLASH_PATH).toMatch(/default-splash\.md$/);
+  it('DEFAULT_SPLASH_PATH points to the colocated assets/default-splash.md', () => {
+    expect(DEFAULT_SPLASH_PATH).toMatch(/[\\/]assets[\\/]default-splash\.md$/);
   });
 });
