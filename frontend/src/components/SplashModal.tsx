@@ -9,6 +9,7 @@
 
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
+import './SplashModal.css';
 
 export interface SplashModalProps {
   title: string;
@@ -41,12 +42,6 @@ const modalStyle: React.CSSProperties = {
   boxShadow: '0 20px 60px rgba(0, 0, 0, 0.6)',
 };
 
-const headingStyle: React.CSSProperties = {
-  marginTop: 0,
-  marginBottom: '16px',
-  fontSize: '24px',
-};
-
 const buttonStyle: React.CSSProperties = {
   marginTop: '24px',
   padding: '10px 24px',
@@ -63,7 +58,7 @@ export function SplashModal({ title, body, onDismiss }: SplashModalProps): React
   return (
     <div style={overlayStyle} role="dialog" aria-modal="true" aria-label={title}>
       <div style={modalStyle}>
-        <h1 style={headingStyle}>{title}</h1>
+        <h1 className="splash-modal-title">{title}</h1>
         <div className="splash-modal-body">
           <ReactMarkdown>{body}</ReactMarkdown>
         </div>
