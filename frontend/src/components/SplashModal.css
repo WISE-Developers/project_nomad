@@ -61,3 +61,11 @@
 .splash-modal-body strong {
   font-weight: 700;
 }
+
+.splash-modal-body img {
+  display: block;
+  max-width: 200px;
+  width: 100%;
+  height: auto;
+  margin: 0 auto 16px auto;
+}

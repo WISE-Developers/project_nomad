@@ -2,6 +2,8 @@
 title: Welcome to Project Nomad
 ---
 
+![Nomad](/nomad-logo.png)
+
 ## What's new
 
 - Shapefile and KML perimeter import (zipped or raw multi-file)
