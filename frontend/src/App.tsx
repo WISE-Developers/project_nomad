@@ -31,6 +31,7 @@ import { OpenNomadProvider, createDefaultAdapter, useOpenNomad } from './openNom
 import { DashboardContainer } from './features/Dashboard';
 import { SettingsModal } from './features/Settings/SettingsModal';
 import { AboutModal } from './components/AboutModal';
+import { ContentSplashGate } from './components/ContentSplashGate';
 
 /**
  * Calculate bounding box from GeoJSON
@@ -696,6 +697,7 @@ function App() {
       <OpenNomadProvider adapter={openNomadAdapter}>
         <div style={{ width: '100vw', height: '100vh' }}>
           {showSplash && <SplashScreen onEnter={handleEnter} />}
+          {!showSplash && <ContentSplashGate />}
           <MapProvider>
             <MapContainer
               options={{
