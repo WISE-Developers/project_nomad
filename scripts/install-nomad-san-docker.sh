@@ -56,10 +56,26 @@ NOMAD_BACKEND_HOST_PORT="${NOMAD_BACKEND_HOST_PORT:-4901}"
 NOMAD_SERVER_HOSTNAME="${NOMAD_SERVER_HOSTNAME:-localhost}"
 
 # FireSTARR image configuration
+#
+# Docker default is pinned by digest to a verified-working build (v0.9.11,
+# revision 7070574b46, published 2026-05-13 on the main channel). FireSTARR
+# v0.9.12-alpha-2 introduced an x/y transpose regression — see
+# https://github.com/CWFMF/firestarr-cpp/issues/17. Bump when fixed upstream.
 FIRESTARR_REGISTRY="${FIRESTARR_REGISTRY:-ghcr.io/cwfmf/firestarr-cpp}"
 FIRESTARR_IMAGE_NAME="${FIRESTARR_IMAGE_NAME:-firestarr}"
-FIRESTARR_IMAGE_TAG="${FIRESTARR_IMAGE_TAG:-unstable-latest}"
-FIRESTARR_IMAGE_TAG_ARM64="${FIRESTARR_IMAGE_TAG_ARM64:-unstable-latest}"
+FIRESTARR_IMAGE_TAG="${FIRESTARR_IMAGE_TAG:-sha256:b4f8ca8b2ced7c3424191d28e8781d4c766e2664120ecbcb63591811820f257d}"
+FIRESTARR_IMAGE_TAG_ARM64="${FIRESTARR_IMAGE_TAG_ARM64:-main-latest}"
+
+# Build a fully-qualified image reference. Treats values starting with
+# "sha256:" as digest pins (uses "@") and everything else as tags (uses ":").
+firestarr_image_ref() {
+    local ref="$1"
+    if [[ "$ref" == sha256:* ]]; then
+        echo "${FIRESTARR_REGISTRY}/${FIRESTARR_IMAGE_NAME}@${ref}"
+    else
+        echo "${FIRESTARR_REGISTRY}/${FIRESTARR_IMAGE_NAME}:${ref}"
+    fi
+}
 
 # Derived paths
 NOMAD_DATA_PATH="${NOMAD_DATA_PATH:-$FIRESTARR_DATASET_PATH}"
@@ -77,17 +93,16 @@ VERSION="${VERSION:-latest}"
 detect_architecture() {
     local arch
     arch=$(uname -m)
-    local base_image="${FIRESTARR_REGISTRY}/${FIRESTARR_IMAGE_NAME}"
 
     case "$arch" in
         arm64|aarch64)
-            FIRESTARR_IMAGE="${base_image}:${FIRESTARR_IMAGE_TAG_ARM64}"
+            FIRESTARR_IMAGE="$(firestarr_image_ref "$FIRESTARR_IMAGE_TAG_ARM64")"
             ;;
         x86_64)
-            FIRESTARR_IMAGE="${base_image}:${FIRESTARR_IMAGE_TAG}"
+            FIRESTARR_IMAGE="$(firestarr_image_ref "$FIRESTARR_IMAGE_TAG")"
             ;;
         *)
-            FIRESTARR_IMAGE="${base_image}:${FIRESTARR_IMAGE_TAG}"
+            FIRESTARR_IMAGE="$(firestarr_image_ref "$FIRESTARR_IMAGE_TAG")"
             ;;
     esac
 }
