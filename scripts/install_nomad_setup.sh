@@ -16,13 +16,34 @@ set -e
 INSTALLER_VERSION="2.1.1"
 
 # FireSTARR image and binary source configuration
-# Docker and binaries both track unstable-latest so the two install paths stay on the same build.
+#
+# Docker default is pinned by digest to a verified-working build (v0.9.11,
+# revision 7070574b46, published 2026-05-13 on the main channel). FireSTARR
+# v0.9.12-alpha-2 introduced an x/y transpose regression that places every
+# output at a consistent geographic offset from the input ignition — see
+# https://github.com/CWFMF/firestarr-cpp/issues/17. Bump this digest when
+# the upstream fix is verified.
+#
+# ARM64 docker is left on `main-latest` (rolling) because most ARM64 users
+# run metal mode; binary release tag is unchanged.
+#
 # See: https://github.com/WISE-Developers/project_nomad/issues/184
 FIRESTARR_REGISTRY="ghcr.io/cwfmf/firestarr-cpp"
 FIRESTARR_IMAGE_NAME="firestarr"
-FIRESTARR_IMAGE_TAG="${FIRESTARR_IMAGE_TAG:-unstable-latest}"
-FIRESTARR_IMAGE_TAG_ARM64="${FIRESTARR_IMAGE_TAG_ARM64:-unstable-latest}"
+FIRESTARR_IMAGE_TAG="${FIRESTARR_IMAGE_TAG:-sha256:b4f8ca8b2ced7c3424191d28e8781d4c766e2664120ecbcb63591811820f257d}"
+FIRESTARR_IMAGE_TAG_ARM64="${FIRESTARR_IMAGE_TAG_ARM64:-main-latest}"
 FIRESTARR_BINARY_RELEASE_TAG="${FIRESTARR_BINARY_RELEASE_TAG:-unstable-latest}"
+
+# Build a fully-qualified image reference. Treats values starting with
+# "sha256:" as digest pins (uses "@") and everything else as tags (uses ":").
+firestarr_image_ref() {
+    local ref="$1"
+    if [[ "$ref" == sha256:* ]]; then
+        echo "${FIRESTARR_REGISTRY}/${FIRESTARR_IMAGE_NAME}@${ref}"
+    else
+        echo "${FIRESTARR_REGISTRY}/${FIRESTARR_IMAGE_NAME}:${ref}"
+    fi
+}
 FIRESTARR_BINARY_RELEASE_REPO="https://github.com/CWFMF/firestarr-cpp/releases/download"
 FIRESTARR_BINARY_ASSET_MACOS="firestarr-macos-arm64-clang-Release.tar.gz"
 FIRESTARR_BINARY_ASSET_LINUX="firestarr-ubuntu-x64-gcc-Release.tar.gz"
@@ -1081,21 +1102,20 @@ detect_architecture() {
     fi
 
     # Determine recommended image based on detection
-    local base_image="${FIRESTARR_REGISTRY}/${FIRESTARR_IMAGE_NAME}"
     case "$arch" in
         arm64|aarch64)
-            RECOMMENDED_IMAGE="${base_image}:${FIRESTARR_IMAGE_TAG_ARM64}"
+            RECOMMENDED_IMAGE="$(firestarr_image_ref "$FIRESTARR_IMAGE_TAG_ARM64")"
             ;;
         x86_64)
             if [ "$DETECTED_AVX2" = true ] || [ "$DETECTED_AVX" = true ]; then
-                RECOMMENDED_IMAGE="${base_image}:${FIRESTARR_IMAGE_TAG}"
+                RECOMMENDED_IMAGE="$(firestarr_image_ref "$FIRESTARR_IMAGE_TAG")"
             else
                 # No AVX - cannot run FireSTARR
                 RECOMMENDED_IMAGE=""
             fi
             ;;
         *)
-            RECOMMENDED_IMAGE="${base_image}:${FIRESTARR_IMAGE_TAG}"
+            RECOMMENDED_IMAGE="$(firestarr_image_ref "$FIRESTARR_IMAGE_TAG")"
             ;;
     esac
 }
@@ -1143,9 +1163,10 @@ configure_firestarr_image() {
     local expanded_image
     expanded_image=$(eval echo "$RECOMMENDED_IMAGE")
 
-    local base_image="${FIRESTARR_REGISTRY}/${FIRESTARR_IMAGE_NAME}"
-    local image_x64="${base_image}:${FIRESTARR_IMAGE_TAG}"
-    local image_arm64="${base_image}:${FIRESTARR_IMAGE_TAG_ARM64}"
+    local image_x64
+    local image_arm64
+    image_x64="$(firestarr_image_ref "$FIRESTARR_IMAGE_TAG")"
+    image_arm64="$(firestarr_image_ref "$FIRESTARR_IMAGE_TAG_ARM64")"
 
     echo "Available FireSTARR images:"
     echo ""
