@@ -4,10 +4,20 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.10.0
+## v0.10.1
+
+### 2026-05-28
+
+- [`c86fb6c`](https://github.com/WISE-Developers/project_nomad/commit/c86fb6c48eeb023e342abd95c5b0c399f28846e8) Merge pull request #278 from WISE-Developers/dev — *Franco Nogarin, 06:16*
+- [`6c70f78`](https://github.com/WISE-Developers/project_nomad/commit/6c70f787ab903448919e1fc4b8c8263ed78dec92) chore: dev build 1 [skip ci] — *github-actions[bot], 12:15*
+- [`3e42cc3`](https://github.com/WISE-Developers/project_nomad/commit/3e42cc3605b6875f76e28783a05d575ded15b8b1) Merge branch 'fix/firestarr-pin-known-good-digest' into dev — *Franco Nogarin, 06:14*
+- [`07b1780`](https://github.com/WISE-Developers/project_nomad/commit/07b1780977e5606eefb8c1fec59d5500885ca5a9) fix(installer): pin FireSTARR digest in sibling installers + add --demo — *Franco Nogarin, 06:14*
 
 ### 2026-05-27
 
+- [`87c3c5b`](https://github.com/WISE-Developers/project_nomad/commit/87c3c5bff4ca59395b79379e909063bb942e1766) fix(installer): pin FireSTARR docker default to verified-good v0.9.11 digest — *Franco Nogarin, 20:43*
+- [`f9caf41`](https://github.com/WISE-Developers/project_nomad/commit/f9caf41aeab91e21de0219b839c73f9af3caacc4) chore: reset dev build counter after v0.10.0 [skip ci] — *github-actions[bot], 15:44*
+- [`072c834`](https://github.com/WISE-Developers/project_nomad/commit/072c834b62f141fdf3d183c8706cb8ebaabd8ae9) chore: release v0.10.0 [skip ci] — *github-actions[bot], 15:43*
 - [`1a74260`](https://github.com/WISE-Developers/project_nomad/commit/1a742600d4fdc0efc9a05464d2fa5c0ccd08c628) Merge pull request #277 from WISE-Developers/dev — *Franco Nogarin, 09:43*
 - [`0822823`](https://github.com/WISE-Developers/project_nomad/commit/0822823b23a65cb52873e0cb7aa6ba1664d78dc0) chore: dev build 16 [skip ci] — *github-actions[bot], 15:30*
 - [`a6a960d`](https://github.com/WISE-Developers/project_nomad/commit/a6a960db26fec9ff61787230a5e1ff619e043590) fix(splash): use git tag commit date as release date, not build date (#275) — *Franco Nogarin, 09:30*
