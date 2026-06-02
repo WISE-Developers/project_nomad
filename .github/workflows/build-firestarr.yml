@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Checkout Nomad (for Dockerfile)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download FireSTARR release
         run: |
@@ -73,7 +73,7 @@ jobs:
 
     steps:
       - name: Checkout Nomad (for Dockerfile)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download FireSTARR release
         run: |
