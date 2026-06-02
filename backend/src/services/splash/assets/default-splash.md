@@ -1,8 +1,11 @@
 ---
-title: Welcome to Project Nomad
+title: Welcome to
 ---
 
 ![Nomad](/nomad-logo.png)
+
+## Note
+An upstream bug in FireSTARR is on the unstable-latest version so this Nomad demo is pinned to FireSTARR v0.9.11 [7070574b46]
 
 ## What's new
 - Shapefile and KML perimeter import (zipped or raw multi-file)
