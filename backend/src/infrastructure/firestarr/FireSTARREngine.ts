@@ -600,10 +600,12 @@ export class FireSTARREngine implements IFireModelingEngine {
       // Use pre-resolved weather data
       weatherPoints = options.weatherData;
     } else if (options.weatherConfig) {
-      // Resolve weather from config
+      // Resolve weather from config. Forward the simulation IANA timezone so
+      // bare-timestamp CSV rows are parsed in the sim's zone, not the server's
+      // (refs #273).
       const weatherService = getWeatherService();
       weatherPoints = await weatherService.resolveWeather(
-        options.weatherConfig,
+        { ...options.weatherConfig, timezone: options.timezone },
         { latitude, longitude },
         { start: options.timeRange.start, end: options.timeRange.end }
       );
@@ -633,7 +635,8 @@ export class FireSTARREngine implements IFireModelingEngine {
     // Use weather data's source year, not the user-selected year (#147)
     // FireSTARR needs the date to match the weather data's actual year
     const weatherYear = firstPoint.datetime.getFullYear();
-    const startDate = new Date(options.timeRange.start);
+    // Defensive copy — setFullYear below mutates this Date.
+    const startDate = new Date(options.timeRange.start.getTime());
     startDate.setFullYear(weatherYear);
 
     // Calculate output date offsets based on simulation duration

@@ -16,6 +16,7 @@ import {
   ModelResultId,
 } from '../../../domain/entities/index.js';
 import { NotFoundError } from '../../../domain/errors/index.js';
+import { parseDbTimestamp } from '../../../shared/dateParsing.js';
 import {
   IModelRepository,
   ModelFilter,
@@ -45,8 +46,8 @@ function rowToModel(row: ModelRow): FireModel {
     name: row.name,
     engineType: row.engine_type as EngineType,
     status: row.status as ModelStatus,
-    createdAt: new Date(row.created_at),
-    updatedAt: new Date(row.updated_at),
+    createdAt: parseDbTimestamp(row.created_at, 'models.created_at'),
+    updatedAt: parseDbTimestamp(row.updated_at, 'models.updated_at'),
     userId: row.user_id ?? undefined,
     notes: row.notes ?? undefined,
     outputMode: row.output_mode ?? undefined,

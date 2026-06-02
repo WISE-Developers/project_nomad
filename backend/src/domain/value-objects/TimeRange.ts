@@ -1,4 +1,5 @@
 import { ValidationError } from '../errors/index.js';
+import { parseIsoToDate } from '../../shared/dateParsing.js';
 
 /**
  * Immutable value object representing a time range with start, end, and duration.
@@ -40,12 +41,16 @@ export class TimeRange {
    * Creates a TimeRange from ISO string dates
    */
   static fromISO(startISO: string, endISO: string): TimeRange {
-    const start = new Date(startISO);
-    const end = new Date(endISO);
-    if (isNaN(start.getTime())) {
+    let start: Date;
+    let end: Date;
+    try {
+      start = parseIsoToDate(startISO, 'TimeRange.fromISO start');
+    } catch {
       throw new Error(`Invalid start date: ${startISO}`);
     }
-    if (isNaN(end.getTime())) {
+    try {
+      end = parseIsoToDate(endISO, 'TimeRange.fromISO end');
+    } catch {
       throw new Error(`Invalid end date: ${endISO}`);
     }
     return new TimeRange(start, end);

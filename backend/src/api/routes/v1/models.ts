@@ -27,6 +27,7 @@ import { getJobQueue } from '../../../infrastructure/services/JobQueue.js';
 import { getModelRepository, getResultRepository } from '../../../infrastructure/database/index.js';
 import type { ExecutionOptions, ModelMode } from '../../../application/interfaces/IFireModelingEngine.js';
 import type { WeatherConfig } from '../../../infrastructure/weather/types.js';
+import { parseIsoToDate } from '../../../shared/dateParsing.js';
 
 const VALID_MODEL_MODES: ModelMode[] = ['probabilistic', 'deterministic', 'long-term-risk'];
 
@@ -166,8 +167,8 @@ router.post(
       coordinates: body.ignition.coordinates,
     });
     const timeRange = new TimeRange(
-      new Date(body.timeRange.start),
-      new Date(body.timeRange.end)
+      parseIsoToDate(body.timeRange.start, 'POST /models body.timeRange.start'),
+      parseIsoToDate(body.timeRange.end, 'POST /models body.timeRange.end'),
     );
 
     // Create model with queued status (skip draft)
@@ -596,8 +597,8 @@ router.post(
 
     // Create time range
     const timeRange = new TimeRange(
-      new Date(body.timeRange.start),
-      new Date(body.timeRange.end)
+      parseIsoToDate(body.timeRange.start, 'POST /models/:id/execute body.timeRange.start'),
+      parseIsoToDate(body.timeRange.end, 'POST /models/:id/execute body.timeRange.end'),
     );
 
     // Build execution options
@@ -1578,8 +1579,8 @@ router.get(
           const jan1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
           return Math.floor((d.getTime() - jan1.getTime()) / 86_400_000) + 1;
         };
-        startJulian = dayOfYear(new Date(raw.timeRange.start));
-        endJulian = dayOfYear(new Date(raw.timeRange.end));
+        startJulian = dayOfYear(parseIsoToDate(raw.timeRange.start, 'arrival tile raw.timeRange.start'));
+        endJulian = dayOfYear(parseIsoToDate(raw.timeRange.end, 'arrival tile raw.timeRange.end'));
       }
     } catch { /* use file-derived values */ }
 

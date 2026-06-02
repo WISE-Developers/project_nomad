@@ -2,6 +2,7 @@ import { execSync } from 'child_process';
 import { mkdtempSync, readFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { parseIsoToDate } from '../../shared/dateParsing.js';
 
 /**
  * Arrival-perimeter animation helpers (refs #236).
@@ -203,7 +204,7 @@ export function toAnimationFeatureCollection(
       type: 'Feature',
       properties: {
         offsetHours: dn,
-        isoTime: new Date(startMs + dn * 3_600_000).toISOString(),
+        isoTime: new Date(startMs + dn * 3_600_000).toISOString(), // new-date-allowed: epoch ms + offset
       },
       geometry: feature.geometry,
     });
@@ -251,7 +252,7 @@ export function toFireSTARRRasterJulianDay(date: Date): number {
  */
 export function julianToDate(julianDay: number, year: number): Date {
   const yearStartMs = Date.UTC(year, 0, 1, 0, 0, 0, 0);
-  return new Date(yearStartMs + (julianDay - 1) * 86_400_000);
+  return new Date(yearStartMs + (julianDay - 1) * 86_400_000); // new-date-allowed: epoch ms math
 }
 
 /**
@@ -297,9 +298,12 @@ export function extractSimTimeRange(config: unknown): SimTimeRange {
   if (!timeRange || typeof timeRange.start !== 'string' || typeof timeRange.end !== 'string') {
     throw new Error('Config is missing timeRange.start or timeRange.end');
   }
-  const simStart = new Date(timeRange.start);
-  const end = new Date(timeRange.end);
-  if (Number.isNaN(simStart.getTime()) || Number.isNaN(end.getTime())) {
+  let simStart: Date;
+  let end: Date;
+  try {
+    simStart = parseIsoToDate(timeRange.start, 'arrivalAnimation timeRange.start');
+    end = parseIsoToDate(timeRange.end, 'arrivalAnimation timeRange.end');
+  } catch {
     throw new Error(`Invalid timeRange dates: start=${timeRange.start} end=${timeRange.end}`);
   }
   const durationHours = (end.getTime() - simStart.getTime()) / 3_600_000;
@@ -317,7 +321,7 @@ export function computeAnimationFrames(
   for (let offset = 1; offset <= count; offset++) {
     frames.push({
       offsetHours: offset,
-      isoTime: new Date(startMs + offset * 3_600_000).toISOString(),
+      isoTime: new Date(startMs + offset * 3_600_000).toISOString(), // new-date-allowed: epoch ms + offset
     });
   }
   return frames;

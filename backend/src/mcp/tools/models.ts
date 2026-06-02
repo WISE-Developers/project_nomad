@@ -17,6 +17,7 @@ import {
   GeometryType,
 } from '../../domain/entities/index.js';
 import { getModelRepository } from '../../infrastructure/database/index.js';
+import { parseIsoToDate } from '../../shared/dateParsing.js';
 import {
   modelNotFound,
   invalidCoordinates,
@@ -264,14 +265,17 @@ export function registerModelTools(server: McpServer): void {
       const model = await repo.findById(createFireModelId(modelId));
       if (!model) return modelNotFound(modelId);
 
-      // Validate both dates
-      const parsedStart = new Date(startTime);
-      if (isNaN(parsedStart.getTime())) {
+      // Validate both dates (strict ISO with offset, per parseIsoToDate)
+      let parsedStart: Date;
+      let parsedEnd: Date;
+      try {
+        parsedStart = parseIsoToDate(startTime, 'MCP set_time_range startTime');
+      } catch {
         return invalidParameter('startTime', `'${startTime}' is not a valid ISO 8601 date.`, startTime);
       }
-
-      const parsedEnd = new Date(endTime);
-      if (isNaN(parsedEnd.getTime())) {
+      try {
+        parsedEnd = parseIsoToDate(endTime, 'MCP set_time_range endTime');
+      } catch {
         return invalidParameter('endTime', `'${endTime}' is not a valid ISO 8601 date.`, endTime);
       }
 

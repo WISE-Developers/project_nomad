@@ -13,6 +13,11 @@ import {
   computeDefaultStartDate,
   computeWeatherDateRange,
 } from '../utils/computeTemporalDefaults.js';
+import {
+  getTodayDate,
+  getYesterdayDate,
+  getFireSeasonStartDate,
+} from '../utils/dateHelpers.js';
 
 const containerStyle: React.CSSProperties = {
   display: 'flex',
@@ -127,37 +132,6 @@ const quickSelectActiveStyle: React.CSSProperties = {
 };
 
 const DURATION_PRESETS = [24, 48, 72, 120, 168];
-
-// Fire season typically starts in April in Canada
-const FIRE_SEASON_START_MONTH = 3; // April (0-indexed)
-const FIRE_SEASON_START_DAY = 1;
-
-/**
- * Get today's date in YYYY-MM-DD format
- */
-function getTodayDate(): string {
-  const today = new Date();
-  return today.toISOString().split('T')[0];
-}
-
-/**
- * Get yesterday's date in YYYY-MM-DD format
- */
-function getYesterdayDate(): string {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  return yesterday.toISOString().split('T')[0];
-}
-
-/**
- * Get start of fire season date in YYYY-MM-DD format
- */
-function getFireSeasonStartDate(): string {
-  const now = new Date();
-  const year = now.getMonth() < FIRE_SEASON_START_MONTH ? now.getFullYear() : now.getFullYear();
-  const fireSeasonStart = new Date(year, FIRE_SEASON_START_MONTH, FIRE_SEASON_START_DAY);
-  return fireSeasonStart.toISOString().split('T')[0];
-}
 
 
 /**

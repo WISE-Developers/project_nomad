@@ -6,6 +6,7 @@
  */
 
 import { ffmc, dmc, dc, isi, bui, fwi } from 'cffdrs';
+import { DateTime, IANAZone } from 'luxon';
 import type {
   WeatherConfig,
   FWIStartingCodes,
@@ -13,6 +14,19 @@ import type {
   WeatherLocation,
   WeatherDateRange,
 } from './types.js';
+
+/**
+ * Parses a bare-timestamp string (FireSTARR "YYYY-MM-DD HH:mm:ss" or ISO-ish
+ * "YYYY-MM-DDTHH:mm:ss") against an explicit IANA timezone. The CSV format
+ * carries no offset, so the zone MUST be supplied externally.
+ */
+function parseTimestampInZone(raw: string, zone: string): Date {
+  const sql = DateTime.fromSQL(raw, { zone });
+  if (sql.isValid) return sql.toJSDate();
+  const iso = DateTime.fromISO(raw, { zone });
+  if (iso.isValid) return iso.toJSDate();
+  throw new Error(`Unparseable weather timestamp "${raw}" (zone: ${zone})`);
+}
 
 /**
  * Raw weather record parsed from CSV (without FWI columns)
@@ -65,7 +79,19 @@ export class WeatherService {
       if (!config.firestarrCsvContent) {
         throw new Error('FireSTARR CSV content required when source is "firestarr_csv"');
       }
-      return this.parseFirestarrCsv(config.firestarrCsvContent);
+      if (typeof config.timezone !== 'string' || config.timezone.length === 0) {
+        throw new Error(
+          'WeatherService: IANA timezone is required for source "firestarr_csv" ' +
+          '(CSV timestamps carry no offset; caller must pass options.timezone).',
+        );
+      }
+      if (!IANAZone.isValidZone(config.timezone)) {
+        throw new Error(
+          `WeatherService: invalid IANA timezone "${config.timezone}". ` +
+          'Use a valid IANA zone (e.g. "America/Vancouver").',
+        );
+      }
+      return this.parseFirestarrCsv(config.firestarrCsvContent, config.timezone);
     }
 
     if (config.source === 'raw_weather') {
@@ -79,7 +105,13 @@ export class WeatherService {
       if (!latitude) {
         throw new Error('Latitude required for CFFDRS calculation');
       }
-      return this.processRawWeather(config.rawWeatherContent, config.startingCodes, latitude);
+      if (typeof config.timezone !== 'string' || config.timezone.length === 0 || !IANAZone.isValidZone(config.timezone)) {
+        throw new Error(
+          'WeatherService: valid IANA timezone is required for source "raw_weather" ' +
+          '(CSV timestamps carry no offset; caller must pass options.timezone).',
+        );
+      }
+      return this.processRawWeather(config.rawWeatherContent, config.startingCodes, latitude, config.timezone);
     }
 
     if (config.source === 'spotwx') {
@@ -88,7 +120,13 @@ export class WeatherService {
       if (!apiKey) {
         throw new Error('SpotWX API key required (set SPOTWX_API_KEY or provide in request)');
       }
-      return this.fetchFromSpotWX(apiKey, location, dateRange);
+      if (typeof config.timezone !== 'string' || config.timezone.length === 0 || !IANAZone.isValidZone(config.timezone)) {
+        throw new Error(
+          'WeatherService: valid IANA timezone is required for source "spotwx" ' +
+          '(SpotWX response timestamps must be parsed against the sim zone).',
+        );
+      }
+      return this.fetchFromSpotWX(apiKey, location, dateRange, config.timezone);
     }
 
     throw new Error(`Unknown weather source: ${config.source}`);
@@ -101,14 +139,14 @@ export class WeatherService {
    * @param content - CSV file content
    * @returns Array of weather data points
    */
-  private parseFirestarrCsv(content: string): WeatherDataPoint[] {
+  private parseFirestarrCsv(content: string, timezone: string): WeatherDataPoint[] {
     const lines = content.trim().split('\n');
     if (lines.length < 2) {
       throw new Error('FireSTARR CSV must have header and at least one data row');
     }
 
     const header = lines[0].toLowerCase().split(',').map((h) => h.trim());
-    const records = this.parseFirestarrRecords(lines.slice(1), header);
+    const records = this.parseFirestarrRecords(lines.slice(1), header, timezone);
 
     console.log(`[WeatherService] Parsed ${records.length} records from FireSTARR CSV`);
 
@@ -131,7 +169,11 @@ export class WeatherService {
   /**
    * Parses FireSTARR CSV records
    */
-  private parseFirestarrRecords(lines: string[], header: string[]): FirestarrWeatherRecord[] {
+  private parseFirestarrRecords(
+    lines: string[],
+    header: string[],
+    timezone: string,
+  ): FirestarrWeatherRecord[] {
     const getIndex = (name: string): number => {
       const idx = header.indexOf(name.toLowerCase());
       if (idx === -1) {
@@ -161,7 +203,7 @@ export class WeatherService {
       try {
         return {
           scenario: hasScenario ? parseInt(parts[scenarioIdx], 10) : 0,
-          datetime: new Date(parts[dateIdx]),
+          datetime: parseTimestampInZone(parts[dateIdx], timezone),
           prec: parseFloat(parts[precIdx]),
           temp: parseFloat(parts[tempIdx]),
           rh: parseFloat(parts[rhIdx]),
@@ -191,7 +233,8 @@ export class WeatherService {
   private processRawWeather(
     content: string,
     startingCodes: FWIStartingCodes,
-    latitude: number
+    latitude: number,
+    timezone: string,
   ): WeatherDataPoint[] {
     const lines = content.trim().split('\n');
     if (lines.length < 2) {
@@ -199,7 +242,7 @@ export class WeatherService {
     }
 
     const header = lines[0].toLowerCase().split(',').map((h) => h.trim());
-    const rawRecords = this.parseRawWeatherRecords(lines.slice(1), header);
+    const rawRecords = this.parseRawWeatherRecords(lines.slice(1), header, timezone);
 
     console.log(`[WeatherService] Processing ${rawRecords.length} raw weather records with cffdrs`);
 
@@ -213,9 +256,11 @@ export class WeatherService {
     let lastDMCUpdateDay = -1; // Track which calendar day we last updated DMC/DC
 
     return rawRecords.map((record) => {
-      const month = record.datetime.getMonth() + 1;
+      const month = record.datetime.getUTCMonth() + 1;
+      // Day-of-year computed against UTC year-start so the result doesn't shift
+      // by DST or the server's local offset.
       const dayOfYear = Math.floor(
-        (record.datetime.getTime() - new Date(record.datetime.getFullYear(), 0, 0).getTime())
+        (record.datetime.getTime() - Date.UTC(record.datetime.getUTCFullYear(), 0, 0))
         / (1000 * 60 * 60 * 24)
       );
 
@@ -260,7 +305,7 @@ export class WeatherService {
   /**
    * Parses raw weather CSV records (without FWI columns)
    */
-  private parseRawWeatherRecords(lines: string[], header: string[]): RawWeatherRecord[] {
+  private parseRawWeatherRecords(lines: string[], header: string[], timezone: string): RawWeatherRecord[] {
     const getIndex = (name: string): number => {
       const idx = header.indexOf(name.toLowerCase());
       if (idx === -1) {
@@ -289,12 +334,13 @@ export class WeatherService {
         const dateHasTime = /\d{4}-\d{2}-\d{2}[\sT]\d{1,2}:\d{2}/.test(dateStr);
 
         if (dateHasTime) {
-          datetime = new Date(dateStr);
+          datetime = parseTimestampInZone(dateStr, timezone);
         } else if (hourIdx !== -1) {
           const hour = parseInt(parts[hourIdx], 10);
-          datetime = new Date(`${dateStr}T${String(hour).padStart(2, '0')}:00:00`);
+          datetime = parseTimestampInZone(`${dateStr} ${String(hour).padStart(2, '0')}:00:00`, timezone);
         } else {
-          datetime = new Date(dateStr);
+          // Bare date — anchor at local midnight in the sim's zone.
+          datetime = parseTimestampInZone(`${dateStr} 00:00:00`, timezone);
         }
 
         return {
@@ -323,7 +369,8 @@ export class WeatherService {
   private async fetchFromSpotWX(
     apiKey: string,
     location: WeatherLocation,
-    dateRange: WeatherDateRange
+    dateRange: WeatherDateRange,
+    timezone: string,
   ): Promise<WeatherDataPoint[]> {
     console.log(`[WeatherService] SpotWX fetch requested for ${location.latitude}, ${location.longitude}`);
     console.log(`[WeatherService] Date range: ${dateRange.start.toISOString()} to ${dateRange.end.toISOString()}`);
@@ -356,7 +403,7 @@ export class WeatherService {
     }
 
     // Parse SpotWX CSV response
-    const rawRecords = this.parseSpotWXCsv(csvContent);
+    const rawRecords = this.parseSpotWXCsv(csvContent, timezone);
 
     if (rawRecords.length === 0) {
       throw new Error('SpotWX returned no weather data');
@@ -387,7 +434,7 @@ export class WeatherService {
    * Parses SpotWX CSV response into raw weather records.
    * SpotWX returns CSV with columns including: DateTime, TMP, RH, WIND, WDIR, APCP
    */
-  private parseSpotWXCsv(content: string): RawWeatherRecord[] {
+  private parseSpotWXCsv(content: string, timezone: string): RawWeatherRecord[] {
     const lines = content.trim().split('\n');
     if (lines.length < 2) {
       throw new Error('SpotWX CSV must have header and at least one data row');
@@ -426,8 +473,12 @@ export class WeatherService {
       const parts = line.split(',').map(p => p.trim());
 
       try {
-        const datetime = new Date(parts[dateIdx]);
-        if (isNaN(datetime.getTime())) continue;
+        let datetime: Date;
+        try {
+          datetime = parseTimestampInZone(parts[dateIdx], timezone);
+        } catch {
+          continue;
+        }
 
         records.push({
           scenario: 0,
@@ -461,9 +512,9 @@ export class WeatherService {
     let lastDMCUpdateDay = -1;
 
     return records.map(record => {
-      const month = record.datetime.getMonth() + 1;
+      const month = record.datetime.getUTCMonth() + 1;
       const dayOfYear = Math.floor(
-        (record.datetime.getTime() - new Date(record.datetime.getFullYear(), 0, 0).getTime())
+        (record.datetime.getTime() - Date.UTC(record.datetime.getUTCFullYear(), 0, 0))
         / (1000 * 60 * 60 * 24)
       );
 
