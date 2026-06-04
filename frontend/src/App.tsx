@@ -4,7 +4,6 @@ import { DeploymentModeProvider } from './core/deployment';
 import {
   MapProvider,
   MapContainer,
-  DrawingToolbar,
   LayerPanel,
   MapInfoControl,
   MapContextMenu,
@@ -598,8 +597,6 @@ function AppContent() {
             onComplete={handleWizardComplete}
             onCancel={handleWizardCancel}
           />
-          {/* Drawing toolbar on bottom-left when wizard is open (out of the way) */}
-          <DrawingToolbar position="bottom-left" />
 
           {/* Submission overlay */}
           {isSubmitting && (
@@ -653,10 +650,13 @@ function AppContent() {
         </>
       )}
 
-      {/* Map tools (visible when wizard is closed) */}
+      {/* Map tools (visible when wizard is closed).
+       * Drawing is intentionally NOT here: the free-draw toolbar wrote geometry
+       * to DrawContext but had no downstream binding to a model run, so users
+       * drew shapes that "did nothing" (#285). Drawing only lives inside the
+       * wizard now (see `bottom-left` mount above). */}
       {!showWizard && (
         <>
-          <DrawingToolbar position="top-left" />
           <LayerPanel position="top-right" />
           <MapInfoControl />
           <MapContextMenu />
