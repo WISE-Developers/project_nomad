@@ -3,7 +3,8 @@
  *
  * Renders a semi-transparent legend in the bottom-right area of the map.
  * Supports two legend modes:
- *   - probability (default): hard-coded FireSTARR 10-class burn-probability ramp
+ *   - probability (default): FireSTARR 10-class burn-probability ramp, sourced
+ *     from the vendored SLD via symbology/palettes (#283)
  *   - arrival: dynamic ramp driven by ArrivalRasterMeta (#226) with a user
  *     timestep toggle (daily / hourly) that re-symbolizes the layer in place.
  *
@@ -18,28 +19,11 @@ import type {
   RasterLayerConfig,
 } from '../types/layer.js';
 import { generateArrivalLegend } from '../utils/arrivalTimeSymbolization.js';
+import { PROBABILITY_LEGEND } from '../symbology/palettes.js';
 
 // =============================================================================
-// Probability Ramp (existing behaviour)
+// Probability Ramp — sourced from the vendored FireSTARR SLD (#283 Unit 2)
 // =============================================================================
-
-interface LegendEntry {
-  label: string;
-  color: string;
-}
-
-const PROBABILITY_LEGEND: LegendEntry[] = [
-  { label: '91-100%', color: 'rgb(230, 21, 31)' },
-  { label: '81-90%',  color: 'rgb(235, 51, 38)' },
-  { label: '71-80%',  color: 'rgb(238, 79, 44)' },
-  { label: '61-70%',  color: 'rgb(240, 108, 51)' },
-  { label: '51-60%',  color: 'rgb(242, 137, 56)' },
-  { label: '41-50%',  color: 'rgb(245, 162, 61)' },
-  { label: '31-40%',  color: 'rgb(250, 192, 68)' },
-  { label: '21-30%',  color: 'rgb(252, 223, 75)' },
-  { label: '11-20%',  color: 'rgb(250, 246, 142)' },
-  { label: '1-10%',   color: 'rgb(76, 175, 80)' },
-];
 
 // =============================================================================
 // Styles

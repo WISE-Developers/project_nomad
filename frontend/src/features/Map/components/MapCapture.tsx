@@ -10,23 +10,11 @@ import { useMap } from '../context/MapContext';
 import { useLayers } from '../context/LayerContext';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { PROBABILITY_LEGEND } from '../symbology/palettes';
 
 /**
  * Try to get current model info from the page for metadata.
  */
-/** Burn probability color ramp for raster legend in capture */
-const PROB_LEGEND = [
-  { label: '91-100%', color: 'rgb(230, 21, 31)' },
-  { label: '81-90%',  color: 'rgb(235, 51, 38)' },
-  { label: '71-80%',  color: 'rgb(238, 79, 44)' },
-  { label: '61-70%',  color: 'rgb(240, 108, 51)' },
-  { label: '51-60%',  color: 'rgb(242, 137, 56)' },
-  { label: '41-50%',  color: 'rgb(245, 162, 61)' },
-  { label: '31-40%',  color: 'rgb(250, 192, 68)' },
-  { label: '21-30%',  color: 'rgb(252, 223, 75)' },
-  { label: '11-20%',  color: 'rgb(250, 246, 142)' },
-  { label: '1-10%',   color: 'rgb(76, 175, 80)' },
-];
 
 function getModelMetadata(): Record<string, string> {
   const meta: Record<string, string> = {};
@@ -161,7 +149,7 @@ export function MapCapture() {
         yPos += 16 * dpr;
 
         ctx.font = `${11 * dpr}px system-ui, sans-serif`;
-        for (const entry of PROB_LEGEND) {
+        for (const entry of PROBABILITY_LEGEND) {
           ctx.fillStyle = entry.color;
           ctx.fillRect(lx + padding, yPos - swatchSize + 3 * dpr, swatchSize, swatchSize);
           ctx.fillStyle = '#333';
