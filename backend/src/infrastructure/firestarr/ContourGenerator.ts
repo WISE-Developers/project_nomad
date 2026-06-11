@@ -463,8 +463,8 @@ export async function generateRasterTile(
     // Breakpoints at band boundaries (0.1, 0.2, etc.) with exact matching
     const colorTable = `
 0 0 0 0 0
-${(0.01 * maxVal).toFixed(6)} 76 175 80 200
-${(0.10 * maxVal).toFixed(6)} 76 175 80 200
+${(0.01 * maxVal).toFixed(6)} 0 177 242 200
+${(0.10 * maxVal).toFixed(6)} 0 177 242 200
 ${(0.11 * maxVal).toFixed(6)} 250 246 142 200
 ${(0.20 * maxVal).toFixed(6)} 250 246 142 200
 ${(0.21 * maxVal).toFixed(6)} 252 223 75 200
