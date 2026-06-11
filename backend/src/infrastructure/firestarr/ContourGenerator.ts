@@ -11,6 +11,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { randomUUID } from 'crypto';
 import type { FeatureCollection, Feature, Polygon, MultiPolygon } from 'geojson';
+import { STATIC_PROBABILITY_BANDS } from './probabilitySymbology.js';
 
 /**
  * Error thrown during contour generation.
@@ -27,179 +28,29 @@ export class ContourError extends Error {
 }
 
 /**
- * Number of quantile breaks to generate for dynamic mode
- */
-const NUM_QUANTILE_BREAKS = 8;
-
-/**
- * Color gradient from light (outer footprint) to dark (high probability core)
- * Colors assigned by index position in the sorted thresholds array
- * Used for DYNAMIC mode
- */
-const QUANTILE_COLORS = [
-  '#ffffcc', // Lightest - outer footprint (lowest quantile)
-  '#ffeda0',
-  '#fed976',
-  '#feb24c',
-  '#fd8d3c',
-  '#fc4e2a',
-  '#e31a1c',
-  '#b10026', // Darkest - core (highest quantile)
-];
-
-/**
- * Static breaks from FireSTARR QML symbology
- * Fixed 10% probability intervals for consistent cross-model comparison
- * Source: https://github.com/CWFMF/FireSTARR/blob/main/gis/symbology/probability_processing_7pct.qml
- */
-const STATIC_BREAKS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
-
-/**
- * Static colors from FireSTARR QML symbology
- * Blue (low risk) -> Yellow -> Orange -> Red (high risk)
- */
-const STATIC_COLORS = [
-  '#00B1F2', // 0-10% - Cool blue (lowest risk)
-  '#FAF68E', // 10-20% - Light yellow
-  '#FCDF4B', // 20-30% - Yellow
-  '#FAC044', // 30-40% - Yellow-orange
-  '#F5A23D', // 40-50% - Orange
-  '#F28938', // 50-60% - Dark orange
-  '#F06C33', // 60-70% - Red-orange
-  '#EE4F2C', // 70-80% - Red
-  '#EB3326', // 80-90% - Dark red
-  '#E6151F', // 90-100% - Darkest red (highest risk)
-];
-
-/**
- * Breaks mode type
- */
-export type BreaksMode = 'static' | 'dynamic';
-
-/**
- * Result from quantile break calculation
- */
-interface QuantileBreaksResult {
-  /** Threshold values in original data scale */
-  breaks: number[];
-  /** Factor to divide thresholds by to get 0-1 probability (for labels) */
-  normalizationFactor: number;
-}
-
-/**
- * Calculate quantile breaks from raster data.
- * Returns thresholds that divide the data into equal-count bins,
- * along with a normalization factor for label display.
- */
-function calculateQuantileBreaks(data: Float32Array, numBreaks: number = NUM_QUANTILE_BREAKS): QuantileBreaksResult {
-  // Filter to non-zero values only (0 is nodata)
-  const validValues: number[] = [];
-  for (let i = 0; i < data.length; i++) {
-    if (data[i] > 0) {
-      validValues.push(data[i]);
-    }
-  }
-
-  if (validValues.length === 0) {
-    return { breaks: [], normalizationFactor: 1.0 };
-  }
-
-  // Sort values (needed for quantile calculation)
-  validValues.sort((a, b) => a - b);
-
-  // Check the max value - probability should be 0-1, but data might be in different formats
-  const maxVal = validValues[validValues.length - 1];
-  const minVal = validValues[0];
-
-  console.log(`[ContourGenerator] Raw value range: ${minVal.toFixed(4)} - ${maxVal.toFixed(4)}`);
-
-  // Normalization factor to convert to 0-1 range for labels
-  // If max <= 1, assume already normalized. Otherwise normalize by max.
-  let normalizationFactor = 1.0;
-  if (maxVal > 1.0) {
-    normalizationFactor = maxVal;
-    console.log(`[ContourGenerator] Will normalize by max value ${maxVal.toFixed(4)} for labels`);
-  }
-
-  const breaks: number[] = [];
-
-  // Calculate quantile positions
-  for (let i = 0; i < numBreaks; i++) {
-    const position = (i / numBreaks) * (validValues.length - 1);
-    const index = Math.floor(position);
-    breaks.push(validValues[index]);
-  }
-
-  // Always include the minimum value to capture full footprint
-  if (!breaks.includes(minVal)) {
-    breaks.unshift(minVal);
-  }
-
-  // Remove duplicates and sort ascending
-  const uniqueBreaks = [...new Set(breaks)].sort((a, b) => a - b);
-
-  console.log(`[ContourGenerator] Calculated ${uniqueBreaks.length} quantile breaks from ${validValues.length} valid pixels`);
-  console.log(`[ContourGenerator] Breaks (raw): ${uniqueBreaks.map(b => b.toFixed(4)).join(', ')}`);
-  console.log(`[ContourGenerator] Breaks (normalized %): ${uniqueBreaks.map(b => ((b / normalizationFactor) * 100).toFixed(1) + '%').join(', ')}`);
-
-  return { breaks: uniqueBreaks, normalizationFactor };
-}
-
-/**
- * Get color for a threshold by its index position (dynamic mode)
- */
-function getColorByIndex(index: number, totalBreaks: number): string {
-  // Map index to color array position
-  const colorIndex = Math.min(
-    Math.floor((index / Math.max(totalBreaks - 1, 1)) * (QUANTILE_COLORS.length - 1)),
-    QUANTILE_COLORS.length - 1
-  );
-  return QUANTILE_COLORS[colorIndex];
-}
-
-/**
- * Get color for a static threshold value
- */
-function getStaticColor(threshold: number): string {
-  // Find the index in STATIC_BREAKS that matches this threshold
-  const index = STATIC_BREAKS.findIndex(b => Math.abs(b - threshold) < 0.001);
-  if (index >= 0 && index < STATIC_COLORS.length) {
-    return STATIC_COLORS[index];
-  }
-  // Fallback: interpolate based on threshold value
-  const colorIndex = Math.min(Math.floor(threshold * 10), STATIC_COLORS.length - 1);
-  return STATIC_COLORS[colorIndex];
-}
-
-/**
  * Cache for generated contours
  */
 const contourCache: Map<string, FeatureCollection> = new Map();
 
 /**
- * Generates GeoJSON polygons from a GeoTIFF probability raster.
- * Supports two modes:
- * - 'dynamic': Calculates quantile breaks from actual data (default)
- * - 'static': Uses fixed FireSTARR symbology breaks (10% intervals)
+ * Generates GeoJSON polygons from a GeoTIFF probability raster using the
+ * standardized FireSTARR SLD symbology (STATIC_PROBABILITY_BANDS). The legacy
+ * "dynamic"/quantile mode has been removed (#283) so probability symbology
+ * stays consistent with FireSTARR-WMS and is not user-customizable.
  *
  * @param filePath Path to the GeoTIFF file
- * @param mode Breaks mode: 'static' or 'dynamic' (default: 'dynamic')
- * @param numBreaks Optional number of quantile breaks for dynamic mode (default: 8)
  * @returns GeoJSON FeatureCollection of polygons
  */
 export async function generateContours(
-  filePath: string,
-  mode: BreaksMode = 'dynamic',
-  numBreaks: number = NUM_QUANTILE_BREAKS
+  filePath: string
 ): Promise<FeatureCollection> {
-  // Check cache (use filePath + mode + numBreaks as key)
-  const cacheKey = `${filePath}:${mode}:${numBreaks}`;
+  const cacheKey = filePath;
   const cached = contourCache.get(cacheKey);
   if (cached) {
     return cached;
   }
 
-  console.log(`[ContourGenerator] Generating contours for ${filePath} (mode: ${mode})`);
+  console.log(`[ContourGenerator] Generating contours for ${filePath} (static SLD symbology)`);
 
   // Load GDAL for reading raster info
   let gdal: typeof import('gdal-async').default;
@@ -249,35 +100,12 @@ export async function generateContours(
   }
   dataset.close();
 
-  // Get thresholds based on mode
-  let thresholds: number[];
-  let normalizationFactor = 1.0; // For converting raw values to 0-1 probability
-
-  if (mode === 'static') {
-    // Use fixed FireSTARR symbology breaks (already in 0-1 range)
-    thresholds = [...STATIC_BREAKS];
-    console.log(`[ContourGenerator] Using static breaks: ${thresholds.join(', ')}`);
-  } else {
-    // Calculate quantile breaks from the actual data
-    const result = calculateQuantileBreaks(data, numBreaks);
-    thresholds = result.breaks;
-    normalizationFactor = result.normalizationFactor;
-  }
-
-  if (thresholds.length === 0) {
-    console.warn(`[ContourGenerator] No valid data found in raster: ${filePath}`);
-    return { type: 'FeatureCollection', features: [] };
-  }
-
-  // Generate polygons for each threshold
+  // Standardized FireSTARR SLD bands: low (blue, any prob > 0) -> high (red).
+  // Bands ascend by threshold, so higher-probability bands are appended last
+  // and render on top. Each contour mask selects pixels with prob >= threshold.
   const features: Feature<Polygon | MultiPolygon>[] = [];
 
-  // Sort thresholds ascending so higher probabilities are added last and render on top
-  const sortedThresholds = [...thresholds].sort((a, b) => a - b);
-
-  for (let i = 0; i < sortedThresholds.length; i++) {
-    const threshold = sortedThresholds[i];
-
+  for (const band of STATIC_PROBABILITY_BANDS) {
     try {
       const polygons = await generatePolygonsForThreshold(
         filePath,
@@ -285,36 +113,26 @@ export async function generateContours(
         width,
         height,
         geoTransform,
-        threshold,
+        band.threshold,
         pixelSize,
         gdal,
         sourceWkt
       );
 
-      // Get color based on mode
-      const color = mode === 'static'
-        ? getStaticColor(threshold)
-        : getColorByIndex(i, sortedThresholds.length);
-
-      // Calculate normalized probability (0-1) and label
-      const normalizedProbability = threshold / normalizationFactor;
-      const labelPercent = Math.min(normalizedProbability * 100, 100).toFixed(0);
-
       for (const polygon of polygons) {
         features.push({
           type: 'Feature',
           properties: {
-            probability: normalizedProbability, // Store normalized 0-1 value
-            rawValue: threshold, // Store original value for reference
-            color,
-            label: `${labelPercent}%`,
-            mode, // Include mode in properties for frontend reference
+            probability: band.threshold, // 0-1 lower bound of the band
+            rawValue: band.threshold,
+            color: band.color,
+            label: band.label,
           },
           geometry: polygon,
         });
       }
     } catch (err) {
-      console.warn(`[ContourGenerator] Failed to generate polygons for threshold ${threshold}:`, err);
+      console.warn(`[ContourGenerator] Failed to generate polygons for band ${band.label} (>=${band.threshold}):`, err);
     }
   }
 

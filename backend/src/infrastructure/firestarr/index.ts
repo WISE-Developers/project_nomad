@@ -47,7 +47,6 @@ export {
   generateRasterTile,
   getRasterBounds,
   ContourError,
-  type BreaksMode,
 } from './ContourGenerator.js';
 
 // Perimeter Generation (Raster to Vector)
