@@ -58,3 +58,30 @@ describe('buildArrivalColorTable — FireSTARR 0-indexed Julian convention (#261
     expect(169.587).toBeLessThanOrEqual(firstBucketMax);
   });
 });
+
+describe('buildArrivalColorTable — viridis day-keyed colours (#274)', () => {
+  const rgb = (e: ColorEntry): [number, number, number] => [e.r, e.g, e.b];
+
+  it('colours each daily bucket with the viridis day base — no red ramp', () => {
+    // 3-day model → 3 day bases spread across viridis. Byte-identical to the
+    // frontend legend (arrivalTimeSymbolization) so map pixels == swatches.
+    const colored = parseColorTable(buildArrivalColorTable(170, 173, 'daily')).filter(
+      (e) => e.a === 220,
+    );
+    expect(rgb(colored[0])).toEqual([68, 1, 84]); // viridis low — purple
+    expect(rgb(colored[2])).toEqual([33, 145, 140]); // viridis mid — teal
+    expect(rgb(colored[4])).toEqual([253, 231, 37]); // viridis high — yellow
+    // both entries of a bucket share the colour
+    expect(rgb(colored[1])).toEqual([68, 1, 84]);
+  });
+
+  it('hourly: each day is a band of its base with an intra-day gradient', () => {
+    const colored = parseColorTable(buildArrivalColorTable(170, 173, 'hourly')).filter(
+      (e) => e.a === 220,
+    );
+    expect(colored.length).toBe(3 * 24 * 2); // 3 days × 24 h × (min,max)
+    const bucket = (b: number) => rgb(colored[b * 2]);
+    expect(bucket(0)).not.toEqual(bucket(23)); // gradient within day 0
+    expect(bucket(24)).not.toEqual(bucket(0)); // day boundary → different base
+  });
+});

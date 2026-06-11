@@ -67,27 +67,54 @@ function tileToLat(tileY: number, zoom: number): number {
   return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
 }
 
-/** Green (hue 120) → red (hue 0) HSL ramp across `total` buckets. */
-function rampColor(index: number, total: number): [number, number, number] {
-  const t = total <= 1 ? 0 : index / (total - 1);
-  const hue = 120 - t * 120;
-  const s = 0.9;
-  const l = 0.5;
-  const c = (1 - Math.abs(2 * l - 1)) * s;
-  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
-  const m = l - c / 2;
-  let r = 0, g = 0, b = 0;
-  if (hue < 60)      [r, g, b] = [c, x, 0];
-  else if (hue < 120) [r, g, b] = [x, c, 0];
-  else if (hue < 180) [r, g, b] = [0, c, x];
-  else if (hue < 240) [r, g, b] = [0, x, c];
-  else if (hue < 300) [r, g, b] = [x, 0, c];
-  else                [r, g, b] = [c, 0, x];
-  return [
-    Math.round((r + m) * 255),
-    Math.round((g + m) * 255),
-    Math.round((b + m) * 255),
-  ];
+// How far the intra-day gradient lightens/darkens the day base (0..1).
+const INTRA_DAY_BLEND = 0.6;
+
+// viridis control points (CB- and greyscale-safe; no red — see #271/#274).
+// Sampled at t = 0, 0.25, 0.5, 0.75, 1.0. Kept byte-identical to the frontend
+// arrivalTimeSymbolization so rendered map pixels == legend swatches.
+const VIRIDIS_STOPS: Array<[number, number, number]> = [
+  [68, 1, 84],
+  [59, 82, 139],
+  [33, 145, 140],
+  [94, 201, 98],
+  [253, 231, 37],
+];
+
+function viridis(t: number): [number, number, number] {
+  const tt = Math.max(0, Math.min(1, t));
+  const seg = tt * 4;
+  const i = Math.min(Math.floor(seg), 3);
+  const f = seg - i;
+  const a = VIRIDIS_STOPS[i];
+  const b = VIRIDIS_STOPS[i + 1];
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+}
+
+/** viridis sample for a day, spread across the model's day count (#274). */
+function dayBaseRgb(dayIndex: number, totalDays: number): [number, number, number] {
+  return viridis(totalDays <= 1 ? 0 : dayIndex / (totalDays - 1));
+}
+
+/**
+ * Day-keyed colour for a classification bucket (#274): each whole day is a
+ * distinct viridis base; for hourly, the hours within a day are a light→dark
+ * gradient of that base (hour 0 lightest, hour 23 darkest; midpoint = base).
+ */
+function bucketColor(
+  dayIndex: number,
+  totalDays: number,
+  clockHour: number,
+  binsPerDay: number,
+): [number, number, number] {
+  const base = dayBaseRgb(dayIndex, totalDays);
+  if (binsPerDay <= 1) return base.map((c) => Math.round(c)) as [number, number, number];
+  const f = clockHour / (binsPerDay - 1);
+  const amt = 0.5 - f; // >0 lighten toward white, <0 darken toward black
+  const adj = base.map((c) =>
+    amt >= 0 ? c + (255 - c) * amt * INTRA_DAY_BLEND : c * (1 + amt * INTRA_DAY_BLEND),
+  );
+  return [Math.round(adj[0]), Math.round(adj[1]), Math.round(adj[2])];
 }
 
 /**
@@ -107,17 +134,20 @@ export function buildArrivalColorTable(
   timestep: ArrivalTimestep,
 ): string {
   const spanDays = Math.max(0, endJulian - offsetDay);
-  const bucketCount =
-    timestep === 'daily'
-      ? Math.max(1, Math.ceil(spanDays))
-      : Math.max(1, Math.ceil(spanDays * 24));
+  // The number of Julian days drives the number of distinct day base colours
+  // (#274); hourly gives each day exactly 24 sub-buckets keyed by clock hour.
+  const totalDays = Math.max(1, Math.ceil(spanDays));
+  const binsPerDay = timestep === 'daily' ? 1 : 24;
+  const bucketCount = totalDays * binsPerDay;
   const step = timestep === 'daily' ? 1 : 1 / 24;
   const epsilon = step * 0.001;
   const rasterOffset = offsetDay - 1;
 
   const lines: string[] = ['0 0 0 0 0'];
   for (let i = 0; i < bucketCount; i++) {
-    const [r, g, b] = rampColor(i, bucketCount);
+    const dayIndex = Math.floor(i / binsPerDay);
+    const clockHour = i % binsPerDay;
+    const [r, g, b] = bucketColor(dayIndex, totalDays, clockHour, binsPerDay);
     const bucketMin = rasterOffset + i * step;
     const bucketMax = rasterOffset + (i + 1) * step - epsilon;
     lines.push(`${bucketMin.toFixed(8)} ${r} ${g} ${b} 220`);
