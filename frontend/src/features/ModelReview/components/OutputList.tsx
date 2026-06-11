@@ -6,7 +6,6 @@
 
 import React, { useState } from 'react';
 import type { OutputItem, OutputType, OutputFormat } from '../types';
-import { BreaksSelectionModal, type BreaksMode } from './BreaksSelectionModal';
 
 /**
  * Props for OutputList
@@ -16,8 +15,8 @@ interface OutputListProps {
   outputs: OutputItem[];
   /** Called when download is requested */
   onDownload: (output: OutputItem) => void;
-  /** Called when add to map is requested (with optional breaks mode) */
-  onAddToMap: (output: OutputItem, mode?: BreaksMode) => void;
+  /** Called when add to map is requested */
+  onAddToMap: (output: OutputItem) => void;
   /** Called when add raster to map is requested */
   onAddRasterToMap?: (output: OutputItem) => void;
   /** Called when export is requested */
@@ -25,9 +24,6 @@ interface OutputListProps {
   /** Currently selected output */
   selectedOutput?: OutputItem | null;
 }
-
-// Re-export BreaksMode for consumers
-export type { BreaksMode } from './BreaksSelectionModal';
 
 /**
  * Get human readable output type name
@@ -84,29 +80,6 @@ export function OutputList({
   onExport,
   selectedOutput,
 }: OutputListProps) {
-  // State for breaks selection modal
-  const [pendingAddOutput, setPendingAddOutput] = useState<OutputItem | null>(null);
-
-  // Handle add to map click - show modal for probability, direct add for others
-  const handleAddToMapClick = (output: OutputItem) => {
-    // Check for probability type (backend returns 'probability', frontend type may say 'burn_probability')
-    if (output.type === 'burn_probability' || output.type === 'probability') {
-      // Show modal for probability outputs
-      setPendingAddOutput(output);
-    } else {
-      // Direct add for other output types
-      onAddToMap(output);
-    }
-  };
-
-  // Handle modal confirmation
-  const handleBreaksModeConfirm = (mode: BreaksMode) => {
-    if (pendingAddOutput) {
-      onAddToMap(pendingAddOutput, mode);
-      setPendingAddOutput(null);
-    }
-  };
-
   if (outputs.length === 0) {
     return (
       <div style={emptyStyle}>
@@ -119,50 +92,40 @@ export function OutputList({
   }
 
   return (
-    <>
-      <div style={containerStyle}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ ...headerStyle, margin: 0 }}>Model Outputs</h3>
-          {onExport && outputs.length > 0 && (
-            <button
-              onClick={onExport}
-              style={{
-                padding: '6px 12px',
-                fontSize: '13px',
-                fontWeight: 500,
-                backgroundColor: '#ff6b35',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
-            >
-              Export All
-            </button>
-          )}
-        </div>
-        <div style={listStyle}>
-          {outputs.map((output) => (
-            <OutputListItem
-              key={output.id}
-              output={output}
-              isSelected={selectedOutput?.id === output.id}
-              onDownload={() => onDownload(output)}
-              onAddToMap={() => handleAddToMapClick(output)}
-              onAddRasterToMap={onAddRasterToMap ? () => onAddRasterToMap(output) : undefined}
-            />
-          ))}
-        </div>
+    <div style={containerStyle}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h3 style={{ ...headerStyle, margin: 0 }}>Model Outputs</h3>
+        {onExport && outputs.length > 0 && (
+          <button
+            onClick={onExport}
+            style={{
+              padding: '6px 12px',
+              fontSize: '13px',
+              fontWeight: 500,
+              backgroundColor: '#ff6b35',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            Export All
+          </button>
+        )}
       </div>
-
-      {/* Breaks selection modal for probability outputs */}
-      <BreaksSelectionModal
-        isOpen={pendingAddOutput !== null}
-        outputName={pendingAddOutput?.name ?? ''}
-        onConfirm={handleBreaksModeConfirm}
-        onCancel={() => setPendingAddOutput(null)}
-      />
-    </>
+      <div style={listStyle}>
+        {outputs.map((output) => (
+          <OutputListItem
+            key={output.id}
+            output={output}
+            isSelected={selectedOutput?.id === output.id}
+            onDownload={() => onDownload(output)}
+            onAddToMap={() => onAddToMap(output)}
+            onAddRasterToMap={onAddRasterToMap ? () => onAddRasterToMap(output) : undefined}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 

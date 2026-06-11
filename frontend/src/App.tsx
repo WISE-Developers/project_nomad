@@ -320,7 +320,7 @@ function AppContent() {
     setReviewModelId(null);
   }, []);
 
-  const handleAddToMap = useCallback((output: OutputItem, geoJson: GeoJSON.GeoJSON, modelInfo?: { modelId: string; modelName: string; engineType: string; breaksMode?: 'static' | 'dynamic' }) => {
+  const handleAddToMap = useCallback((output: OutputItem, geoJson: GeoJSON.GeoJSON, modelInfo?: { modelId: string; modelName: string; engineType: string }) => {
     if (!map || !isLoaded) {
       console.warn('Map not ready');
       return;
@@ -392,7 +392,6 @@ function AppContent() {
         // Persistence metadata
         resultId: modelInfo?.modelId,
         outputType: output.type,
-        breaksMode: modelInfo?.breaksMode,
       });
     }
 

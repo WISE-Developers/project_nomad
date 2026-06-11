@@ -325,9 +325,8 @@ export function createAgencyAdapter(options: AgencyAdapterOptions): IOpenNomadAP
       return `${apiBaseUrl}/models/${modelId}/results`;
     },
 
-    getPreviewUrl(resultId: string, mode?: 'static' | 'dynamic'): string {
-      const baseUrl = `${apiBaseUrl}/results/${resultId}/preview`;
-      return mode ? `${baseUrl}?mode=${mode}` : baseUrl;
+    getPreviewUrl(resultId: string): string {
+      return `${apiBaseUrl}/results/${resultId}/preview`;
     },
 
     getDownloadUrl(resultId: string): string {

@@ -8,7 +8,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Rnd } from 'react-rnd';
 import { ResultsSummary } from './ResultsSummary';
-import { OutputList, type BreaksMode } from './OutputList';
+import { OutputList } from './OutputList';
 import { ArrivalAnimationManager } from './ArrivalAnimationManager';
 import { useModelResults } from '../hooks/useModelResults';
 import { ExportPanel } from '../../Export';
@@ -110,22 +110,15 @@ export function ModelReviewPanel({
   /**
    * Handle add to map request from output list or preview modal
    * @param output The output item to add
-   * @param mode Optional breaks mode for probability outputs ('static' or 'dynamic')
    */
   const handleAddToMap = useCallback(
-    async (output: OutputItem, mode?: BreaksMode) => {
+    async (output: OutputItem) => {
       if (!onAddToMap) return;
 
       try {
         // Use previewUrl from API response - backend returns correct URL for each output type
         // (regular results use /results/{id}/preview, perimeters use /models/{id}/perimeters)
         let previewUrl = output.previewUrl;
-
-        // Add mode param for probability outputs
-        if (mode) {
-          const separator = previewUrl.includes('?') ? '&' : '?';
-          previewUrl = `${previewUrl}${separator}mode=${mode}`;
-        }
 
         // For embedded mode, transform URL if adapter provides transformer
         if (api.results.transformPreviewUrl) {
@@ -156,7 +149,6 @@ export function ModelReviewPanel({
           modelId: results.modelId,
           modelName: results.modelName,
           engineType: results.engineType,
-          breaksMode: mode, // Include breaks mode in model info
         } : undefined;
         onAddToMap(output, geoJson, modelInfo);
       } catch (err) {

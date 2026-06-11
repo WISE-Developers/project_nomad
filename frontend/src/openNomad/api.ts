@@ -886,10 +886,9 @@ export interface IOpenNomadAPI {
      * In ACN mode, adapter returns URL appropriate for the host environment.
      *
      * @param resultId - Result ID
-     * @param mode - Breaks mode for probability outputs ('static' | 'dynamic')
      * @returns URL string that can be used in fetch() or as src attribute
      */
-    getPreviewUrl(resultId: string, mode?: 'static' | 'dynamic'): string;
+    getPreviewUrl(resultId: string): string;
 
     /**
      * Transform a preview URL from the API response for embedded mode.

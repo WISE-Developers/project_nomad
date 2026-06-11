@@ -53,7 +53,6 @@ interface PersistedLayerMeta {
   type: 'geojson' | 'raster';
   resultId?: string;
   outputType?: string;
-  breaksMode?: 'static' | 'dynamic';
   visible: boolean;
   opacity: number;
   zIndex: number;
@@ -267,7 +266,6 @@ export function LayerProvider({ children }: { children: ReactNode }) {
       type: layer.type,
       resultId: layer.resultId,
       outputType: layer.outputType,
-      breaksMode: layer.breaksMode,
       visible: layer.visible,
       opacity: layer.opacity,
       zIndex: layer.zIndex,
@@ -291,8 +289,7 @@ export function LayerProvider({ children }: { children: ReactNode }) {
       const restorePromises = layerMetas
         .filter((meta) => meta.resultId && meta.type === 'geojson')
         .map(async (meta) => {
-          const mode = meta.breaksMode || 'dynamic';
-          const previewUrl = api.results.getPreviewUrl(meta.resultId!, mode as 'static' | 'dynamic');
+          const previewUrl = api.results.getPreviewUrl(meta.resultId!);
           const res = await api.fetch(previewUrl);
           if (!res.ok) {
             throw new Error(`Failed to restore layer ${meta.name}: HTTP ${res.status}`);
