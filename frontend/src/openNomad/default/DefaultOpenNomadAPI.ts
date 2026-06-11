@@ -699,9 +699,8 @@ export function createDefaultAdapter(options?: DefaultAdapterOptions): IOpenNoma
        * AGENCY NOTE: Return URL appropriate for your backend/proxy configuration.
        * In embedded mode, this might be a relative URL through the host's proxy.
        */
-      getPreviewUrl(resultId: string, mode?: 'static' | 'dynamic'): string {
-        const previewUrl = `${baseUrl}/api/v1/results/${resultId}/preview`;
-        return mode ? `${previewUrl}?mode=${mode}` : previewUrl;
+      getPreviewUrl(resultId: string): string {
+        return `${baseUrl}/api/v1/results/${resultId}/preview`;
       },
 
       /**

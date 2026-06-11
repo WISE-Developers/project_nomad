@@ -10,32 +10,30 @@
 
 import { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
+import { PROBABILITY_LEGEND } from '../symbology/palettes.js';
 
 // =============================================================================
 // FireSTARR Colour Ramp
 // =============================================================================
 
+/** Parse a "#rrggbb" hex string into an [r, g, b] triple. */
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '');
+  return [
+    parseInt(h.slice(0, 2), 16),
+    parseInt(h.slice(2, 4), 16),
+    parseInt(h.slice(4, 6), 16),
+  ];
+}
+
 /**
- * Ordered anchor points of the FireSTARR burn-probability colour ramp.
- * Each entry is [percentage, r, g, b].
- * The array is sorted from highest to lowest probability.
+ * Reverse-mapping anchors: rendered pixel colour -> probability band label.
+ * Sourced from the shared SLD palette (#283) so hover, the legend, and the
+ * backend contours all trace to the one vendored FireSTARR SLD ramp — blue low
+ * (#00B1F2 -> "0-10%") to red high (#E6151F -> ">90%"). No hand-copied ramp.
  */
-/**
- * FireSTARR 10-class discrete colour ramp — matches ContourGenerator.ts
- * and RasterLegend.tsx. Each entry is [midpoint%, R, G, B].
- */
-const RAMP: ReadonlyArray<readonly [number, number, number, number]> = [
-  [95, 230, 21, 31],    // 91-100% crimson
-  [85, 235, 51, 38],    // 81-90%  dark red
-  [75, 238, 79, 44],    // 71-80%  red
-  [65, 240, 108, 51],   // 61-70%  red-orange
-  [55, 242, 137, 56],   // 51-60%  dark orange
-  [45, 245, 162, 61],   // 41-50%  orange
-  [35, 250, 192, 68],   // 31-40%  light orange
-  [25, 252, 223, 75],   // 21-30%  yellow
-  [15, 250, 246, 142],  // 11-20%  light yellow
-  [5,  76, 175, 80],    // 1-10%   green
-] as const;
+const RAMP: ReadonlyArray<{ rgb: [number, number, number]; label: string }> =
+  PROBABILITY_LEGEND.map(({ label, color }) => ({ rgb: hexToRgb(color), label }));
 
 /** Euclidean distance between two RGB colours. */
 function rgbDistance(
@@ -52,23 +50,12 @@ function rgbDistance(
 /**
  * Maximum colour distance (Euclidean RGB) considered to be "on the ramp".
  *
- * The largest gap between adjacent ramp anchors is ~179 units (yellow-green
- * to green), so a midpoint colour is up to ~90 units from its nearest anchor.
- * Setting the threshold to 130 keeps midpoint interpolation working while
- * firmly rejecting background colours (black ~255, white ~224, blue ~360).
+ * At 100% opacity (required for hover) raster colours are unblended, so a
+ * rendered band pixel sits ~0 units from its SLD anchor. A moderate threshold
+ * matches near-exact band colours while rejecting basemap/background colours
+ * (e.g. pure blue 0,0,255 is ~177 units from the cyan-blue low anchor).
  */
-// At 100% opacity (required for hover), raster colors are unblended
-// so we can use a moderate threshold
 const MAX_RAMP_DISTANCE = 70;
-
-/**
- * Band labels matching the discrete 10-class FireSTARR ramp.
- * Index corresponds to RAMP entries.
- */
-const BAND_LABELS = [
-  '91-100%', '81-90%', '71-80%', '61-70%', '51-60%',
-  '41-50%', '31-40%', '21-30%', '11-20%', '1-10%',
-];
 
 export function colorToPercentage(
   r: number,
@@ -88,7 +75,7 @@ export function colorToPercentage(
   let minDist = Infinity;
   let minIdx = -1;
   for (let i = 0; i < RAMP.length; i++) {
-    const [, ar, ag, ab] = RAMP[i];
+    const [ar, ag, ab] = RAMP[i].rgb;
     const dist = rgbDistance(r, g, b, ar, ag, ab);
     if (dist < minDist) {
       minDist = dist;
@@ -98,7 +85,7 @@ export function colorToPercentage(
 
   if (minDist > MAX_RAMP_DISTANCE || minIdx < 0) return null;
 
-  return BAND_LABELS[minIdx];
+  return RAMP[minIdx].label;
 }
 
 // =============================================================================

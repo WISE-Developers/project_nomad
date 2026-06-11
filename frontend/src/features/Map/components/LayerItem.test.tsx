@@ -236,22 +236,4 @@ describe('LayerItem', () => {
       expect(rasterIcon).toBeInTheDocument();
     });
   });
-
-  describe('breaks mode indicator', () => {
-    it('shows static breaks indicator', () => {
-      const layerWithBreaks = createTestLayer({ breaksMode: 'static' });
-      render(<LayerItem {...defaultProps} layer={layerWithBreaks} />);
-
-      const indicator = screen.getByTitle(/static breaks/i);
-      expect(indicator).toBeInTheDocument();
-    });
-
-    it('shows dynamic breaks indicator', () => {
-      const layerWithBreaks = createTestLayer({ breaksMode: 'dynamic' });
-      render(<LayerItem {...defaultProps} layer={layerWithBreaks} />);
-
-      const indicator = screen.getByTitle(/dynamic breaks/i);
-      expect(indicator).toBeInTheDocument();
-    });
-  });
 });

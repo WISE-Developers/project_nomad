@@ -1,8 +1,5 @@
 import type { Map as MapLibreMap, LngLatLike, StyleSpecification } from 'maplibre-gl';
 
-// Re-export layer types
-export type { BreaksMode } from './layer';
-
 /**
  * Map initialization options
  */
