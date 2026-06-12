@@ -10,6 +10,7 @@ import { Job, JobId, createJobId, JobStatus, FireModelId } from '../../../domain
 import { createFireModelId } from '../../../domain/entities/FireModel.js';
 import { createModelResultId } from '../../../domain/entities/ModelResult.js';
 import { IJobRepository } from '../../../application/interfaces/index.js';
+import { parseDbTimestamp } from '../../../shared/dateParsing.js';
 
 interface JobRow {
   id: string;
@@ -36,9 +37,9 @@ function rowToJob(row: JobRow): Job {
     modelId: createFireModelId(row.model_id),
     status: row.status as JobStatus,
     progress: row.progress,
-    createdAt: new Date(row.created_at),
-    startedAt: row.started_at ? new Date(row.started_at) : undefined,
-    completedAt: row.completed_at ? new Date(row.completed_at) : undefined,
+    createdAt: parseDbTimestamp(row.created_at, 'jobs.created_at'),
+    startedAt: row.started_at ? parseDbTimestamp(row.started_at, 'jobs.started_at') : undefined,
+    completedAt: row.completed_at ? parseDbTimestamp(row.completed_at, 'jobs.completed_at') : undefined,
     error: row.error ?? undefined,
     resultIds,
   });

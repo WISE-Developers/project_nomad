@@ -66,7 +66,8 @@ function parseArrivalFilename(filename: string): ArrivalFileInfo | null {
  */
 function julianDayToDate(julianDay: number, startYear: number): string | null {
   try {
-    const date = new Date(startYear, 0, julianDay);
+    // Build the date in UTC; Julian-day math is calendar-positional, not wall-clock.
+    const date = new Date(Date.UTC(startYear, 0, julianDay));
     return date.toISOString().split('T')[0];
   } catch {
     return null;

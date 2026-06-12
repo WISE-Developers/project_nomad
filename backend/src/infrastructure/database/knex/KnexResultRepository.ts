@@ -17,6 +17,7 @@ import {
 } from '../../../domain/entities/index.js';
 import { createFireModelId } from '../../../domain/entities/FireModel.js';
 import { IResultRepository } from '../../../application/interfaces/index.js';
+import { parseDbTimestamp } from '../../../shared/dateParsing.js';
 
 interface ResultRow {
   id: string;
@@ -46,7 +47,7 @@ function rowToResult(row: ResultRow): ModelResult {
     outputType: row.output_type as OutputType,
     format: row.format as OutputFormat,
     metadata,
-    createdAt: new Date(row.created_at),
+    createdAt: parseDbTimestamp(row.created_at, 'model_results.created_at'),
   });
 }
 

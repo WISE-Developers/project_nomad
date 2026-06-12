@@ -20,6 +20,7 @@ import {
   useWizard,
 } from '../../Wizard';
 import { useModelSetup } from '../hooks/useModelSetup';
+import { DrawingToolbar } from '../../Map';
 import { SpatialInputStep } from '../steps/SpatialInputStep';
 import { TemporalStep } from '../steps/TemporalStep';
 import { ModelSelectionStep } from '../steps/ModelSelectionStep';
@@ -267,6 +268,8 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId, topGutter = 0 
   // Mobile: Full-screen overlay
   if (isMobile) {
     return (
+      <>
+      <DrawingToolbar position="bottom-left" />
       <div
         style={{
           position: 'fixed',
@@ -324,12 +327,15 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId, topGutter = 0 
           </div>
         </WizardContainer>
       </div>
+      </>
     );
   }
 
   // Tablet: right-docked side panel (map stays visible on left)
   if (isTablet) {
     return (
+      <>
+      <DrawingToolbar position="bottom-left" />
       <div style={{
         position: 'fixed',
         top: 0,
@@ -379,11 +385,14 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId, topGutter = 0 
           </div>
         </WizardContainer>
       </div>
+      </>
     );
   }
 
   // Desktop: draggable/resizable panel
   return (
+    <>
+    <DrawingToolbar position="bottom-left" />
     <Rnd
       default={{
         x: initialDimensions.x,
@@ -452,5 +461,6 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId, topGutter = 0 
         </WizardContainer>
       </div>
     </Rnd>
+    </>
   );
 }

@@ -24,6 +24,13 @@ export interface WeatherConfig {
 
   /** SpotWX configuration - used when source is 'spotwx' */
   spotwx?: SpotWXConfig;
+
+  /**
+   * IANA timezone for interpreting bare-timestamp CSV rows.
+   * Required for `firestarr_csv` (FireSTARR CSV timestamps carry no offset
+   * and must be parsed against the simulation's IANA zone, not the server's).
+   */
+  timezone?: string;
 }
 
 /**

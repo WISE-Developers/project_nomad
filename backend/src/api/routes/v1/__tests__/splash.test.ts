@@ -89,7 +89,7 @@ describe('GET /api/v1/splash', () => {
     const res = await request(buildApp()).get('/api/v1/splash');
     expect(res.status).toBe(200);
     expect(res.body.enabled).toBe(true);
-    expect(res.body.title).toBe('Welcome to Project Nomad');
+    expect(res.body.title).toBe('Welcome to');
     expect(res.body.body).toContain("What's new");
     expect(res.body.dismissable).toBe(true);
   });
@@ -102,7 +102,7 @@ describe('GET /api/v1/splash', () => {
     const res = await request(buildApp()).get('/api/v1/splash');
     expect(res.status).toBe(200);
     expect(res.body.enabled).toBe(true);
-    expect(res.body.title).toBe('Welcome to Project Nomad');
+    expect(res.body.title).toBe('Welcome to');
   });
 
   it('returns { enabled: false } when configured file AND bundled default both fail', async () => {

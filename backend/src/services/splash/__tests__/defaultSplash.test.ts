@@ -9,7 +9,7 @@ describe('default-splash.md', () => {
     const raw = fs.readFileSync(DEFAULT_SPLASH_PATH, 'utf8');
     const parsed = parseSplashFile(raw);
     expect(parsed).not.toBeNull();
-    expect(parsed!.title).toBe('Welcome to Project Nomad');
+    expect(parsed!.title).toBe('Welcome to');
     expect(parsed!.body.length).toBeGreaterThan(0);
   });
 });

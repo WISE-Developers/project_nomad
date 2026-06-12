@@ -6,13 +6,6 @@ import type { FeatureCollection } from 'geojson';
 export type LayerType = 'geojson' | 'raster';
 
 /**
- * Breaks mode for probability layers
- * - static: Fixed 10% intervals (FireSTARR standard)
- * - dynamic: Quantile breaks from actual data
- */
-export type BreaksMode = 'static' | 'dynamic';
-
-/**
  * Layer visibility state
  */
 export type LayerVisibility = 'visible' | 'none';
@@ -35,8 +28,6 @@ export interface BaseLayerConfig {
   zIndex: number;
   /** Optional group ID for organizing layers */
   groupId?: string;
-  /** Breaks mode for probability layers (static/dynamic) */
-  breaksMode?: BreaksMode;
   /** Enable hover value display (raster only, requires 100% opacity) */
   hoverEnabled?: boolean;
   /** Result ID for persistence/reload (references backend model result) */
@@ -84,6 +75,16 @@ export interface ArrivalRasterMeta {
   startDate: string;
   /** Current classification granularity; defaults to 'daily' */
   timestep: ArrivalTimestep;
+  /** Sub-buckets per day for the hourly view (#271 Unit 8); defaults to 24. */
+  breaksPerDay?: number;
+  /** Colour-ramp preset key (#271 Unit 9), e.g. 'viridis'|'YlGnBu'|'custom'. */
+  ramp?: string;
+  /** Custom ramp hex stops when `ramp === 'custom'` (#271 Unit 9). */
+  customStops?: string[];
+  /** Per-day base-colour overrides keyed by day index (#271 Unit 7). */
+  dayColorOverrides?: Record<number, string>;
+  /** Bin indices kept opaque while the rest dim (#272 Unit 6 click-to-highlight). */
+  highlightBuckets?: number[];
 }
 
 /**

@@ -36,12 +36,43 @@ const LayerContext = createContext<LayerContextValue | null>(null);
 const LAYERS_STORAGE_KEY = 'nomad-layers';
 
 /**
- * Swap the `?t=<timestep>` query param on an arrival-tile URL template (#226).
- * Server re-renders with the new classification; client just re-fetches.
+ * Rebuild the arrival-tile URL query string from the layer's ArrivalRasterMeta
+ * (#226, #271). The server re-renders tiles for the requested classification /
+ * breaks; the client just swaps the source tiles to re-fetch.
  */
-function withTimestep(urlTemplate: string, timestep: 'daily' | 'hourly'): string {
+function withArrivalParams(
+  urlTemplate: string,
+  meta: {
+    timestep: 'daily' | 'hourly';
+    breaksPerDay?: number;
+    ramp?: string;
+    customStops?: string[];
+    dayColorOverrides?: Record<number, string>;
+    highlightBuckets?: number[];
+  },
+): string {
   const [base] = urlTemplate.split('?');
-  return `${base}?t=${timestep}`;
+  const params = new URLSearchParams({ t: meta.timestep });
+  if (meta.timestep === 'hourly' && meta.breaksPerDay) {
+    params.set('breaks', String(meta.breaksPerDay));
+  }
+  if (meta.ramp) params.set('ramp', meta.ramp);
+  if (meta.ramp === 'custom' && meta.customStops?.length) {
+    params.set('stops', meta.customStops.join(','));
+  }
+  const overrides = meta.dayColorOverrides ?? {};
+  if (Object.keys(overrides).length) {
+    params.set(
+      'dayColors',
+      Object.entries(overrides)
+        .map(([k, v]) => `${k}:${v.replace('#', '')}`)
+        .join(','),
+    );
+  }
+  if (meta.highlightBuckets?.length) {
+    params.set('highlight', meta.highlightBuckets.join(','));
+  }
+  return `${base}?${params.toString()}`;
 }
 
 /**
@@ -53,7 +84,6 @@ interface PersistedLayerMeta {
   type: 'geojson' | 'raster';
   resultId?: string;
   outputType?: string;
-  breaksMode?: 'static' | 'dynamic';
   visible: boolean;
   opacity: number;
   zIndex: number;
@@ -267,7 +297,6 @@ export function LayerProvider({ children }: { children: ReactNode }) {
       type: layer.type,
       resultId: layer.resultId,
       outputType: layer.outputType,
-      breaksMode: layer.breaksMode,
       visible: layer.visible,
       opacity: layer.opacity,
       zIndex: layer.zIndex,
@@ -291,8 +320,7 @@ export function LayerProvider({ children }: { children: ReactNode }) {
       const restorePromises = layerMetas
         .filter((meta) => meta.resultId && meta.type === 'geojson')
         .map(async (meta) => {
-          const mode = meta.breaksMode || 'dynamic';
-          const previewUrl = api.results.getPreviewUrl(meta.resultId!, mode as 'static' | 'dynamic');
+          const previewUrl = api.results.getPreviewUrl(meta.resultId!);
           const res = await api.fetch(previewUrl);
           if (!res.ok) {
             throw new Error(`Failed to restore layer ${meta.name}: HTTP ${res.status}`);
@@ -589,12 +617,22 @@ export function LayerProvider({ children }: { children: ReactNode }) {
             next.legendType === 'arrival' &&
             next.arrivalMeta
           ) {
-            const prevTimestep = (l as RasterLayerConfig).arrivalMeta?.timestep;
-            if (prevTimestep !== next.arrivalMeta.timestep) {
+            const prev = (l as RasterLayerConfig).arrivalMeta;
+            const changed =
+              prev?.timestep !== next.arrivalMeta.timestep ||
+              prev?.breaksPerDay !== next.arrivalMeta.breaksPerDay ||
+              prev?.ramp !== next.arrivalMeta.ramp ||
+              (prev?.customStops ?? []).join(',') !==
+                (next.arrivalMeta.customStops ?? []).join(',') ||
+              JSON.stringify(prev?.dayColorOverrides ?? {}) !==
+                JSON.stringify(next.arrivalMeta.dayColorOverrides ?? {}) ||
+              (prev?.highlightBuckets ?? []).join(',') !==
+                (next.arrivalMeta.highlightBuckets ?? []).join(',');
+            if (changed) {
               const source = m.getSource(next.id) as maplibregl.RasterTileSource | undefined;
               if (source && typeof source.setTiles === 'function') {
                 const url = Array.isArray(next.url) ? next.url[0] : next.url;
-                const newUrl = withTimestep(url, next.arrivalMeta.timestep);
+                const newUrl = withArrivalParams(url, next.arrivalMeta);
                 source.setTiles([newUrl]);
                 next.url = newUrl;
               }

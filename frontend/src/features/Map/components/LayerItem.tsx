@@ -130,28 +130,6 @@ export function LayerItem({
     ? <i className="fa-solid fa-bezier-curve" title="Vector layer" style={{ color: '#42a5f5' }} />
     : <i className="fa-solid fa-table-cells" title="Raster layer" style={{ color: '#42a5f5' }} />;
 
-  // Breaks mode indicator for probability layers
-  const breaksModeIndicator = layer.breaksMode ? (
-    <span
-      style={{
-        fontSize: '10px',
-        padding: '1px 4px',
-        borderRadius: '3px',
-        backgroundColor: layer.breaksMode === 'static' ? '#e3f2fd' : '#fff3e0',
-        color: layer.breaksMode === 'static' ? '#1565c0' : '#e65100',
-        fontWeight: 500,
-        flexShrink: 0,
-      }}
-      title={
-        layer.breaksMode === 'static'
-          ? 'Static breaks: Fixed 10% intervals for consistent comparison'
-          : 'Dynamic breaks: Quantile breaks from this output'
-      }
-    >
-      {layer.breaksMode === 'static' ? <i className="fa-solid fa-ruler" /> : <i className="fa-solid fa-chart-bar" />}
-    </span>
-  ) : null;
-
   return (
     <div
       style={containerStyle}
@@ -184,7 +162,6 @@ export function LayerItem({
             <i className={`fa-solid ${layer.visible ? 'fa-eye' : 'fa-eye-slash'}`} />
           </button>
           <span style={{ flexShrink: 0 }}>{typeIcon}</span>
-          {breaksModeIndicator}
           <span style={nameTextStyle}>{layer.name}</span>
         </div>
         <button

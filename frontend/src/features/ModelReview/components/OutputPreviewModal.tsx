@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useOpenNomad } from '../../../openNomad/context';
+import { PROBABILITY_LEGEND } from '../../Map/symbology/palettes';
 import type { OutputItem } from '../types';
 
 /**
@@ -265,13 +266,7 @@ export function OutputPreviewModal({
           <div style={legendStyle}>
             <div style={legendTitleStyle}>Burn Probability</div>
             <div style={legendItemsStyle}>
-              {[
-                { label: '90%', color: '#ff0000' },
-                { label: '75%', color: '#ff8000' },
-                { label: '50%', color: '#ffff00' },
-                { label: '25%', color: '#80ff00' },
-                { label: '10%', color: '#00ff00' },
-              ].map((item) => (
+              {PROBABILITY_LEGEND.map((item) => (
                 <div key={item.label} style={legendItemStyle}>
                   <span
                     style={{

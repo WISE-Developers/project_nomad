@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect } from 'react';
-import { useDraw } from '../context/DrawContext';
+import { useDraw, useDrawOptional } from '../context/DrawContext';
 import type { DrawingMode, DrawnFeature, LineFeature, PolygonFeature } from '../types/geometry';
 import {
   calculateLineLength,
@@ -64,7 +64,16 @@ const POSITION_STYLES: Record<string, React.CSSProperties> = {
  * Consolidates draw tools (Point, Line, Polygon) and measurement tools
  * (Distance, Area) into a single toolbar. Uses the shared DrawContext.
  */
-export function DrawingToolbar({
+export function DrawingToolbar(props: DrawingToolbarProps) {
+  // The toolbar is meaningless without a DrawContext (e.g. when the wizard is
+  // mounted in an embedded/ACN host that doesn't provide a Nomad-owned map).
+  // Render nothing in that case.
+  const ctx = useDrawOptional();
+  if (!ctx) return null;
+  return <DrawingToolbarInner {...props} />;
+}
+
+function DrawingToolbarInner({
   onCreate,
   onDelete,
   position = 'top-left',

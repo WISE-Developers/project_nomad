@@ -11,6 +11,7 @@ import * as path from 'path';
 import type { Feature, FeatureCollection, Point, LineString, Polygon } from 'geojson';
 import { Result } from '../common/index.js';
 import { DomainError, NotFoundError } from '../../domain/errors/index.js';
+import { parseIsoToDate } from '../../shared/dateParsing.js';
 import {
   type FireModelId,
   type ModelResultId,
@@ -419,8 +420,8 @@ export class ModelResultsService {
                   let endJulian = arrival.endJulian;
 
                   if (timeRange) {
-                    const startDt = new Date(timeRange.start);
-                    const endDt = new Date(timeRange.end);
+                    const startDt = parseIsoToDate(timeRange.start, 'ModelResultsService timeRange.start');
+                    const endDt = parseIsoToDate(timeRange.end, 'ModelResultsService timeRange.end');
                     startDate = startDt.toISOString();
                     const dayOfYear = (d: Date) => {
                       const jan1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
