@@ -9,7 +9,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { buildArrivalColorTable } from '../ArrivalTimeTileGenerator.js';
+import {
+  buildArrivalColorTable,
+  buildArrivalPalette,
+  valueToRgba,
+} from '../ArrivalTimeTileGenerator.js';
 
 type ColorEntry = { value: number; r: number; g: number; b: number; a: number };
 
@@ -56,6 +60,35 @@ describe('buildArrivalColorTable — FireSTARR 0-indexed Julian convention (#261
 
     expect(169.587).toBeGreaterThanOrEqual(firstBucketMin);
     expect(169.587).toBeLessThanOrEqual(firstBucketMax);
+  });
+});
+
+describe('valueToRgba — in-process tile colouring (#283 perf)', () => {
+  it('maps raster values to the matching bucket RGBA', () => {
+    // 3-day viridis: rasterOffset 169 (0-indexed Julian), step 1
+    const p = buildArrivalPalette(170, 173, 'daily', {});
+    expect(valueToRgba(169.5, p)).toEqual([68, 1, 84, 220]); // day 0 (purple)
+    expect(valueToRgba(170.5, p)).toEqual([33, 145, 140, 220]); // day 1 (teal)
+    expect(valueToRgba(171.9, p)).toEqual([253, 231, 37, 220]); // day 2 (yellow)
+  });
+
+  it('returns transparent for NoData and out-of-range values', () => {
+    const p = buildArrivalPalette(170, 173, 'daily', {});
+    expect(valueToRgba(0, p)).toEqual([0, 0, 0, 0]); // NoData
+    expect(valueToRgba(-5, p)).toEqual([0, 0, 0, 0]);
+    expect(valueToRgba(500, p)).toEqual([0, 0, 0, 0]); // past last bucket
+  });
+
+  it('dims non-highlighted buckets in-process', () => {
+    const p = buildArrivalPalette(170, 173, 'daily', { highlightBuckets: [1] });
+    expect(valueToRgba(169.5, p)[3]).toBe(55); // day 0 dimmed
+    expect(valueToRgba(170.5, p)[3]).toBe(220); // day 1 highlighted
+  });
+
+  it('shares the palette with the gdaldem colour table (same source)', () => {
+    const p = buildArrivalPalette(170, 173, 'daily', { ramp: 'YlGnBu' });
+    expect(p.colors[0].slice(0, 3)).toEqual([255, 255, 204]); // YlGnBu low
+    expect(p.colors[2].slice(0, 3)).toEqual([37, 52, 148]); // YlGnBu high
   });
 });
 
