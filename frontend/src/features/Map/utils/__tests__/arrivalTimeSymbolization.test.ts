@@ -169,6 +169,114 @@ describe('arrivalTimeSymbolization', () => {
       expect(daily[0].color).toEqual(daily[0].baseColor);
     });
 
+    // #274 Unit 5 — multiple fires align day colours to the earliest fire's
+    // start day (jordan-evens), so "day N" is the same colour across all fires.
+    it('keys day colours to a shared origin/span so fires match (multi-fire)', () => {
+      // Fire A: day 170, 3 days. Fire B: day 172, 2 days.
+      // Shared origin = 170; shared span = ceil(174) - 170 = 4 days.
+      const a = generateArrivalLegend({
+        startJulian: 170,
+        endJulian: 173,
+        timestep: 'daily',
+        startDate: new Date(Date.UTC(2026, 5, 19)),
+        originDay: 170,
+        totalDaysOverride: 4,
+      });
+      const b = generateArrivalLegend({
+        startJulian: 172,
+        endJulian: 174,
+        timestep: 'daily',
+        startDate: new Date(Date.UTC(2026, 5, 21)),
+        originDay: 170,
+        totalDaysOverride: 4,
+      });
+      expect(a[0].dayIndex).toBe(0); // Fire A starts at the origin
+      expect(b[0].dayIndex).toBe(2); // Fire B starts 2 days after the origin
+      // Absolute day 2 is owned by A (a[2]) and is B's first day (b[0]) — same colour.
+      expect(b[0].baseColor).toBe(a[2].baseColor);
+    });
+
+    it('defaults to single-fire keying when no origin/span is given', () => {
+      const solo = generateArrivalLegend({
+        startJulian: 172,
+        endJulian: 174,
+        timestep: 'daily',
+        startDate: new Date(Date.UTC(2026, 5, 21)),
+      });
+      expect(solo[0].dayIndex).toBe(0); // relative to itself
+    });
+
+    // #271 Unit 9 — selectable CB-safe ramps (no red); viridis is the default.
+    it('supports alternate CB-safe ramps via the ramp option', () => {
+      const opts3 = {
+        startJulian: 170,
+        endJulian: 173,
+        timestep: 'daily' as const,
+        startDate: new Date(Date.UTC(2026, 5, 19)),
+      };
+      expect(generateArrivalLegend(opts3)[0].baseColor).toBe('#440154'); // default viridis
+      const y = generateArrivalLegend({ ...opts3, ramp: 'YlGnBu' });
+      expect(y[0].baseColor).toBe('#ffffcc');
+      expect(y[1].baseColor).toBe('#41b6c4');
+      expect(y[2].baseColor).toBe('#253494');
+    });
+
+    it('supports a custom uploaded ramp via custom stops', () => {
+      const legend = generateArrivalLegend({
+        startJulian: 170,
+        endJulian: 172,
+        timestep: 'daily',
+        startDate: new Date(Date.UTC(2026, 5, 19)),
+        ramp: 'custom',
+        customStops: ['#000000', '#ffffff'],
+      });
+      expect(legend[0].baseColor).toBe('#000000');
+      expect(legend[1].baseColor).toBe('#ffffff');
+    });
+
+    // #271/#272 Unit 7 — click a day swatch to recolour that day; the hourly
+    // gradient regenerates from the chosen base.
+    it('applies per-day colour overrides; hourly gradient derives from the override', () => {
+      const daily = generateArrivalLegend({
+        startJulian: 170,
+        endJulian: 173,
+        timestep: 'daily',
+        startDate: new Date(Date.UTC(2026, 5, 19)),
+        dayColorOverrides: { 1: '#ff8800' },
+      });
+      expect(daily[0].baseColor).toBe('#440154'); // day 0 unchanged (viridis)
+      expect(daily[1].baseColor).toBe('#ff8800'); // day 1 recoloured
+      expect(daily[2].baseColor).toBe('#fde725'); // day 2 unchanged
+      const hourly = generateArrivalLegend({
+        startJulian: 170,
+        endJulian: 173,
+        timestep: 'hourly',
+        startDate: new Date(Date.UTC(2026, 5, 19)),
+        dayColorOverrides: { 1: '#ff8800' },
+      });
+      const day1 = hourly.filter((e) => e.dayIndex === 1);
+      expect(day1.every((e) => e.baseColor === '#ff8800')).toBe(true);
+      expect(day1[0].color).not.toBe(day1[day1.length - 1].color); // still a gradient
+    });
+
+    // #271 Unit 8 — breaks slider: breaksPerDay sub-divides each day-colour.
+    it('honours breaksPerDay — 6-hour breaks give 4 bins per day', () => {
+      const legend = generateArrivalLegend({
+        startJulian: 170,
+        endJulian: 173,
+        timestep: 'hourly',
+        startDate: new Date(Date.UTC(2026, 5, 19)),
+        breaksPerDay: 4,
+      });
+      expect(legend).toHaveLength(3 * 4); // 3 days × 4 breaks
+      // still day-keyed: bins 0-3 = day 0, bins 4-7 = day 1
+      expect(legend[0].dayIndex).toBe(0);
+      expect(legend[4].dayIndex).toBe(1);
+      // gradient within a day (first vs last sub-bin differ, shared base)
+      expect(legend[0].baseColor).toBe(legend[3].baseColor);
+      expect(legend[0].color).not.toBe(legend[3].color);
+    });
+
     it('uses the viridis ramp for day bases (no red — CB-safe default)', () => {
       const daily = generateArrivalLegend(opts('daily')); // 3-day model
       expect(daily[0].baseColor).toBe('#440154'); // viridis low — purple

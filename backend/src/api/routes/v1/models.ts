@@ -1499,6 +1499,32 @@ router.get(
     const { id, z, x, y } = req.params;
     const t = (req.query.t as string) ?? 'daily';
     const timestep: 'daily' | 'hourly' = t === 'hourly' ? 'hourly' : 'daily';
+    const breaksRaw = parseInt(req.query.breaks as string, 10);
+    const breaksPerDay = Number.isFinite(breaksRaw) && breaksRaw > 0 ? breaksRaw : undefined;
+    const ramp = typeof req.query.ramp === 'string' ? req.query.ramp : undefined;
+    const customStops =
+      typeof req.query.stops === 'string' && req.query.stops.length > 0
+        ? req.query.stops.split(',')
+        : undefined;
+    // dayColors=1:ff8800,2:00ff00 → { 1: '#ff8800', 2: '#00ff00' } (#271 Unit 7)
+    let dayColorOverrides: Record<number, string> | undefined;
+    if (typeof req.query.dayColors === 'string' && req.query.dayColors.length > 0) {
+      dayColorOverrides = {};
+      for (const pair of req.query.dayColors.split(',')) {
+        const [k, v] = pair.split(':');
+        const idx = parseInt(k, 10);
+        if (Number.isFinite(idx) && v) {
+          dayColorOverrides[idx] = v.startsWith('#') ? v : `#${v}`;
+        }
+      }
+    }
+    const highlightBuckets =
+      typeof req.query.highlight === 'string' && req.query.highlight.length > 0
+        ? req.query.highlight
+            .split(',')
+            .map((s) => parseInt(s, 10))
+            .filter((n) => Number.isFinite(n))
+        : undefined;
     const modelId = id as FireModelId;
 
     const engine = getFireSTARREngine() as import('../../../infrastructure/firestarr/FireSTARREngine.js').FireSTARREngine;
@@ -1520,6 +1546,7 @@ router.get(
         parseInt(z, 10),
         parseInt(x, 10),
         parseInt(y, 10),
+        { breaksPerDay, ramp, customStops, dayColorOverrides, highlightBuckets },
       );
     } catch (err) {
       throw EngineError.outputFailed(

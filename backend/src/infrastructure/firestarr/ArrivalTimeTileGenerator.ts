@@ -70,46 +70,102 @@ function tileToLat(tileY: number, zoom: number): number {
 // How far the intra-day gradient lightens/darkens the day base (0..1).
 const INTRA_DAY_BLEND = 0.6;
 
-// viridis control points (CB- and greyscale-safe; no red — see #271/#274).
-// Sampled at t = 0, 0.25, 0.5, 0.75, 1.0. Kept byte-identical to the frontend
-// arrivalTimeSymbolization so rendered map pixels == legend swatches.
-const VIRIDIS_STOPS: Array<[number, number, number]> = [
-  [68, 1, 84],
-  [59, 82, 139],
-  [33, 145, 140],
-  [94, 201, 98],
-  [253, 231, 37],
-];
+// CB-safe, no-red sequential ramps (#271/#274). viridis is the default; the
+// ColorBrewer presets and any custom uploaded ramp are selectable per layer.
+// Kept BYTE-IDENTICAL to the frontend arrivalTimeSymbolization so rendered map
+// pixels == legend swatches.
+type RGB = [number, number, number];
+const RAMPS: Record<string, RGB[]> = {
+  viridis: [
+    [68, 1, 84],
+    [59, 82, 139],
+    [33, 145, 140],
+    [94, 201, 98],
+    [253, 231, 37],
+  ],
+  YlGnBu: [
+    [255, 255, 204],
+    [161, 218, 180],
+    [65, 182, 196],
+    [44, 127, 184],
+    [37, 52, 148],
+  ],
+  BuGn: [
+    [237, 248, 251],
+    [178, 226, 226],
+    [102, 194, 164],
+    [44, 162, 95],
+    [0, 109, 44],
+  ],
+  PuBu: [
+    [241, 238, 246],
+    [189, 201, 225],
+    [116, 169, 207],
+    [43, 140, 190],
+    [4, 90, 141],
+  ],
+};
+const DEFAULT_RAMP = 'viridis';
 
-function viridis(t: number): [number, number, number] {
+function hexToRgb(hex: string): RGB {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) throw new Error(`Invalid ramp colour: "${hex}" (expected #rrggbb)`);
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function resolveRamp(ramp?: string, customStops?: string[]): RGB[] {
+  if (ramp === 'custom') {
+    if (!customStops || customStops.length < 2) {
+      throw new Error('A custom ramp needs at least two colour stops');
+    }
+    return customStops.map(hexToRgb);
+  }
+  return RAMPS[ramp ?? DEFAULT_RAMP] ?? RAMPS[DEFAULT_RAMP];
+}
+
+function sampleRamp(stops: RGB[], t: number): RGB {
+  if (stops.length === 1) return stops[0];
   const tt = Math.max(0, Math.min(1, t));
-  const seg = tt * 4;
-  const i = Math.min(Math.floor(seg), 3);
+  const seg = tt * (stops.length - 1);
+  const i = Math.min(Math.floor(seg), stops.length - 2);
   const f = seg - i;
-  const a = VIRIDIS_STOPS[i];
-  const b = VIRIDIS_STOPS[i + 1];
+  const a = stops[i];
+  const b = stops[i + 1];
   return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
 }
 
-/** viridis sample for a day, spread across the model's day count (#274). */
-function dayBaseRgb(dayIndex: number, totalDays: number): [number, number, number] {
-  return viridis(totalDays <= 1 ? 0 : dayIndex / (totalDays - 1));
+/**
+ * A day's base colour — a per-day override (#271 Unit 7) when present, else a
+ * ramp sample spread across the model's day count (#274).
+ */
+function dayBaseRgb(
+  dayIndex: number,
+  totalDays: number,
+  stops: RGB[],
+  overrides?: Record<number, string>,
+): RGB {
+  const override = overrides?.[dayIndex];
+  if (override) return hexToRgb(override);
+  return sampleRamp(stops, totalDays <= 1 ? 0 : dayIndex / (totalDays - 1));
 }
 
 /**
  * Day-keyed colour for a classification bucket (#274): each whole day is a
- * distinct viridis base; for hourly, the hours within a day are a light→dark
- * gradient of that base (hour 0 lightest, hour 23 darkest; midpoint = base).
+ * distinct ramp base; for hourly, the sub-bins within a day are a light→dark
+ * gradient of that base (bin 0 lightest, last darkest; midpoint = base).
  */
 function bucketColor(
   dayIndex: number,
   totalDays: number,
-  clockHour: number,
+  subBin: number,
   binsPerDay: number,
-): [number, number, number] {
-  const base = dayBaseRgb(dayIndex, totalDays);
-  if (binsPerDay <= 1) return base.map((c) => Math.round(c)) as [number, number, number];
-  const f = clockHour / (binsPerDay - 1);
+  stops: RGB[],
+  overrides?: Record<number, string>,
+): RGB {
+  const base = dayBaseRgb(dayIndex, totalDays, stops, overrides);
+  if (binsPerDay <= 1) return base.map((c) => Math.round(c)) as RGB;
+  const f = subBin / (binsPerDay - 1);
   const amt = 0.5 - f; // >0 lighten toward white, <0 darken toward black
   const adj = base.map((c) =>
     amt >= 0 ? c + (255 - c) * amt * INTRA_DAY_BLEND : c * (1 + amt * INTRA_DAY_BLEND),
@@ -128,30 +184,54 @@ function bucketColor(
  * space — same convention as `toFireSTARRRasterJulianDay` in
  * arrivalAnimation.ts (refs #253, #261).
  */
+export interface ArrivalColorOptions {
+  /** Sub-buckets per day for the hourly view (#271 Unit 8). Default 24 (hourly). */
+  breaksPerDay?: number;
+  /** Colour-ramp preset key (#271 Unit 9), e.g. 'viridis' | 'YlGnBu' | 'custom'. */
+  ramp?: string;
+  /** Custom ramp colour stops (hex) when `ramp === 'custom'` (#271 Unit 9). */
+  customStops?: string[];
+  /** Per-day base-colour overrides keyed by day index (#271 Unit 7). */
+  dayColorOverrides?: Record<number, string>;
+  /**
+   * Bin indices to keep opaque (#272 Unit 6). When non-empty, every other bin
+   * is dimmed so the clicked bins stand out. Empty/undefined = all opaque.
+   */
+  highlightBuckets?: number[];
+}
+
+const FULL_ALPHA = 220;
+const DIM_ALPHA = 55;
+
 export function buildArrivalColorTable(
   offsetDay: number,
   endJulian: number,
   timestep: ArrivalTimestep,
+  opts: ArrivalColorOptions = {},
 ): string {
   const spanDays = Math.max(0, endJulian - offsetDay);
   // The number of Julian days drives the number of distinct day base colours
-  // (#274); hourly gives each day exactly 24 sub-buckets keyed by clock hour.
+  // (#274); each day is sub-divided into `breaksPerDay` gradient bins (#271).
   const totalDays = Math.max(1, Math.ceil(spanDays));
-  const binsPerDay = timestep === 'daily' ? 1 : 24;
+  const stops = resolveRamp(opts.ramp, opts.customStops);
+  const binsPerDay =
+    timestep === 'daily' ? 1 : Math.max(1, Math.floor(opts.breaksPerDay ?? 24));
   const bucketCount = totalDays * binsPerDay;
-  const step = timestep === 'daily' ? 1 : 1 / 24;
+  const step = timestep === 'daily' ? 1 : 1 / binsPerDay;
   const epsilon = step * 0.001;
   const rasterOffset = offsetDay - 1;
 
+  const highlight = new Set(opts.highlightBuckets ?? []);
   const lines: string[] = ['0 0 0 0 0'];
   for (let i = 0; i < bucketCount; i++) {
     const dayIndex = Math.floor(i / binsPerDay);
-    const clockHour = i % binsPerDay;
-    const [r, g, b] = bucketColor(dayIndex, totalDays, clockHour, binsPerDay);
+    const subBin = i % binsPerDay;
+    const [r, g, b] = bucketColor(dayIndex, totalDays, subBin, binsPerDay, stops, opts.dayColorOverrides);
+    const a = highlight.size === 0 || highlight.has(i) ? FULL_ALPHA : DIM_ALPHA;
     const bucketMin = rasterOffset + i * step;
     const bucketMax = rasterOffset + (i + 1) * step - epsilon;
-    lines.push(`${bucketMin.toFixed(8)} ${r} ${g} ${b} 220`);
-    lines.push(`${bucketMax.toFixed(8)} ${r} ${g} ${b} 220`);
+    lines.push(`${bucketMin.toFixed(8)} ${r} ${g} ${b} ${a}`);
+    lines.push(`${bucketMax.toFixed(8)} ${r} ${g} ${b} ${a}`);
   }
   lines.push('nv 0 0 0 0');
   return lines.join('\n');
@@ -169,8 +249,13 @@ export async function generateArrivalTile(
   z: number,
   x: number,
   y: number,
+  opts: ArrivalColorOptions = {},
 ): Promise<Buffer | null> {
-  const cacheKey = `arrival:${filePath}:${offsetDay}:${endJulian}:${timestep}:${z}:${x}:${y}`;
+  const optKey =
+    `b${opts.breaksPerDay ?? ''}:r${opts.ramp ?? ''}:${(opts.customStops ?? []).join('-')}` +
+    `:d${Object.entries(opts.dayColorOverrides ?? {}).map(([k, v]) => `${k}=${v}`).join('-')}` +
+    `:h${(opts.highlightBuckets ?? []).join('-')}`;
+  const cacheKey = `arrival:${filePath}:${offsetDay}:${endJulian}:${timestep}:${optKey}:${z}:${x}:${y}`;
   const cached = tileCache.get(cacheKey);
   if (cached !== undefined) return cached;
 
@@ -213,7 +298,7 @@ export async function generateArrivalTile(
       return null;
     }
 
-    const colorTable = buildArrivalColorTable(offsetDay, endJulian, timestep);
+    const colorTable = buildArrivalColorTable(offsetDay, endJulian, timestep, opts);
     writeFileSync(colorTablePath, colorTable);
 
     execSync(

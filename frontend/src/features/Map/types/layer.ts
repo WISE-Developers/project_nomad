@@ -75,6 +75,16 @@ export interface ArrivalRasterMeta {
   startDate: string;
   /** Current classification granularity; defaults to 'daily' */
   timestep: ArrivalTimestep;
+  /** Sub-buckets per day for the hourly view (#271 Unit 8); defaults to 24. */
+  breaksPerDay?: number;
+  /** Colour-ramp preset key (#271 Unit 9), e.g. 'viridis'|'YlGnBu'|'custom'. */
+  ramp?: string;
+  /** Custom ramp hex stops when `ramp === 'custom'` (#271 Unit 9). */
+  customStops?: string[];
+  /** Per-day base-colour overrides keyed by day index (#271 Unit 7). */
+  dayColorOverrides?: Record<number, string>;
+  /** Bin indices kept opaque while the rest dim (#272 Unit 6 click-to-highlight). */
+  highlightBuckets?: number[];
 }
 
 /**
