@@ -13,14 +13,50 @@
  */
 
 import { execSync } from 'child_process';
-import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync, readdirSync } from 'fs';
+import { existsSync, mkdtempSync, mkdirSync, renameSync, rmSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
+import { PNG } from 'pngjs';
+import gdal from 'gdal-async';
 import { getRasterBounds } from './ContourGenerator.js';
 
 const TILE_SIZE = 256;
 const tileCache: Map<string, Buffer | null> = new Map();
+
+// Decoded warped-tile raster values, keyed like the warp cache (param-independent).
+// Read once per tile via gdal-async, then coloured in-process per param change so a
+// ramp/breaks/recolour/highlight no longer spawns a gdaldem subprocess (#283 perf).
+const decodedCache: Map<string, Float64Array> = new Map();
+
+// WGS84 bounds per source raster — constant per file, but the underlying
+// getRasterBounds() spawns gdalinfo, so cache it instead of paying that
+// subprocess on every single tile request (#283 perf).
+const boundsCache: Map<string, [number, number, number, number]> = new Map();
+
+async function getCachedRasterBounds(
+  filePath: string,
+): Promise<[number, number, number, number]> {
+  let bounds = boundsCache.get(filePath);
+  if (!bounds) {
+    bounds = await getRasterBounds(filePath);
+    boundsCache.set(filePath, bounds);
+  }
+  return bounds;
+}
+
+// Disk cache of warped (reprojected) per-tile GeoTIFFs. The warp depends only on
+// (source raster, z/x/y) — NOT on the colour params — so it is computed once per
+// tile and reused across every ramp / breaks / recolour / highlight change. This
+// turns each interaction from "re-warp + re-colour every tile" into just a cheap
+// gdaldem colour pass (refs #283 perf).
+const WARP_CACHE_DIR = join(tmpdir(), 'nomad-arrival-warp');
+
+/** Path to the cached warped GeoTIFF for a source tile (param-independent). */
+function warpedTilePath(filePath: string, z: number, x: number, y: number): string {
+  const fileHash = createHash('md5').update(filePath).digest('hex').slice(0, 12);
+  return join(WARP_CACHE_DIR, `${fileHash}_${z}_${x}_${y}.tif`);
+}
 
 export type ArrivalTimestep = 'hourly' | 'daily';
 
@@ -37,6 +73,13 @@ export interface ArrivalTifInfo {
 
 export function clearArrivalTileCache(): void {
   tileCache.clear();
+  decodedCache.clear();
+  boundsCache.clear();
+  try {
+    rmSync(WARP_CACHE_DIR, { recursive: true, force: true });
+  } catch {
+    // best effort
+  }
 }
 
 export function findArrivalTifs(workingDir: string): ArrivalTifInfo | null {
@@ -67,27 +110,110 @@ function tileToLat(tileY: number, zoom: number): number {
   return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
 }
 
-/** Green (hue 120) → red (hue 0) HSL ramp across `total` buckets. */
-function rampColor(index: number, total: number): [number, number, number] {
-  const t = total <= 1 ? 0 : index / (total - 1);
-  const hue = 120 - t * 120;
-  const s = 0.9;
-  const l = 0.5;
-  const c = (1 - Math.abs(2 * l - 1)) * s;
-  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
-  const m = l - c / 2;
-  let r = 0, g = 0, b = 0;
-  if (hue < 60)      [r, g, b] = [c, x, 0];
-  else if (hue < 120) [r, g, b] = [x, c, 0];
-  else if (hue < 180) [r, g, b] = [0, c, x];
-  else if (hue < 240) [r, g, b] = [0, x, c];
-  else if (hue < 300) [r, g, b] = [x, 0, c];
-  else                [r, g, b] = [c, 0, x];
-  return [
-    Math.round((r + m) * 255),
-    Math.round((g + m) * 255),
-    Math.round((b + m) * 255),
-  ];
+// How far the intra-day gradient lightens/darkens the day base (0..1).
+const INTRA_DAY_BLEND = 0.6;
+
+// CB-safe, no-red sequential ramps (#271/#274). viridis is the default; the
+// ColorBrewer presets and any custom uploaded ramp are selectable per layer.
+// Kept BYTE-IDENTICAL to the frontend arrivalTimeSymbolization so rendered map
+// pixels == legend swatches.
+type RGB = [number, number, number];
+const RAMPS: Record<string, RGB[]> = {
+  viridis: [
+    [68, 1, 84],
+    [59, 82, 139],
+    [33, 145, 140],
+    [94, 201, 98],
+    [253, 231, 37],
+  ],
+  YlGnBu: [
+    [255, 255, 204],
+    [161, 218, 180],
+    [65, 182, 196],
+    [44, 127, 184],
+    [37, 52, 148],
+  ],
+  BuGn: [
+    [237, 248, 251],
+    [178, 226, 226],
+    [102, 194, 164],
+    [44, 162, 95],
+    [0, 109, 44],
+  ],
+  PuBu: [
+    [241, 238, 246],
+    [189, 201, 225],
+    [116, 169, 207],
+    [43, 140, 190],
+    [4, 90, 141],
+  ],
+};
+const DEFAULT_RAMP = 'viridis';
+
+function hexToRgb(hex: string): RGB {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) throw new Error(`Invalid ramp colour: "${hex}" (expected #rrggbb)`);
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function resolveRamp(ramp?: string, customStops?: string[]): RGB[] {
+  if (ramp === 'custom') {
+    if (!customStops || customStops.length < 2) {
+      throw new Error('A custom ramp needs at least two colour stops');
+    }
+    return customStops.map(hexToRgb);
+  }
+  return RAMPS[ramp ?? DEFAULT_RAMP] ?? RAMPS[DEFAULT_RAMP];
+}
+
+function sampleRamp(stops: RGB[], t: number): RGB {
+  if (stops.length === 1) return stops[0];
+  const tt = Math.max(0, Math.min(1, t));
+  const seg = tt * (stops.length - 1);
+  const i = Math.min(Math.floor(seg), stops.length - 2);
+  const f = seg - i;
+  const a = stops[i];
+  const b = stops[i + 1];
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+}
+
+/**
+ * A day's base colour — a per-day override (#271 Unit 7) when present, else a
+ * ramp sample spread across the model's day count (#274).
+ */
+function dayBaseRgb(
+  dayIndex: number,
+  totalDays: number,
+  stops: RGB[],
+  overrides?: Record<number, string>,
+): RGB {
+  const override = overrides?.[dayIndex];
+  if (override) return hexToRgb(override);
+  return sampleRamp(stops, totalDays <= 1 ? 0 : dayIndex / (totalDays - 1));
+}
+
+/**
+ * Day-keyed colour for a classification bucket (#274): each whole day is a
+ * distinct ramp base; for hourly, the sub-bins within a day are a light→dark
+ * gradient of that base (bin 0 lightest, last darkest; midpoint = base).
+ */
+function bucketColor(
+  dayIndex: number,
+  totalDays: number,
+  subBin: number,
+  binsPerDay: number,
+  stops: RGB[],
+  overrides?: Record<number, string>,
+): RGB {
+  const base = dayBaseRgb(dayIndex, totalDays, stops, overrides);
+  if (binsPerDay <= 1) return base.map((c) => Math.round(c)) as RGB;
+  const f = subBin / (binsPerDay - 1);
+  const amt = 0.5 - f; // >0 lighten toward white, <0 darken toward black
+  const adj = base.map((c) =>
+    amt >= 0 ? c + (255 - c) * amt * INTRA_DAY_BLEND : c * (1 + amt * INTRA_DAY_BLEND),
+  );
+  return [Math.round(adj[0]), Math.round(adj[1]), Math.round(adj[2])];
 }
 
 /**
@@ -101,30 +227,126 @@ function rampColor(index: number, total: number): [number, number, number] {
  * space — same convention as `toFireSTARRRasterJulianDay` in
  * arrivalAnimation.ts (refs #253, #261).
  */
+export interface ArrivalColorOptions {
+  /** Sub-buckets per day for the hourly view (#271 Unit 8). Default 24 (hourly). */
+  breaksPerDay?: number;
+  /** Colour-ramp preset key (#271 Unit 9), e.g. 'viridis' | 'YlGnBu' | 'custom'. */
+  ramp?: string;
+  /** Custom ramp colour stops (hex) when `ramp === 'custom'` (#271 Unit 9). */
+  customStops?: string[];
+  /** Per-day base-colour overrides keyed by day index (#271 Unit 7). */
+  dayColorOverrides?: Record<number, string>;
+  /**
+   * Bin indices to keep opaque (#272 Unit 6). When non-empty, every other bin
+   * is dimmed so the clicked bins stand out. Empty/undefined = all opaque.
+   */
+  highlightBuckets?: number[];
+}
+
+const FULL_ALPHA = 220;
+const DIM_ALPHA = 55;
+
+export type Rgba = [number, number, number, number];
+
+export interface ArrivalPalette {
+  /** Raster-value of the first bucket (FireSTARR 0-indexed Julian). */
+  rasterOffset: number;
+  /** Raster-value width of one bucket. */
+  step: number;
+  bucketCount: number;
+  /** RGBA per bucket (already includes highlight dimming). */
+  colors: Rgba[];
+}
+
+/**
+ * Single source of truth for the arrival symbology (#274/#271/#272): maps every
+ * classification bucket to an RGBA. Consumed by both the gdaldem colour table
+ * (legacy) and the in-process tile colouriser, so they stay byte-identical.
+ */
+export function buildArrivalPalette(
+  offsetDay: number,
+  endJulian: number,
+  timestep: ArrivalTimestep,
+  opts: ArrivalColorOptions = {},
+): ArrivalPalette {
+  const spanDays = Math.max(0, endJulian - offsetDay);
+  const totalDays = Math.max(1, Math.ceil(spanDays));
+  const stops = resolveRamp(opts.ramp, opts.customStops);
+  const binsPerDay =
+    timestep === 'daily' ? 1 : Math.max(1, Math.floor(opts.breaksPerDay ?? 24));
+  const bucketCount = totalDays * binsPerDay;
+  const step = timestep === 'daily' ? 1 : 1 / binsPerDay;
+  const rasterOffset = offsetDay - 1;
+  const highlight = new Set(opts.highlightBuckets ?? []);
+
+  const colors: Rgba[] = [];
+  for (let i = 0; i < bucketCount; i++) {
+    const dayIndex = Math.floor(i / binsPerDay);
+    const subBin = i % binsPerDay;
+    const [r, g, b] = bucketColor(dayIndex, totalDays, subBin, binsPerDay, stops, opts.dayColorOverrides);
+    const a = highlight.size === 0 || highlight.has(i) ? FULL_ALPHA : DIM_ALPHA;
+    colors.push([r, g, b, a]);
+  }
+  return { rasterOffset, step, bucketCount, colors };
+}
+
+/** RGBA for a single decoded raster value; transparent for NoData / out-of-range. */
+export function valueToRgba(value: number, palette: ArrivalPalette): Rgba {
+  if (!Number.isFinite(value) || value <= 0) return [0, 0, 0, 0];
+  const i = Math.floor((value - palette.rasterOffset) / palette.step + 1e-9);
+  if (i < 0 || i >= palette.bucketCount) return [0, 0, 0, 0];
+  return palette.colors[i];
+}
+
 export function buildArrivalColorTable(
   offsetDay: number,
   endJulian: number,
   timestep: ArrivalTimestep,
+  opts: ArrivalColorOptions = {},
 ): string {
-  const spanDays = Math.max(0, endJulian - offsetDay);
-  const bucketCount =
-    timestep === 'daily'
-      ? Math.max(1, Math.ceil(spanDays))
-      : Math.max(1, Math.ceil(spanDays * 24));
-  const step = timestep === 'daily' ? 1 : 1 / 24;
+  const { rasterOffset, step, bucketCount, colors } = buildArrivalPalette(
+    offsetDay,
+    endJulian,
+    timestep,
+    opts,
+  );
   const epsilon = step * 0.001;
-  const rasterOffset = offsetDay - 1;
-
   const lines: string[] = ['0 0 0 0 0'];
   for (let i = 0; i < bucketCount; i++) {
-    const [r, g, b] = rampColor(i, bucketCount);
+    const [r, g, b, a] = colors[i];
     const bucketMin = rasterOffset + i * step;
     const bucketMax = rasterOffset + (i + 1) * step - epsilon;
-    lines.push(`${bucketMin.toFixed(8)} ${r} ${g} ${b} 220`);
-    lines.push(`${bucketMax.toFixed(8)} ${r} ${g} ${b} 220`);
+    lines.push(`${bucketMin.toFixed(8)} ${r} ${g} ${b} ${a}`);
+    lines.push(`${bucketMax.toFixed(8)} ${r} ${g} ${b} ${a}`);
   }
   lines.push('nv 0 0 0 0');
   return lines.join('\n');
+}
+
+/** Colour a decoded tile's raster values into a PNG buffer, fully in-process. */
+function colorizeTile(
+  values: Float64Array,
+  width: number,
+  height: number,
+  offsetDay: number,
+  endJulian: number,
+  timestep: ArrivalTimestep,
+  opts: ArrivalColorOptions,
+): Buffer {
+  const palette = buildArrivalPalette(offsetDay, endJulian, timestep, opts);
+  const png = new PNG({ width, height });
+  const data = png.data;
+  for (let p = 0; p < width * height; p++) {
+    const [r, g, b, a] = valueToRgba(values[p], palette);
+    const o = p * 4;
+    data[o] = r;
+    data[o + 1] = g;
+    data[o + 2] = b;
+    data[o + 3] = a;
+  }
+  // Tiles are tiny + mostly transparent — a low deflate level encodes far
+  // faster with negligible size cost.
+  return PNG.sync.write(png, { deflateLevel: 3, filterType: 0 });
 }
 
 /**
@@ -139,16 +361,20 @@ export async function generateArrivalTile(
   z: number,
   x: number,
   y: number,
+  opts: ArrivalColorOptions = {},
 ): Promise<Buffer | null> {
-  const cacheKey = `arrival:${filePath}:${offsetDay}:${endJulian}:${timestep}:${z}:${x}:${y}`;
+  const optKey =
+    `b${opts.breaksPerDay ?? ''}:r${opts.ramp ?? ''}:${(opts.customStops ?? []).join('-')}` +
+    `:d${Object.entries(opts.dayColorOverrides ?? {}).map(([k, v]) => `${k}=${v}`).join('-')}` +
+    `:h${(opts.highlightBuckets ?? []).join('-')}`;
+  const cacheKey = `arrival:${filePath}:${offsetDay}:${endJulian}:${timestep}:${optKey}:${z}:${x}:${y}`;
   const cached = tileCache.get(cacheKey);
   if (cached !== undefined) return cached;
 
   const tempId = randomUUID().slice(0, 8);
   const workDir = mkdtempSync(join(tmpdir(), `nomad-arrival-tile-${tempId}-`));
-  const vrtPath = join(workDir, 'tile.vrt');
-  const colorTablePath = join(workDir, 'colors.txt');
-  const outPng = join(workDir, 'tile.png');
+  const warpedPath = warpedTilePath(filePath, z, x, y);
+  const decodeKey = warpedPath;
 
   try {
     const west = tileToLon(x, z);
@@ -159,7 +385,7 @@ export async function generateArrivalTile(
     const lonBuffer = (east - west) / TILE_SIZE;
     const latBuffer = (north - south) / TILE_SIZE;
 
-    const rasterBounds = await getRasterBounds(filePath);
+    const rasterBounds = await getCachedRasterBounds(filePath);
     if (
       east < rasterBounds[0] ||
       west > rasterBounds[2] ||
@@ -170,33 +396,44 @@ export async function generateArrivalTile(
       return null;
     }
 
-    execSync(
-      `gdalwarp -t_srs EPSG:4326 ` +
-        `-te ${west - lonBuffer} ${south - latBuffer} ${east + lonBuffer} ${north + latBuffer} ` +
-        `-ts ${TILE_SIZE} ${TILE_SIZE} -r near -srcnodata 0 -dstnodata 0 -of VRT ` +
-        `"${filePath}" "${vrtPath}"`,
-      { stdio: 'pipe' },
-    );
-
-    if (!existsSync(vrtPath)) {
-      tileCache.set(cacheKey, null);
-      return null;
+    // Stage 1 — warp (param-independent). Materialise once per tile and reuse;
+    // gdaldem then only has to colour a small 256×256 raster, not re-warp the
+    // source on every param change. Write to a unique temp file then rename so
+    // concurrent requests never read a half-written tile.
+    if (!existsSync(warpedPath)) {
+      mkdirSync(WARP_CACHE_DIR, { recursive: true });
+      const warpTmp = join(workDir, 'warped.tif');
+      execSync(
+        `gdalwarp -t_srs EPSG:4326 ` +
+          `-te ${west - lonBuffer} ${south - latBuffer} ${east + lonBuffer} ${north + latBuffer} ` +
+          `-ts ${TILE_SIZE} ${TILE_SIZE} -r near -srcnodata 0 -dstnodata 0 -of GTiff ` +
+          `"${filePath}" "${warpTmp}"`,
+        { stdio: 'pipe' },
+      );
+      if (!existsSync(warpTmp)) {
+        tileCache.set(cacheKey, null);
+        return null;
+      }
+      renameSync(warpTmp, warpedPath);
     }
 
-    const colorTable = buildArrivalColorTable(offsetDay, endJulian, timestep);
-    writeFileSync(colorTablePath, colorTable);
-
-    execSync(
-      `gdaldem color-relief "${vrtPath}" "${colorTablePath}" "${outPng}" -of PNG -alpha`,
-      { stdio: 'pipe' },
-    );
-
-    if (!existsSync(outPng)) {
-      tileCache.set(cacheKey, null);
-      return null;
+    // Stage 2 — decode the warped raster values once (param-independent), via
+    // gdal-async (in-process, no subprocess). Cached and reused thereafter.
+    let values = decodedCache.get(decodeKey);
+    if (!values) {
+      const ds = gdal.open(warpedPath);
+      try {
+        const raw = ds.bands.get(1).pixels.read(0, 0, TILE_SIZE, TILE_SIZE);
+        values = raw instanceof Float64Array ? raw : Float64Array.from(raw);
+        decodedCache.set(decodeKey, values);
+      } finally {
+        ds.close();
+      }
     }
 
-    const buffer = readFileSync(outPng);
+    // Stage 3 — colour the tile in-process (per-param, pure JS): ~10× faster
+    // than spawning gdaldem on every ramp/breaks/recolour/highlight change.
+    const buffer = colorizeTile(values, TILE_SIZE, TILE_SIZE, offsetDay, endJulian, timestep, opts);
     tileCache.set(cacheKey, buffer);
     return buffer;
   } catch (err) {
