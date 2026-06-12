@@ -4,10 +4,51 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.10.1
+## v0.11.0
+
+### 2026-06-12
+
+- [`292540b`](https://github.com/WISE-Developers/project_nomad/commit/292540bf88dab86d538fb3f7d507ffdda7b2c920) Merge pull request #288 from WISE-Developers/dev — *Franco Nogarin, 11:30*
+- [`72acc79`](https://github.com/WISE-Developers/project_nomad/commit/72acc79ca5ff0bdcc9e80569472a35b5c70d76a3) chore: dev build 7 [skip ci] — *github-actions[bot], 17:05*
+- [`62cb2fc`](https://github.com/WISE-Developers/project_nomad/commit/62cb2fc18ec0da0e7d4fa4e1debe83879eca020d) Merge #283 legend epic: day-keyed viridis arrival, full customization + in-process perf — *Franco Nogarin, 11:04*
+- [`5471b0d`](https://github.com/WISE-Developers/project_nomad/commit/5471b0d197bab38c3f58b70f13135d914f64d430) perf(#283): render arrival tiles in-process — interactions ~60-100x faster — *Franco Nogarin, 09:54*
+- [`ca85f16`](https://github.com/WISE-Developers/project_nomad/commit/ca85f16c2545789d203ba5d24d80894a7fe09d06) feat(#283): customizable arrival legend — multi-fire, breaks, ramps, recolour, highlight, a11y — *Franco Nogarin, 09:31*
+
+### 2026-06-11
+
+- [`051a422`](https://github.com/WISE-Developers/project_nomad/commit/051a42297bb78e75e7e0aeb51ebe1182a104c593) feat(#274): day-keyed viridis arrival legend + tiles, Julian-day aligned — *Franco Nogarin, 16:06*
+- [`6ec1079`](https://github.com/WISE-Developers/project_nomad/commit/6ec107903e121e7b36e617cfd85f813ef59510bd) chore: dev build 6 [skip ci] — *github-actions[bot], 16:47*
+- [`2094a65`](https://github.com/WISE-Developers/project_nomad/commit/2094a65bae52908b5436d13f7295283ed513876f) Merge #283 probability standardization + breaksMode cleanup into dev — *Franco Nogarin, 10:47*
+- [`8a73401`](https://github.com/WISE-Developers/project_nomad/commit/8a73401cd6f1b6a7168d025ef80e5f24d252a1a3) Remove dead breaksMode UI (Unit 4) — *Franco Nogarin, 10:44*
+- [`73eb93d`](https://github.com/WISE-Developers/project_nomad/commit/73eb93d1edd3d47b904c403e58852a81d1c8f923) fix(#283): hover ramp + raster tile to SLD blue low (Unit 3b) — *Franco Nogarin, 07:42*
+- [`279aca5`](https://github.com/WISE-Developers/project_nomad/commit/279aca5b57c69b633376fed723590df4ee4e82ff) feat(#283): probability contours static-only, drop dynamic/quantile (Unit 3) — *Franco Nogarin, 07:16*
+- [`8d7a671`](https://github.com/WISE-Developers/project_nomad/commit/8d7a67164a0971dcabe2d97bb74708e67276c438) feat(#283): backend static probability symbology authority (Unit 3a) — *Franco Nogarin, 07:11*
+
+### 2026-06-10
+
+- [`0255f6d`](https://github.com/WISE-Developers/project_nomad/commit/0255f6daf90f546b204e7384ff91e29a279d191e) feat(#283): single SLD-sourced probability palette, kill 3x drift (Unit 2) — *Franco Nogarin, 09:09*
+- [`ce56830`](https://github.com/WISE-Developers/project_nomad/commit/ce56830d37a6100c3fa336ae9b4a5fd6df7c684c) feat(#283): vendor FireSTARR probability SLD + fail-fast parser (Unit 1) — *Franco Nogarin, 06:51*
+
+### 2026-06-04
+
+- [`1cf3e18`](https://github.com/WISE-Developers/project_nomad/commit/1cf3e184d685d560c1529c2185c9f5708b20000f) chore: dev build 5 [skip ci] — *github-actions[bot], 21:24*
+- [`f97195b`](https://github.com/WISE-Developers/project_nomad/commit/f97195b7b1f951be975773e20db951027f1614b3) fix: scope drawing tools to the model wizard only (closes #285) — *Franco Nogarin, 15:23*
+
+### 2026-06-02
+
+- [`0901904`](https://github.com/WISE-Developers/project_nomad/commit/0901904164f7cc74c277f1f77af3ebf3fcc07377) chore: dev build 4 [skip ci] — *github-actions[bot], 19:34*
+- [`0431786`](https://github.com/WISE-Developers/project_nomad/commit/043178635c7c271354dd59382dc9295dcf30a48e) fix: timezone double-adjustment root cause (#273, closes #279 #280 #284) — *Franco Nogarin, 13:33*
+- [`48b2493`](https://github.com/WISE-Developers/project_nomad/commit/48b24939ddbc300e9fb8363e9b46f8a7d8fd5def) chore: dev build 3 [skip ci] — *github-actions[bot], 13:58*
+- [`0a664e5`](https://github.com/WISE-Developers/project_nomad/commit/0a664e5684f112d6084d347c30889f13dea82000) chore: add small logo variant, hay-river test fire data, gitignore root logs/ — *Franco Nogarin, 07:58*
+- [`f5cd48d`](https://github.com/WISE-Developers/project_nomad/commit/f5cd48dc41fcf2246fd9a2b5336c4902bea36672) chore: dev build 2 [skip ci] — *github-actions[bot], 13:50*
+- [`ea68705`](https://github.com/WISE-Developers/project_nomad/commit/ea6870502e0b7ae353b7229f873655536d4063ef) content: splash FireSTARR pin note + optimized logo — *Franco Nogarin, 07:50*
+- [`0926733`](https://github.com/WISE-Developers/project_nomad/commit/0926733250d73b29310614a3d3d01d6b5b173f95) chore: dev build 1 [skip ci] — *github-actions[bot], 13:47*
+- [`5b4ffb5`](https://github.com/WISE-Developers/project_nomad/commit/5b4ffb5a8d8317029affe285ec2d8d634124d00f) chore: bump CI actions to node24 runtime (closes #276) — *Franco Nogarin, 07:41*
 
 ### 2026-05-28
 
+- [`83901d3`](https://github.com/WISE-Developers/project_nomad/commit/83901d3208c690a329265656519dc2cffe827cd4) chore: reset dev build counter after v0.10.1 [skip ci] — *github-actions[bot], 12:17*
+- [`8868ef2`](https://github.com/WISE-Developers/project_nomad/commit/8868ef2605bdcdf07b973b03574c3059e756f4aa) chore: release v0.10.1 [skip ci] — *github-actions[bot], 12:17*
 - [`c86fb6c`](https://github.com/WISE-Developers/project_nomad/commit/c86fb6c48eeb023e342abd95c5b0c399f28846e8) Merge pull request #278 from WISE-Developers/dev — *Franco Nogarin, 06:16*
 - [`6c70f78`](https://github.com/WISE-Developers/project_nomad/commit/6c70f787ab903448919e1fc4b8c8263ed78dec92) chore: dev build 1 [skip ci] — *github-actions[bot], 12:15*
 - [`3e42cc3`](https://github.com/WISE-Developers/project_nomad/commit/3e42cc3605b6875f76e28783a05d575ded15b8b1) Merge branch 'fix/firestarr-pin-known-good-digest' into dev — *Franco Nogarin, 06:14*
