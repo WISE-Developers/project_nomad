@@ -10,6 +10,7 @@
 import { EngineType } from '../../domain/entities/index.js';
 import { EngineError } from '../../domain/errors/index.js';
 import type { IFireModelingEngine } from '../../application/interfaces/IFireModelingEngine.js';
+import type { IWorkspaceAwareEngine } from '../../application/interfaces/IWorkspaceAwareEngine.js';
 import { getFireSTARREngine } from '../firestarr/index.js';
 
 /** A factory that produces a fire-modeling engine implementation. */
@@ -35,4 +36,23 @@ export function getEngine(engineType: EngineType): IFireModelingEngine {
     throw EngineError.unavailable(engineType, `No engine registered for type: ${engineType}`);
   }
   return factory();
+}
+
+/**
+ * Resolve the engine for the given type as a workspace-aware engine.
+ *
+ * Narrows the resolved engine to {@link IWorkspaceAwareEngine} in a single
+ * place (rather than callers casting to the concrete class), with a fail-fast
+ * capability check.
+ *
+ * @throws EngineError if the engine is not registered or does not provide the
+ *   workspace-aware capability.
+ */
+export function getWorkspaceAwareEngine(engineType: EngineType): IWorkspaceAwareEngine {
+  const engine = getEngine(engineType);
+  const candidate = engine as Partial<IWorkspaceAwareEngine>;
+  if (typeof candidate.getWorkingDirectory !== 'function') {
+    throw EngineError.unavailable(engineType, `Engine is not workspace-aware: ${engineType}`);
+  }
+  return engine as unknown as IWorkspaceAwareEngine;
 }

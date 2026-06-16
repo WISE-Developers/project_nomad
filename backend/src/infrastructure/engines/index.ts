@@ -5,4 +5,4 @@
  * implementation so callers depend on the abstraction, not a concrete factory.
  */
 
-export { getEngine } from './EngineResolver.js';
+export { getEngine, getWorkspaceAwareEngine } from './EngineResolver.js';

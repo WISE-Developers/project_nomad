@@ -13,6 +13,9 @@ export {
   type EngineCapabilities,
 } from './IFireModelingEngine.js';
 
+// Workspace-Aware Engine (capability interface)
+export { type IWorkspaceAwareEngine } from './IWorkspaceAwareEngine.js';
+
 // Weather Repository
 export {
   type IWeatherRepository,

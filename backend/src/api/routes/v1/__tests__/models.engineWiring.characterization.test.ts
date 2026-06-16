@@ -58,7 +58,7 @@ const {
     getFireSTARREngine: vi.fn(() => engine),
     getModelResultsService: vi.fn((_engine?: unknown) => ({ getResults })),
     getModelExecutionService: vi.fn(() => ({ execute: vi.fn(async () => undefined) })),
-    getModelRepository: vi.fn(() => ({ findById, find })),
+    getModelRepository: vi.fn(() => ({ findById, find, delete: vi.fn(async () => undefined) })),
     getResultRepository: vi.fn(() => ({ deleteByModelId: vi.fn(async () => 0) })),
     findById,
     find,
