@@ -1,7 +1,7 @@
 import { FireModel, FireModelId, ModelResult, EngineType } from '../../domain/entities/index.js';
 import { SpatialGeometry } from '../../domain/entities/SpatialGeometry.js';
 import { Coordinates, TimeRange } from '../../domain/value-objects/index.js';
-import type { WeatherDataPoint, WeatherConfig } from '../../infrastructure/weather/types.js';
+import type { WeatherDataPoint, WeatherConfig } from './weather.js';
 
 /**
  * Status of a model execution job
