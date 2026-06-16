@@ -12,7 +12,8 @@ import { asyncHandler } from '../../middleware/index.js';
 import { NotFoundError } from '../../../domain/errors/index.js';
 import { createModelResultId, OutputFormat } from '../../../domain/entities/index.js';
 import { getModelResultsService } from '../../../application/services/index.js';
-import { getFireSTARREngine, generateContours, generateRasterTile, getRasterBounds, ContourError } from '../../../infrastructure/firestarr/index.js';
+import { generateContours, generateRasterTile, getRasterBounds, ContourError } from '../../../infrastructure/firestarr/index.js';
+import { getEngine } from '../../../infrastructure/engines/index.js';
 import { resolveResultFilePath } from '../../../infrastructure/firestarr/FireSTARRInputGenerator.js';
 import { EngineError } from '../../../domain/errors/index.js';
 import { EngineType } from '../../../domain/entities/index.js';
@@ -56,7 +57,7 @@ router.get(
     const typedResultId = createModelResultId(resultId);
 
     // Get results service
-    const engine = getFireSTARREngine();
+    const engine = getEngine(EngineType.FireSTARR);
     const resultsService = getModelResultsService(engine);
 
     // Get result
@@ -168,7 +169,7 @@ router.get(
     const typedResultId = createModelResultId(resultId);
 
     // Get results service
-    const engine = getFireSTARREngine();
+    const engine = getEngine(EngineType.FireSTARR);
     const resultsService = getModelResultsService(engine);
 
     // Get result
@@ -258,7 +259,7 @@ router.get(
     const typedResultId = createModelResultId(resultId);
 
     // Get results service
-    const engine = getFireSTARREngine();
+    const engine = getEngine(EngineType.FireSTARR);
     const resultsService = getModelResultsService(engine);
 
     // Get result
@@ -298,7 +299,7 @@ router.get(
     const typedResultId = createModelResultId(resultId);
 
     // Get results service
-    const engine = getFireSTARREngine();
+    const engine = getEngine(EngineType.FireSTARR);
     const resultsService = getModelResultsService(engine);
 
     // Get result

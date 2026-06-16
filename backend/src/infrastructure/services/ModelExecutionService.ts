@@ -31,6 +31,121 @@ interface ExecutionProcess {
   timeout?: NodeJS.Timeout;
 }
 
+/** The command to spawn for an engine's (stub) execution. */
+interface EngineCommand {
+  cmd: string;
+  args: string[];
+  cwd?: string;
+  env?: Record<string, string>;
+}
+
+/**
+ * Per-engine execution strategy: availability check + the command to spawn.
+ *
+ * Registered in {@link ENGINE_EXEC_REGISTRY}. A new engine is added by
+ * registering a strategy here — callers (isEngineAvailable / getEngineCommand)
+ * never branch on engine type (Open/Closed).
+ */
+interface EngineExecStrategy {
+  isAvailable(): Promise<boolean>;
+  getCommand(model: FireModel): EngineCommand;
+}
+
+const fireStarrExecStrategy: EngineExecStrategy = {
+  async isAvailable(): Promise<boolean> {
+    // Check execution mode - native binary or Docker
+    const executionMode = process.env.FIRESTARR_EXECUTION_MODE?.toLowerCase();
+
+    if (executionMode === 'binary') {
+      // Native binary mode - check if binary exists and is executable
+      const binaryPath = process.env.FIRESTARR_BINARY_PATH;
+      if (!binaryPath) {
+        console.warn('[ExecutionService] FIRESTARR_BINARY_PATH not configured for binary mode');
+        return false;
+      }
+      try {
+        const fs = await import('fs/promises');
+        await fs.access(binaryPath, (await import('fs')).constants.X_OK);
+        return true;
+      } catch {
+        console.warn(`[ExecutionService] FireSTARR binary not executable: ${binaryPath}`);
+        return false;
+      }
+    }
+
+    // Docker mode (default)
+    const dockerExecutor = getDockerExecutor();
+    const dockerAvailable = await dockerExecutor.isAvailable();
+    if (!dockerAvailable) {
+      console.warn('[ExecutionService] Docker not available for FireSTARR');
+      return false;
+    }
+
+    // Check if the FireSTARR service is available
+    const serviceAvailable = await dockerExecutor.isServiceAvailable('firestarr-app');
+    if (!serviceAvailable) {
+      console.warn('[ExecutionService] FireSTARR Docker service not available');
+      // For development, still return true to allow stub execution
+      return true;
+    }
+
+    return true;
+  },
+
+  getCommand(model: FireModel): EngineCommand {
+    // For now, use a stub that simulates execution. Real execution is via
+    // FireSTARREngine directly; this stub path is kept for backwards
+    // compatibility and for when Docker is not available.
+    return {
+      cmd: 'sh',
+      args: [
+        '-c',
+        `echo "Starting FireSTARR simulation for model ${model.id}..." && ` +
+        `echo "[NOTE] Using stub execution - Docker not connected" && ` +
+        `sleep 1 && echo "Running scenario 1 of 10" && ` +
+        `sleep 1 && echo "Running scenario 5 of 10" && ` +
+        `sleep 1 && echo "Running scenario 10 of 10" && ` +
+        `sleep 1 && echo "Total simulation time was 4.0 seconds" && ` +
+        `echo "Simulation complete"`,
+      ],
+    };
+  },
+};
+
+const wiseExecStrategy: EngineExecStrategy = {
+  async isAvailable(): Promise<boolean> {
+    // WISE not yet implemented - allow stub execution
+    console.warn('[ExecutionService] WISE engine not yet implemented, using stub');
+    return true;
+  },
+
+  getCommand(model: FireModel): EngineCommand {
+    // WISE not yet implemented - use stub
+    return {
+      cmd: 'sh',
+      args: [
+        '-c',
+        `echo "Starting WISE simulation for model ${model.id}..." && ` +
+        `echo "[NOTE] WISE engine not yet implemented" && ` +
+        `sleep 1 && echo "Progress: 25%" && ` +
+        `sleep 1 && echo "Progress: 50%" && ` +
+        `sleep 1 && echo "Progress: 75%" && ` +
+        `sleep 1 && echo "Progress: 100%" && ` +
+        `echo "Simulation complete"`,
+      ],
+    };
+  },
+};
+
+/**
+ * Registry of engine execution strategies keyed by engine type.
+ * Register additional engines here; callers are untouched.
+ */
+const ENGINE_EXEC_REGISTRY: Partial<Record<EngineType, EngineExecStrategy>> = {
+  [EngineType.FireSTARR]: fireStarrExecStrategy,
+  [EngineType.WISE]: wiseExecStrategy,
+};
+
 /**
  * Model execution service implementation.
  *
@@ -119,55 +234,11 @@ export class ModelExecutionService implements IModelExecutionService {
   }
 
   async isEngineAvailable(engineType: string): Promise<boolean> {
-    switch (engineType) {
-      case EngineType.FireSTARR: {
-        // Check execution mode - native binary or Docker
-        const executionMode = process.env.FIRESTARR_EXECUTION_MODE?.toLowerCase();
-
-        if (executionMode === 'binary') {
-          // Native binary mode - check if binary exists and is executable
-          const binaryPath = process.env.FIRESTARR_BINARY_PATH;
-          if (!binaryPath) {
-            console.warn('[ExecutionService] FIRESTARR_BINARY_PATH not configured for binary mode');
-            return false;
-          }
-          try {
-            const fs = await import('fs/promises');
-            await fs.access(binaryPath, (await import('fs')).constants.X_OK);
-            return true;
-          } catch {
-            console.warn(`[ExecutionService] FireSTARR binary not executable: ${binaryPath}`);
-            return false;
-          }
-        }
-
-        // Docker mode (default)
-        const dockerExecutor = getDockerExecutor();
-        const dockerAvailable = await dockerExecutor.isAvailable();
-        if (!dockerAvailable) {
-          console.warn('[ExecutionService] Docker not available for FireSTARR');
-          return false;
-        }
-
-        // Check if the FireSTARR service is available
-        const serviceAvailable = await dockerExecutor.isServiceAvailable('firestarr-app');
-        if (!serviceAvailable) {
-          console.warn('[ExecutionService] FireSTARR Docker service not available');
-          // For development, still return true to allow stub execution
-          return true;
-        }
-
-        return true;
-      }
-
-      case EngineType.WISE:
-        // WISE not yet implemented - allow stub execution
-        console.warn('[ExecutionService] WISE engine not yet implemented, using stub');
-        return true;
-
-      default:
-        return false;
+    const strategy = ENGINE_EXEC_REGISTRY[engineType as EngineType];
+    if (!strategy) {
+      return false;
     }
+    return strategy.isAvailable();
   }
 
   /**
@@ -264,61 +335,15 @@ export class ModelExecutionService implements IModelExecutionService {
    * For FireSTARR with Docker available, returns docker compose command.
    * Otherwise, returns stub command for development.
    */
-  private getEngineCommand(model: FireModel): {
-    cmd: string;
-    args: string[];
-    cwd?: string;
-    env?: Record<string, string>;
-  } {
-    switch (model.engineType) {
-      case EngineType.FireSTARR:
-        // Check if we should use real Docker execution
-        // For now, use stub - real execution is via FireSTARREngine directly
-        // The ModelExecutionService stub path is kept for backwards compatibility
-        // and for when Docker is not available
-        //
-        // To use real FireSTARR execution:
-        // 1. Call getFireSTARREngine().initialize(model, options)
-        // 2. Call getFireSTARREngine().execute(modelId)
-        // 3. Poll getFireSTARREngine().getStatus(modelId) for progress
-        //
-        // For now, use a stub that simulates execution
-        return {
-          cmd: 'sh',
-          args: [
-            '-c',
-            `echo "Starting FireSTARR simulation for model ${model.id}..." && ` +
-            `echo "[NOTE] Using stub execution - Docker not connected" && ` +
-            `sleep 1 && echo "Running scenario 1 of 10" && ` +
-            `sleep 1 && echo "Running scenario 5 of 10" && ` +
-            `sleep 1 && echo "Running scenario 10 of 10" && ` +
-            `sleep 1 && echo "Total simulation time was 4.0 seconds" && ` +
-            `echo "Simulation complete"`,
-          ],
-        };
-
-      case EngineType.WISE:
-        // WISE not yet implemented - use stub
-        return {
-          cmd: 'sh',
-          args: [
-            '-c',
-            `echo "Starting WISE simulation for model ${model.id}..." && ` +
-            `echo "[NOTE] WISE engine not yet implemented" && ` +
-            `sleep 1 && echo "Progress: 25%" && ` +
-            `sleep 1 && echo "Progress: 50%" && ` +
-            `sleep 1 && echo "Progress: 75%" && ` +
-            `sleep 1 && echo "Progress: 100%" && ` +
-            `echo "Simulation complete"`,
-          ],
-        };
-
-      default:
-        return {
-          cmd: 'echo',
-          args: [`Unknown engine type: ${model.engineType}`],
-        };
+  private getEngineCommand(model: FireModel): EngineCommand {
+    const strategy = ENGINE_EXEC_REGISTRY[model.engineType as EngineType];
+    if (!strategy) {
+      return {
+        cmd: 'echo',
+        args: [`Unknown engine type: ${model.engineType}`],
+      };
     }
+    return strategy.getCommand(model);
   }
 
   /**
