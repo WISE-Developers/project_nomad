@@ -20,10 +20,12 @@ import {
   OutputFormat,
 } from '../../domain/entities/index.js';
 import { IFireModelingEngine, ExecutionStatus } from '../interfaces/IFireModelingEngine.js';
-import { getResultRepository, getJobRepository } from '../../infrastructure/database/index.js';
-import type { IResultRepository, IJobRepository } from '../interfaces/index.js';
+import type {
+  IResultRepository,
+  IJobRepository,
+  IResultArtifactGateway,
+} from '../interfaces/index.js';
 import { createFireModelId } from '../../domain/entities/FireModel.js';
-import { resolveResultFilePath } from '../../infrastructure/firestarr/FireSTARRInputGenerator.js';
 
 /**
  * Execution summary for API response
@@ -110,15 +112,12 @@ interface StoredResult {
  * Service for managing model results
  */
 export class ModelResultsService {
-  constructor(private engine: IFireModelingEngine) {}
-
-  private get resultRepo(): IResultRepository {
-    return getResultRepository();
-  }
-
-  private get jobRepo(): IJobRepository {
-    return getJobRepository();
-  }
+  constructor(
+    private engine: IFireModelingEngine,
+    private resultRepo: IResultRepository,
+    private jobRepo: IJobRepository,
+    private gateway: IResultArtifactGateway
+  ) {}
 
   /**
    * Get all results for a model
@@ -312,7 +311,7 @@ export class ModelResultsService {
       let loadedOutputConfig: OutputConfig | undefined;
       if (outputs.length > 0 && outputs[0].filePath) {
         // Resolve relative path to absolute path for file operations
-        const absoluteFilePath = resolveResultFilePath(outputs[0].filePath);
+        const absoluteFilePath = this.gateway.resolveResultFilePath(outputs[0].filePath);
         const simDir = path.dirname(absoluteFilePath);
         inputs = {};
 
@@ -402,8 +401,7 @@ export class ModelResultsService {
               // the classified tile endpoint. Classification window is derived
               // from the model's configured timeRange, not from file count.
               try {
-                const { findArrivalTifs } = await import('../../infrastructure/firestarr/index.js');
-                const arrival = findArrivalTifs(simDir);
+                const arrival = this.gateway.findArrivalTifs(simDir);
                 if (arrival) {
                   // Read timeRange from output-config.json to derive the model's
                   // actual duration (not the number of arrival files, which can
@@ -472,8 +470,7 @@ export class ModelResultsService {
 
               if (!hasPerimeters) {
                 // Extract perimeters from arrival-time rasters
-                const { extractDeterministicPerimeters } = await import('../../infrastructure/firestarr/index.js');
-                const perimeterResult = await extractDeterministicPerimeters(simDir);
+                const perimeterResult = await this.gateway.extractDeterministicPerimeters(simDir);
 
                 // Perimeter colors — progression from orange→red→crimson (no yellow)
                 // Colorblind-friendly perimeter colors — high contrast, distinct hues
@@ -563,20 +560,14 @@ export class ModelResultsService {
     if (!result) return null;
     const relativePath = (result.metadata.filePath as string) ?? null;
     if (!relativePath) return null;
-    return resolveResultFilePath(relativePath);
+    return this.gateway.resolveResultFilePath(relativePath);
   }
 }
 
-// Singleton instance
-let instance: ModelResultsService | null = null;
-
-export function getModelResultsService(engine: IFireModelingEngine): ModelResultsService {
-  if (!instance) {
-    instance = new ModelResultsService(engine);
-  }
-  return instance;
-}
-
-export function resetModelResultsService(): void {
-  instance = null;
-}
+// Composition root (factory + reset) lives in ModelResultsService.composition.ts
+// so this module has zero dependencies on the infrastructure layer. Re-exported
+// here to preserve the existing import path/signature for all callers.
+export {
+  getModelResultsService,
+  resetModelResultsService,
+} from './ModelResultsService.composition.js';
