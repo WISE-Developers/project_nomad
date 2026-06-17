@@ -2,7 +2,9 @@
 
 **Date:** 2026-06-14
 **Author:** Sage (with Franco)
-**Status:** Approved scope (Option A — fix all 8) · execution gated per-item
+**Status (2026-06-17): COMPLETE for the behavior-preserving scope.** Done & green: the DIP/structure items — engine resolver + `IWorkspaceAwareEngine` (inventory 1+2), weather-types lift (3), `ModelResultsService` port injection (4), and `TimeRange`/notification-enum relocation (6+5). Backend suite **433 green**, build green, on branch `chore/arch-remediation-phase2`.
+
+**Lifted out (NOT behavior-preserving → separate scope/approval):** inventory item 7 (`IOpenNomadAPI` LSP contract redesign — the "not implemented" throws ARE current behavior; the fix changes call-site behavior and breaks the public agency seam) and inventory item 8 (`ExportBundleBuilder` — removing the import-time `setInterval` changes side-effect timing). These are real improvements but alter functionality, so they do not belong in a behavior-preserving phase. See `nomad-opennomad-contract-proposal.md` for the item-7 design.
 **Predecessors:** `nomad-architecture-compliance-review-phase1.md` (method) · `nomad-architecture-drift-inventory.md` (findings) · `nomad-test-baseline.md` (green baseline)
 
 ---
