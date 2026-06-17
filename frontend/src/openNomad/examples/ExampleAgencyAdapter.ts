@@ -30,6 +30,8 @@ import type {
   BBox,
   GeoJSONGeometry,
   Unsubscribe,
+  SpatialDataAPI,
+  SpatialMapAPI,
 } from '../api.js';
 
 // =============================================================================
@@ -353,15 +355,58 @@ export function createAgencyAdapter(options: AgencyAdapterOptions): IOpenNomadAP
   // Spatial Module
   // ===========================================================================
 
-  const spatial: IOpenNomadAPI['spatial'] = {
-    // -------------------------------------------------------------------------
-    // Map Interaction (Host-Provided)
-    // -------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
+  // Spatial DATA services (REQUIRED — spatial.data)
+  // -------------------------------------------------------------------------
 
-    // TODO: Implement these using your host application's map component.
-    // These are the key methods that enable embedding - your adapter
-    // bridges between Nomad's requests and your map's drawing tools.
+  const spatialData: SpatialDataAPI = {
+    async getWeatherStations(bounds: BBox): Promise<WeatherStation[]> {
+      // TODO: Query your agency's weather station service
+      const [minLng, minLat, maxLng, maxLat] = bounds;
+      return apiFetch<WeatherStation[]>(
+        `/spatial/weather-stations?bbox=${minLng},${minLat},${maxLng},${maxLat}`
+      );
+    },
 
+    async getFuelTypes(bounds: BBox): Promise<FuelTypeData> {
+      // TODO: Return your agency's fuel type service info
+      return {
+        bounds,
+        fuelTypes: [
+          { code: 'C-2', name: 'Boreal Spruce', color: '#228B22' },
+          { code: 'C-3', name: 'Mature Jack Pine', color: '#006400' },
+          { code: 'M-1', name: 'Boreal Mixedwood', color: '#90EE90' },
+          { code: 'M-2', name: 'Boreal Mixedwood', color: '#98FB98' },
+          { code: 'D-1', name: 'Leafless Aspen', color: '#FFD700' },
+          { code: 'S-1', name: 'Jack Pine Slash', color: '#8B4513' },
+          { code: 'O-1a', name: 'Standing Grass', color: '#F0E68C' },
+          // Add your agency's fuel types...
+        ],
+        serviceUrl: 'https://your-geoserver/wcs/fueltypes',
+        layerName: 'fuels',
+      };
+    },
+
+    async getElevation(bounds: BBox): Promise<ElevationData> {
+      // TODO: Return your agency's DEM service info
+      return {
+        bounds,
+        serviceUrl: 'https://your-geoserver/wcs/dem',
+        resolutionM: 30,
+      };
+    },
+  };
+
+  // -------------------------------------------------------------------------
+  // Map Interaction (OPTIONAL — spatial.map, host-provided)
+  //
+  // An agency host that embeds Nomad in its own map app provides this object,
+  // wiring each method to its host map component. If your deployment has NO
+  // host map, OMIT `spatialMap` from the returned adapter entirely — the
+  // contract types `spatial.map?` as optional and Nomad feature-detects it.
+  // -------------------------------------------------------------------------
+
+  const spatialMap: SpatialMapAPI = {
     async drawPoint(): Promise<GeoJSON.Point> {
       // TODO: Activate your map's point drawing tool
       // Return the geometry when user completes drawing
@@ -421,46 +466,11 @@ export function createAgencyAdapter(options: AgencyAdapterOptions): IOpenNomadAP
       // TODO: Return your map's current visible bounds
       return [-180, -90, 180, 90];
     },
+  };
 
-    // -------------------------------------------------------------------------
-    // Data Services
-    // -------------------------------------------------------------------------
-
-    async getWeatherStations(bounds: BBox): Promise<WeatherStation[]> {
-      // TODO: Query your agency's weather station service
-      const [minLng, minLat, maxLng, maxLat] = bounds;
-      return apiFetch<WeatherStation[]>(
-        `/spatial/weather-stations?bbox=${minLng},${minLat},${maxLng},${maxLat}`
-      );
-    },
-
-    async getFuelTypes(bounds: BBox): Promise<FuelTypeData> {
-      // TODO: Return your agency's fuel type service info
-      return {
-        bounds,
-        fuelTypes: [
-          { code: 'C-2', name: 'Boreal Spruce', color: '#228B22' },
-          { code: 'C-3', name: 'Mature Jack Pine', color: '#006400' },
-          { code: 'M-1', name: 'Boreal Mixedwood', color: '#90EE90' },
-          { code: 'M-2', name: 'Boreal Mixedwood', color: '#98FB98' },
-          { code: 'D-1', name: 'Leafless Aspen', color: '#FFD700' },
-          { code: 'S-1', name: 'Jack Pine Slash', color: '#8B4513' },
-          { code: 'O-1a', name: 'Standing Grass', color: '#F0E68C' },
-          // Add your agency's fuel types...
-        ],
-        serviceUrl: 'https://your-geoserver/wcs/fueltypes',
-        layerName: 'fuels',
-      };
-    },
-
-    async getElevation(bounds: BBox): Promise<ElevationData> {
-      // TODO: Return your agency's DEM service info
-      return {
-        bounds,
-        serviceUrl: 'https://your-geoserver/wcs/dem',
-        resolutionM: 30,
-      };
-    },
+  const spatial: IOpenNomadAPI['spatial'] = {
+    data: spatialData,
+    map: spatialMap,
   };
 
   // ===========================================================================

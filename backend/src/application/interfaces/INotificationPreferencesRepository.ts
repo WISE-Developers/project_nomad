@@ -6,7 +6,7 @@
  * infrastructure layer provides the Knex implementation.
  */
 
-import { NotificationEventType } from '../../infrastructure/database/migrations/005_create_notification_preferences.js';
+import { NotificationEventType } from '../../domain/entities/NotificationEventType.js';
 
 export interface NotificationPreference {
   userId: string;

@@ -3,10 +3,9 @@ import { readFile, stat } from 'fs/promises';
 import { watch, type FSWatcher } from 'fs';
 import { join } from 'path';
 import { asyncHandler } from '../../middleware/index.js';
-import { createJobId } from '../../../domain/entities/index.js';
+import { createJobId, EngineType } from '../../../domain/entities/index.js';
 import { getJobQueue } from '../../../infrastructure/services/index.js';
-import { getFireSTARREngine } from '../../../infrastructure/firestarr/index.js';
-import type { FireSTARREngine } from '../../../infrastructure/firestarr/FireSTARREngine.js';
+import { getWorkspaceAwareEngine } from '../../../infrastructure/engines/index.js';
 
 const router = Router();
 
@@ -141,7 +140,7 @@ router.get(
     const modelId = jobResult.value.modelId;
 
     // Find the working directory for this model
-    const engine = getFireSTARREngine() as FireSTARREngine;
+    const engine = getWorkspaceAwareEngine(EngineType.FireSTARR);
     const workingDir = engine.getWorkingDirectory(modelId);
     if (!workingDir) {
       res.status(404).json({ error: 'Working directory not found for model' });

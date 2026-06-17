@@ -16,11 +16,11 @@ import { TimeRange } from '../../../domain/value-objects/index.js';
 import { NotFoundError, ValidationError } from '../../../domain/errors/index.js';
 import { getModelExecutionService } from '../../../infrastructure/services/index.js';
 import {
-  getFireSTARREngine,
   generateArrivalTile,
   findArrivalTifs,
   getRasterBounds,
 } from '../../../infrastructure/firestarr/index.js';
+import { getEngine, getWorkspaceAwareEngine } from '../../../infrastructure/engines/index.js';
 import { EngineError } from '../../../domain/errors/index.js';
 import { getModelResultsService } from '../../../application/services/index.js';
 import { getJobQueue } from '../../../infrastructure/services/JobQueue.js';
@@ -215,7 +215,7 @@ router.post(
 
     // Start execution (FireSTARR)
     if (model.engineType === EngineType.FireSTARR) {
-      const engine = getFireSTARREngine();
+      const engine = getEngine(EngineType.FireSTARR);
 
       (async () => {
         try {
@@ -642,7 +642,7 @@ router.post(
 
     // Start execution with FireSTARREngine (for FireSTARR models)
     if (model.engineType === EngineType.FireSTARR) {
-      const engine = getFireSTARREngine();
+      const engine = getEngine(EngineType.FireSTARR);
 
       // Initialize and execute asynchronously
       (async () => {
@@ -777,7 +777,7 @@ router.get(
     // Try to get results service - engine may not be configured
     try {
       logger.debug(`Getting engine and service`, 'Results');
-      const engine = getFireSTARREngine();
+      const engine = getEngine(EngineType.FireSTARR);
       const resultsService = getModelResultsService(engine);
 
       // Get results
@@ -896,7 +896,7 @@ router.get(
     }
 
     // Get results to find the simulation directory
-    const engine = getFireSTARREngine();
+    const engine = getEngine(EngineType.FireSTARR);
     const resultsService = getModelResultsService(engine);
     const result = await resultsService.getResults(
       id as FireModelId,
@@ -960,7 +960,7 @@ router.get(
     }
 
     // Get results to find the ignition geometry
-    const engine = getFireSTARREngine();
+    const engine = getEngine(EngineType.FireSTARR);
     const resultsService = getModelResultsService(engine);
     const result = await resultsService.getResults(
       id as FireModelId,
@@ -1036,9 +1036,9 @@ router.get(
       ]);
     }
 
-    // Get working directory (cast to concrete type for FireSTARR-specific method)
-    const engine = getFireSTARREngine();
-    const workingDir = (engine as import('../../../infrastructure/firestarr/FireSTARREngine.js').FireSTARREngine).getWorkingDirectory(id as FireModelId);
+    // Get working directory via the workspace-aware engine capability
+    const engine = getWorkspaceAwareEngine(EngineType.FireSTARR);
+    const workingDir = engine.getWorkingDirectory(id as FireModelId);
     if (!workingDir || !fs.existsSync(workingDir)) {
       throw new NotFoundError('Working directory', id);
     }
@@ -1181,7 +1181,7 @@ router.post(
     }
 
     // Get the working directory from results
-    const engine = getFireSTARREngine();
+    const engine = getEngine(EngineType.FireSTARR);
     const resultsService = getModelResultsService(engine);
     const resultResponse = await resultsService.getResults(
       id as FireModelId,
@@ -1262,8 +1262,8 @@ router.get(
     const filter = userId ? { userId } : {};
     const result = await modelRepo.find(filter);
 
-    // Get FireSTARR engine for working directory lookup
-    const engine = getFireSTARREngine();
+    // Get the workspace-aware engine for working directory lookup
+    const engine = getWorkspaceAwareEngine(EngineType.FireSTARR);
 
     const models = await Promise.all(result.models.map(async (model) => {
       const baseInfo = {
@@ -1282,7 +1282,7 @@ router.get(
       // Try to read duration from filesystem for completed models
       if (model.status === ModelStatus.Completed) {
         try {
-          const workingDir = (engine as import('../../../infrastructure/firestarr/FireSTARREngine.js').FireSTARREngine).getWorkingDirectory(model.id);
+          const workingDir = engine.getWorkingDirectory(model.id);
           if (workingDir) {
             // Count probability rasters to get duration in days
             const files = fs.readdirSync(workingDir);
@@ -1368,7 +1368,7 @@ router.delete(
 
     // Clean up engine state if present
     try {
-      const engine = getFireSTARREngine();
+      const engine = getEngine(EngineType.FireSTARR);
       await engine.cleanup(id as FireModelId, false);
     } catch {
       // Engine may not have this model - that's fine
@@ -1527,7 +1527,7 @@ router.get(
         : undefined;
     const modelId = id as FireModelId;
 
-    const engine = getFireSTARREngine() as import('../../../infrastructure/firestarr/FireSTARREngine.js').FireSTARREngine;
+    const engine = getWorkspaceAwareEngine(EngineType.FireSTARR);
     const workingDir = engine.getWorkingDirectory(modelId);
     if (!workingDir || !fs.existsSync(workingDir)) {
       throw new NotFoundError('Working directory', id);
@@ -1585,7 +1585,7 @@ router.get(
     const { id } = req.params;
     const modelId = id as FireModelId;
 
-    const engine = getFireSTARREngine() as import('../../../infrastructure/firestarr/FireSTARREngine.js').FireSTARREngine;
+    const engine = getWorkspaceAwareEngine(EngineType.FireSTARR);
     const workingDir = engine.getWorkingDirectory(modelId);
     if (!workingDir || !fs.existsSync(workingDir)) {
       throw new NotFoundError('Working directory', id);
@@ -1640,7 +1640,7 @@ router.get(
     const { id } = req.params;
     const modelId = id as FireModelId;
 
-    const engine = getFireSTARREngine() as import('../../../infrastructure/firestarr/FireSTARREngine.js').FireSTARREngine;
+    const engine = getWorkspaceAwareEngine(EngineType.FireSTARR);
     const workingDir = engine.getWorkingDirectory(modelId);
     if (!workingDir || !fs.existsSync(workingDir)) {
       throw new NotFoundError('Working directory', id);

@@ -111,6 +111,11 @@ export function useResults(options: UseResultsOptions = {}): UseResultsReturn {
   // ==========================================================================
 
   const getResultData = useCallback(async (resultId: string): Promise<GeoJSONGeometry | string> => {
+    // getData is an OPTIONAL capability (ResultData). Adapters that expose
+    // results only via URL generation omit it. Feature-detect before calling.
+    if (!api.results.getData) {
+      throw new Error('Result data retrieval is not available in this deployment.');
+    }
     return api.results.getData(resultId);
   }, [api]);
 
@@ -119,6 +124,10 @@ export function useResults(options: UseResultsOptions = {}): UseResultsReturn {
   // ==========================================================================
 
   const exportResults = useCallback(async (id: string, params: ExportParams): Promise<Blob> => {
+    // export is an OPTIONAL capability (ResultData). Feature-detect before use.
+    if (!api.results.export) {
+      throw new Error('Result export is not available in this deployment.');
+    }
     return api.results.export(id, params);
   }, [api]);
 
@@ -225,6 +234,10 @@ export function useResultViewer(
     setError(null);
 
     try {
+      // getData is an OPTIONAL capability (ResultData); degrade gracefully.
+      if (!api.results.getData) {
+        throw new Error('Result data retrieval is not available in this deployment.');
+      }
       const resultData = await api.results.getData(resultId);
       if (mountedRef.current) {
         setData(resultData);

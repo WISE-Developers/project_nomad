@@ -616,6 +616,98 @@ export interface AgencyConfig {
 }
 
 // =============================================================================
+// Spatial Sub-Interfaces
+// =============================================================================
+
+/**
+ * Spatial DATA services — REQUIRED on every adapter (`spatial.data`).
+ *
+ * These are queryable without a host map. The default adapter returns
+ * empty/stub data, but the signatures are honoured (never throw).
+ */
+export interface SpatialDataAPI {
+  /**
+   * Get weather stations within bounds.
+   *
+   * @param bounds - Bounding box to search
+   * @returns Weather stations in the area
+   */
+  getWeatherStations(bounds: BBox): Promise<WeatherStation[]>;
+
+  /**
+   * Get fuel type data for a region.
+   *
+   * @param bounds - Bounding box to query
+   * @returns Fuel type data including WMS/WCS service info
+   */
+  getFuelTypes(bounds: BBox): Promise<FuelTypeData>;
+
+  /**
+   * Get elevation data for a region.
+   *
+   * @param bounds - Bounding box to query
+   * @returns Elevation data including service URL
+   */
+  getElevation(bounds: BBox): Promise<ElevationData>;
+}
+
+/**
+ * Map-interaction services — OPTIONAL, host-provided (`spatial.map?`).
+ *
+ * Only meaningful when a host map exists. An adapter without a host map
+ * (e.g. the SAN default) omits the entire `map` object rather than
+ * providing throwing or no-op stubs. The whole interface lives or dies
+ * together: a host that supplies a map supplies all of it.
+ */
+export interface SpatialMapAPI {
+  /**
+   * Request user to draw a point on the map.
+   * @returns The drawn point geometry
+   * @throws If user cancels or drawing is not available
+   */
+  drawPoint(): Promise<GeoJSON.Point>;
+
+  /**
+   * Request user to draw a line on the map.
+   * @returns The drawn line geometry
+   * @throws If user cancels or drawing is not available
+   */
+  drawLine(): Promise<GeoJSON.LineString>;
+
+  /**
+   * Request user to draw a polygon on the map.
+   * @returns The drawn polygon geometry
+   * @throws If user cancels or drawing is not available
+   */
+  drawPolygon(): Promise<GeoJSON.Polygon>;
+
+  /**
+   * Subscribe to geometry changes during drawing.
+   * @param callback - Called with the current geometry state
+   * @returns Cleanup function to unsubscribe
+   */
+  onGeometryChange(callback: (geometry: GeoJSONGeometry | null) => void): Unsubscribe;
+
+  /** Cancel any active drawing operation. */
+  cancelDraw(): void;
+
+  /** Add a layer to the map. */
+  addLayer(layer: MapLayer): void;
+
+  /** Update an existing layer. */
+  updateLayer(id: string, updates: Partial<MapLayer>): void;
+
+  /** Remove a layer from the map. */
+  removeLayer(id: string): void;
+
+  /** Fit the map view to a bounding box. */
+  fitBounds(bounds: BBox, options?: { padding?: number; animate?: boolean }): void;
+
+  /** Get the current map bounds. */
+  getBounds(): BBox;
+}
+
+// =============================================================================
 // API Interface
 // =============================================================================
 
@@ -725,10 +817,15 @@ export interface IOpenNomadAPI {
     /**
      * Create a new fire model.
      *
+     * OPTIONAL CAPABILITY (ModelCrud). A backend that uses an atomic run
+     * operation instead of separate create/execute does not provide this.
+     * Consumers MUST feature-detect (`if (api.models.create) ...`) before
+     * calling — absence means "feature not available", not an error.
+     *
      * @param params - Model creation parameters
      * @returns The created model
      */
-    create(params: ModelCreateParams): Promise<Model>;
+    create?(params: ModelCreateParams): Promise<Model>;
 
     /**
      * List models for the current user.
@@ -751,13 +848,17 @@ export interface IOpenNomadAPI {
     /**
      * Update a model (only allowed for draft models).
      *
+     * OPTIONAL CAPABILITY (ModelCrud). Omitted by adapters whose backend
+     * does not support mutating models after creation. Feature-detect before
+     * calling.
+     *
      * @param id - Model ID
      * @param updates - Partial model updates
      * @returns The updated model
      * @throws NotFoundError if model doesn't exist
      * @throws ValidationError if model is not in draft status
      */
-    update(id: string, updates: Partial<ModelCreateParams>): Promise<Model>;
+    update?(id: string, updates: Partial<ModelCreateParams>): Promise<Model>;
 
     /**
      * Delete a model and all associated data.
@@ -788,20 +889,28 @@ export interface IOpenNomadAPI {
      * Submit a model for execution.
      *
      * @param modelId - ID of the model to execute
+     * OPTIONAL CAPABILITY (JobControl). Omitted by adapters whose backend
+     * executes models via an atomic run rather than a separate submit step.
+     * Feature-detect before calling.
+     *
+     * @param modelId - ID of the model to execute
      * @returns The submit response containing jobId and message
      * @throws NotFoundError if model doesn't exist
      * @throws ValidationError if model cannot be executed
      */
-    submit(modelId: string): Promise<JobSubmitResponse>;
+    submit?(modelId: string): Promise<JobSubmitResponse>;
 
     /**
      * Cancel a running or pending job.
+     *
+     * OPTIONAL CAPABILITY (JobControl). Omitted by adapters whose backend
+     * does not support cancellation. Feature-detect before calling.
      *
      * @param jobId - Job ID
      * @throws NotFoundError if job doesn't exist
      * @throws ValidationError if job cannot be cancelled
      */
-    cancel(jobId: string): Promise<void>;
+    cancel?(jobId: string): Promise<void>;
 
     /**
      * Get detailed job status.
@@ -843,19 +952,26 @@ export interface IOpenNomadAPI {
     /**
      * Get a specific result's data (GeoJSON or raster URL).
      *
+     * OPTIONAL CAPABILITY (ResultData). Omitted by adapters that expose
+     * results only via URL generation (see *Url methods below) rather than
+     * an inline data endpoint. Feature-detect before calling.
+     *
      * @param resultId - Result ID
      * @returns GeoJSON for vector results, or URL for raster results
      */
-    getData(resultId: string): Promise<GeoJSONGeometry | string>;
+    getData?(resultId: string): Promise<GeoJSONGeometry | string>;
 
     /**
      * Export model results in a specific format.
+     *
+     * OPTIONAL CAPABILITY (ResultData). Omitted by adapters that do not
+     * provide server-side export. Feature-detect before calling.
      *
      * @param modelId - Model ID
      * @param params - Export parameters
      * @returns Blob containing the exported data (typically a ZIP file)
      */
-    export(modelId: string, params: ExportParams): Promise<Blob>;
+    export?(modelId: string, params: ExportParams): Promise<Blob>;
 
     /**
      * Get available export formats.
@@ -940,140 +1056,40 @@ export interface IOpenNomadAPI {
   // ===========================================================================
 
   /**
-   * Spatial data and map interaction services.
+   * Spatial services, split by capability tier:
    *
-   * This module serves two purposes:
-   * 1. **Data Services**: Access to weather stations, fuel types, and elevation data
-   * 2. **Map Interaction**: Drawing geometry, managing layers, and map navigation
+   * 1. **`data` (REQUIRED)**: weather stations, fuel types, elevation —
+   *    queryable headlessly, always present.
+   * 2. **`map?` (OPTIONAL, host-provided)**: drawing geometry, managing
+   *    layers, map navigation — only present when a host map exists.
+   *    SAN deployments omit it; consumers feature-detect before use.
    *
-   * In ACN mode, the host application implements these using its own map component.
-   * In SAN mode, Nomad's built-in map handles the implementation.
-   *
-   * This is the key abstraction that enables embedding - Nomad declares what
+   * This is the key abstraction that enables embedding — Nomad declares what
    * spatial capabilities it needs, and the host provides the implementation.
    */
   spatial: {
-    // -------------------------------------------------------------------------
-    // Map Interaction (Host-Provided in ACN Mode)
-    // -------------------------------------------------------------------------
+    /**
+     * Spatial data services (REQUIRED).
+     *
+     * Queryable headlessly — every adapter (SAN and ACN) provides these.
+     * The default adapter may return empty/stub data, but the methods always
+     * exist and never throw.
+     */
+    data: SpatialDataAPI;
 
     /**
-     * Request user to draw a point on the map.
+     * Map-interaction services (OPTIONAL — host-provided).
      *
-     * The host application activates its point drawing tool and returns
-     * the result when the user completes the action.
+     * Only meaningful when a host map exists (ACN/embedded mode). A SAN
+     * deployment with no host map at adapter-construction time omits this
+     * object entirely. Consumers MUST feature-detect:
      *
-     * @returns The drawn point geometry
-     * @throws If user cancels or drawing is not available
+     * ```ts
+     * if (api.spatial.map) { await api.spatial.map.drawPoint(); }
+     * else { /* SAN fallback: built-in draw tool *\/ }
+     * ```
      */
-    drawPoint(): Promise<GeoJSON.Point>;
-
-    /**
-     * Request user to draw a line on the map.
-     *
-     * The host application activates its line drawing tool and returns
-     * the result when the user completes the action.
-     *
-     * @returns The drawn line geometry
-     * @throws If user cancels or drawing is not available
-     */
-    drawLine(): Promise<GeoJSON.LineString>;
-
-    /**
-     * Request user to draw a polygon on the map.
-     *
-     * The host application activates its polygon drawing tool and returns
-     * the result when the user completes the action.
-     *
-     * @returns The drawn polygon geometry
-     * @throws If user cancels or drawing is not available
-     */
-    drawPolygon(): Promise<GeoJSON.Polygon>;
-
-    /**
-     * Subscribe to geometry changes during drawing.
-     *
-     * Called repeatedly as the user draws, allowing real-time preview.
-     * Useful for showing area calculations, validation feedback, etc.
-     *
-     * @param callback - Called with the current geometry state
-     * @returns Cleanup function to unsubscribe
-     */
-    onGeometryChange(callback: (geometry: GeoJSONGeometry | null) => void): Unsubscribe;
-
-    /**
-     * Cancel any active drawing operation.
-     *
-     * Deactivates the drawing tool without returning geometry.
-     */
-    cancelDraw(): void;
-
-    /**
-     * Add a layer to the map.
-     *
-     * Used for displaying model results, reference data, etc.
-     *
-     * @param layer - Layer configuration
-     */
-    addLayer(layer: MapLayer): void;
-
-    /**
-     * Update an existing layer.
-     *
-     * @param id - Layer ID to update
-     * @param updates - Partial layer updates
-     */
-    updateLayer(id: string, updates: Partial<MapLayer>): void;
-
-    /**
-     * Remove a layer from the map.
-     *
-     * @param id - Layer ID to remove
-     */
-    removeLayer(id: string): void;
-
-    /**
-     * Fit the map view to a bounding box.
-     *
-     * @param bounds - Bounding box to fit
-     * @param options - Optional padding and animation settings
-     */
-    fitBounds(bounds: BBox, options?: { padding?: number; animate?: boolean }): void;
-
-    /**
-     * Get the current map bounds.
-     *
-     * @returns Current visible bounds
-     */
-    getBounds(): BBox;
-
-    // -------------------------------------------------------------------------
-    // Data Services
-    // -------------------------------------------------------------------------
-
-    /**
-     * Get weather stations within bounds.
-     *
-     * @param bounds - Bounding box to search
-     * @returns Weather stations in the area
-     */
-    getWeatherStations(bounds: BBox): Promise<WeatherStation[]>;
-
-    /**
-     * Get fuel type data for a region.
-     *
-     * @param bounds - Bounding box to query
-     * @returns Fuel type data including WMS/WCS service info
-     */
-    getFuelTypes(bounds: BBox): Promise<FuelTypeData>;
-
-    /**
-     * Get elevation data for a region.
-     *
-     * @param bounds - Bounding box to query
-     * @returns Elevation data including service URL
-     */
-    getElevation(bounds: BBox): Promise<ElevationData>;
+    map?: SpatialMapAPI;
   };
 
   // ===========================================================================

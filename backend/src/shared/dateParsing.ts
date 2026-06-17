@@ -11,32 +11,9 @@
 
 import { DateTime } from 'luxon';
 
-/**
- * Parses an ISO-8601 string into a JS Date. Throws if the string is empty,
- * missing an offset (`Z` or `±HH:MM`), or otherwise invalid.
- *
- * @param raw    The candidate ISO string.
- * @param context Human-readable label of where this value came from
- *                (used in the error message to make failures debuggable).
- */
-export function parseIsoToDate(raw: string, context: string): Date {
-  if (typeof raw !== 'string' || raw.length === 0) {
-    throw new Error(`parseIsoToDate(${context}): expected non-empty ISO string, got ${raw === '' ? 'empty string' : typeof raw}`);
-  }
-  const dt = DateTime.fromISO(raw, { setZone: true });
-  if (!dt.isValid) {
-    throw new Error(
-      `parseIsoToDate(${context}): invalid ISO-8601 string "${raw}": ${dt.invalidReason ?? 'unknown'}`,
-    );
-  }
-  // Bare timestamps (no offset, no zone) are ambiguous. Reject.
-  if (dt.offset === 0 && !/Z|[+-]\d{2}:?\d{2}$/.test(raw)) {
-    throw new Error(
-      `parseIsoToDate(${context}): bare timestamp "${raw}" has no UTC offset; use a TZ-aware parser instead`,
-    );
-  }
-  return dt.toJSDate();
-}
+// parseIsoToDate now lives in the domain layer (domain value objects depend on
+// it); re-exported here so existing shared/ importers are unaffected.
+export { parseIsoToDate } from '../domain/value-objects/dateParsing.js';
 
 /**
  * Parses a timestamp coming out of the database. Tolerates both formats we
