@@ -28,6 +28,9 @@ export {
   getBundle,
 } from './ExportBundleBuilder.js';
 
+// Bundle Store (ephemeral cache + TTL sweep lifecycle)
+export { EphemeralBundleCache, getBundleStore } from './BundleStore.js';
+
 // ZIP Generator
 export { ZipGenerator, getZipGenerator } from './ZipGenerator.js';
 

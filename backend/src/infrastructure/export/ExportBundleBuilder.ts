@@ -16,6 +16,7 @@ import { getFireSTARREngine } from '../firestarr/index.js';
 import { resolveResultFilePath } from '../firestarr/FireSTARRInputGenerator.js';
 import { getFormatConverter } from './FormatConverter.js';
 import { getExportFormatRegistry } from './ExportFormatRegistry.js';
+import { getBundleStore } from './BundleStore.js';
 import type { ExportBundle, ExportBundleItem, BundleManifest } from './types.js';
 
 /**
@@ -152,35 +153,21 @@ export class ExportBundleBuilder {
 }
 
 /**
- * In-memory store for export bundles
- * Bundles are ephemeral and will be garbage collected
- */
-const bundleStore = new Map<string, ExportBundle>();
-
-// Clean up bundles older than 1 hour
-const BUNDLE_TTL_MS = 60 * 60 * 1000;
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [id, bundle] of bundleStore) {
-    if (now - bundle.createdAt.getTime() > BUNDLE_TTL_MS) {
-      bundleStore.delete(id);
-    }
-  }
-}, 5 * 60 * 1000); // Check every 5 minutes
-
-/**
- * Store a bundle for later retrieval
+ * Store a bundle for later retrieval.
+ *
+ * Storage (and its TTL eviction lifecycle) is delegated to the shared
+ * {@link EphemeralBundleCache}. The cache's sweep timer is started explicitly
+ * during server bootstrap, not as a side-effect of importing this module.
  */
 export function storeBundle(bundle: ExportBundle): void {
-  bundleStore.set(bundle.id, bundle);
+  getBundleStore().put(bundle);
 }
 
 /**
  * Retrieve a stored bundle
  */
 export function getBundle(bundleId: string): ExportBundle | undefined {
-  return bundleStore.get(bundleId);
+  return getBundleStore().get(bundleId);
 }
 
 /**

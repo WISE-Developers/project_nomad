@@ -16,6 +16,7 @@ import {
   betterAuthSessionMiddleware,
 } from './api/index.js';
 import { initDatabase, initializeRepositories, getJobRepository } from './infrastructure/database/index.js';
+import { getBundleStore } from './infrastructure/export/index.js';
 import { logger } from './infrastructure/logging/index.js';
 
 // Load .env from project root (parent directory)
@@ -230,6 +231,11 @@ async function startServer(): Promise<void> {
 
     // Initialize database first
     await initializeDatabaseLayer();
+
+    // Start the ephemeral export-bundle cache's TTL sweep. This runs on
+    // server boot (not at module import) so importing export modules has no
+    // timer side-effect.
+    getBundleStore().start();
 
     // Start listening
     app.listen(PORT, () => {
