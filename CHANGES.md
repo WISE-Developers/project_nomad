@@ -4,10 +4,37 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.11.0
+## v0.11.1
+
+### 2026-06-17
+
+- [`17193b0`](https://github.com/WISE-Developers/project_nomad/commit/17193b06fb1107c1ae9e90fec7eb3e5e427e9eda) Merge pull request #295 from WISE-Developers/dev — *Franco Nogarin, 12:18*
+- [`0c600c4`](https://github.com/WISE-Developers/project_nomad/commit/0c600c4a9ab927d3b5aae02235a2cd6052691b08) chore: dev build 1 [skip ci] — *github-actions[bot], 17:29*
+- [`9796016`](https://github.com/WISE-Developers/project_nomad/commit/97960164634c26507ffd83589f0ca0d665c900a3) Merge architecture remediation into dev (issue #293) — *Franco Nogarin, 11:27*
+- [`e2efe03`](https://github.com/WISE-Developers/project_nomad/commit/e2efe03b56513d6aa305ab10afb1fd6340be04b8) docs: add openNomad contract proposal (item 7 design) — *Franco Nogarin, 11:27*
+- [`bb19598`](https://github.com/WISE-Developers/project_nomad/commit/bb195983636a8000539ec280088420dd85c0020f) docs: closing DIP re-scan — 26 violations -> 0 (proven) — *Franco Nogarin, 09:03*
+- [`1536a18`](https://github.com/WISE-Developers/project_nomad/commit/1536a18fef485e2250e454ad4ab71395c0f20e42) refactor(frontend): honest IOpenNomadAPI contract — optional capabilities (item 7) — *Franco Nogarin, 08:55*
+- [`15793f5`](https://github.com/WISE-Developers/project_nomad/commit/15793f520793304ef798b67118423eb77fac0918) refactor(backend): extract BundleStore; move TTL sweep off import-time (item 8) — *Franco Nogarin, 08:50*
+- [`80e6991`](https://github.com/WISE-Developers/project_nomad/commit/80e6991ce8721489e1e57b530d2076a143b27089) docs: mark Phase 2 complete for behavior-preserving scope; lift out items 7 & 8 — *Franco Nogarin, 07:10*
+- [`f91dec3`](https://github.com/WISE-Developers/project_nomad/commit/f91dec321bf33e7a4556cf61588504811b57b77e) refactor(backend): relocate domain-reaching utilities inward (item 6) — *Franco Nogarin, 07:07*
+- [`b23be3d`](https://github.com/WISE-Developers/project_nomad/commit/b23be3dc12c5957aa0c39f107dd9ef79fef32088) refactor(backend): inject ModelResultsService dependencies via ports (item 4) — *Franco Nogarin, 05:10*
+
+### 2026-06-16
+
+- [`39cec44`](https://github.com/WISE-Developers/project_nomad/commit/39cec44ef2af5f112ad36464047698e260799fec) refactor(backend): lift weather contracts into application layer (item 3) — *Franco Nogarin, 08:46*
+- [`842049e`](https://github.com/WISE-Developers/project_nomad/commit/842049efdb7f55520ce56beed14076a3a260ce03) refactor(backend): redirect all engine callers off the concrete factory (item 2) — *Franco Nogarin, 07:18*
+- [`914ba2a`](https://github.com/WISE-Developers/project_nomad/commit/914ba2a1a2433f850b3fa4c26d737eede7992110) test(backend): characterize engine-wiring handlers before resolver swap (item 2) — *Franco Nogarin, 07:10*
+- [`139b051`](https://github.com/WISE-Developers/project_nomad/commit/139b051f6eb194ba806f101e2ad35081598f079b) docs: add engine port-leak survey (item 2 scoping) — *Franco Nogarin, 07:03*
+- [`1ac55f5`](https://github.com/WISE-Developers/project_nomad/commit/1ac55f519b25f82963b196a938baf094ea2f5b84) refactor(backend): replace engineType switches with engine strategy registry (item 1) — *Franco Nogarin, 06:21*
+
+### 2026-06-15
+
+- [`a883331`](https://github.com/WISE-Developers/project_nomad/commit/a883331271787bef37442451f0fad97bcb0874c8) docs: add architecture compliance review + remediation plans — *Franco Nogarin, 11:42*
 
 ### 2026-06-12
 
+- [`010393e`](https://github.com/WISE-Developers/project_nomad/commit/010393eab323f464caf949d4e614d013e48ebcab) chore: reset dev build counter after v0.11.0 [skip ci] — *github-actions[bot], 17:31*
+- [`c0158b0`](https://github.com/WISE-Developers/project_nomad/commit/c0158b004194f7af4adbc4f33624dc458d21db94) chore: release v0.11.0 [skip ci] — *github-actions[bot], 17:30*
 - [`292540b`](https://github.com/WISE-Developers/project_nomad/commit/292540bf88dab86d538fb3f7d507ffdda7b2c920) Merge pull request #288 from WISE-Developers/dev — *Franco Nogarin, 11:30*
 - [`72acc79`](https://github.com/WISE-Developers/project_nomad/commit/72acc79ca5ff0bdcc9e80569472a35b5c70d76a3) chore: dev build 7 [skip ci] — *github-actions[bot], 17:05*
 - [`62cb2fc`](https://github.com/WISE-Developers/project_nomad/commit/62cb2fc18ec0da0e7d4fa4e1debe83879eca020d) Merge #283 legend epic: day-keyed viridis arrival, full customization + in-process perf — *Franco Nogarin, 11:04*
