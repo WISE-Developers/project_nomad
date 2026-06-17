@@ -1,5 +1,5 @@
 import { ValidationError } from '../errors/index.js';
-import { parseIsoToDate } from '../../shared/dateParsing.js';
+import { parseIsoToDate } from './dateParsing.js';
 
 /**
  * Immutable value object representing a time range with start, end, and duration.

@@ -15,14 +15,12 @@
 
 import { Knex } from 'knex';
 
-export const DEFAULT_EVENT_TYPES = [
-  'model_completed',
-  'model_failed',
-  'import_completed',
-  'import_failed',
-] as const;
-
-export type NotificationEventType = (typeof DEFAULT_EVENT_TYPES)[number];
+// The event-type contract now lives in the domain layer; re-exported here so
+// existing importers of this migration (API + Knex repo + tests) are unaffected.
+export {
+  DEFAULT_EVENT_TYPES,
+  type NotificationEventType,
+} from '../../../domain/entities/NotificationEventType.js';
 
 export async function up(knex: Knex): Promise<void> {
   const hasTable = await knex.schema.hasTable('notification_preferences');
