@@ -27,17 +27,13 @@ import type {
   UserRole,
   Model,
   ModelStatus,
-  ModelCreateParams,
   ModelFilter,
   PaginationParams,
   PaginatedResponse,
   Job,
-  JobSubmitResponse,
   JobStatusDetail,
   ModelResults,
   ExportFormat,
-  ExportParams,
-  MapLayer,
   WeatherStation,
   FuelTypeData,
   ElevationData,
@@ -45,7 +41,6 @@ import type {
   AgencyConfig,
   Unsubscribe,
   BBox,
-  GeoJSONGeometry,
   EngineType,
 } from '../api.js';
 
@@ -331,22 +326,12 @@ export function createDefaultAdapter(options?: DefaultAdapterOptions): IOpenNoma
      * - Route to different backends based on model type
      */
     models: {
-      /**
-       * Create a new fire model.
-       *
-       * DEFAULT BEHAVIOR: NOT IMPLEMENTED - uses runModel() atomic operation.
-       *
-       * AGENCY NOTE: Implement if your backend supports creating drafts.
-       * Otherwise, use jobs.submit() for atomic create+execute.
-       */
-      async create(_params: ModelCreateParams): Promise<Model> {
-        // The default backend uses atomic runModel() operation
-        // Creating drafts is not supported in the current API
-        throw new Error(
-          'create() is not implemented in the default adapter. ' +
-          'Use jobs.submit() for atomic model creation and execution.'
-        );
-      },
+      // OPTIONAL CAPABILITY (ModelCrud): create / update.
+      // The SAN default backend uses an atomic runModel() operation and does
+      // NOT support draft creation or post-hoc updates, so these methods are
+      // simply OMITTED here. Their absence is expressible in the type system
+      // (optional members on the contract), so consumers feature-detect
+      // instead of catching a thrown "not implemented" error.
 
       /**
        * List models for the current user.
@@ -411,17 +396,6 @@ export function createDefaultAdapter(options?: DefaultAdapterOptions): IOpenNoma
       },
 
       /**
-       * Update a model (only allowed for draft models).
-       *
-       * DEFAULT BEHAVIOR: NOT IMPLEMENTED.
-       *
-       * AGENCY NOTE: Implement if your backend supports model updates.
-       */
-      async update(_id: string, _updates: Partial<ModelCreateParams>): Promise<Model> {
-        throw new Error('update() is not implemented in the default adapter.');
-      },
-
-      /**
        * Delete a model and all associated data.
        *
        * DEFAULT BEHAVIOR: Calls DELETE /api/v1/models/:id endpoint.
@@ -459,37 +433,11 @@ export function createDefaultAdapter(options?: DefaultAdapterOptions): IOpenNoma
      * - Job cancellation and cleanup
      */
     jobs: {
-      /**
-       * Submit a model for execution.
-       *
-       * DEFAULT BEHAVIOR: NOT DIRECTLY IMPLEMENTED.
-       * The default flow uses runModel() atomic operation from services/api.ts.
-       *
-       * AGENCY NOTE: Your implementation might:
-       * - Validate model parameters against agency rules
-       * - Route to different compute clusters
-       * - Create audit records
-       */
-      async submit(_modelId: string): Promise<JobSubmitResponse> {
-        // The default backend uses atomic runModel() operation
-        // which creates and executes in one call.
-        // This method would be used if we had separate create/execute
-        throw new Error(
-          'submit() is not directly supported. ' +
-          'Model execution happens via the wizard completing the atomic run operation.'
-        );
-      },
-
-      /**
-       * Cancel a running or pending job.
-       *
-       * DEFAULT BEHAVIOR: NOT IMPLEMENTED.
-       *
-       * AGENCY NOTE: Implement job cancellation for your compute backend.
-       */
-      async cancel(_jobId: string): Promise<void> {
-        throw new Error('cancel() is not implemented in the default adapter.');
-      },
+      // OPTIONAL CAPABILITY (JobControl): submit / cancel.
+      // The SAN default flow executes models via the atomic runModel()
+      // operation (see services/api.ts) rather than a separate submit step,
+      // and the backend exposes no cancellation endpoint. Both methods are
+      // therefore OMITTED — their absence is honestly typed, not thrown.
 
       /**
        * Get detailed job status.
@@ -620,28 +568,11 @@ export function createDefaultAdapter(options?: DefaultAdapterOptions): IOpenNoma
         return await response.json();
       },
 
-      /**
-       * Get a specific result's data.
-       *
-       * DEFAULT BEHAVIOR: NOT IMPLEMENTED.
-       *
-       * AGENCY NOTE: Return GeoJSON for vector results or URL for raster results.
-       */
-      async getData(_resultId: string): Promise<GeoJSONGeometry | string> {
-        throw new Error('getData() is not implemented in the default adapter.');
-      },
-
-      /**
-       * Export model results in a specific format.
-       *
-       * DEFAULT BEHAVIOR: NOT IMPLEMENTED.
-       *
-       * AGENCY NOTE: Implement export to agency-supported formats.
-       * May involve server-side format conversion.
-       */
-      async export(_modelId: string, _params: ExportParams): Promise<Blob> {
-        throw new Error('export() is not implemented in the default adapter.');
-      },
+      // OPTIONAL CAPABILITY (ResultData): getData / export.
+      // The SAN default backend exposes results via URL generation
+      // (getModelResultsUrl / getPreviewUrl / getDownloadUrl / tile URLs)
+      // rather than an inline data endpoint or server-side export, so these
+      // two methods are OMITTED. Consumers feature-detect before calling.
 
       /**
        * Get available export formats.
@@ -761,189 +692,69 @@ export function createDefaultAdapter(options?: DefaultAdapterOptions): IOpenNoma
      */
     spatial: {
       // -----------------------------------------------------------------------
-      // Map Interaction Methods
+      // Map Interaction (spatial.map) — OMITTED in SAN mode.
+      //
+      // The SAN default adapter has no host map at construction time, so it
+      // does NOT provide `spatial.map`. Its absence is now expressible in the
+      // contract (`spatial.map?` is optional), so consumers feature-detect
+      // (`if (api.spatial.map) ...`) instead of calling methods that throw or
+      // silently no-op. An ACN host adapter supplies `spatial.map` backed by
+      // its real map component.
       // -----------------------------------------------------------------------
 
-      /**
-       * Request user to draw a point on the map.
-       *
-       * DEFAULT BEHAVIOR: NOT IMPLEMENTED.
-       * In SAN mode, this would use internal map hooks.
-       * In ACN mode, the host app implements this.
-       *
-       * AGENCY NOTE: Activate your map's point drawing tool,
-       * return a Promise that resolves when user completes the draw.
-       */
-      async drawPoint(): Promise<GeoJSON.Point> {
-        throw new Error(
-          'drawPoint() is not implemented in the default adapter. ' +
-          'In embedded mode, the host application must implement spatial.drawPoint().'
-        );
-      },
-
-      /**
-       * Request user to draw a line on the map.
-       *
-       * DEFAULT BEHAVIOR: NOT IMPLEMENTED.
-       *
-       * AGENCY NOTE: Activate your map's line drawing tool.
-       */
-      async drawLine(): Promise<GeoJSON.LineString> {
-        throw new Error(
-          'drawLine() is not implemented in the default adapter. ' +
-          'In embedded mode, the host application must implement spatial.drawLine().'
-        );
-      },
-
-      /**
-       * Request user to draw a polygon on the map.
-       *
-       * DEFAULT BEHAVIOR: NOT IMPLEMENTED.
-       *
-       * AGENCY NOTE: Activate your map's polygon drawing tool.
-       */
-      async drawPolygon(): Promise<GeoJSON.Polygon> {
-        throw new Error(
-          'drawPolygon() is not implemented in the default adapter. ' +
-          'In embedded mode, the host application must implement spatial.drawPolygon().'
-        );
-      },
-
-      /**
-       * Subscribe to geometry changes during drawing.
-       *
-       * DEFAULT BEHAVIOR: Returns no-op unsubscribe.
-       *
-       * AGENCY NOTE: Connect to your map's drawing events.
-       */
-      onGeometryChange(_callback: (geometry: GeoJSONGeometry | null) => void): Unsubscribe {
-        // Default implementation does nothing
-        // Agency adapters would connect to their map's drawing events
-        return () => {};
-      },
-
-      /**
-       * Cancel any active drawing operation.
-       *
-       * DEFAULT BEHAVIOR: No-op.
-       *
-       * AGENCY NOTE: Deactivate your map's drawing tool.
-       */
-      cancelDraw(): void {
-        // Default implementation does nothing
-      },
-
-      /**
-       * Add a layer to the map.
-       *
-       * DEFAULT BEHAVIOR: No-op (logs warning).
-       *
-       * AGENCY NOTE: Add the layer to your map using your map library's API.
-       */
-      addLayer(_layer: MapLayer): void {
-        console.warn(
-          'addLayer() is not implemented in the default adapter. ' +
-          'In embedded mode, the host application must implement spatial.addLayer().'
-        );
-      },
-
-      /**
-       * Update an existing layer.
-       *
-       * DEFAULT BEHAVIOR: No-op.
-       *
-       * AGENCY NOTE: Update the layer in your map.
-       */
-      updateLayer(_id: string, _updates: Partial<MapLayer>): void {
-        // Default implementation does nothing
-      },
-
-      /**
-       * Remove a layer from the map.
-       *
-       * DEFAULT BEHAVIOR: No-op.
-       *
-       * AGENCY NOTE: Remove the layer from your map.
-       */
-      removeLayer(_id: string): void {
-        // Default implementation does nothing
-      },
-
-      /**
-       * Fit the map view to a bounding box.
-       *
-       * DEFAULT BEHAVIOR: No-op.
-       *
-       * AGENCY NOTE: Call your map's fitBounds/flyTo method.
-       */
-      fitBounds(_bounds: BBox, _options?: { padding?: number; animate?: boolean }): void {
-        // Default implementation does nothing
-      },
-
-      /**
-       * Get the current map bounds.
-       *
-       * DEFAULT BEHAVIOR: Returns world bounds.
-       *
-       * AGENCY NOTE: Return your map's current visible bounds.
-       */
-      getBounds(): BBox {
-        // Default implementation returns world bounds
-        return [-180, -90, 180, 90];
-      },
-
       // -----------------------------------------------------------------------
-      // Data Services
+      // Data Services (spatial.data) — REQUIRED, always present.
       // -----------------------------------------------------------------------
+      data: {
+        /**
+         * Get weather stations within bounds.
+         *
+         * DEFAULT BEHAVIOR: Returns empty array (no integration in SAN mode).
+         *
+         * AGENCY NOTE: Query your weather station database or WFS service.
+         */
+        async getWeatherStations(_bounds: BBox): Promise<WeatherStation[]> {
+          // Default implementation doesn't have weather station integration
+          // Agency adapters would connect to their weather networks
+          return [];
+        },
 
-      /**
-       * Get weather stations within bounds.
-       *
-       * DEFAULT BEHAVIOR: Returns empty array (not implemented).
-       *
-       * AGENCY NOTE: Query your weather station database or WFS service.
-       */
-      async getWeatherStations(_bounds: BBox): Promise<WeatherStation[]> {
-        // Default implementation doesn't have weather station integration
-        // Agency adapters would connect to their weather networks
-        return [];
-      },
+        /**
+         * Get fuel type data for a region.
+         *
+         * DEFAULT BEHAVIOR: Returns stub data.
+         *
+         * AGENCY NOTE: Connect to your fuel type WCS/WFS service.
+         */
+        async getFuelTypes(bounds: BBox): Promise<FuelTypeData> {
+          // Default implementation returns stub
+          // Agency adapters would connect to their fuel type services
+          return {
+            bounds,
+            fuelTypes: [
+              { code: 'C-2', name: 'Boreal Spruce', color: '#228B22' },
+              { code: 'M-1/M-2', name: 'Boreal Mixedwood', color: '#90EE90' },
+              { code: 'D-1/D-2', name: 'Aspen', color: '#ADFF2F' },
+            ],
+            serviceUrl: undefined,
+            layerName: undefined,
+          };
+        },
 
-      /**
-       * Get fuel type data for a region.
-       *
-       * DEFAULT BEHAVIOR: Returns stub data.
-       *
-       * AGENCY NOTE: Connect to your fuel type WCS/WFS service.
-       */
-      async getFuelTypes(bounds: BBox): Promise<FuelTypeData> {
-        // Default implementation returns stub
-        // Agency adapters would connect to their fuel type services
-        return {
-          bounds,
-          fuelTypes: [
-            { code: 'C-2', name: 'Boreal Spruce', color: '#228B22' },
-            { code: 'M-1/M-2', name: 'Boreal Mixedwood', color: '#90EE90' },
-            { code: 'D-1/D-2', name: 'Aspen', color: '#ADFF2F' },
-          ],
-          serviceUrl: undefined,
-          layerName: undefined,
-        };
-      },
-
-      /**
-       * Get elevation data for a region.
-       *
-       * DEFAULT BEHAVIOR: Returns stub data.
-       *
-       * AGENCY NOTE: Connect to your DEM service.
-       */
-      async getElevation(bounds: BBox): Promise<ElevationData> {
-        return {
-          bounds,
-          serviceUrl: '',
-          resolutionM: 30,
-        };
+        /**
+         * Get elevation data for a region.
+         *
+         * DEFAULT BEHAVIOR: Returns stub data.
+         *
+         * AGENCY NOTE: Connect to your DEM service.
+         */
+        async getElevation(bounds: BBox): Promise<ElevationData> {
+          return {
+            bounds,
+            serviceUrl: '',
+            resolutionM: 30,
+          };
+        },
       },
     },
 

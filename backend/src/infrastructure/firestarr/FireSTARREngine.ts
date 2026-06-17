@@ -16,6 +16,7 @@ import {
 import { IContainerExecutor, OutputCallback } from '../../application/interfaces/IContainerExecutor.js';
 import { IInputGenerator, InputGenerationResult } from '../../application/interfaces/IInputGenerator.js';
 import { IOutputParser, ParsedOutput } from '../../application/interfaces/IOutputParser.js';
+import type { IWorkspaceAwareEngine } from '../../application/interfaces/IWorkspaceAwareEngine.js';
 import {
   FireModel,
   type FireModelId,
@@ -74,7 +75,7 @@ interface ExecutionState {
  * - Output parsing (probability TIFs)
  * - Status tracking and progress reporting
  */
-export class FireSTARREngine implements IFireModelingEngine {
+export class FireSTARREngine implements IFireModelingEngine, IWorkspaceAwareEngine {
   private readonly executor: IContainerExecutor;
   private readonly inputGenerator: IInputGenerator<FireSTARRParams>;
   private readonly outputParser: IOutputParser<ParsedOutput[]>;

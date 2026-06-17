@@ -167,6 +167,8 @@ export type {
   Engine,
   AgencyConfig,
 
-  // Main API interface
+  // Main API interface + spatial sub-interfaces
   IOpenNomadAPI,
+  SpatialDataAPI,
+  SpatialMapAPI,
 } from './api.js';

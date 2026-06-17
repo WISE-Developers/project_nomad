@@ -13,6 +13,9 @@ export {
   type EngineCapabilities,
 } from './IFireModelingEngine.js';
 
+// Workspace-Aware Engine (capability interface)
+export { type IWorkspaceAwareEngine } from './IWorkspaceAwareEngine.js';
+
 // Weather Repository
 export {
   type IWeatherRepository,
@@ -70,6 +73,14 @@ export { type IJobRepository } from './IJobRepository.js';
 
 // Result Repository
 export { type IResultRepository } from './IResultRepository.js';
+
+// Result Artifact Gateway
+export {
+  type IResultArtifactGateway,
+  type ArrivalArtifactInfo,
+  type DeterministicPerimeterArtifact,
+  type DeterministicPerimeterExtraction,
+} from './IResultArtifactGateway.js';
 
 // Model Execution Service
 export {

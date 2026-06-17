@@ -13,11 +13,12 @@ import {
   JobStatus,
   SpatialGeometry,
   GeometryType,
+  EngineType,
 } from '../../domain/entities/index.js';
 import { TimeRange } from '../../domain/value-objects/index.js';
 import type { WeatherConfig } from '../../infrastructure/weather/types.js';
 import { getModelRepository, getResultRepository } from '../../infrastructure/database/index.js';
-import { getFireSTARREngine } from '../../infrastructure/firestarr/FireSTARREngine.js';
+import { getEngine } from '../../infrastructure/engines/index.js';
 import { getJobQueue } from '../../infrastructure/services/JobQueue.js';
 import {
   modelNotFound,
@@ -103,8 +104,8 @@ export function registerExecutionTools(server: McpServer): void {
         weatherConfig,
       };
 
-      // Get FireSTARR engine and initialize
-      const engine = getFireSTARREngine();
+      // Get the engine and initialize
+      const engine = getEngine(EngineType.FireSTARR);
       try {
         await engine.initialize(model, executionOptions);
       } catch (err) {

@@ -182,17 +182,25 @@ export function SpatialInputStep() {
   // Handle draw button click (embedded mode - calls adapter)
   const handleDrawOnHostMap = useCallback(
     async (geometryType: 'point' | 'line' | 'polygon') => {
+      // Host-map drawing is an OPTIONAL capability (spatial.map). When the
+      // adapter omits it (e.g. SAN default), the host-draw buttons should not
+      // be rendered — but guard here too so a stray call degrades gracefully.
+      const mapApi = api.spatial.map;
+      if (!mapApi) {
+        console.warn('Host map drawing is not available in this deployment.');
+        return;
+      }
       try {
         let geometry: GeoJSON.Point | GeoJSON.LineString | GeoJSON.Polygon;
         switch (geometryType) {
           case 'point':
-            geometry = await api.spatial.drawPoint();
+            geometry = await mapApi.drawPoint();
             break;
           case 'line':
-            geometry = await api.spatial.drawLine();
+            geometry = await mapApi.drawLine();
             break;
           case 'polygon':
-            geometry = await api.spatial.drawPolygon();
+            geometry = await mapApi.drawPolygon();
             break;
         }
         setEmbeddedGeometry(geometry);
