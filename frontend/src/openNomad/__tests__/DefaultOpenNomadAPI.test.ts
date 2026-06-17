@@ -8,6 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createDefaultAdapter } from '../default';
+import { createAgencyAdapter } from '../examples/ExampleAgencyAdapter';
 import type { IOpenNomadAPI } from '../api';
 
 // Mock the services/api module
@@ -236,22 +237,19 @@ describe('DefaultOpenNomadAPI', () => {
       });
     });
 
-    describe('create', () => {
-      it('should throw not implemented error', async () => {
-        await expect(
-          api.models.create({
-            name: 'Test',
-            engine: 'firestarr',
-            geometry: { type: 'Point', coordinates: [0, 0] },
-            temporal: {
-              startDate: '2024-01-01',
-              startTime: '12:00',
-              durationHours: 24,
-              timezone: 'America/Edmonton',
-            },
-            weather: { source: 'csv' },
-          })
-        ).rejects.toThrow('create() is not implemented');
+    describe('create (optional ModelCrud capability)', () => {
+      it('should be absent on the default adapter (capability not provided)', () => {
+        // BEHAVIOR CHANGE: the default adapter no longer throws a runtime
+        // "not implemented" error. The SAN backend uses an atomic run, so the
+        // optional create() capability is simply omitted — its absence is
+        // expressed in the type system and detectable by consumers.
+        expect(api.models.create).toBeUndefined();
+      });
+    });
+
+    describe('update (optional ModelCrud capability)', () => {
+      it('should be absent on the default adapter (capability not provided)', () => {
+        expect(api.models.update).toBeUndefined();
       });
     });
   });
@@ -376,20 +374,35 @@ describe('DefaultOpenNomadAPI', () => {
   });
 
   describe('spatial module', () => {
-    describe('getWeatherStations', () => {
-      it('should return empty array (not implemented)', async () => {
-        const stations = await api.spatial.getWeatherStations([-120, 50, -110, 60]);
+    describe('data services (required spatial.data)', () => {
+      it('getWeatherStations should return empty array (no SAN integration)', async () => {
+        const stations = await api.spatial.data.getWeatherStations([-120, 50, -110, 60]);
         expect(stations).toEqual([]);
       });
-    });
 
-    describe('getFuelTypes', () => {
-      it('should return stub fuel types', async () => {
+      it('getFuelTypes should return stub fuel types', async () => {
         const bounds: [number, number, number, number] = [-120, 50, -110, 60];
-        const data = await api.spatial.getFuelTypes(bounds);
+        const data = await api.spatial.data.getFuelTypes(bounds);
 
         expect(data.bounds).toEqual(bounds);
         expect(data.fuelTypes.length).toBeGreaterThan(0);
+      });
+
+      it('getElevation should return stub elevation data', async () => {
+        const bounds: [number, number, number, number] = [-120, 50, -110, 60];
+        const data = await api.spatial.data.getElevation(bounds);
+
+        expect(data.bounds).toEqual(bounds);
+        expect(data.resolutionM).toBe(30);
+      });
+    });
+
+    describe('map interaction (optional spatial.map)', () => {
+      it('should be absent on the default adapter (no host map in SAN mode)', () => {
+        // BEHAVIOR CHANGE: drawPoint/Line/Polygon and the layer mutators no
+        // longer throw or silently no-op. The whole spatial.map object is
+        // omitted; consumers feature-detect (`if (api.spatial.map)`).
+        expect(api.spatial.map).toBeUndefined();
       });
     });
   });
@@ -403,5 +416,61 @@ describe('DefaultOpenNomadAPI', () => {
         expect(formats.find(f => f.id === 'geojson')).toBeDefined();
       });
     });
+
+    describe('optional ResultData capability', () => {
+      it('getData should be absent on the default adapter', () => {
+        expect(api.results.getData).toBeUndefined();
+      });
+
+      it('export should be absent on the default adapter', () => {
+        expect(api.results.export).toBeUndefined();
+      });
+    });
+  });
+
+  describe('jobs module — optional JobControl capability', () => {
+    it('submit should be absent on the default adapter', () => {
+      expect(api.jobs.submit).toBeUndefined();
+    });
+
+    it('cancel should be absent on the default adapter', () => {
+      expect(api.jobs.cancel).toBeUndefined();
+    });
+  });
+});
+
+// =============================================================================
+// Second adapter: ExampleAgencyAdapter implements the optional capabilities
+// =============================================================================
+
+describe('ExampleAgencyAdapter (capability-bearing adapter)', () => {
+  it('provides the optional ModelCrud / JobControl / ResultData capabilities', () => {
+    const agency = createAgencyAdapter({ authToken: 'test-token' });
+
+    // This adapter DOES support these optional capabilities, so they exist.
+    expect(typeof agency.models.create).toBe('function');
+    expect(typeof agency.models.update).toBe('function');
+    expect(typeof agency.jobs.submit).toBe('function');
+    expect(typeof agency.jobs.cancel).toBe('function');
+    expect(typeof agency.results.getData).toBe('function');
+    expect(typeof agency.results.export).toBe('function');
+  });
+
+  it('provides spatial.data (required) and spatial.map (host-provided)', () => {
+    const agency = createAgencyAdapter({ authToken: 'test-token' });
+
+    expect(typeof agency.spatial.data.getWeatherStations).toBe('function');
+    expect(agency.spatial.map).toBeDefined();
+    expect(typeof agency.spatial.map?.drawPoint).toBe('function');
+  });
+
+  it('a consumer can degrade gracefully by feature-detecting (no throw)', () => {
+    const sanLike = createDefaultAdapter();
+    const detect = (api: IOpenNomadAPI) => Boolean(api.spatial.map && api.models.create);
+
+    // Default (SAN) adapter: capabilities absent -> false, no throw.
+    expect(detect(sanLike)).toBe(false);
+    // Agency adapter: capabilities present -> true.
+    expect(detect(createAgencyAdapter({ authToken: 'test-token' }))).toBe(true);
   });
 });

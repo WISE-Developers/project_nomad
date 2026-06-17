@@ -322,85 +322,89 @@ export function createMockOpenNomadAPI(): IOpenNomadAPI {
     },
 
     spatial: {
-      // Map interaction methods
-      drawPoint: vi.fn((): Promise<GeoJSON.Point> => {
-        return Promise.resolve({
-          type: 'Point',
-          coordinates: [-114.0, 62.0],
-        });
-      }),
+      // Data services (REQUIRED — spatial.data)
+      data: {
+        getWeatherStations: vi.fn((_bounds: BBox): Promise<WeatherStation[]> => {
+          return Promise.resolve([
+            {
+              id: 'station-1',
+              name: 'Test Weather Station',
+              coordinates: { lat: 62.5, lng: -114.5 },
+            },
+          ]);
+        }),
 
-      drawLine: vi.fn((): Promise<GeoJSON.LineString> => {
-        return Promise.resolve({
-          type: 'LineString',
-          coordinates: [
-            [-114.0, 62.0],
-            [-114.1, 62.1],
-          ],
-        });
-      }),
-
-      drawPolygon: vi.fn((): Promise<GeoJSON.Polygon> => {
-        return Promise.resolve({
-          type: 'Polygon',
-          coordinates: [
-            [
-              [-114.0, 62.0],
-              [-114.1, 62.0],
-              [-114.1, 62.1],
-              [-114.0, 62.1],
-              [-114.0, 62.0],
+        getFuelTypes: vi.fn((bounds: BBox): Promise<FuelTypeData> => {
+          return Promise.resolve({
+            bounds,
+            fuelTypes: [
+              { code: 'C-2', name: 'Boreal Spruce', color: '#228B22' },
+              { code: 'M-1', name: 'Boreal Mixedwood', color: '#90EE90' },
             ],
-          ],
-        });
-      }),
+            serviceUrl: 'https://test-geoserver/wcs/fueltypes',
+            layerName: 'fuels',
+          });
+        }),
 
-      onGeometryChange: vi.fn((_callback: (geometry: GeoJSONGeometry | null) => void): Unsubscribe => {
-        return () => {};
-      }),
+        getElevation: vi.fn((bounds: BBox): Promise<ElevationData> => {
+          return Promise.resolve({
+            bounds,
+            serviceUrl: 'https://test-geoserver/wcs/dem',
+            resolutionM: 30,
+          });
+        }),
+      },
 
-      cancelDraw: vi.fn(),
+      // Map interaction (OPTIONAL — spatial.map; the mock provides a full map)
+      map: {
+        drawPoint: vi.fn((): Promise<GeoJSON.Point> => {
+          return Promise.resolve({
+            type: 'Point',
+            coordinates: [-114.0, 62.0],
+          });
+        }),
 
-      addLayer: vi.fn((_layer: MapLayer): void => {}),
+        drawLine: vi.fn((): Promise<GeoJSON.LineString> => {
+          return Promise.resolve({
+            type: 'LineString',
+            coordinates: [
+              [-114.0, 62.0],
+              [-114.1, 62.1],
+            ],
+          });
+        }),
 
-      updateLayer: vi.fn((_id: string, _updates: Partial<MapLayer>): void => {}),
+        drawPolygon: vi.fn((): Promise<GeoJSON.Polygon> => {
+          return Promise.resolve({
+            type: 'Polygon',
+            coordinates: [
+              [
+                [-114.0, 62.0],
+                [-114.1, 62.0],
+                [-114.1, 62.1],
+                [-114.0, 62.1],
+                [-114.0, 62.0],
+              ],
+            ],
+          });
+        }),
 
-      removeLayer: vi.fn((_id: string): void => {}),
+        onGeometryChange: vi.fn((_callback: (geometry: GeoJSONGeometry | null) => void): Unsubscribe => {
+          return () => {};
+        }),
 
-      fitBounds: vi.fn((_bounds: BBox, _options?: { padding?: number; animate?: boolean }): void => {}),
+        cancelDraw: vi.fn(),
 
-      getBounds: vi.fn((): BBox => [-180, -90, 180, 90]),
+        addLayer: vi.fn((_layer: MapLayer): void => {}),
 
-      // Data services
-      getWeatherStations: vi.fn((_bounds: BBox): Promise<WeatherStation[]> => {
-        return Promise.resolve([
-          {
-            id: 'station-1',
-            name: 'Test Weather Station',
-            coordinates: { lat: 62.5, lng: -114.5 },
-          },
-        ]);
-      }),
+        updateLayer: vi.fn((_id: string, _updates: Partial<MapLayer>): void => {}),
 
-      getFuelTypes: vi.fn((bounds: BBox): Promise<FuelTypeData> => {
-        return Promise.resolve({
-          bounds,
-          fuelTypes: [
-            { code: 'C-2', name: 'Boreal Spruce', color: '#228B22' },
-            { code: 'M-1', name: 'Boreal Mixedwood', color: '#90EE90' },
-          ],
-          serviceUrl: 'https://test-geoserver/wcs/fueltypes',
-          layerName: 'fuels',
-        });
-      }),
+        removeLayer: vi.fn((_id: string): void => {}),
 
-      getElevation: vi.fn((bounds: BBox): Promise<ElevationData> => {
-        return Promise.resolve({
-          bounds,
-          serviceUrl: 'https://test-geoserver/wcs/dem',
-          resolutionM: 30,
-        });
-      }),
+        fitBounds: vi.fn((_bounds: BBox, _options?: { padding?: number; animate?: boolean }): void => {}),
+
+        getBounds: vi.fn((): BBox => [-180, -90, 180, 90]),
+      },
     },
 
     config: {
