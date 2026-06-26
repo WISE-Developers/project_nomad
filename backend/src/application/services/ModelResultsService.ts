@@ -553,6 +553,67 @@ export class ModelResultsService {
   }
 
   /**
+   * Regenerate the GeoJSON for a synthetic deterministic-perimeter output (#292).
+   *
+   * Deterministic perimeters are surfaced by getResults() with the id
+   * `perimeter-day{julianDay}-{modelId}` but are never persisted as result rows
+   * (their bytes are extracted on demand from the arrival-time rasters). The
+   * download route therefore can't find them via the repository; this method
+   * re-extracts the perimeter the same way getResults() does and returns its
+   * GeoJSON so it can be downloaded. Returns undefined for any id that is not a
+   * resolvable synthetic perimeter.
+   */
+  async getPerimeterGeoJSON(resultId: ModelResultId): Promise<string | undefined> {
+    const match = /^perimeter-day(\d+)-(.+)$/.exec(resultId);
+    if (!match) return undefined;
+    const julianDay = Number(match[1]);
+    const modelId = createFireModelId(match[2]);
+
+    // Resolve the model's sim directory from any of its stored result files
+    // (same resolution getResults() uses to locate the arrival-time rasters).
+    const dbResults = await this.resultRepo.findByModelId(modelId);
+    const anchor = dbResults.find(r => (r.metadata.filePath as string | undefined));
+    if (!anchor) return undefined;
+    const simDir = path.dirname(
+      this.gateway.resolveResultFilePath(anchor.metadata.filePath as string)
+    );
+
+    const extraction = await this.gateway.extractDeterministicPerimeters(simDir);
+    if (!extraction.success) return undefined;
+    const perimeter = extraction.value.perimeters.find(p => p.julianDay === julianDay);
+    if (!perimeter) return undefined;
+
+    return JSON.stringify(perimeter.geojson);
+  }
+
+  /**
+   * Resolve the downloadable arrival-time GeoTIFF for a synthetic arrival output (#292).
+   *
+   * The arrival-time raster is surfaced by getResults() with the id
+   * `arrival-time-{modelId}` (format geotiff) but is never persisted as a result
+   * row — it is served live as classified tiles. The download route therefore
+   * can't find it via the repository; this returns the absolute path of the
+   * cumulative arrival GeoTIFF on disk so it can be streamed. Returns undefined
+   * for any id that is not a resolvable synthetic arrival raster.
+   */
+  async getArrivalRasterPath(resultId: ModelResultId): Promise<string | undefined> {
+    const match = /^arrival-time-(.+)$/.exec(resultId);
+    if (!match) return undefined;
+    const modelId = createFireModelId(match[1]);
+
+    const dbResults = await this.resultRepo.findByModelId(modelId);
+    const anchor = dbResults.find(r => (r.metadata.filePath as string | undefined));
+    if (!anchor) return undefined;
+    const simDir = path.dirname(
+      this.gateway.resolveResultFilePath(anchor.metadata.filePath as string)
+    );
+
+    const arrival = this.gateway.findArrivalTifs(simDir);
+    if (!arrival) return undefined;
+    return arrival.filePath;
+  }
+
+  /**
    * Get file path for a result (resolved to absolute path)
    */
   async getResultFilePath(resultId: ModelResultId): Promise<string | null> {

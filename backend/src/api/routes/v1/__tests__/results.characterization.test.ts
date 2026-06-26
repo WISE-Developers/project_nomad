@@ -19,10 +19,18 @@ import request from 'supertest';
 
 // Hoisted mocks (vi.mock factories are hoisted above top-level consts, so the
 // mock fns must be created via vi.hoisted to be referenceable inside them).
-const { getResultById, getModelResultsService } = vi.hoisted(() => {
+const { getResultById, getPerimeterGeoJSON, getArrivalRasterPath, getModelResultsService } = vi.hoisted(() => {
   const getResultById = vi.fn();
-  const getModelResultsService = vi.fn((_engine?: unknown) => ({ getResultById }));
-  return { getResultById, getModelResultsService };
+  // Synthetic-output regeneration seams (#292); return undefined for these
+  // non-synthetic ids so the download route falls through to NotFoundError -> 404.
+  const getPerimeterGeoJSON = vi.fn();
+  const getArrivalRasterPath = vi.fn();
+  const getModelResultsService = vi.fn((_engine?: unknown) => ({
+    getResultById,
+    getPerimeterGeoJSON,
+    getArrivalRasterPath,
+  }));
+  return { getResultById, getPerimeterGeoJSON, getArrivalRasterPath, getModelResultsService };
 });
 
 // Fake results service: no stored result -> route throws NotFoundError -> 404.
@@ -64,8 +72,12 @@ const ROUTES = [
 describe('/results routes — engine-wiring characterization', () => {
   beforeEach(() => {
     getResultById.mockClear();
+    getPerimeterGeoJSON.mockClear();
+    getArrivalRasterPath.mockClear();
     getModelResultsService.mockClear();
     getResultById.mockResolvedValue(null);
+    getPerimeterGeoJSON.mockResolvedValue(undefined);
+    getArrivalRasterPath.mockResolvedValue(undefined);
   });
 
   for (const route of ROUTES) {
