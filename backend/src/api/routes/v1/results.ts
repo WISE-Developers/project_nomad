@@ -305,6 +305,15 @@ router.get(
     // Get result
     const stored = await resultsService.getResultById(typedResultId);
     if (!stored) {
+      // Deterministic perimeters are synthetic outputs that are never persisted
+      // as result rows (#292); regenerate the GeoJSON on demand and stream it.
+      const perimeterGeoJSON = await resultsService.getPerimeterGeoJSON(typedResultId);
+      if (perimeterGeoJSON) {
+        res.setHeader('Content-Type', 'application/geo+json');
+        res.setHeader('Content-Disposition', `attachment; filename="${resultId}.geojson"`);
+        res.send(perimeterGeoJSON);
+        return;
+      }
       throw new NotFoundError('Result', resultId);
     }
 
