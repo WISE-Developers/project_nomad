@@ -4,10 +4,21 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.11.1
+## v0.11.2
+
+### 2026-06-26
+
+- [`26ed332`](https://github.com/WISE-Developers/project_nomad/commit/26ed332851bb1e008515b9e3bab85ed73cbbd2c5) Merge pull request #298 from WISE-Developers/dev — *Franco Nogarin, 11:44*
+- [`0c9a4c2`](https://github.com/WISE-Developers/project_nomad/commit/0c9a4c2bbbf0716c9f887ec3fdef6d571919f6a2) chore: dev build 1 [skip ci] — *github-actions[bot], 17:40*
+- [`334f165`](https://github.com/WISE-Developers/project_nomad/commit/334f165c8a3a51d352c61011e87490aeda10a5cb) Merge fix/292-perimeter-download into dev — *Franco Nogarin, 11:39*
+- [`ea56039`](https://github.com/WISE-Developers/project_nomad/commit/ea5603987098617e7b6da68546a4897ecbb16f1b) chore(splash): announce perimeter/raster download fix; drop FireSTARR pin note — *Franco Nogarin, 11:38*
+- [`460a9ee`](https://github.com/WISE-Developers/project_nomad/commit/460a9ee2057b5104e6a24879af865ed070b4ffd7) fix(#292): download arrival-time raster (sibling synthetic output) — *Franco Nogarin, 11:32*
+- [`bb9ae44`](https://github.com/WISE-Developers/project_nomad/commit/bb9ae44cb78deb2e4eeeff207b6a91cc785fffb8) fix(#292): download deterministic fire perimeters — *Franco Nogarin, 11:02*
 
 ### 2026-06-17
 
+- [`f9318cc`](https://github.com/WISE-Developers/project_nomad/commit/f9318cce343ed911ef067ecf2fa82abfe86dd633) chore: reset dev build counter after v0.11.1 [skip ci] — *github-actions[bot], 18:19*
+- [`01c372d`](https://github.com/WISE-Developers/project_nomad/commit/01c372df280e603a778b9edf8821b8a19c6ffa09) chore: release v0.11.1 [skip ci] — *github-actions[bot], 18:18*
 - [`17193b0`](https://github.com/WISE-Developers/project_nomad/commit/17193b06fb1107c1ae9e90fec7eb3e5e427e9eda) Merge pull request #295 from WISE-Developers/dev — *Franco Nogarin, 12:18*
 - [`0c600c4`](https://github.com/WISE-Developers/project_nomad/commit/0c600c4a9ab927d3b5aae02235a2cd6052691b08) chore: dev build 1 [skip ci] — *github-actions[bot], 17:29*
 - [`9796016`](https://github.com/WISE-Developers/project_nomad/commit/97960164634c26507ffd83589f0ca0d665c900a3) Merge architecture remediation into dev (issue #293) — *Franco Nogarin, 11:27*
