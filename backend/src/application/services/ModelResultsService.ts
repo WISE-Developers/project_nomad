@@ -587,6 +587,33 @@ export class ModelResultsService {
   }
 
   /**
+   * Resolve the downloadable arrival-time GeoTIFF for a synthetic arrival output (#292).
+   *
+   * The arrival-time raster is surfaced by getResults() with the id
+   * `arrival-time-{modelId}` (format geotiff) but is never persisted as a result
+   * row — it is served live as classified tiles. The download route therefore
+   * can't find it via the repository; this returns the absolute path of the
+   * cumulative arrival GeoTIFF on disk so it can be streamed. Returns undefined
+   * for any id that is not a resolvable synthetic arrival raster.
+   */
+  async getArrivalRasterPath(resultId: ModelResultId): Promise<string | undefined> {
+    const match = /^arrival-time-(.+)$/.exec(resultId);
+    if (!match) return undefined;
+    const modelId = createFireModelId(match[1]);
+
+    const dbResults = await this.resultRepo.findByModelId(modelId);
+    const anchor = dbResults.find(r => (r.metadata.filePath as string | undefined));
+    if (!anchor) return undefined;
+    const simDir = path.dirname(
+      this.gateway.resolveResultFilePath(anchor.metadata.filePath as string)
+    );
+
+    const arrival = this.gateway.findArrivalTifs(simDir);
+    if (!arrival) return undefined;
+    return arrival.filePath;
+  }
+
+  /**
    * Get file path for a result (resolved to absolute path)
    */
   async getResultFilePath(resultId: ModelResultId): Promise<string | null> {

@@ -314,6 +314,19 @@ router.get(
         res.send(perimeterGeoJSON);
         return;
       }
+      // Arrival-time raster: another synthetic output (#292). Stream the GeoTIFF.
+      const arrivalPath = await resultsService.getArrivalRasterPath(typedResultId);
+      if (arrivalPath) {
+        if (!existsSync(arrivalPath)) {
+          throw new NotFoundError('Result file', resultId);
+        }
+        const arrivalStats = await stat(arrivalPath);
+        res.setHeader('Content-Type', 'image/tiff');
+        res.setHeader('Content-Length', arrivalStats.size);
+        res.setHeader('Content-Disposition', `attachment; filename="${basename(arrivalPath)}"`);
+        createReadStream(arrivalPath).pipe(res);
+        return;
+      }
       throw new NotFoundError('Result', resultId);
     }
 
