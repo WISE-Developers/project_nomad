@@ -65,3 +65,32 @@ export function getFireSeasonStartDate(timeZone?: string): string {
   const day = String(FIRE_SEASON_START_DAY).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Time-aware Retroactive/Predictive classification for the wizard (#300).
+ *
+ * A simulation is "predictive" (forecast) when its start is in the FUTURE and
+ * "retroactive" (historical) when it is in the past. The decision must use the
+ * full start datetime (date + time), NOT the date alone: picking "today" with a
+ * start time later than the current time is predictive even though the calendar
+ * day is "today". The earlier date-only check wrongly tagged every "today" start
+ * as retroactive.
+ *
+ * `${dateStr}T${timeStr}` carries no offset, so it is interpreted in the
+ * runtime-local zone — which in the browser is the user's zone, matching `now`.
+ * Pass an explicit `now` in tests for determinism.
+ *
+ * @param dateStr YYYY-MM-DD start date
+ * @param timeStr HH:mm start time (treated as midnight if absent)
+ * @param now     reference instant (defaults to the current time)
+ */
+export function isFutureDateTime(
+  dateStr: string,
+  timeStr: string,
+  now: Date = new Date(),
+): boolean {
+  if (!dateStr) return false;
+  const start = new Date(`${dateStr}T${timeStr || '00:00'}`);
+  if (Number.isNaN(start.getTime())) return false;
+  return start.getTime() > now.getTime();
+}

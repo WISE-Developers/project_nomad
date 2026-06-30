@@ -17,6 +17,7 @@ import {
   getTodayDate,
   getYesterdayDate,
   getFireSeasonStartDate,
+  isFutureDateTime,
 } from '../utils/dateHelpers.js';
 
 const containerStyle: React.CSSProperties = {
@@ -174,17 +175,6 @@ function calculateEndDateTime(startDate: string, startTime: string, durationHour
 }
 
 /**
- * Check if a date is in the future
- */
-function isFutureDate(dateStr: string): boolean {
-  if (!dateStr) return false;
-  const date = new Date(dateStr);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return date > today;
-}
-
-/**
  * Check which quick select button is active
  */
 function getActiveQuickSelect(dateStr: string): string | null {
@@ -236,7 +226,7 @@ export function TemporalStep() {
       setField('temporal', {
         ...temporal,
         startDate: defaultStartDate,
-        isForecast: isFutureDate(defaultStartDate),
+        isForecast: isFutureDateTime(defaultStartDate, temporal.startTime),
       });
       return;
     }
@@ -247,7 +237,7 @@ export function TemporalStep() {
         setField('temporal', {
           ...data.temporal,
           startDate: minDate,
-          isForecast: isFutureDate(minDate),
+          isForecast: isFutureDateTime(minDate, data.temporal.startTime ?? temporal.startTime),
         });
       }
     }
@@ -259,7 +249,7 @@ export function TemporalStep() {
       setField('temporal', {
         ...temporal,
         startDate: newDate,
-        isForecast: isFutureDate(newDate),
+        isForecast: isFutureDateTime(newDate, temporal.startTime),
       });
     },
     [setField, temporal]
@@ -271,6 +261,7 @@ export function TemporalStep() {
       setField('temporal', {
         ...temporal,
         startTime: e.target.value,
+        isForecast: isFutureDateTime(temporal.startDate, e.target.value),
       });
     },
     [setField, temporal]
