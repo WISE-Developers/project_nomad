@@ -1718,15 +1718,23 @@ update_env_value() {
         return 0
     fi
 
-    if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
-        # Update existing
+    # Preserve an existing, non-empty value — never overwrite a user's .env.
+    # (#292 demo lesson: the installer clobbered a manually-set host port on
+    # re-run, which broke the Cloudflare tunnel. Set-if-absent only.)
+    if grep -qE "^${key}=.+" "$ENV_FILE" 2>/dev/null; then
+        print_info "Keeping existing ${key} (not overwriting)"
+        return 0
+    fi
+
+    if grep -qE "^${key}=" "$ENV_FILE" 2>/dev/null; then
+        # Present but empty -> fill in the value
         if [[ "$OSTYPE" == "darwin"* ]]; then
             sed -i '' "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
         else
             sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
         fi
-    elif grep -q "^#.*${key}=" "$ENV_FILE" 2>/dev/null; then
-        # Uncomment and update
+    elif grep -qE "^#.*${key}=" "$ENV_FILE" 2>/dev/null; then
+        # Uncomment and set
         if [[ "$OSTYPE" == "darwin"* ]]; then
             sed -i '' "s|^#.*${key}=.*|${key}=${value}|" "$ENV_FILE"
         else
