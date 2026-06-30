@@ -13,6 +13,7 @@ import {
   getTodayDate,
   getYesterdayDate,
   getFireSeasonStartDate,
+  isFutureDateTime,
 } from '../dateHelpers.js';
 
 describe('dateHelpers — local-calendar dates', () => {
@@ -65,5 +66,33 @@ describe('dateHelpers — local-calendar dates', () => {
       vi.setSystemTime(new Date('2026-01-01T03:00:00Z'));
       expect(getFireSeasonStartDate('America/Vancouver')).toBe('2025-04-01');
     });
+  });
+});
+
+describe('isFutureDateTime — time-aware Retroactive/Predictive classification (#300)', () => {
+  // Both the start and `now` are parsed from local datetime strings, so the
+  // test runner's timezone cancels out and these assertions are deterministic.
+  const now = new Date('2026-06-29T08:55'); // Monday morning, like the bug report
+
+  it('classifies "today" at a LATER time as future (Predictive)', () => {
+    // "Today" with a noon start while it is 08:55 -> the start is in the future
+    // -> Predictive. The #300 regression tagged this as Retroactive.
+    expect(isFutureDateTime('2026-06-29', '12:00', now)).toBe(true);
+  });
+
+  it('classifies "today" at an EARLIER time as past (Retroactive)', () => {
+    expect(isFutureDateTime('2026-06-29', '06:00', now)).toBe(false);
+  });
+
+  it('classifies a future date as Predictive', () => {
+    expect(isFutureDateTime('2026-06-30', '00:00', now)).toBe(true);
+  });
+
+  it('classifies a past date as Retroactive', () => {
+    expect(isFutureDateTime('2026-06-28', '23:00', now)).toBe(false);
+  });
+
+  it('returns false for an empty date', () => {
+    expect(isFutureDateTime('', '12:00', now)).toBe(false);
   });
 });
