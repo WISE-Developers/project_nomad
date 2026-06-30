@@ -4,10 +4,22 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.11.2
+## v0.11.3
+
+### 2026-06-30
+
+- [`797a513`](https://github.com/WISE-Developers/project_nomad/commit/797a51392ac7e99c53ee9c9ac0267b36cc16cc98) Merge pull request #301 from WISE-Developers/dev — *Franco Nogarin, 06:43*
+
+### 2026-06-27
+
+- [`db4d262`](https://github.com/WISE-Developers/project_nomad/commit/db4d262ab3d4116bf51daa767b5b675c247067a1) chore: dev build 1 [skip ci] — *github-actions[bot], 11:50*
+- [`174ff16`](https://github.com/WISE-Developers/project_nomad/commit/174ff16a97756dc67a73b84ac7fe81498331fc44) Merge fix/installer-preserve-env into dev — *Franco Nogarin, 05:50*
+- [`4fe354a`](https://github.com/WISE-Developers/project_nomad/commit/4fe354ae1f310e6ed36207db43fc7e63af015ea7) fix(installer): preserve existing .env values (set-if-absent) — *Franco Nogarin, 05:49*
 
 ### 2026-06-26
 
+- [`92ae909`](https://github.com/WISE-Developers/project_nomad/commit/92ae90983fed42946af6c0357e55a8922d1a6649) chore: reset dev build counter after v0.11.2 [skip ci] — *github-actions[bot], 17:45*
+- [`89ff325`](https://github.com/WISE-Developers/project_nomad/commit/89ff32581431e6a927112fe509679adeaf5ff1e2) chore: release v0.11.2 [skip ci] — *github-actions[bot], 17:44*
 - [`26ed332`](https://github.com/WISE-Developers/project_nomad/commit/26ed332851bb1e008515b9e3bab85ed73cbbd2c5) Merge pull request #298 from WISE-Developers/dev — *Franco Nogarin, 11:44*
 - [`0c9a4c2`](https://github.com/WISE-Developers/project_nomad/commit/0c9a4c2bbbf0716c9f887ec3fdef6d571919f6a2) chore: dev build 1 [skip ci] — *github-actions[bot], 17:40*
 - [`334f165`](https://github.com/WISE-Developers/project_nomad/commit/334f165c8a3a51d352c61011e87490aeda10a5cb) Merge fix/292-perimeter-download into dev — *Franco Nogarin, 11:39*
