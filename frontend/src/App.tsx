@@ -245,7 +245,7 @@ function AppContent() {
           // submits through the backend's raw_weather pipeline so no SpotWX
           // API key is required for file uploads (refs #244).
           const { normalizeSpotwxToRawWeather } = await import(
-            './features/ModelSetup/utils/spotwxParser.js'
+            './openNomad/weather/index.js'
           );
           const spotwxRaw = await readFileContent(data.weather.spotwxFile);
           weatherConfig = {

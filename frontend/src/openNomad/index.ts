@@ -62,6 +62,15 @@ export {
 // About modal (shows Nomad + FireSTARR info)
 export { AboutModal } from '../components/AboutModal.js';
 
+// Shared weather resolution (SpotWX upload normalization — SAN + ACN, refs #303)
+export {
+  resolveWeatherParams,
+  normalizeSpotwxToRawWeather,
+  parseSpotwxCsv,
+  type BackendWeatherConfig,
+  type NormalizedWeather,
+} from './weather/index.js';
+
 // White-label customization (theming, labels, actions, slots, features)
 export {
   // Provider
