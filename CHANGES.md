@@ -4,10 +4,16 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.11.3
+## v0.11.4
 
 ### 2026-06-30
 
+- [`5bcf688`](https://github.com/WISE-Developers/project_nomad/commit/5bcf688fe342064e016d36f1e0472e2d881c738e) Merge pull request #302 from WISE-Developers/dev — *Franco Nogarin, 08:30*
+- [`806315e`](https://github.com/WISE-Developers/project_nomad/commit/806315ef57a343d50a3ff215cdc5dc2928c6f033) chore: dev build 1 [skip ci] — *github-actions[bot], 14:27*
+- [`1a94e35`](https://github.com/WISE-Developers/project_nomad/commit/1a94e358d5e8891dd3ebda0968e1730a980d6c9e) Merge fix/300-retroactive-predictive into dev — *Franco Nogarin, 08:26*
+- [`2caafb3`](https://github.com/WISE-Developers/project_nomad/commit/2caafb371511798e2d855638c170bcca2e604baa) fix(#300): classify Retroactive/Predictive by start datetime, not date — *Franco Nogarin, 08:26*
+- [`9c2b84d`](https://github.com/WISE-Developers/project_nomad/commit/9c2b84d8d07d72dc58080bd09ce7256de104057b) chore: reset dev build counter after v0.11.3 [skip ci] — *github-actions[bot], 12:44*
+- [`23da2b8`](https://github.com/WISE-Developers/project_nomad/commit/23da2b82c0036db11d5c58064343fbea7af198ee) chore: release v0.11.3 [skip ci] — *github-actions[bot], 12:44*
 - [`797a513`](https://github.com/WISE-Developers/project_nomad/commit/797a51392ac7e99c53ee9c9ac0267b36cc16cc98) Merge pull request #301 from WISE-Developers/dev — *Franco Nogarin, 06:43*
 
 ### 2026-06-27
