@@ -18,6 +18,7 @@ import { GeometryUpload } from '../components/GeometryUpload';
 import { useGeometrySync } from '../hooks/useGeometrySync';
 import type { ModelSetupData, SpatialInputMethod } from '../types';
 import type { DrawnFeature } from '../../Map/types/geometry';
+import { shouldAutoFrame } from '../../Map/utils/shouldAutoFrame';
 import type { GeoJSONGeometry } from '../../../openNomad/api';
 
 const containerStyle: React.CSSProperties = {
@@ -281,6 +282,10 @@ export function SpatialInputStep() {
   // Fly to features when they change (SAN mode only)
   useEffect(() => {
     if (isEmbeddedMode || !map || !isLoaded || !features.length) return;
+    // #286: don't move the camera while a draw tool is armed — auto-framing
+    // after each finished polygon eats the next click and breaks drawing
+    // multiple polygons. Only auto-frame for non-draw input (upload/coords).
+    if (!shouldAutoFrame(drawContext?.state.mode)) return;
 
     // Calculate bounds
     const allCoords: [number, number][] = [];
@@ -312,7 +317,7 @@ export function SpatialInputStep() {
       ];
       map.fitBounds(bounds, { padding: 50 });
     }
-  }, [isEmbeddedMode, map, isLoaded, features]);
+  }, [isEmbeddedMode, map, isLoaded, features, drawContext?.state.mode]);
 
   // For display purposes, combine internal features with embedded geometry
   const displayFeatures: DrawnFeature[] = isEmbeddedMode
