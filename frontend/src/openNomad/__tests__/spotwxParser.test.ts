@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { parseSpotwxCsv } from '../spotwxParser.js';
+import { parseSpotwxCsv } from '../weather/spotwxParser.js';
 
 describe('parseSpotwxCsv', () => {
   it('parses SpotWX basic format (DATETIME,DATE,TIME,TMP,RH,WS,WD,...) into raw weather shape', () => {
@@ -81,7 +81,7 @@ describe('parseSpotwxCsv', () => {
 
 describe('normalizeSpotwxToRawWeather', () => {
   it('emits a raw-weather CSV text that the backend raw_weather path accepts', async () => {
-    const { normalizeSpotwxToRawWeather } = await import('../spotwxParser.js');
+    const { normalizeSpotwxToRawWeather } = await import('../weather/spotwxParser.js');
     const content =
       'DATETIME,DATE,TIME,TMP,RH,WS,WD,WG,APCP\n' +
       '2026/04/18 00:00,2026/04/18,00:00,-17.5,93,12,074,18,0.0\n' +

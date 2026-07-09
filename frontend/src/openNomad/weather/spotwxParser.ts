@@ -1,14 +1,19 @@
 /**
- * Parses SpotWX CSV exports and normalizes them into the Nomad raw weather
- * shape (Date, PREC, TEMP, RH, WS, WD) so the existing raw-weather pipeline
- * handles everything downstream (refs #244).
+ * Shared SpotWX CSV → raw-weather normalization (openNomad layer).
+ *
+ * Lives in the openNomad tree so BOTH SAN and ACN consume ONE implementation.
+ * Self-contained on purpose: the shared layer must not import back from the
+ * SAN app tree (`features/**`), so it carries its own minimal CSV parse.
+ *
+ * Parses SpotWX exports into the Nomad raw-weather shape
+ * (Date, PREC, TEMP, RH, WS, WD) so the backend's raw_weather pipeline handles
+ * everything downstream and the backend stays unaware of SpotWX uploads
+ * (refs #244, #303).
  *
  * Supported formats:
- *  - Basic export       — wide format with DATETIME (YYYY/MM/DD HH:MM)
- *  - Prometheus export  — narrow format with HOURLY (DD/MM/YYYY) + HOUR
+ *  - Basic export      — wide format with DATETIME (YYYY/MM/DD HH:MM)
+ *  - Prometheus export — narrow format with HOURLY (DD/MM/YYYY) + HOUR
  */
-
-import { parseCSV } from './weatherValidation.js';
 
 export interface NormalizedWeather {
   headers: string[];
@@ -18,6 +23,20 @@ export interface NormalizedWeather {
 }
 
 const OUTPUT_HEADERS = ['Date', 'PREC', 'TEMP', 'RH', 'WS', 'WD'];
+
+/** Minimal CSV parse (headers + rows), behaviour-matched to the SAN parseCSV. */
+function parseCSV(content: string): { headers: string[]; rows: string[][] } {
+  const lines = content.trim().split('\n');
+  if (lines.length === 0 || lines[0] === '') {
+    return { headers: [], rows: [] };
+  }
+  const headers = lines[0].split(',').map((h) => h.trim());
+  const rows = lines
+    .slice(1)
+    .filter((line) => line.trim().length > 0)
+    .map((line) => line.split(',').map((cell) => cell.trim()));
+  return { headers, rows };
+}
 
 function normalizeDatetimeBasic(value: string): string {
   // "2026/04/18 00:00" -> "2026-04-18 00:00:00"
@@ -113,7 +132,7 @@ export function parseSpotwxCsv(content: string): NormalizedWeather {
 }
 
 /**
- * Parses a SpotWX CSV and serializes it back out as a raw-weather CSV text
+ * Parses a SpotWX CSV and serializes it back out as raw-weather CSV text
  * (Date, PREC, TEMP, RH, WS, WD) for submission to the backend's raw_weather
  * pipeline — the frontend handles all SpotWX-specific translation so the
  * backend stays unaware of SpotWX file uploads.

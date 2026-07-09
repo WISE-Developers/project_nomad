@@ -212,8 +212,14 @@ export interface WeatherParams {
   source: 'csv' | 'spotwx' | 'station';
   /** CSV file content (base64 encoded) for csv source */
   csvData?: string;
-  /** SpotWX forecast location for spotwx source */
+  /** SpotWX forecast location for a LIVE spotwx fetch */
   spotwxLocation?: { lat: number; lng: number };
+  /**
+   * Uploaded SpotWX forecast CSV content for source 'spotwx'. When present it
+   * is normalized to raw_weather (no live SpotWX API call / API key). Takes
+   * precedence over spotwxLocation.
+   */
+  spotwxCsvData?: string;
   /** Weather station ID for station source */
   stationId?: string;
   /** Starting FWI codes for progressive calculation */

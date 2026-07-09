@@ -9,7 +9,7 @@
 
 import React, { useCallback, useRef, useState } from 'react';
 import type { ParsedWeatherCSV } from '../types';
-import { parseSpotwxCsv } from '../utils/spotwxParser.js';
+import { parseSpotwxCsv } from '../../../openNomad/weather/index.js';
 import { buildParsedWeatherCSV } from '../utils/weatherValidation.js';
 
 export interface SpotwxUploadProps {
