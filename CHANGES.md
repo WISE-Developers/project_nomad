@@ -4,10 +4,26 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.11.4
+## v0.11.5
+
+### 2026-07-09
+
+- [`cd4834e`](https://github.com/WISE-Developers/project_nomad/commit/cd4834ec2a20a8a9b8da3a2473b2f0ef3654be73) Merge pull request #314 from WISE-Developers/dev — *Franco Nogarin, 09:39*
+- [`92459ba`](https://github.com/WISE-Developers/project_nomad/commit/92459ba644ee7aaee0cd539fccc0b64dd815102e) chore: dev build 2 [skip ci] — *github-actions[bot], 13:45*
+- [`6e0e472`](https://github.com/WISE-Developers/project_nomad/commit/6e0e4724814393bd397b4deb296060a43ec9bd13) Merge fix/286-suppress-autoframe-while-drawing into dev — *Franco Nogarin, 07:45*
+- [`fe599a4`](https://github.com/WISE-Developers/project_nomad/commit/fe599a4eaea2cc87b2a51b9aa4f79cf768b046c9) Suppress map auto-frame while a draw tool is armed (refs #286) — *Franco Nogarin, 07:37*
+
+### 2026-07-08
+
+- [`be6082e`](https://github.com/WISE-Developers/project_nomad/commit/be6082e24d39970738456e2889ac7842fd31c9ef) chore: dev build 1 [skip ci] — *github-actions[bot], 16:47*
+- [`9a35c66`](https://github.com/WISE-Developers/project_nomad/commit/9a35c66d5da16550c2118018583316e043cce150) Merge origin/dev (v0.11.4 release) into dev — *Franco Nogarin, 10:46*
+- [`c24c971`](https://github.com/WISE-Developers/project_nomad/commit/c24c97160bd6582a32bda604665db7151121add5) Merge fix/303-spotwx-upload-opennomad into dev — *Franco Nogarin, 10:45*
+- [`a4c9a71`](https://github.com/WISE-Developers/project_nomad/commit/a4c9a71cab660d2f311def9fa8efe933d716278d) Share SpotWX-upload normalization in openNomad (refs #303) — *Franco Nogarin, 10:45*
 
 ### 2026-06-30
 
+- [`47c07f5`](https://github.com/WISE-Developers/project_nomad/commit/47c07f5b44c8b4e710ebbe6a9b6cbca93d11d15d) chore: reset dev build counter after v0.11.4 [skip ci] — *github-actions[bot], 14:31*
+- [`c2b91a5`](https://github.com/WISE-Developers/project_nomad/commit/c2b91a5a6606fd7aaa73824d9726f55c7391bbab) chore: release v0.11.4 [skip ci] — *github-actions[bot], 14:30*
 - [`5bcf688`](https://github.com/WISE-Developers/project_nomad/commit/5bcf688fe342064e016d36f1e0472e2d881c738e) Merge pull request #302 from WISE-Developers/dev — *Franco Nogarin, 08:30*
 - [`806315e`](https://github.com/WISE-Developers/project_nomad/commit/806315ef57a343d50a3ff215cdc5dc2928c6f033) chore: dev build 1 [skip ci] — *github-actions[bot], 14:27*
 - [`1a94e35`](https://github.com/WISE-Developers/project_nomad/commit/1a94e358d5e8891dd3ebda0968e1730a980d6c9e) Merge fix/300-retroactive-predictive into dev — *Franco Nogarin, 08:26*
