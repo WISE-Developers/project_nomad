@@ -36,6 +36,33 @@ const LayerContext = createContext<LayerContextValue | null>(null);
 const LAYERS_STORAGE_KEY = 'nomad-layers';
 
 /**
+ * Find the id of the first (bottom-most) data layer currently on the map,
+ * so a base-context layer (e.g. CFS CBMT) can be inserted BELOW all data but
+ * still above the basemap. Data layers are the Nomad-managed layers in
+ * `layers`; the basemap's own style layers are ignored. Returns undefined when
+ * no data layer is on the map yet (caller then appends above the basemap).
+ */
+function firstDataLayerId(
+  map: maplibregl.Map,
+  excludeId: string,
+  layers: LayerConfig[],
+): string | undefined {
+  const dataIds = new Set<string>();
+  for (const l of layers) {
+    if (l.id === excludeId) continue;
+    dataIds.add(l.id);
+    dataIds.add(`${l.id}-fill`);
+    dataIds.add(`${l.id}-line`);
+    dataIds.add(`${l.id}-point`);
+  }
+  const styleLayers = map.getStyle()?.layers ?? [];
+  for (const sl of styleLayers) {
+    if (dataIds.has(sl.id)) return sl.id;
+  }
+  return undefined;
+}
+
+/**
  * Rebuild the arrival-tile URL query string from the layer's ArrivalRasterMeta
  * (#226, #271). The server re-renders tiles for the requested classification /
  * breaks; the client just swaps the source tiles to re-fetch.
@@ -238,6 +265,19 @@ export function LayerProvider({ children }: { children: ReactNode }) {
           });
         }
       });
+
+      // CBMT is a base context layer — after a basemap swap re-adds every
+      // layer, move it back below all data (but above the new basemap).
+      if (map.getLayer('cfs-cbmt')) {
+        const beforeId = firstDataLayerId(map, 'cfs-cbmt', layers);
+        if (beforeId) {
+          try {
+            map.moveLayer('cfs-cbmt', beforeId);
+          } catch {
+            // beforeId may not exist yet; ignore
+          }
+        }
+      }
     };
 
     map.on('style.load', handleStyleLoad);
@@ -542,10 +582,14 @@ export function LayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (!map.getLayer(config.id)) {
-        // CFS/reference layers (id starts with 'cfs-') go above basemap
-        // but below any GeoJSON modeling/ignition layers
         let beforeId: string | undefined;
-        if (config.id.startsWith('cfs-')) {
+        if (config.id === 'cfs-cbmt') {
+          // CBMT is a base context layer: above the basemap but BELOW all
+          // data. Insert it before the first data layer currently on the map.
+          beforeId = firstDataLayerId(map, config.id, layersRef.current);
+        } else if (config.id.startsWith('cfs-')) {
+          // Other CFS/reference layers go above basemap but below any GeoJSON
+          // modeling/ignition layers.
           const firstGeoJSON = layersRef.current.find(l => l.type === 'geojson');
           if (firstGeoJSON) {
             for (const suffix of ['-fill', '-line', '-point', '']) {
