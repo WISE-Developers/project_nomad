@@ -579,7 +579,7 @@ export function LayerPanel({
             onOpacityChange={(opacity) => setOpacity(layer.id, opacity)}
             onRemove={() => removeLayer(layer.id)}
             onSelect={() => selectLayer(layer.id)}
-            onToggleHover={layer.type === 'raster' ? () => {
+            onToggleHover={layer.type === 'raster' && layer.legendType !== 'wms' ? () => {
               const newHover = !layer.hoverEnabled;
               updateLayer(layer.id, {
                 hoverEnabled: newHover,
