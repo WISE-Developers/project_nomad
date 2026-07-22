@@ -32,6 +32,8 @@ export interface UseCwfisM3LayersReturn {
   layers: CwfisM3LayerDef[];
   /** Build a WMS tile URL for a given layer (optionally time-filtered) */
   buildWmsUrl: (layerName: string, opts?: { time?: string }) => string;
+  /** Build a WMS GetLegendGraphic image URL for a given layer */
+  buildLegendUrl: (layerName: string) => string;
 }
 
 /** The two M3 layers offered by #299 */
@@ -112,6 +114,29 @@ export function buildCwfisWmsUrl(
 }
 
 /**
+ * Build a WMS GetLegendGraphic image URL for a layer.
+ *
+ * GeoServer renders the layer's SLD symbology as a PNG legend swatch. Uses the
+ * singular `layer=` param (GetLegendGraphic convention) and keeps the namespaced
+ * layer name literal.
+ */
+export function buildCwfisLegendUrl(layerName: string): string {
+  if (!layerName) {
+    throw new Error('buildCwfisLegendUrl: layerName is required');
+  }
+
+  const params = new URLSearchParams({
+    service: 'WMS',
+    version: '1.1.1',
+    request: 'GetLegendGraphic',
+    format: 'image/png',
+    transparent: 'true',
+  });
+
+  return `${WMS_BASE}?layer=${layerName}&${params.toString()}`;
+}
+
+/**
  * useCwfisM3Layers — hook exposing the CWFIS M3 public WMS layers.
  *
  * @example
@@ -125,5 +150,6 @@ export function useCwfisM3Layers(): UseCwfisM3LayersReturn {
     available: true,
     layers: CWFIS_M3_LAYERS,
     buildWmsUrl: buildCwfisWmsUrl,
+    buildLegendUrl: buildCwfisLegendUrl,
   };
 }

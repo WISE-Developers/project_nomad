@@ -15,6 +15,7 @@ import { renderHook } from '@testing-library/react';
 import {
   useCwfisM3Layers,
   buildCwfisWmsUrl,
+  buildCwfisLegendUrl,
   currentSeasonTime,
 } from '../useCwfisM3Layers.js';
 
@@ -65,6 +66,26 @@ describe('useCwfisM3Layers', () => {
   it('currentSeasonTime returns a season range from the year start to a later date', () => {
     const range = currentSeasonTime(new Date('2026-07-22T00:00:00Z'));
     expect(range).toBe('2026-01-01/2026-07-22');
+  });
+
+  it('buildCwfisLegendUrl builds a WMS GetLegendGraphic image URL for a layer', () => {
+    const url = buildCwfisLegendUrl('public:hotspots');
+
+    expect(url).toContain(WMS_BASE);
+    expect(url).toContain('GetLegendGraphic');
+    expect(url).toContain('format=image');
+    // GetLegendGraphic uses the singular "layer=" param
+    expect(url).toContain('layer=public:hotspots');
+    expect(url).not.toContain('{bbox-epsg-3857}');
+  });
+
+  it('the hook exposes buildLegendUrl for both layers', () => {
+    const { result } = renderHook(() => useCwfisM3Layers());
+    const hs = result.current.buildLegendUrl('public:hotspots');
+    const poly = result.current.buildLegendUrl('public:m3polygons');
+    expect(hs).toContain('GetLegendGraphic');
+    expect(hs).toContain('public:hotspots');
+    expect(poly).toContain('public:m3polygons');
   });
 
   it('the hook builds hotspot URLs stamped with the current season range', () => {

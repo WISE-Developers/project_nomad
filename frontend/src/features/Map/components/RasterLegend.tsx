@@ -402,7 +402,15 @@ export function RasterLegend() {
   const arrivalLayers = visibleRasters.filter(
     (l) => l.legendType === 'arrival' && l.arrivalMeta,
   );
-  const hasProbability = visibleRasters.some((l) => l.legendType !== 'arrival');
+  // Server-rendered legend images (CWFIS M3 layers #299)
+  const wmsLayers = visibleRasters.filter(
+    (l) => l.legendType === 'wms' && l.legendUrl,
+  );
+  // Probability = model-output rasters (and legacy CFS layers with no type),
+  // but NOT arrival or wms layers.
+  const hasProbability = visibleRasters.some(
+    (l) => l.legendType !== 'arrival' && l.legendType !== 'wms',
+  );
 
   // Align day colours across every visible fire to the earliest start day so
   // "day N" reads the same colour on all of them (#274 Unit 5, jordan-evens).
@@ -417,6 +425,18 @@ export function RasterLegend() {
   return (
     <aside role="complementary" aria-label="Map legend" style={containerStyle}>
       {hasProbability && <ProbabilityLegendBlock />}
+      {wmsLayers.map((layer, i) => (
+        <div key={layer.id} style={{ marginTop: hasProbability || i > 0 ? '12px' : 0 }}>
+          <div style={{ fontWeight: 600, fontSize: '12px', marginBottom: '4px', color: '#333' }}>
+            {layer.name}
+          </div>
+          <img
+            src={layer.legendUrl}
+            alt={`${layer.name} legend`}
+            style={{ display: 'block', maxWidth: '220px' }}
+          />
+        </div>
+      ))}
       {arrivalLayers.map((layer) => (
         <div key={layer.id} style={{ marginTop: hasProbability ? '12px' : 0 }}>
           <ArrivalLegendBlock

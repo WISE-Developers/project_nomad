@@ -163,6 +163,8 @@ export function LayerPanel({
         opacity: 0.8,
         visible: true,
         zIndex: 999,
+        legendType: 'wms',
+        legendUrl: cwfis.buildLegendUrl(wmsLayerName),
       });
       setCwfisLayerState((prev) => ({ ...prev, [layerId]: { active: true } }));
     } else {
@@ -592,6 +594,7 @@ export function LayerPanel({
         ))}
       </div>
       {CFSSection}
+      {CwfisSection}
       {MapSettingsSection}
     </div>
   );
