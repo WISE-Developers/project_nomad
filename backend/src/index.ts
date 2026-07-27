@@ -18,9 +18,18 @@ import {
 import { initDatabase, initializeRepositories, getJobRepository } from './infrastructure/database/index.js';
 import { getBundleStore } from './infrastructure/export/index.js';
 import { logger } from './infrastructure/logging/index.js';
+import { initSentry, setupSentryErrorHandler } from './infrastructure/observability/sentry.js';
 
 // Load .env from project root (parent directory)
 dotenv.config({ path: resolve(process.cwd(), '..', '.env') });
+
+// Initialise error reporting as early as possible, right after env is loaded.
+// No-op unless SENTRY_DSN is set (installer consent, #313). SAN-only surface.
+initSentry({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV,
+  release: process.env.SENTRY_RELEASE,
+});
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -216,6 +225,10 @@ app.get('/api/health', (_req, res) => {
 
 // 404 handler for unknown routes
 app.use(notFoundHandler);
+
+// Sentry error handler — after routes, before our formatter. Captures errors
+// then hands off. No-op unless Sentry was initialised (SENTRY_DSN set).
+setupSentryErrorHandler(app);
 
 // Central error handler
 app.use(errorHandler);
