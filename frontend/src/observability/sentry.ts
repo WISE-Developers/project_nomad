@@ -69,8 +69,10 @@ export function initSentry(opts: InitSentryOptions): boolean {
     dsn: opts.dsn,
     environment: opts.environment ?? 'development',
     release: opts.release,
-    // v1: errors only — no Replay, no tracing.
-    integrations: [],
+    // v1: errors only. Keep Sentry's DEFAULT integrations (global error /
+    // unhandled-rejection handlers, breadcrumbs) — do NOT pass integrations: []
+    // (that would replace the defaults and stop capturing uncaught errors).
+    // We simply don't add Replay or performance tracing.
     tracesSampleRate: 0,
     beforeSend: (event) =>
       scrubEvent(event as unknown as SentryEventLike) as unknown as Sentry.ErrorEvent,
