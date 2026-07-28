@@ -1801,6 +1801,53 @@ generate_env_file() {
         update_env_value "VITE_API_PORT" "$NOMAD_BACKEND_HOST_PORT"
     fi
 
+    # --- Crash & error reporting consent (Sentry, #313) ---
+    # OFF by default. Only on explicit opt-in do we inject CIFFC's Sentry DSNs,
+    # which the frontend build bakes in (VITE_SENTRY_DSN) and the backend reads
+    # at runtime (SENTRY_DSN). No DSN => the app never phones home. The frontend
+    # DSN is public (ships in the browser bundle); the backend DSN is server-side.
+    SENTRY_FRONTEND_DSN_CIFFC="https://1260ee8a9108d645b99331926186fe9b@o4511356192751616.ingest.us.sentry.io/4511570358894592"
+    SENTRY_BACKEND_DSN_CIFFC="https://ae5f37e92bcaa761abe6f8856708684c@o4511356192751616.ingest.us.sentry.io/4511808188907520"
+
+    SENTRY_OPT_IN="no"
+    if [ -n "$NOMAD_ERROR_REPORTING" ]; then
+        # Non-interactive override for headless installs: NOMAD_ERROR_REPORTING=true
+        case "$(printf '%s' "$NOMAD_ERROR_REPORTING" | tr '[:upper:]' '[:lower:]')" in
+            true|yes|y|1) SENTRY_OPT_IN="yes" ;;
+        esac
+    elif [ -t 0 ] && [ "$DRY_RUN" != true ]; then
+        echo ""
+        echo "  Crash & error reporting"
+        echo "  Nomad can report crashes and errors to the development team to help fix"
+        echo "  bugs. Reports are scrubbed of personal data. Optional; off by default."
+        read -p "  Allow Nomad to report crashes and errors? [y/N] " -n 1 -r
+        echo ""
+        if [[ "$REPLY" =~ ^[Yy]$ ]]; then
+            SENTRY_OPT_IN="yes"
+        fi
+    fi
+
+    if [ "$SENTRY_OPT_IN" = "yes" ]; then
+        # VITE_SENTRY_DSN first: once uncommented it no longer matches the
+        # SENTRY_DSN substring pattern, avoiding a collision on the next call.
+        update_env_value "VITE_SENTRY_DSN" "$SENTRY_FRONTEND_DSN_CIFFC"
+        update_env_value "SENTRY_DSN" "$SENTRY_BACKEND_DSN_CIFFC"
+        print_success "Crash & error reporting ENABLED (Sentry)"
+    else
+        if [ "$DRY_RUN" != true ]; then
+            for _k in VITE_SENTRY_DSN SENTRY_DSN; do
+                if grep -qE "^${_k}=.+" "$ENV_FILE" 2>/dev/null; then
+                    if [[ "$OSTYPE" == "darwin"* ]]; then
+                        sed -i '' "s|^${_k}=.*|${_k}=|" "$ENV_FILE"
+                    else
+                        sed -i "s|^${_k}=.*|${_k}=|" "$ENV_FILE"
+                    fi
+                fi
+            done
+        fi
+        print_info "Crash & error reporting disabled (no data will be sent)"
+    fi
+
     if [ -n "$NOMAD_AGENCY_ID" ]; then
         update_env_value "NOMAD_AGENCY_ID" "$NOMAD_AGENCY_ID"
     fi

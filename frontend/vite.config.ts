@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import path from 'path';
 import { execSync } from 'child_process';
 import { readFileSync } from 'fs';
@@ -33,8 +34,41 @@ export default defineConfig(({ mode }) => {
   const apiPort = env.VITE_API_PORT || '3001';
   const apiTarget = `http://localhost:${apiPort}`;
 
+  // Source-map upload to Sentry (#313, S3). DORMANT unless SENTRY_AUTH_TOKEN is
+  // present. The token is a write secret that lives ONLY in CIFFC's CI/build
+  // env — never in a casual user's local build — so a local install builds
+  // normally with no upload (and thus keeps minified traces). CIFFC's CI build
+  // (with the token + SENTRY_ORG + SENTRY_PROJECT) uploads maps for readable
+  // stack traces on the centrally-built/hosted release.
+  const sentryAuthToken = env.SENTRY_AUTH_TOKEN;
+  const pkgVersion = (
+    JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')) as {
+      version?: string;
+    }
+  ).version;
+  const sentryRelease = env.VITE_SENTRY_RELEASE || (pkgVersion ? `nomad@${pkgVersion}` : undefined);
+
+  const plugins = [react()];
+  if (sentryAuthToken) {
+    plugins.push(
+      sentryVitePlugin({
+        authToken: sentryAuthToken,
+        org: env.SENTRY_ORG,
+        project: env.SENTRY_PROJECT,
+        release: sentryRelease ? { name: sentryRelease } : undefined,
+        telemetry: false,
+        // Never fail the build over telemetry upload — warn and continue.
+        errorHandler: (err) => console.warn('[sentry-vite-plugin]', err.message),
+      }),
+    );
+  }
+
   return {
-    plugins: [react()],
+    plugins,
+    // Generate hidden source maps only when uploading: 'hidden' keeps the
+    // //# sourceMappingURL out of the bundle so maps are never served to users
+    // (the plugin uploads them to Sentry, then deletes them from the output).
+    build: { sourcemap: sentryAuthToken ? 'hidden' : false },
     envDir,
     define: {
       // ISO date string of the git tag commit for this version (the release
