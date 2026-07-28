@@ -252,6 +252,37 @@ generate_env() {
     update_env "NOMAD_AUTH_MODE" "simple"
     update_env "VITE_AUTH_MODE" "simple"
 
+    # --- Crash & error reporting consent (Sentry, #313) ---
+    # OFF by default. Opt in via NOMAD_ERROR_REPORTING=true (non-interactive) or
+    # the prompt below. On opt-in we inject CIFFC's Sentry DSNs (frontend build
+    # bakes VITE_SENTRY_DSN; backend reads SENTRY_DSN). No DSN => never phones home.
+    local sentry_front="https://1260ee8a9108d645b99331926186fe9b@o4511356192751616.ingest.us.sentry.io/4511570358894592"
+    local sentry_back="https://ae5f37e92bcaa761abe6f8856708684c@o4511356192751616.ingest.us.sentry.io/4511808188907520"
+    local sentry_optin="no"
+    if [ -n "$NOMAD_ERROR_REPORTING" ]; then
+        case "$(printf '%s' "$NOMAD_ERROR_REPORTING" | tr '[:upper:]' '[:lower:]')" in
+            true|yes|y|1) sentry_optin="yes" ;;
+        esac
+    elif [ -t 0 ]; then
+        echo ""
+        echo "  Nomad can report crashes and errors to the development team to help"
+        echo "  fix bugs. Reports are scrubbed of personal data. Optional; off by default."
+        read -p "  Allow Nomad to report crashes and errors? [y/N] " -n 1 -r
+        echo ""
+        [[ "$REPLY" =~ ^[Yy]$ ]] && sentry_optin="yes"
+    fi
+    # Set VITE_SENTRY_DSN first: once uncommented it no longer matches the
+    # SENTRY_DSN substring pattern, so the next call can't clobber it.
+    if [ "$sentry_optin" = "yes" ]; then
+        update_env "VITE_SENTRY_DSN" "$sentry_front"
+        update_env "SENTRY_DSN" "$sentry_back"
+        print_success "Crash & error reporting enabled"
+    else
+        update_env "VITE_SENTRY_DSN" ""
+        update_env "SENTRY_DSN" ""
+        echo "  Crash & error reporting disabled (no data will be sent)"
+    fi
+
     # Set FireSTARR binary path if provided or will be auto-installed
     if [ -n "$FIRESTARR_BINARY_PATH" ]; then
         update_env "FIRESTARR_BINARY_PATH" "$FIRESTARR_BINARY_PATH"
