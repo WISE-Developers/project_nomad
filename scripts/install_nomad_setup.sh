@@ -483,6 +483,23 @@ step2_infrastructure() {
 
 # Prompt user for dataset source - use existing or download new
 prompt_dataset_source() {
+    # Index mode: FIRESTARR_DATASET_INDEX names a dataset index, so the source
+    # is already decided and install-firestarr-dataset.sh's year picker chooses
+    # which year(s) to install. Skip the source menu - asking here would prompt
+    # the user for a source twice. The path prompts below still run: the year
+    # picker never asks where the ~50GB lands, and install-firestarr-dataset.sh
+    # exits 1 without FIRESTARR_DATASET_PATH.
+    if [ -n "${FIRESTARR_DATASET_INDEX:-}" ]; then
+        echo -e "${CYAN}FireSTARR Dataset${NC}"
+        echo "    Source is configured by dataset index:"
+        echo "      $FIRESTARR_DATASET_INDEX"
+        echo "    You'll choose which fuel year(s) to install during setup."
+        echo ""
+        prompt_new_dataset_path
+        DATASET_INSTALL_MODE="download"
+        return
+    fi
+
     echo -e "${CYAN}FireSTARR Dataset${NC}"
     echo "    The dataset includes fuel grids, DEM data (~50GB)."
     echo ""
