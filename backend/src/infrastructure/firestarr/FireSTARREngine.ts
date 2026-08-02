@@ -420,7 +420,7 @@ export class FireSTARREngine implements IFireModelingEngine, IWorkspaceAwareEngi
     logger.engine(`Cleaned up model`, 'FireSTARR', modelId);
   }
 
-  async validateLocation(location: Coordinates): Promise<{
+  async validateLocation(location: Coordinates, modelYear: number): Promise<{
     valid: boolean;
     reason?: string;
     fuelType?: string;
@@ -452,13 +452,13 @@ export class FireSTARREngine implements IFireModelingEngine, IWorkspaceAwareEngi
     // Check actual fuel grid coverage
     try {
       const inputGen = this.inputGenerator as FireSTARRInputGenerator;
-      const currentYear = new Date().getFullYear();
-      const fuelGridPath = await inputGen.findFuelGridForCoordinates(lat, lon, currentYear);
+      // Validate against the vintage the run will actually use, not today's.
+      const fuelGridPath = await inputGen.findFuelGridForCoordinates(lat, lon, modelYear);
 
       if (!fuelGridPath) {
         return {
           valid: false,
-          reason: 'No fuel grid coverage at this location',
+          reason: `No fuel grid coverage at this location for ${modelYear}`,
           utmZone,
         };
       }

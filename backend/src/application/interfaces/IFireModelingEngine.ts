@@ -174,10 +174,16 @@ export interface IFireModelingEngine {
    * Validates that a location can be modeled.
    * Checks for valid fuel type, DEM coverage, etc.
    *
+   * Fuel grids are installed per vintage year, so coverage depends on WHICH
+   * year is being modelled. modelYear is required on purpose: defaulting it to
+   * the current year let validation check one vintage while the run used
+   * another (refs #319).
+   *
    * @param location - Coordinates to validate
+   * @param modelYear - Year the model runs for; selects the fuel vintage
    * @returns Validation result with details
    */
-  validateLocation(location: Coordinates): Promise<{
+  validateLocation(location: Coordinates, modelYear: number): Promise<{
     valid: boolean;
     reason?: string;
     fuelType?: string;
