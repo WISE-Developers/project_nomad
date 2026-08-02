@@ -6,6 +6,8 @@
 
 import React from 'react';
 import type { ExecutionSummary, ExecutionState, ModelInputs, OutputConfig } from '../types';
+import { FuelVintageNotice } from '../../../shared/components/FuelVintageNotice';
+import { useFuelVintage } from '../../../shared/hooks/useFuelVintage';
 
 /**
  * Props for ResultsSummary
@@ -102,6 +104,15 @@ export function ResultsSummary({
   onAddIgnitionToMap,
 }: ResultsSummaryProps) {
   const ignition = inputs?.ignition;
+
+  // The year this fire was modelled FOR — not when it executed (#319).
+  // Absent when nothing on disk recorded it; the notice then renders nothing.
+  const modelYear = inputs?.modelStartDate
+    ? Number(inputs.modelStartDate.slice(0, 4))
+    : undefined;
+  const { resolved: fuelVintage } = useFuelVintage(
+    Number.isInteger(modelYear) ? modelYear : undefined
+  );
   const statusInfo = getStatusInfo(summary.status);
   const isInProgress = ['queued', 'initializing', 'running'].includes(summary.status);
   const simLabel = outputConfig?.outputMode === 'deterministic'
@@ -337,6 +348,18 @@ export function ResultsSummary({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Fuel vintage actually used for this run (#319) */}
+      {fuelVintage && (
+        <div style={{
+          marginTop: '16px',
+          padding: '12px',
+          border: '1px solid #e0e0e0',
+          borderRadius: '6px',
+        }}>
+          <FuelVintageNotice resolved={fuelVintage} label="Fuel vintage used" />
         </div>
       )}
 

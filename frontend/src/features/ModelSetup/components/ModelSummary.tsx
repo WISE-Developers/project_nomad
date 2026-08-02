@@ -7,6 +7,8 @@
 import React from 'react';
 import type { ModelSetupData } from '../types';
 import { getFireDangerRating, getFireDangerColor } from '../types';
+import { FuelVintageNotice } from '../../../shared/components/FuelVintageNotice';
+import { useFuelVintage } from '../../../shared/hooks/useFuelVintage';
 
 export interface ModelSummaryProps {
   /** Complete model setup data */
@@ -113,8 +115,28 @@ export function ModelSummary({ data }: ModelSummaryProps) {
   void getFireDangerRating;
   void getFireDangerColor;
 
+  // Fuel vintage is selected by the modelled year (#319). startDate is
+  // YYYY-MM-DD; undefined until the temporal step is filled in.
+  const modelYear = data.temporal?.startDate
+    ? Number(data.temporal.startDate.slice(0, 4))
+    : undefined;
+  const { resolved: fuelVintage } = useFuelVintage(
+    Number.isInteger(modelYear) ? modelYear : undefined
+  );
+
   return (
     <div style={containerStyle}>
+      {/* Fuel vintage — which fuel this run will use (#319) */}
+      {fuelVintage && (
+        <div style={cardStyle}>
+          <div style={cardTitleStyle}>
+            <i className="fa-solid fa-tree" />
+            <span>Fuel Data</span>
+          </div>
+          <FuelVintageNotice resolved={fuelVintage} />
+        </div>
+      )}
+
       {/* Spatial Summary */}
       <div style={cardStyle}>
         <div style={cardTitleStyle}>
