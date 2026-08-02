@@ -26,6 +26,7 @@ import type {
   IResultArtifactGateway,
 } from '../interfaces/index.js';
 import { createFireModelId } from '../../domain/entities/FireModel.js';
+import { readModelStartDate } from './modelStartDate.js';
 
 /**
  * Execution summary for API response
@@ -74,6 +75,13 @@ export interface ModelInputs {
   weatherCsvPath?: string;
   /** Weather CSV download URL */
   weatherDownloadUrl?: string;
+  /**
+   * Date the model was simulated FOR, ISO-8601 (#319).
+   * Not the execution time — fuel vintage is selected by the modelled year, so
+   * reporting execution time would attribute a 2023 fire to 2026 fuel.
+   * Absent when nothing on disk records it.
+   */
+  modelStartDate?: string;
 }
 
 /**
@@ -359,6 +367,13 @@ export class ModelResultsService {
         if (fs.existsSync(weatherPath)) {
           inputs.weatherCsvPath = weatherPath;
           inputs.weatherDownloadUrl = `/api/v1/models/${modelId}/inputs/weather`;
+        }
+
+        // The year this fire was modelled for — drives fuel vintage display
+        // in results (#319). Undefined when nothing on disk records it.
+        const modelStartDate = await readModelStartDate(simDir);
+        if (modelStartDate) {
+          inputs.modelStartDate = modelStartDate.toISOString();
         }
 
         // Only include inputs if we found something
