@@ -17,6 +17,7 @@ import type {
   IFuelDatasetCatalog,
   ResolvedFuelDataset,
 } from '../../application/interfaces/IFuelDatasetCatalog.js';
+import { resolveDatasetGridRoot } from './FireSTARRInputGenerator.js';
 
 /** Directory name used when a dataset is installed without a vintage. */
 const DEFAULT_DIR = 'default';
@@ -134,4 +135,13 @@ export class FileSystemFuelDatasetCatalog implements IFuelDatasetCatalog {
       resolutionM: parsed.resolution_m,
     };
   }
+}
+
+/**
+ * Creates the catalog from environment configuration.
+ * Shares gridRoot resolution with the input generator so the catalog can never
+ * report a vintage from a different directory than fuel lookup reads.
+ */
+export function createFileSystemFuelDatasetCatalog(): FileSystemFuelDatasetCatalog {
+  return new FileSystemFuelDatasetCatalog({ gridRoot: resolveDatasetGridRoot() });
 }
