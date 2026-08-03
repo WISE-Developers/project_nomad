@@ -487,7 +487,7 @@ prompt_dataset_source() {
     # is already decided and install-firestarr-dataset.sh's year picker chooses
     # which year(s) to install. Skip the source menu - asking here would prompt
     # the user for a source twice. The path prompts below still run: the year
-    # picker never asks where the ~50GB lands, and install-firestarr-dataset.sh
+    # picker never asks where the archives land, and install-firestarr-dataset.sh
     # exits 1 without FIRESTARR_DATASET_PATH.
     if [ -n "${FIRESTARR_DATASET_INDEX:-}" ]; then
         echo -e "${CYAN}FireSTARR Dataset${NC}"
@@ -501,7 +501,7 @@ prompt_dataset_source() {
     fi
 
     echo -e "${CYAN}FireSTARR Dataset${NC}"
-    echo "    The dataset includes fuel grids, DEM data (~50GB)."
+    echo "    The dataset includes fuel grids and DEM data (about 3 GB per fuel year)."
     echo ""
     echo -e "    ${GREEN}1) Use existing dataset${NC}"
     echo "       Point to an already-installed FireSTARR dataset"
@@ -587,7 +587,7 @@ prompt_existing_dataset() {
 prompt_new_dataset_path() {
     echo ""
     echo -e "${CYAN}Dataset Archive Download Folder${NC}"
-    echo "    Where to save the downloaded archive file (~50GB)."
+    echo "    Where to save the downloaded archive files (about 3 GB per fuel year)."
     echo "    The archive is preserved for future reinstalls."
     echo ""
 
