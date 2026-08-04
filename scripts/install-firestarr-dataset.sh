@@ -221,6 +221,61 @@ parse_datasets() {
     done
 }
 
+# Echoes the install command for the first package manager we recognise.
+# Returns 1 when none is available.
+detect_unzip_installer() {
+    if command -v apt-get >/dev/null 2>&1; then echo "apt-get install -y unzip"
+    elif command -v dnf     >/dev/null 2>&1; then echo "dnf install -y unzip"
+    elif command -v yum     >/dev/null 2>&1; then echo "yum install -y unzip"
+    elif command -v apk     >/dev/null 2>&1; then echo "apk add --no-cache unzip"
+    elif command -v zypper  >/dev/null 2>&1; then echo "zypper install -y unzip"
+    elif command -v brew    >/dev/null 2>&1; then echo "brew install unzip"
+    else return 1
+    fi
+}
+
+# Makes sure unzip is usable, installing it when it isn't.
+# A fresh Ubuntu 24.04 has no unzip, and refusing mid-install just sends the
+# user to a search engine. Fails loudly when it genuinely cannot install —
+# continuing without unzip would fail later, further from the cause.
+ensure_unzip() {
+    command -v unzip >/dev/null 2>&1 && return 0
+
+    print_warning "unzip is required to install fuel datasets, but was not found."
+
+    local cmd
+    if ! cmd=$(detect_unzip_installer); then
+        print_error "No supported package manager found — please install unzip and re-run."
+        return 1
+    fi
+
+    local sudo_prefix=""
+    if [ "$(id -u)" -ne 0 ]; then
+        if command -v sudo >/dev/null 2>&1; then
+            sudo_prefix="sudo "
+        else
+            print_error "Need root to install unzip and sudo is unavailable — please install unzip and re-run."
+            return 1
+        fi
+    fi
+
+    print_step "Installing unzip: ${sudo_prefix}${cmd}"
+    if ! eval "${sudo_prefix}${cmd}" >/dev/null 2>&1; then
+        print_error "Could not install unzip automatically — please install unzip and re-run."
+        return 1
+    fi
+
+    # Verify rather than trust the exit code: a package manager can report
+    # success without leaving a usable binary on PATH.
+    if ! command -v unzip >/dev/null 2>&1; then
+        print_error "unzip still not available after install — please install unzip and re-run."
+        return 1
+    fi
+
+    print_success "unzip installed"
+    return 0
+}
+
 # Total download bytes for the chosen years.
 #   $1 = rows from parse_datasets, $2 = space/newline separated years
 # Years absent from the index contribute 0 — they're reported separately when
@@ -290,7 +345,7 @@ install_one_year() {
 
 # Interactive/headless index-driven install.
 run_year_picker() {
-    command -v unzip >/dev/null 2>&1 || { print_error "unzip is required"; exit 1; }
+    ensure_unzip || exit 1
     if is_url "$FIRESTARR_DATASET_INDEX"; then
         command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 || {
             print_error "curl or wget is required to fetch the dataset index"; exit 1; }
