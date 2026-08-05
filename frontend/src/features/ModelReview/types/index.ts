@@ -83,6 +83,12 @@ export interface ModelInputs {
   weatherCsvPath?: string;
   /** Weather CSV download URL */
   weatherDownloadUrl?: string;
+  /**
+   * Date the model was simulated FOR, ISO-8601 (#319).
+   * Not the execution time — fuel vintage is selected by the modelled year.
+   * Absent when nothing on disk records it.
+   */
+  modelStartDate?: string;
 }
 
 /**

@@ -325,9 +325,11 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
 }
 
 /**
- * Creates a FireSTARR input generator from environment configuration.
+ * Resolves the configured dataset root from the environment.
+ * Throws when FIRESTARR_DATASET_PATH is unset — a defaulted dataset path would
+ * silently model against fuel nobody chose.
  */
-export function createFireSTARRInputGenerator(): FireSTARRInputGenerator {
+export function resolveDatasetRoot(): string {
   // Use FIRESTARR_DATASET_PATH from environment (must match docker-compose.yaml volume mount)
   const datasetPath = process.env.FIRESTARR_DATASET_PATH;
   if (!datasetPath) {
@@ -337,9 +339,23 @@ export function createFireSTARRInputGenerator(): FireSTARRInputGenerator {
   // Resolve relative paths from project root (parent of backend dir)
   // This matches where docker-compose.yaml resolves paths from
   const projectRoot = join(process.cwd(), '..');
-  const resolvedPath = isAbsolutePath(datasetPath)
-    ? datasetPath
-    : join(projectRoot, datasetPath);
+  return isAbsolutePath(datasetPath) ? datasetPath : join(projectRoot, datasetPath);
+}
+
+/**
+ * Root holding one directory per installed fuel vintage ({year}/ and default/).
+ * Shared with the fuel dataset catalog (#319) so the catalog and fuel lookup
+ * can never read different directories.
+ */
+export function resolveDatasetGridRoot(): string {
+  return join(resolveDatasetRoot(), 'generated/grid/100m');
+}
+
+/**
+ * Creates a FireSTARR input generator from environment configuration.
+ */
+export function createFireSTARRInputGenerator(): FireSTARRInputGenerator {
+  const resolvedPath = resolveDatasetRoot();
 
   return new FireSTARRInputGenerator({
     simsBasePath: join(resolvedPath, 'sims'),

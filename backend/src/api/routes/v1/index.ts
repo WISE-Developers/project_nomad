@@ -12,7 +12,9 @@ import importRouter from './import.js';
 import perimetersImportRouter from './perimetersImport.js';
 import splashRouter from './splash.js';
 import notificationsRouterFactory from './notifications.js';
+import fuelDatasetsRouterFactory from './fuelDatasets.js';
 import { getNotificationPreferencesRepository } from '../../../infrastructure/database/index.js';
+import { createFileSystemFuelDatasetCatalog } from '../../../infrastructure/firestarr/FileSystemFuelDatasetCatalog.js';
 
 const router = Router();
 
@@ -38,6 +40,16 @@ router.use((req, res, next) => {
     notificationRouter = notificationsRouterFactory(getNotificationPreferencesRepository());
   }
   notificationRouter(req, res, next);
+});
+
+// Lazy-init for the same reason: the catalog reads FIRESTARR_DATASET_PATH,
+// which dotenv has not loaded at import time.
+let fuelDatasetsRouter: Router | null = null;
+router.use((req, res, next) => {
+  if (!fuelDatasetsRouter) {
+    fuelDatasetsRouter = fuelDatasetsRouterFactory(createFileSystemFuelDatasetCatalog());
+  }
+  fuelDatasetsRouter(req, res, next);
 });
 
 export default router;
