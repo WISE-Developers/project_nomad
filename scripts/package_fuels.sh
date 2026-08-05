@@ -95,6 +95,16 @@ dataset_json() {
 JSON
 }
 
+# Remove macOS metadata from a built dataset.
+#
+# Four .DS_Store files reached the PUBLISHED 2023-2026 datasets — inside the
+# zips, inside checksums.txt, and therefore inside every sha256 in index.json.
+# Builds run on a Mac and Finder recreates these at any moment, so this is
+# called immediately before checksums AND the zip excludes them again.
+strip_mac_metadata() {
+    find "$1" \( -name '.DS_Store' -o -name '._*' -o -name '.AppleDouble' \) -delete 2>/dev/null || true
+}
+
 # sha256 over every file, relative paths, excluding the checksum file itself.
 write_checksums() {
     local root="$1"
@@ -154,9 +164,7 @@ package_year() {
         fi
         n=$((n + 1))
     done
-    # macOS metadata got into the published 2023-2026 datasets and their
-    # checksums. Strip it so it never ships again.
-    find "$root" \( -name '.DS_Store' -o -name '._*' \) -delete 2>/dev/null || true
+    strip_mac_metadata "$root"
     [ "$n" -gt 0 ] || { print_error "$year: no tiles found under $srctiles"; return 1; }
 
     local nfuel ndem
@@ -177,13 +185,24 @@ package_year() {
     cp "$lut" "$root/fuel.lut"
 
     dataset_json "$year" "$nfuel" "$ndem" "$build_date" > "$root/dataset.json"
+    # Strip immediately before hashing so checksums.txt can never list a
+    # .DS_Store, then exclude them again at zip time in case Finder recreates
+    # one while the build is running.
+    strip_mac_metadata "$root"
     write_checksums "$root"
     rm -rf "$stage"
 
     print_step "$year: zipping"
     local zip_out="$OUT_DIR/FireSTARR_Fuel_${year}_V${VERSION}.zip"
     rm -f "$zip_out"
-    ( cd "$root" && zip -q -r "$zip_out" . )
+    ( cd "$root" && zip -q -r "$zip_out" . \
+        -x '*.DS_Store' -x '*/._*' -x '._*' -x '__MACOSX/*' -x '*.AppleDouble/*' )
+
+    # Belt and braces: prove the published artifact is clean before we ship it.
+    if unzip -l "$zip_out" 2>/dev/null | grep -qE '\.DS_Store|/\._|__MACOSX'; then
+        print_error "$year: macOS metadata leaked into $zip_out"
+        return 1
+    fi
 
     local bytes sha
     bytes=$(wc -c < "$zip_out" | tr -d ' ')

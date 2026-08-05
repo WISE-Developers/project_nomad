@@ -76,6 +76,24 @@ expect_contains "manifest records the lut"     '"fuelLut": "fuel.lut"' "$manifes
 expect_eq "manifest is valid JSON" "ok" \
   "$(printf '%s' "$manifest" | python3 -c 'import json,sys; json.load(sys.stdin); print("ok")' 2>/dev/null || echo invalid)"
 
+# ---- macOS metadata must never reach a published dataset -----------------
+# Four .DS_Store files got into the published 2023-2026 datasets, inside the
+# zips and inside checksums.txt. Builds happen on Papa's Mac, and Finder can
+# recreate them at any moment — including between the strip and the zip.
+mac="$tmp/mac"; mkdir -p "$mac/generated/grid/100m/2027"
+touch "$mac/.DS_Store" "$mac/generated/.DS_Store" "$mac/generated/grid/.DS_Store" \
+      "$mac/generated/grid/100m/2027/.DS_Store" "$mac/generated/grid/100m/2027/._fuel_11_0.tif"
+echo t > "$mac/generated/grid/100m/2027/fuel_11_0.tif"
+run "strip_mac_metadata '$mac'" >/dev/null 2>&1
+expect_eq "strip removes every .DS_Store at every depth" "0" \
+  "$(find "$mac" -name '.DS_Store' | wc -l | tr -d ' ')"
+expect_eq "strip removes AppleDouble ._* files" "0" \
+  "$(find "$mac" -name '._*' | wc -l | tr -d ' ')"
+expect_eq "strip leaves real tiles alone" "1" \
+  "$(find "$mac" -name 'fuel_*.tif' | wc -l | tr -d ' ')"
+expect_contains "zip invocation excludes mac metadata" "DS_Store" \
+  "$(grep -A2 'zip -q -r' "$SCRIPT")"
+
 # ---- checksums -----------------------------------------------------------
 root="$tmp/ds"; mkdir -p "$root/generated"
 echo a > "$root/dataset.json"; echo b > "$root/fuel.lut"; echo c > "$root/generated/x.tif"
