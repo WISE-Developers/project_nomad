@@ -540,7 +540,7 @@ function Test-Dataset {
         Write-NomadSuccess "Dataset present at $DatasetPath"
         return
     }
-    Write-NomadWarn "Dataset not found at $DatasetPath (~50 GB required for real fire modeling)."
+    Write-NomadWarn "Dataset not found at $DatasetPath (about 3 GB per fuel year required for real fire modeling)."
     Write-Host "  Acquire it via your usual FireSTARR dataset distribution channel and place it at:"
     Write-Host "    $DatasetPath"
     Write-Host "  Until then, only the test mode (synthetic fuel grids) will work."

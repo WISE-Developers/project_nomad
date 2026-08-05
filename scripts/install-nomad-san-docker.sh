@@ -305,7 +305,7 @@ check_dataset() {
 
     print_warning "Dataset not found at ${FIRESTARR_DATASET_PATH}"
     echo ""
-    echo "The FireSTARR dataset (~50GB) is required for fire modeling."
+    echo "The FireSTARR dataset (about 3 GB per fuel year) is required for fire modeling."
     echo ""
 
     if [ -z "$AUTO_INSTALL_DATASET" ]; then

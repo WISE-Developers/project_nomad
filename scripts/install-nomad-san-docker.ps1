@@ -337,7 +337,7 @@ function Test-Dataset {
 
     Write-NomadWarn "Dataset not found at $DatasetPath"
     Write-Host ""
-    Write-Host "The FireSTARR dataset (~50GB) is required for fire modeling."
+    Write-Host "The FireSTARR dataset (about 3 GB per fuel year) is required for fire modeling."
     Write-Host ""
 
     if (-not $AutoInstallDataset) {
