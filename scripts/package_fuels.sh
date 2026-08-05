@@ -28,7 +28,7 @@ set -euo pipefail
 
 SRC_DIR="${SRC_DIR:-/Volumes/KINGSTON/FireSTARR_Fuel_Data_Sets/DataSourcesFromJordan}"
 OUT_DIR="${OUT_DIR:-/Volumes/KINGSTON/FireSTARR_Fuel_Data_Sets/masterDataSets}"
-LUT_SRC="${LUT_SRC:-}"          # optional path to fuel.lut; else reused from source zip
+LUT_SRC="${LUT_SRC:-}"          # override; defaults to the master at $OUT_DIR/fuel.lut
 VERSION="${VERSION:-1.0}"
 COG="${COG:-1}"                 # 1 = convert tiles to Cloud Optimized GeoTIFF
 
@@ -145,6 +145,7 @@ package_year() {
     local n=0 f
     for f in "$srctiles"/*.tif; do
         [ -f "$f" ] || continue
+        case "$(basename "$f")" in .DS_Store|._*) continue ;; esac
         if [ "$COG" = "1" ]; then
             # shellcheck disable=SC2046
             gdal_translate -q $(cog_opts_for "$f") "$f" "$tiles/$(basename "$f")"
@@ -153,20 +154,27 @@ package_year() {
         fi
         n=$((n + 1))
     done
+    # macOS metadata got into the published 2023-2026 datasets and their
+    # checksums. Strip it so it never ships again.
+    find "$root" \( -name '.DS_Store' -o -name '._*' \) -delete 2>/dev/null || true
     [ "$n" -gt 0 ] || { print_error "$year: no tiles found under $srctiles"; return 1; }
 
     local nfuel ndem
     nfuel=$(find "$tiles" -name 'fuel_*.tif' | wc -l | tr -d ' ')
     ndem=$(find "$tiles" -name 'dem_*.tif' | wc -l | tr -d ' ')
 
-    # fuel.lut: explicit override, else whatever the source shipped.
-    if [ -n "$LUT_SRC" ] && [ -f "$LUT_SRC" ]; then
-        cp "$LUT_SRC" "$root/fuel.lut"
-    elif [ -f "$stage/fuel.lut" ]; then
-        cp "$stage/fuel.lut" "$root/fuel.lut"
-    else
-        print_warning "$year: no fuel.lut found — dataset will be incomplete"
+    # fuel.lut comes from THE MASTER at the root of OUT_DIR — one canonical copy
+    # (upstream CWFMF/firestarr-cpp lut + row 107=Urban, which upstream still
+    # lacks), copied identically into every vintage. Jordan's source zips contain
+    # tiles only and never a lut, so there is nothing to fall back to: a dataset
+    # without the lut is broken, so fail loudly rather than ship one.
+    local lut="${LUT_SRC:-$OUT_DIR/fuel.lut}"
+    if [ ! -f "$lut" ]; then
+        print_error "$year: master fuel.lut not found at $lut"
+        print_error "  Set LUT_SRC, or restore the master lut. Refusing to build an incomplete dataset."
+        return 1
     fi
+    cp "$lut" "$root/fuel.lut"
 
     dataset_json "$year" "$nfuel" "$ndem" "$build_date" > "$root/dataset.json"
     write_checksums "$root"
