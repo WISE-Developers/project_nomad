@@ -9,6 +9,12 @@
  * The warning never blocks a run. Modelling an old fire on newer fuel is a
  * legitimate thing to do on purpose; this only makes sure it is never done by
  * accident.
+ *
+ * Styling is inline, matching ModelSummary/ResultsSummary. An earlier cut used
+ * className hooks with no stylesheet behind them, so the text inherited the
+ * parent's muted colour and rendered too light to read — a fuel-provenance
+ * warning nobody can read is worse than no warning. Colours are contrast-checked
+ * in FuelVintageNotice.contrast.test.tsx.
  */
 
 import React from 'react';
@@ -17,9 +23,47 @@ import { describeFuelVintage, type ResolvedFuelDataset } from '../utils/fuelVint
 interface FuelVintageNoticeProps {
   /** Resolution from GET /api/v1/fuel-datasets?modelYear=. */
   resolved: ResolvedFuelDataset | undefined;
-  /** Optional label override, e.g. 'Fuel data' vs 'Fuel vintage'. */
+  /** Optional label override, e.g. 'Fuel vintage used' in results. */
   label?: string;
 }
+
+const SURFACE = '#ffffff';
+
+const containerStyle: React.CSSProperties = {
+  backgroundColor: SURFACE,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+};
+
+const valueRowStyle: React.CSSProperties = {
+  fontSize: '13px',
+};
+
+const labelStyle: React.CSSProperties = {
+  color: '#555555',
+};
+
+const valueStyle: React.CSSProperties = {
+  fontWeight: 500,
+  color: '#1f1f1f',
+};
+
+const producerStyle: React.CSSProperties = {
+  color: '#555555',
+};
+
+// Amber, not red: this is advisory, not an error. #7a4a00 on #fff8e1 clears
+// WCAG AA for body text while still reading as a caution.
+const warningStyle: React.CSSProperties = {
+  fontSize: '13px',
+  lineHeight: 1.45,
+  color: '#7a4a00',
+  backgroundColor: '#fff8e1',
+  border: '1px solid #ffe0a3',
+  borderRadius: '4px',
+  padding: '8px 10px',
+};
 
 export const FuelVintageNotice: React.FC<FuelVintageNoticeProps> = ({
   resolved,
@@ -33,19 +77,19 @@ export const FuelVintageNotice: React.FC<FuelVintageNoticeProps> = ({
   const { vintageLabel, severity, warning } = describeFuelVintage(resolved);
 
   return (
-    <div className="fuel-vintage-notice">
-      <div className="fuel-vintage-notice__value">
-        <span className="fuel-vintage-notice__label">{label}:</span>{' '}
-        <span data-testid="fuel-vintage-value">{vintageLabel}</span>
+    <div style={containerStyle} data-testid="fuel-vintage-notice">
+      <div style={valueRowStyle}>
+        <span style={labelStyle}>{label}:</span>{' '}
+        <span style={valueStyle} data-testid="fuel-vintage-value">{vintageLabel}</span>
         {resolved.dataset?.producer && (
-          <span className="fuel-vintage-notice__producer"> ({resolved.dataset.producer})</span>
+          <span style={producerStyle}> ({resolved.dataset.producer})</span>
         )}
       </div>
 
       {severity === 'warning' && warning && (
         // role="status" + aria-live="polite": advisory, announced without
         // interrupting. An alert would overstate it.
-        <div className="fuel-vintage-notice__warning" role="status" aria-live="polite">
+        <div style={warningStyle} role="status" aria-live="polite">
           {warning}
         </div>
       )}
