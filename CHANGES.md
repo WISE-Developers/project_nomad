@@ -4,10 +4,91 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.11.5
+## v0.12.0
+
+### 2026-08-07
+
+- [`bea0b58`](https://github.com/WISE-Developers/project_nomad/commit/bea0b5827dd2b142a89ed648016104ffdcfc1d77) Merge pull request #328 from WISE-Developers/dev — *Franco Nogarin, 06:38*
+
+### 2026-08-05
+
+- [`de669a0`](https://github.com/WISE-Developers/project_nomad/commit/de669a0188fecaf6404d39368e8b2504b692837a) chore: dev build 9 [skip ci] — *github-actions[bot], 19:09*
+- [`48b7af9`](https://github.com/WISE-Developers/project_nomad/commit/48b7af9b13d334de13c64363630ccd27a77c33c0) Merge: remove expired FireSTARR digest pin — *Franco Nogarin, 13:09*
+- [`2e272f7`](https://github.com/WISE-Developers/project_nomad/commit/2e272f736583bf5be624deb12e0597bd0aacd624) fix: remove the expired FireSTARR digest pin — *Franco Nogarin, 13:09*
+- [`9a2a688`](https://github.com/WISE-Developers/project_nomad/commit/9a2a688ca66b1f2987eb9b17a58f10e62b982c69) chore: dev build 8 [skip ci] — *github-actions[bot], 18:49*
+- [`bf0e75a`](https://github.com/WISE-Developers/project_nomad/commit/bf0e75acd191acaf8be27a435721dc52dce2560f) Merge origin/dev — *Franco Nogarin, 12:48*
+- [`bec261e`](https://github.com/WISE-Developers/project_nomad/commit/bec261e26da15a0e65fefe4e1a0bf3f37edc40b5) fix: keep macOS metadata out of published fuel datasets — *Franco Nogarin, 12:48*
+- [`df6bdb5`](https://github.com/WISE-Developers/project_nomad/commit/df6bdb5622f536a818a922cdfe3dfcd0f782e3c5) chore: dev build 7 [skip ci] — *github-actions[bot], 18:40*
+- [`4031531`](https://github.com/WISE-Developers/project_nomad/commit/40315310d89ac079b8e4744a21880ac78d56254c) Merge origin/dev — *Franco Nogarin, 12:40*
+- [`ca08a5f`](https://github.com/WISE-Developers/project_nomad/commit/ca08a5f5badefecbcf891d584a45efb45166085f) fix: package_fuels uses the master fuel.lut, and strips macOS metadata — *Franco Nogarin, 12:40*
+- [`780efe8`](https://github.com/WISE-Developers/project_nomad/commit/780efe8eb8794bc47d186cb60b9314b08ae48338) chore: dev build 6 [skip ci] — *github-actions[bot], 18:32*
+- [`6a4a06c`](https://github.com/WISE-Developers/project_nomad/commit/6a4a06c69ff9f637266da257d1d9fbb06050a312) Merge origin/dev (build counter) — *Franco Nogarin, 12:31*
+- [`fc32134`](https://github.com/WISE-Developers/project_nomad/commit/fc321341a844839281cbc27d67157573a4e6de74) Merge #319: fuel vintage display + date-vs-vintage warning — *Franco Nogarin, 12:30*
+- [`ff0181c`](https://github.com/WISE-Developers/project_nomad/commit/ff0181c44d698996543b7e905cb14c1145d8178d) chore: dev build 5 [skip ci] — *github-actions[bot], 18:22*
+- [`7e54969`](https://github.com/WISE-Developers/project_nomad/commit/7e549695584ef4ca87b153f5092b25c22b8efdb3) Merge dataset sizing, unzip auto-install, and restored package_fuels.sh — *Franco Nogarin, 12:21*
+- [`7390b3c`](https://github.com/WISE-Developers/project_nomad/commit/7390b3cbeaa488f38a0c75301fe51c3e34e2f758) feat: restore package_fuels.sh into the repo, with COG settings — *Franco Nogarin, 12:20*
+- [`beed69e`](https://github.com/WISE-Developers/project_nomad/commit/beed69e0d66cb11323bd4c2d51f2d0a0f362fc30) fix(#319): make the fuel vintage notice legible — *Franco Nogarin, 08:43*
+
+### 2026-08-04
+
+- [`67a95a2`](https://github.com/WISE-Developers/project_nomad/commit/67a95a253cc92e6a708fb028a84ecff5ad17772a) feat: install unzip when missing instead of refusing — *Franco Nogarin, 10:33*
+
+### 2026-08-03
+
+- [`fab2822`](https://github.com/WISE-Developers/project_nomad/commit/fab2822a2de8105c867f862b34d0bd7f0caf9ea7) fix: size the dataset install from the index, not a wrong constant — *Franco Nogarin, 07:10*
+
+### 2026-08-02
+
+- [`be33e02`](https://github.com/WISE-Developers/project_nomad/commit/be33e0269d2646fbe801d9c413775edafcd1db4a) feat(#319): show fuel vintage in model setup and results — *Franco Nogarin, 08:30*
+- [`f5f144e`](https://github.com/WISE-Developers/project_nomad/commit/f5f144eaf78e00f31f67ea9aae8e8fd4f2b3eb12) feat(#319): expose the modelled start date in results inputs — *Franco Nogarin, 07:11*
+- [`864c217`](https://github.com/WISE-Developers/project_nomad/commit/864c2171c6c5d63cf9863fac89854a5d29ee3bfa) feat(#319): fuel vintage description, notice component + API client — *Franco Nogarin, 07:03*
+- [`3c4ec50`](https://github.com/WISE-Developers/project_nomad/commit/3c4ec50b641107aebc5a09a04101f9b944c397ca) feat(#319): expose installed fuel vintages over GET /api/v1/fuel-datasets — *Franco Nogarin, 06:55*
+- [`b594fd9`](https://github.com/WISE-Developers/project_nomad/commit/b594fd9959ba4a2d4952419e7f4b111d6d11ca80) feat(#319): fuel dataset catalog port + filesystem adapter — *Franco Nogarin, 06:48*
+- [`785dcca`](https://github.com/WISE-Developers/project_nomad/commit/785dcca723c5ac5616632718045fa63873d5ca85) fix(#319): validate fuel coverage against the model year, not today — *Franco Nogarin, 06:24*
+- [`52e6dc7`](https://github.com/WISE-Developers/project_nomad/commit/52e6dc7d4794b8a06df4b4de86f9e6c34379ca3d) chore: dev build 4 [skip ci] — *github-actions[bot], 11:50*
+- [`dad749f`](https://github.com/WISE-Developers/project_nomad/commit/dad749f6916aecbf9456867a9bc19d9bfb823c6a) Merge origin/dev (dev build counter) — *Franco Nogarin, 05:50*
+- [`50d228f`](https://github.com/WISE-Developers/project_nomad/commit/50d228f47da3fdd87af6b15b2191b7271e90c5eb) Merge #312 follow-up: menu installers defer to year picker + index default — *Franco Nogarin, 05:50*
+
+### 2026-07-31
+
+- [`a203c24`](https://github.com/WISE-Developers/project_nomad/commit/a203c24e9ee0c336faa0b14dc20dfb15674a3103) feat(#312): default new installs to the year-selectable fuel dataset index — *Franco Nogarin, 11:55*
+- [`ae37e20`](https://github.com/WISE-Developers/project_nomad/commit/ae37e20d6847e641fef36acff8069e02750fd832) fix(#312): menu installers defer dataset source to the year picker — *Franco Nogarin, 11:54*
+
+### 2026-07-30
+
+- [`c6d47e0`](https://github.com/WISE-Developers/project_nomad/commit/c6d47e06f99c5934d3f6a1a7a47a3867d45ceed2) chore: dev build 3 [skip ci] — *github-actions[bot], 17:09*
+- [`13d1747`](https://github.com/WISE-Developers/project_nomad/commit/13d1747d7762f9a1d4d00c46666c20e50521738f) Merge #312: year-selectable fuel dataset installer (index mode) — *Franco Nogarin, 11:09*
+- [`63db255`](https://github.com/WISE-Developers/project_nomad/commit/63db255009cca91f231a6e5488557208794880e7) feat(#312): year-selectable fuel dataset installer (index mode) — *Franco Nogarin, 08:44*
+
+### 2026-07-28
+
+- [`bde4d1c`](https://github.com/WISE-Developers/project_nomad/commit/bde4d1c78e815319ccd28a315f807ee03a68ceb2) chore: dev build 2 [skip ci] — *github-actions[bot], 11:11*
+- [`e35053c`](https://github.com/WISE-Developers/project_nomad/commit/e35053cfcec00fa2428407b01e1688567fca0ea8) Merge #313: Sentry error reporting (frontend + backend, consent-gated) — *Franco Nogarin, 05:10*
+- [`5f4c594`](https://github.com/WISE-Developers/project_nomad/commit/5f4c594da3b3f4886037ec7611a56ca45b2aa435) feat(#313): S0 consent-prompt parity for metal + headless installers — *Franco Nogarin, 05:09*
+
+### 2026-07-27
+
+- [`3fc1ca0`](https://github.com/WISE-Developers/project_nomad/commit/3fc1ca06efb6e71000d8725ccc43152bccf73b86) feat(#313): conditional Sentry source-map upload (S3) — *Franco Nogarin, 12:42*
+- [`c8177f0`](https://github.com/WISE-Developers/project_nomad/commit/c8177f0d023e0ab77837b22626e72b6bf171ccf8) feat(#313): Sentry backend integration (@sentry/node, SAN Express) — *Franco Nogarin, 11:29*
+- [`e0cd4b0`](https://github.com/WISE-Developers/project_nomad/commit/e0cd4b0ba15fac3ccb98ade10217e95edaf90a1a) fix(#313): keep Sentry default integrations (capture uncaught errors) — *Franco Nogarin, 11:17*
+- [`04cf472`](https://github.com/WISE-Developers/project_nomad/commit/04cf4723cab2cfd05805dd7393b88f9465db797c) feat(#313): install-time consent prompt for crash/error reporting — *Franco Nogarin, 11:06*
+- [`636420b`](https://github.com/WISE-Developers/project_nomad/commit/636420ba77ba3a7b2efc85e57c163afd8dbd978a) feat(#313): Sentry frontend integration (gated init + PII scrub) — *Franco Nogarin, 10:43*
+
+### 2026-07-22
+
+- [`2d80596`](https://github.com/WISE-Developers/project_nomad/commit/2d80596b19f95697c1f4b647a8a94a19ad5bc996) chore: dev build 1 [skip ci] — *github-actions[bot], 16:37*
+- [`dd3b1ec`](https://github.com/WISE-Developers/project_nomad/commit/dd3b1ec27e194b25a5193215d41c792532855153) Merge #299: CWFIS M3 hotspots + perimeters WMS layers — *Franco Nogarin, 10:36*
+- [`4d1433e`](https://github.com/WISE-Developers/project_nomad/commit/4d1433ee9910db14c6b20c4cf508cb5952f194ed) feat(#299): render CBMT above basemap but below all data layers — *Franco Nogarin, 09:19*
+- [`e72627a`](https://github.com/WISE-Developers/project_nomad/commit/e72627aff77c4fd5b8874c9ca145759e8a5fc470) fix(#299): gate hover to model rasters + darken CFS/CWFIS layer labels — *Franco Nogarin, 09:16*
+- [`56a6a27`](https://github.com/WISE-Developers/project_nomad/commit/56a6a274a62c4f897ef2185e87325ca180db2938) fix(#299): hide Hover value toggle for WMS layers — *Franco Nogarin, 09:12*
+- [`457a2a0`](https://github.com/WISE-Developers/project_nomad/commit/457a2a066543b7ea85165d01bf7128ad3c867ead) fix(#299): keep CWFIS section in has-layers view + correct WMS legend — *Franco Nogarin, 09:04*
+- [`bea7d8b`](https://github.com/WISE-Developers/project_nomad/commit/bea7d8b98c3454cf1ce004967ce217fe896cd00d) feat(#299): CWFIS Live section in LayerPanel (M3 hotspots + perimeters) — *Franco Nogarin, 08:45*
+- [`a92ef88`](https://github.com/WISE-Developers/project_nomad/commit/a92ef88a92dedb85ee9fe3a27a403d506826b1b6) feat(#299): CWFIS M3 WMS layer hook (hotspots + perimeters) — *Franco Nogarin, 08:43*
 
 ### 2026-07-09
 
+- [`7195494`](https://github.com/WISE-Developers/project_nomad/commit/71954948eaaa8bad5af36b6248c95497bc6799e2) chore: reset dev build counter after v0.11.5 [skip ci] — *github-actions[bot], 15:40*
+- [`97924b3`](https://github.com/WISE-Developers/project_nomad/commit/97924b3317151df3da5f623e9a3fa10654585b84) chore: release v0.11.5 [skip ci] — *github-actions[bot], 15:39*
 - [`cd4834e`](https://github.com/WISE-Developers/project_nomad/commit/cd4834ec2a20a8a9b8da3a2473b2f0ef3654be73) Merge pull request #314 from WISE-Developers/dev — *Franco Nogarin, 09:39*
 - [`92459ba`](https://github.com/WISE-Developers/project_nomad/commit/92459ba644ee7aaee0cd539fccc0b64dd815102e) chore: dev build 2 [skip ci] — *github-actions[bot], 13:45*
 - [`6e0e472`](https://github.com/WISE-Developers/project_nomad/commit/6e0e4724814393bd397b4deb296060a43ec9bd13) Merge fix/286-suppress-autoframe-while-drawing into dev — *Franco Nogarin, 07:45*
