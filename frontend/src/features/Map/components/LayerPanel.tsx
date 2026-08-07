@@ -3,6 +3,7 @@ import { useLayers } from '../context/LayerContext';
 import { useMap } from '../context/MapContext';
 import { LayerItem } from './LayerItem';
 import { useCFSLayers } from '../hooks/useCFSLayers';
+import { useCwfisM3Layers, currentSeasonTime } from '../hooks/useCwfisM3Layers';
 import { useTerrain } from '../hooks/useTerrain';
 import { BasemapStyle, BASEMAP_STYLES } from '../types';
 
@@ -51,6 +52,7 @@ export function LayerPanel({
 }: LayerPanelProps) {
   const { state, setOpacity, toggleVisibility, removeLayer, selectLayer, reorderLayer, addRasterLayer, updateLayer } = useLayers();
   const cfs = useCFSLayers();
+  const cwfis = useCwfisM3Layers();
 
   // Responsive — collapse on mobile
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -128,6 +130,48 @@ export function LayerPanel({
       setCfsLayerState((prev) => ({ ...prev, [layerId]: { active: false } }));
     }
   }, [cfsLayerState, cfs, cfsDate, addRasterLayer, removeLayer]);
+
+  // CWFIS M3 layer toggles (#299): public, no key. Hotspots are season-filtered.
+  const [cwfisLayerState, setCwfisLayerState] = useState<Record<string, { active: boolean }>>({});
+  const [cwfisError, setCwfisError] = useState<string | null>(null);
+
+  const handleCwfisLayerToggle = useCallback(async (layerId: string, layerName: string, wmsLayerName: string, temporal: boolean) => {
+    const isActive = cwfisLayerState[layerId]?.active ?? false;
+    setCwfisError(null);
+
+    if (!isActive) {
+      // Temporal layers (hotspots) are filtered to the current season; perimeters are static.
+      const tileUrl = cwfis.buildWmsUrl(wmsLayerName, temporal ? { time: currentSeasonTime() } : undefined);
+      const probeTile = tileUrl.replace('{bbox-epsg-3857}', '-13775786,7514065,-13462822,7827030');
+      try {
+        const res = await fetch(probeTile, { method: 'HEAD' });
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.startsWith('image/')) {
+          setCwfisError(`No ${layerName} data available`);
+          return;
+        }
+      } catch {
+        setCwfisError(`Unable to reach CWFIS server for ${layerName}`);
+        return;
+      }
+
+      addRasterLayer({
+        id: layerId,
+        name: layerName,
+        url: tileUrl,
+        tileSize: 256,
+        opacity: 0.8,
+        visible: true,
+        zIndex: 999,
+        legendType: 'wms',
+        legendUrl: cwfis.buildLegendUrl(wmsLayerName),
+      });
+      setCwfisLayerState((prev) => ({ ...prev, [layerId]: { active: true } }));
+    } else {
+      removeLayer(layerId);
+      setCwfisLayerState((prev) => ({ ...prev, [layerId]: { active: false } }));
+    }
+  }, [cwfisLayerState, cwfis, addRasterLayer, removeLayer]);
 
   const handleDragStart = (e: React.DragEvent, layerId: string) => {
     setDraggedId(layerId);
@@ -338,8 +382,55 @@ export function LayerPanel({
             />
             <label
               htmlFor={`cfs-${layer.id}`}
-              style={{ cursor: 'pointer', flex: 1 }}
+              style={{ cursor: 'pointer', flex: 1, color: '#1f2937' }}
             >
+              {layer.name}
+            </label>
+          </div>
+        );
+      })}
+    </div>
+  ) : null;
+
+  /** CWFIS Live section (#299) — M3 hotspots + perimeters. Public service, always available. */
+  const CwfisSection = cwfis.available ? (
+    <div style={cfsSectionStyle}>
+      <div style={cfsSectionHeaderStyle}>
+        <i className="fa-solid fa-fire" style={{ color: '#ea580c' }} />
+        CWFIS Live
+      </div>
+
+      {/* Current-season caption (hotspots are filtered Jan 1 -> today) */}
+      <div style={{ ...cfsDateRowStyle, color: '#666', fontSize: '11px' }}>
+        Hotspots: current season ({currentSeasonTime()})
+      </div>
+
+      {cwfisError && (
+        <div style={{
+          padding: '6px 8px',
+          margin: '4px 8px',
+          fontSize: '12px',
+          color: '#92400e',
+          backgroundColor: '#fef3c7',
+          borderRadius: '4px',
+          border: '1px solid #fcd34d',
+        }}>
+          {cwfisError}
+        </div>
+      )}
+
+      {cwfis.layers.map((layer) => {
+        const isActive = cwfisLayerState[layer.id]?.active ?? false;
+        return (
+          <div key={layer.id} style={cfsLayerRowStyle}>
+            <input
+              type="checkbox"
+              id={`cwfis-${layer.id}`}
+              checked={isActive}
+              onChange={() => handleCwfisLayerToggle(layer.id, layer.name, layer.layerName, layer.temporal)}
+              style={{ cursor: 'pointer' }}
+            />
+            <label htmlFor={`cwfis-${layer.id}`} style={{ cursor: 'pointer', flex: 1, color: '#1f2937' }}>
               {layer.name}
             </label>
           </div>
@@ -467,6 +558,7 @@ export function LayerPanel({
           No layers added yet
         </div>
         {CFSSection}
+        {CwfisSection}
         {MapSettingsSection}
       </div>
     );
@@ -487,7 +579,7 @@ export function LayerPanel({
             onOpacityChange={(opacity) => setOpacity(layer.id, opacity)}
             onRemove={() => removeLayer(layer.id)}
             onSelect={() => selectLayer(layer.id)}
-            onToggleHover={layer.type === 'raster' ? () => {
+            onToggleHover={layer.type === 'raster' && (layer.legendType === 'probability' || layer.legendType === 'arrival') ? () => {
               const newHover = !layer.hoverEnabled;
               updateLayer(layer.id, {
                 hoverEnabled: newHover,
@@ -502,6 +594,7 @@ export function LayerPanel({
         ))}
       </div>
       {CFSSection}
+      {CwfisSection}
       {MapSettingsSection}
     </div>
   );

@@ -111,6 +111,13 @@ export {
   type ExecutionSummary,
 } from './IOutputParser.js';
 
+// Fuel Dataset Catalog (#319)
+export {
+  type IFuelDatasetCatalog,
+  type FuelDataset,
+  type ResolvedFuelDataset,
+} from './IFuelDatasetCatalog.js';
+
 // Notification Preferences Repository
 export {
   type INotificationPreferencesRepository,

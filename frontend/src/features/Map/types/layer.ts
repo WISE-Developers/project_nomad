@@ -98,10 +98,12 @@ export interface RasterLayerConfig extends BaseLayerConfig {
   tileSize?: number;
   /** Bounds [west, south, east, north] */
   bounds?: [number, number, number, number];
-  /** Which legend/symbology scheme to apply (probability = hard-coded ramp, arrival = dynamic by timestep) */
-  legendType?: 'probability' | 'arrival';
+  /** Which legend/symbology scheme to apply (probability = hard-coded ramp, arrival = dynamic by timestep, wms = server-rendered legend image) */
+  legendType?: 'probability' | 'arrival' | 'wms';
   /** Arrival-time symbolization params (only for legendType = 'arrival') */
   arrivalMeta?: ArrivalRasterMeta;
+  /** GetLegendGraphic image URL (only for legendType = 'wms', e.g. CWFIS M3 layers #299) */
+  legendUrl?: string;
 }
 
 /**

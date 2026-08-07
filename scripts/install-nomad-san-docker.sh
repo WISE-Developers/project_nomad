@@ -57,13 +57,21 @@ NOMAD_SERVER_HOSTNAME="${NOMAD_SERVER_HOSTNAME:-localhost}"
 
 # FireSTARR image configuration
 #
-# Docker default is pinned by digest to a verified-working build (v0.9.11,
-# revision 7070574b46, published 2026-05-13 on the main channel). FireSTARR
-# v0.9.12-alpha-2 introduced an x/y transpose regression — see
-# https://github.com/CWFMF/firestarr-cpp/issues/17. Bump when fixed upstream.
+# Both architectures track `main-latest`, the house convention.
+#
+# x86_64 was temporarily pinned by digest to dodge the v0.9.12-alpha-2 x/y
+# transpose regression (CWFMF/firestarr-cpp#17). That issue was closed fixed
+# on 2026-05-28, and the pin was verified obsolete on 2026-08-05: v0.9.14
+# (main-latest) produced byte-identical model output to the known-good
+# v0.9.11 build on identical inputs — 47 simulations, all three days.
+#
+# The pinned digest had also stopped resolving in GHCR, so a fresh x86_64
+# Docker install could not pull an engine at all and every model run failed
+# with exit 1. Temporary pins need an expiry; this one outlived its cause by
+# ten weeks.
 FIRESTARR_REGISTRY="${FIRESTARR_REGISTRY:-ghcr.io/cwfmf/firestarr-cpp}"
 FIRESTARR_IMAGE_NAME="${FIRESTARR_IMAGE_NAME:-firestarr}"
-FIRESTARR_IMAGE_TAG="${FIRESTARR_IMAGE_TAG:-sha256:b4f8ca8b2ced7c3424191d28e8781d4c766e2664120ecbcb63591811820f257d}"
+FIRESTARR_IMAGE_TAG="${FIRESTARR_IMAGE_TAG:-main-latest}"
 FIRESTARR_IMAGE_TAG_ARM64="${FIRESTARR_IMAGE_TAG_ARM64:-main-latest}"
 
 # Build a fully-qualified image reference. Treats values starting with
@@ -305,7 +313,7 @@ check_dataset() {
 
     print_warning "Dataset not found at ${FIRESTARR_DATASET_PATH}"
     echo ""
-    echo "The FireSTARR dataset (~50GB) is required for fire modeling."
+    echo "The FireSTARR dataset (about 3 GB per fuel year) is required for fire modeling."
     echo ""
 
     if [ -z "$AUTO_INSTALL_DATASET" ]; then

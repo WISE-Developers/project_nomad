@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
+    "@sentry/node": "^10.68.0",
     "@types/archiver": "^7.0.0",
     "@types/pngjs": "^6.0.5",
     "adm-zip": "^0.5.17",

@@ -10,6 +10,8 @@
  * In ACN/embedded mode, the host app provides baseUrl via createDefaultAdapter() —
  * this value is not needed and may be undefined.
  */
+import type { ResolvedFuelDataset } from '../shared/utils/fuelVintage';
+
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string | undefined;
 
 /** Relative API path for proxied requests */
@@ -293,6 +295,36 @@ export interface ConfigResponse {
  */
 export async function getConfig(): Promise<ConfigResponse> {
   return request<ConfigResponse>('/config');
+}
+
+// ============================================================================
+// Fuel Datasets API (#319)
+// ============================================================================
+
+export interface FuelDatasetSummary {
+  vintage: number;
+  edition?: string;
+  label?: string;
+  producer?: string;
+  provider?: string;
+  buildDate?: string;
+  resolutionM?: number;
+}
+
+export interface FuelDatasetsResponse {
+  datasets: FuelDatasetSummary[];
+  /** Present only when modelYear was supplied. */
+  resolved?: ResolvedFuelDataset;
+}
+
+/**
+ * Get installed fuel dataset vintages.
+ * Pass modelYear to also learn which vintage that year resolves to, including
+ * whether fuel lookup fell back to the default dataset.
+ */
+export async function getFuelDatasets(modelYear?: number): Promise<FuelDatasetsResponse> {
+  const query = modelYear === undefined ? '' : `?modelYear=${modelYear}`;
+  return request<FuelDatasetsResponse>(`/fuel-datasets${query}`);
 }
 
 // ============================================================================

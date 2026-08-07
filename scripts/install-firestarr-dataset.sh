@@ -71,9 +71,10 @@ load_config() {
     source "$ENV_FILE"
     set +a
 
-    # Validate required variables
-    if [ -z "$FIRESTARR_DATASET_SOURCE" ]; then
-        print_error "FIRESTARR_DATASET_SOURCE not set in $ENV_FILE"
+    # Validate required variables. Either the year-picker index OR a single
+    # source must be configured.
+    if [ -z "$FIRESTARR_DATASET_SOURCE" ] && [ -z "$FIRESTARR_DATASET_INDEX" ]; then
+        print_error "Set FIRESTARR_DATASET_INDEX (year picker) or FIRESTARR_DATASET_SOURCE (single dataset) in $ENV_FILE"
         exit 1
     fi
 
@@ -171,6 +172,291 @@ cleanup_and_flatten() {
 }
 
 # Main installation
+# ============================================================================
+# Index-driven year picker (#312/#319)
+# Enabled when FIRESTARR_DATASET_INDEX points at an index.json listing per-year
+# fuel datasets. Downloads the selected year(s), verifies each sha256, and
+# installs each into generated/grid/100m/{year}/ so multiple vintages coexist
+# and FireSTARR auto-selects the dataset matching the model's run year.
+# ============================================================================
+
+# sha256 of a file (portable: shasum on macOS, sha256sum on Linux).
+sha256_of() {
+    if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | awk '{print $1}'
+    elif command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}'
+    else echo ""; fi
+}
+
+# Fetch the index (URL or local path) to stdout.
+fetch_index() {
+    local src="$1"
+    if is_url "$src"; then
+        if command -v curl >/dev/null 2>&1; then curl -fsSL "$src"
+        elif command -v wget >/dev/null 2>&1; then wget -qO- "$src"
+        else return 1; fi
+    else
+        [ -f "$src" ] && cat "$src"
+    fi
+}
+
+# Extract a scalar value for a top-level key ("baseUrl", "default", ...).
+json_scalar() {
+    printf '%s\n' "$1" | grep -m1 "\"$2\"" \
+        | sed -E "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"?([^\",}]+)\"?.*/\1/" \
+        | sed -E 's/[[:space:]]+$//'
+}
+
+# Emit one "vintage<TAB>file<TAB>sha256<TAB>bytes" line per dataset (each dataset
+# object is on its own line in the index). bytes is 0 when the index omits it.
+parse_datasets() {
+    printf '%s\n' "$1" | grep '"vintage"' | while IFS= read -r line; do
+        local v f s b
+        v=$(printf '%s' "$line" | sed -E 's/.*"vintage"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/')
+        f=$(printf '%s' "$line" | sed -E 's/.*"file"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
+        s=$(printf '%s' "$line" | sed -E 's/.*"sha256"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
+        b=$(printf '%s' "$line" | grep -o '"bytes"[[:space:]]*:[[:space:]]*[0-9]*' \
+            | sed -E 's/.*:[[:space:]]*//')
+        [ -n "$b" ] || b=0
+        [ -n "$v" ] && printf '%s\t%s\t%s\t%s\n' "$v" "$f" "$s" "$b"
+    done
+}
+
+# Echoes the install command for the first package manager we recognise.
+# Returns 1 when none is available.
+detect_unzip_installer() {
+    if command -v apt-get >/dev/null 2>&1; then echo "apt-get install -y unzip"
+    elif command -v dnf     >/dev/null 2>&1; then echo "dnf install -y unzip"
+    elif command -v yum     >/dev/null 2>&1; then echo "yum install -y unzip"
+    elif command -v apk     >/dev/null 2>&1; then echo "apk add --no-cache unzip"
+    elif command -v zypper  >/dev/null 2>&1; then echo "zypper install -y unzip"
+    elif command -v brew    >/dev/null 2>&1; then echo "brew install unzip"
+    else return 1
+    fi
+}
+
+# Makes sure unzip is usable, installing it when it isn't.
+# A fresh Ubuntu 24.04 has no unzip, and refusing mid-install just sends the
+# user to a search engine. Fails loudly when it genuinely cannot install —
+# continuing without unzip would fail later, further from the cause.
+ensure_unzip() {
+    command -v unzip >/dev/null 2>&1 && return 0
+
+    print_warning "unzip is required to install fuel datasets, but was not found."
+
+    local cmd
+    if ! cmd=$(detect_unzip_installer); then
+        print_error "No supported package manager found — please install unzip and re-run."
+        return 1
+    fi
+
+    local sudo_prefix=""
+    if [ "$(id -u)" -ne 0 ]; then
+        if command -v sudo >/dev/null 2>&1; then
+            sudo_prefix="sudo "
+        else
+            print_error "Need root to install unzip and sudo is unavailable — please install unzip and re-run."
+            return 1
+        fi
+    fi
+
+    print_step "Installing unzip: ${sudo_prefix}${cmd}"
+    if ! eval "${sudo_prefix}${cmd}" >/dev/null 2>&1; then
+        print_error "Could not install unzip automatically — please install unzip and re-run."
+        return 1
+    fi
+
+    # Verify rather than trust the exit code: a package manager can report
+    # success without leaving a usable binary on PATH.
+    if ! command -v unzip >/dev/null 2>&1; then
+        print_error "unzip still not available after install — please install unzip and re-run."
+        return 1
+    fi
+
+    print_success "unzip installed"
+    return 0
+}
+
+# Total download bytes for the chosen years.
+#   $1 = rows from parse_datasets, $2 = space/newline separated years
+# Years absent from the index contribute 0 — they're reported separately when
+# the install loop skips them.
+bytes_for_years() {
+    local rows="$1" years="$2" total=0 y b
+    for y in $years; do
+        b=$(printf '%s\n' "$rows" | awk -F'\t' -v y="$y" '$1==y{print $4; exit}')
+        [ -n "$b" ] || b=0
+        total=$((total + b))
+    done
+    printf '%s\n' "$total"
+}
+
+# Render bytes as GB with one decimal, using integer math only (bash 3, no bc).
+format_bytes() {
+    local bytes="${1:-0}" whole tenths
+    whole=$((bytes / 1000000000))
+    tenths=$(( (bytes % 1000000000) / 100000000 ))
+    printf '%s.%s GB\n' "$whole" "$tenths"
+}
+
+# True (0) when path's filesystem has at least $2 bytes free.
+#   $1 = target path (may not exist yet), $2 = required bytes
+have_free_space() {
+    local path="$1" required="$2" check_path avail_kb avail_bytes
+
+    # Walk up to the nearest existing directory — the target is usually not
+    # created yet, and df on a missing path reports nothing useful.
+    check_path="$path"
+    while [ ! -d "$check_path" ] && [ "$check_path" != "/" ]; do
+        check_path=$(dirname "$check_path")
+    done
+
+    avail_kb=$(df -k "$check_path" 2>/dev/null | tail -1 | awk '{print $4}')
+    # Unreadable df: report failure rather than assuming there's room.
+    [ -n "$avail_kb" ] || return 1
+
+    avail_bytes=$((avail_kb * 1024))
+    [ "$avail_bytes" -ge "$required" ]
+}
+
+# Install one downloaded flat zip into the multi-year layout.
+#   $1 = zip file, $2 = vintage
+# Extracts to same-filesystem staging (fast mv), then places:
+#   generated/grid/100m/{year}/  (tiles + per-year dataset.json/checksums.txt)
+#   fuel.lut                      (shared at root)
+install_one_year() {
+    local zip="$1" year="$2"
+    local dst="$FIRESTARR_DATASET_PATH"
+    local stage="$dst/.staging_${year}"
+    rm -rf "$stage"; mkdir -p "$stage"
+    unzip -q -o "$zip" -d "$stage"
+
+    mkdir -p "$dst/generated/grid/100m"
+    # Pre-clean this year's folder so stale tiles from a prior edition can't linger.
+    rm -rf "$dst/generated/grid/100m/$year"
+    mv "$stage/generated/grid/100m/$year" "$dst/generated/grid/100m/$year"
+    # Shared lut at root.
+    [ -f "$stage/fuel.lut" ] && cp "$stage/fuel.lut" "$dst/fuel.lut"
+    # Keep per-year provenance with the year (avoids root collisions across years).
+    for m in dataset.json checksums.txt; do
+        [ -f "$stage/$m" ] && mv "$stage/$m" "$dst/generated/grid/100m/$year/$m"
+    done
+    rm -rf "$stage"
+}
+
+# Interactive/headless index-driven install.
+run_year_picker() {
+    ensure_unzip || exit 1
+    if is_url "$FIRESTARR_DATASET_INDEX"; then
+        command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 || {
+            print_error "curl or wget is required to fetch the dataset index"; exit 1; }
+    fi
+    print_step "Fetching dataset index: $FIRESTARR_DATASET_INDEX"
+    local index; index=$(fetch_index "$FIRESTARR_DATASET_INDEX") || {
+        print_error "Could not fetch dataset index"; exit 1; }
+    local base default rows
+    base=$(json_scalar "$index" baseUrl)
+    default=$(json_scalar "$index" default)
+    rows=$(parse_datasets "$index")
+    [ -n "$rows" ] || { print_error "No datasets found in index"; exit 1; }
+
+    local years; years=$(printf '%s\n' "$rows" | cut -f1 | sort -n | tr '\n' ' ')
+    echo ""
+    echo "  Available fuel dataset years: $years"
+    echo "  (label = run year; a run in year N uses dataset N)"
+
+    local selection
+    if [ -n "$FIRESTARR_DATASET_YEARS" ]; then
+        selection="$FIRESTARR_DATASET_YEARS"        # non-interactive override
+    else
+        echo ""
+        echo "  Enter year(s) to install (space/comma separated), or 'all'."
+        read -p "  Years [default: $default]: " selection
+        selection="${selection:-$default}"
+    fi
+
+    local chosen
+    if printf '%s' "$selection" | grep -qiw all; then
+        chosen=$(printf '%s\n' "$rows" | cut -f1 | sort -n)
+    else
+        chosen=$(printf '%s' "$selection" | tr ',' ' ')
+    fi
+
+    local dl_dir="${FIRESTARR_DOWNLOAD_DIR:-$HOME/Downloads}"
+
+    # Size the install from the years actually chosen, before downloading
+    # anything. The archives are already-compressed GeoTIFFs, so extracted size
+    # is ~the same as the zip: budget the total once for the download folder
+    # (archives are kept for reinstalls) and again for the install location.
+    local need; need=$(bytes_for_years "$rows" "$chosen")
+    if [ "$need" -gt 0 ]; then
+        echo ""
+        echo "  Selected years need about $(format_bytes "$need") to download,"
+        echo "  and about the same again once installed."
+        echo "    Download folder: $dl_dir"
+        echo "    Install location: $FIRESTARR_DATASET_PATH"
+
+        local short=0
+        if ! have_free_space "$dl_dir" "$need"; then
+            print_error "Not enough free space for the download in $dl_dir (need $(format_bytes "$need"))"
+            short=1
+        fi
+        if ! have_free_space "$FIRESTARR_DATASET_PATH" "$need"; then
+            print_error "Not enough free space to install into $FIRESTARR_DATASET_PATH (need $(format_bytes "$need"))"
+            short=1
+        fi
+        if [ "$short" -eq 1 ]; then
+            echo ""
+            echo "  Free up space, choose fewer years, or point"
+            echo "  FIRESTARR_DOWNLOAD_DIR / FIRESTARR_DATASET_PATH at a larger disk."
+            exit 1
+        fi
+        print_success "Disk space OK for $(format_bytes "$need")"
+    fi
+
+    mkdir -p "$dl_dir"
+    mkdir -p "$FIRESTARR_DATASET_PATH"
+
+    local y
+    for y in $chosen; do
+        local row file expect
+        row=$(printf '%s\n' "$rows" | awk -F'\t' -v y="$y" '$1==y{print; exit}')
+        [ -n "$row" ] || { print_error "Year $y not in index — skipping"; continue; }
+        file=$(printf '%s' "$row" | cut -f2)
+        expect=$(printf '%s' "$row" | cut -f3)
+        local url="${base%/}/$file"
+        local dest="$dl_dir/$file"
+
+        print_step "Year $y: downloading $file"
+        if [ -f "$dest" ] && [ "$(sha256_of "$dest")" = "$expect" ]; then
+            print_info "Reusing verified local copy: $dest"
+        else
+            download_file "$url" "$dest" || { print_error "Download failed: $url"; exit 1; }
+        fi
+
+        print_step "Year $y: verifying sha256"
+        local got; got=$(sha256_of "$dest")
+        if [ -n "$expect" ] && [ "$got" != "$expect" ]; then
+            print_error "Checksum mismatch for $file"
+            echo "    expected: $expect"; echo "    got:      $got"
+            exit 1
+        fi
+        print_success "Year $y verified"
+
+        print_step "Year $y: installing"
+        install_one_year "$dest" "$y"
+        print_success "Year $y installed -> generated/grid/100m/$y/"
+    done
+
+    # Record installed vintages.
+    local installed
+    installed=$(find "$FIRESTARR_DATASET_PATH/generated/grid/100m" -maxdepth 1 -type d \
+        -name '[0-9][0-9][0-9][0-9]' 2>/dev/null | xargs -n1 basename 2>/dev/null | sort -n | tr '\n' ' ')
+    print_success "Installed fuel years: ${installed:-none}"
+
+    mkdir -p "$FIRESTARR_DATASET_PATH/sims"; chmod 777 "$FIRESTARR_DATASET_PATH/sims"
+    print_success "Ready: $FIRESTARR_DATASET_PATH"
+}
+
 main() {
     print_header
 
@@ -178,6 +464,14 @@ main() {
     print_step "Loading configuration from $ENV_FILE..."
     load_config
     print_success "Configuration loaded"
+
+    # Year-picker mode: if a dataset index is configured, use it and finish.
+    if [ -n "$FIRESTARR_DATASET_INDEX" ]; then
+        run_year_picker
+        echo ""
+        print_success "Dataset installation complete"
+        exit 0
+    fi
 
     echo ""
     echo "  Source: $FIRESTARR_DATASET_SOURCE"
@@ -354,4 +648,7 @@ main() {
 }
 
 # Run main function
-main "$@"
+# Only auto-run when executed directly (allows sourcing for tests).
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+    main "$@"
+fi
