@@ -204,8 +204,12 @@ update_env_value "FIRESTARR_IMAGE"          "$FIRESTARR_IMAGE"
 
 # ---- Step 8: dataset install (idempotent via marker) ------------------
 MARKER="$FIRESTARR_DATASET_PATH/.dataset_source"
-SRC=$(grep -E '^FIRESTARR_DATASET_SOURCE=' "$ENV_EXAMPLE" | head -1 | sed -E 's|^FIRESTARR_DATASET_SOURCE=||')
-[ -n "$SRC" ] || fail "FIRESTARR_DATASET_SOURCE missing from .env.example"
+# Prefer the year-picker index (the .env.example default since #322); fall back
+# to a single fixed source if an operator has configured one instead. The
+# marker only needs to be a stable identity for "what is installed".
+SRC=$(grep -E '^FIRESTARR_DATASET_INDEX=' "$ENV_EXAMPLE" | head -1 | sed -E 's|^FIRESTARR_DATASET_INDEX=||')
+[ -n "$SRC" ] || SRC=$(grep -E '^FIRESTARR_DATASET_SOURCE=' "$ENV_EXAMPLE" | head -1 | sed -E 's|^FIRESTARR_DATASET_SOURCE=||')
+[ -n "$SRC" ] || fail "no FIRESTARR_DATASET_INDEX or FIRESTARR_DATASET_SOURCE in .env.example"
 
 step "FireSTARR dataset (idempotent)"
 need_dl=false

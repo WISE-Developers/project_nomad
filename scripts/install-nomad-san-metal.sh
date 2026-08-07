@@ -50,6 +50,7 @@ print_info() { echo -e "${CYAN}ℹ${NC} $1"; }
 # Set defaults
 INSTALL_DIR="${INSTALL_DIR:-./project_nomad}"
 FIRESTARR_DATASET_PATH="${FIRESTARR_DATASET_PATH:-$HOME/firestarr_data}"
+FIRESTARR_DATASET_INDEX="${FIRESTARR_DATASET_INDEX:-https://fgmfiles.spyd.com/datasets/nomad/index.json}"
 NOMAD_PORT="${NOMAD_PORT:-4901}"
 NOMAD_SERVER_HOSTNAME="${NOMAD_SERVER_HOSTNAME:-localhost}"
 NOMAD_DATA_PATH="${NOMAD_DATA_PATH:-$FIRESTARR_DATASET_PATH}"
@@ -243,6 +244,9 @@ generate_env() {
 
     update_env "NOMAD_DEPLOYMENT_MODE" "SAN"
     update_env "FIRESTARR_DATASET_PATH" "$FIRESTARR_DATASET_PATH"
+    # .env is built key-by-key here, not copied from .env.example, so the
+    # example default never reaches it (see #322 regression).
+    update_env "FIRESTARR_DATASET_INDEX" "$FIRESTARR_DATASET_INDEX"
     update_env "FIRESTARR_EXECUTION_MODE" "binary"
     update_env "NOMAD_DATA_PATH" "$NOMAD_DATA_PATH"
     update_env "PORT" "$NOMAD_PORT"

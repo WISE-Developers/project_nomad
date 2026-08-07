@@ -50,6 +50,7 @@ print_info() { echo -e "${CYAN}ℹ${NC} $1"; }
 # Set defaults
 INSTALL_DIR="${INSTALL_DIR:-./project_nomad}"
 FIRESTARR_DATASET_PATH="${FIRESTARR_DATASET_PATH:-$HOME/firestarr_data}"
+FIRESTARR_DATASET_INDEX="${FIRESTARR_DATASET_INDEX:-https://fgmfiles.spyd.com/datasets/nomad/index.json}"
 NOMAD_PORT="${NOMAD_PORT:-4901}"
 NOMAD_FRONTEND_HOST_PORT="${NOMAD_FRONTEND_HOST_PORT:-3901}"
 NOMAD_BACKEND_HOST_PORT="${NOMAD_BACKEND_HOST_PORT:-4901}"
@@ -277,6 +278,10 @@ generate_env() {
     # Core settings
     update_env "NOMAD_DEPLOYMENT_MODE" "SAN"
     update_env "FIRESTARR_DATASET_PATH" "$FIRESTARR_DATASET_PATH"
+    # Dataset source. .env here is BUILT key-by-key, not copied from
+    # .env.example, so the example's default never reaches it. Without this
+    # the dataset installer refuses to run on a freshly installed system.
+    update_env "FIRESTARR_DATASET_INDEX" "$FIRESTARR_DATASET_INDEX"
     update_env "FIRESTARR_EXECUTION_MODE" "docker"
     update_env "NOMAD_DATA_PATH" "$NOMAD_DATA_PATH"
 
