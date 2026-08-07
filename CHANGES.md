@@ -4,10 +4,15 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.12.0
+## v0.12.1
 
 ### 2026-08-07
 
+- [`9d5e204`](https://github.com/WISE-Developers/project_nomad/commit/9d5e2042b16fdbe581ec433b4697638b1a827056) Merge pull request #329 from WISE-Developers/dev — *Franco Nogarin, 07:17*
+- [`0027c8b`](https://github.com/WISE-Developers/project_nomad/commit/0027c8b758e628c7cad63d653e9f39e10afdf6f0) chore: dev build 1 [skip ci] — *github-actions[bot], 13:15*
+- [`5890f24`](https://github.com/WISE-Developers/project_nomad/commit/5890f24075ca85876ef0598518077c9c4e39f6b7) fix: installers that generate .env must write a dataset source — *Franco Nogarin, 07:15*
+- [`838309e`](https://github.com/WISE-Developers/project_nomad/commit/838309ef834da308a82a430c6f08e6fe84765b24) chore: reset dev build counter after v0.12.0 [skip ci] — *github-actions[bot], 12:39*
+- [`3ebc96a`](https://github.com/WISE-Developers/project_nomad/commit/3ebc96a19a5ba31439c487e71e26ec5230eeaad7) chore: release v0.12.0 [skip ci] — *github-actions[bot], 12:38*
 - [`bea0b58`](https://github.com/WISE-Developers/project_nomad/commit/bea0b5827dd2b142a89ed648016104ffdcfc1d77) Merge pull request #328 from WISE-Developers/dev — *Franco Nogarin, 06:38*
 
 ### 2026-08-05
