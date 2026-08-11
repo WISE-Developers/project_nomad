@@ -134,6 +134,22 @@ function Get-UserConfig {
     $script:DatasetPath   = Read-NomadValue -Prompt "FireSTARR dataset path"  -Default $DefaultDatasetPath  -Existing $DatasetPath
     $script:ServerPort    = Read-NomadInt   -Prompt "Server port (one port serves frontend + API in bare-metal)" -Default $DefaultServerPort -Existing $ServerPort
     $script:ServerHostname = Read-NomadValue -Prompt "Server hostname" -Default $DefaultHostname -Existing $ServerHostname
+
+    # Home time zone (#332). IANA zone used to stamp local timestamps in the
+    # usage log. The backend is fail-fast on this: it will not start if the key
+    # is missing or invalid, because the container's own clock is UTC and a
+    # fallback would record every local time silently wrong.
+    $script:HomeTimezone = Read-NomadValue -Prompt "Home time zone (IANA, e.g. America/Edmonton)" `
+        -Default "America/Edmonton" -Existing $env:NOMAD_HOME_TIMEZONE
+
+    # Validate here, so a typo fails next to the mistake rather than at first boot.
+    if ($script:HomeTimezone -match '^[+-]') {
+        throw "NOMAD_HOME_TIMEZONE is '$($script:HomeTimezone)', a fixed UTC offset. A fixed offset cannot observe DST. Use an IANA zone name, for example America/Edmonton."
+    }
+    if ($script:HomeTimezone -notmatch '/') {
+        throw "NOMAD_HOME_TIMEZONE is '$($script:HomeTimezone)', which is not an IANA zone name. Expected Area/Location, for example America/Edmonton."
+    }
+
     if (-not $FirestarrTag) { $script:FirestarrTag = $DefaultFirestarrTag }
 
     # Derived values
@@ -465,6 +481,7 @@ function New-EnvironmentFile {
     }
 
     Update-EnvValue "NOMAD_DEPLOYMENT_MODE"      "SAN"
+    Update-EnvValue "NOMAD_HOME_TIMEZONE"        $script:HomeTimezone
     Update-EnvValue "FIRESTARR_DATASET_PATH"     $DatasetPath
     Update-EnvValue "FIRESTARR_EXECUTION_MODE"   "binary"
     Update-EnvValue "FIRESTARR_BINARY_PATH"      $firestarrBinary

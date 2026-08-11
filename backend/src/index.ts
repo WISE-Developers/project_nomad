@@ -19,6 +19,9 @@ import { initDatabase, initializeRepositories, getJobRepository } from './infras
 import { getBundleStore } from './infrastructure/export/index.js';
 import { logger } from './infrastructure/logging/index.js';
 import { initSentry, setupSentryErrorHandler } from './infrastructure/observability/sentry.js';
+import { EnvironmentService } from './infrastructure/config/EnvironmentService.js';
+import { getUsageLogger } from './infrastructure/usage/index.js';
+import { recordAppStarted } from './application/usage/appStarted.js';
 
 // Load .env from project root (parent directory)
 dotenv.config({ path: resolve(process.cwd(), '..', '.env') });
@@ -242,8 +245,28 @@ async function startServer(): Promise<void> {
     // Log startup with log directory info
     logger.startup(`Log directory: ${logger.getLogDir()}`);
 
+    // Validate the home time zone BEFORE any side effect. This throws when
+    // NOMAD_HOME_TIMEZONE is missing or invalid, which the catch below turns
+    // into a logged exit. Deliberate: the container defaults to TZ=UTC, so a
+    // fallback here would produce a usage log whose local times are all wrong
+    // while every health check stays green. (#332)
+    const homeTimezone = EnvironmentService.getInstance().getHomeTimezone();
+    logger.startup(`Home time zone: ${homeTimezone}`);
+
     // Initialize database first
     await initializeDatabaseLayer();
+
+    // Emit the usage log segment header. app.started carries the auth mode that
+    // is authoritative for every event until the next boot, so it is recorded
+    // unconditionally - and never blocks startup if the log cannot be written.
+    await recordAppStarted({
+      usageLogger: getUsageLogger(),
+      zone: homeTimezone,
+      deploymentMode: EnvironmentService.getInstance().getDeploymentMode(),
+      authMode: resolveAuthMode(),
+      version: process.env.npm_package_version || '0.0.0',
+      now: new Date(),
+    });
 
     // Start the ephemeral export-bundle cache's TTL sweep. This runs on
     // server boot (not at module import) so importing export modules has no
