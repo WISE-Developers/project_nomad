@@ -17,6 +17,7 @@ function createMockEnvService(mode: 'SAN' | 'ACN'): IEnvironmentService {
     get: () => undefined,
     getRequired: () => '',
     getOrDefault: (_key: string, def: string) => def,
+    getHomeTimezone: () => 'America/Edmonton',
     isProduction: () => false,
     isDevelopment: () => true,
     isTest: () => false,
