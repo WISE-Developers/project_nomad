@@ -8,6 +8,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../../middleware/index.js';
 import { NotFoundError, ValidationError } from '../../../domain/errors/index.js';
 import { logger } from '../../../infrastructure/logging/index.js';
+import { recordRequestEvent } from '../../../infrastructure/usage/requestUsage.js';
 import {
   getExportFormatRegistry,
   createBundleBuilder,
@@ -105,6 +106,14 @@ router.post(
     const bundle = await builder.build();
     storeBundle(bundle);
 
+    await recordRequestEvent(req, 'model.exported', {
+      detail: {
+        kind: 'bundle_created',
+        export_id: bundle.id,
+        item_count: Array.isArray(items) ? items.length : null,
+      },
+    });
+
     res.status(201).json({
       exportId: bundle.id,
       manifest: bundle.manifest,
@@ -148,6 +157,10 @@ router.get(
 
     const zipGenerator = getZipGenerator();
     const filename = zipGenerator.getFilename(bundle);
+
+    await recordRequestEvent(req, 'model.exported', {
+      detail: { kind: 'download', export_id: exportId, filename },
+    });
 
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -200,6 +213,17 @@ router.post(
 
     const linkService = getShareableLinkService();
     const link = linkService.createLink(exportId, { expiresInHours, maxDownloads });
+
+    // A share link makes the export reachable by anyone holding the token, so
+    // creating one is itself an export event - arguably the most significant.
+    await recordRequestEvent(req, 'model.exported', {
+      detail: {
+        kind: 'share_link_created',
+        export_id: exportId,
+        expires_at: link.expiresAt.toISOString(),
+        max_downloads: link.maxDownloads,
+      },
+    });
 
     res.status(201).json({
       shareUrl: linkService.getShareUrl(link.token),
@@ -263,6 +287,14 @@ router.get(
 
     const zipGenerator = getZipGenerator();
     const filename = zipGenerator.getFilename(bundle);
+
+    // Share-token downloads are unauthenticated by design - anyone holding the
+    // link. The actor is whatever the request carries, which is usually nobody,
+    // so the event records that it came via a share link rather than implying a
+    // known person downloaded it.
+    await recordRequestEvent(req, 'model.exported', {
+      detail: { kind: 'share_link_download', filename, via_share_token: true },
+    });
 
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -435,6 +467,14 @@ router.post(
       { name: 'model.json', content: JSON.stringify(modelConfig, null, 2) },
       ...validFiles.map((filename) => ({ name: filename, path: join(simDir, filename) })),
     ];
+
+    await recordRequestEvent(req, 'model.exported', {
+      detail: {
+        kind: 'files',
+        filename: zipFilename,
+        file_count: validFiles.length,
+      },
+    });
 
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${zipFilename}"`);
