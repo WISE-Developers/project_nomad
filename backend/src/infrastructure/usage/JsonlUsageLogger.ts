@@ -1,6 +1,11 @@
 import { appendFile, mkdir, readFile, stat, writeFile, chmod } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import type { IUsageLogger } from '../../application/interfaces/IUsageLogger.js';
+import type {
+  IUsageQuery,
+  UsageQueryOptions,
+  UsageQueryResult,
+} from '../../application/interfaces/IUsageQuery.js';
 import type { UsageEvent } from '../../domain/value-objects/UsageEvent.js';
 import { logger } from '../logging/index.js';
 
@@ -25,7 +30,7 @@ export interface JsonlUsageLoggerOptions {
  * Writes are serialised through a promise chain so concurrent record() calls
  * cannot interleave a partial line into the file.
  */
-export class JsonlUsageLogger implements IUsageLogger {
+export class JsonlUsageLogger implements IUsageLogger, IUsageQuery {
   private readonly filePath: string;
   private readonly maxBytes?: number;
   private readonly onError: (error: unknown) => void;
@@ -82,6 +87,56 @@ export class JsonlUsageLogger implements IUsageLogger {
     });
 
     return this.queue;
+  }
+
+  /**
+   * Reads events back, newest first.
+   *
+   * A malformed line is skipped rather than failing the whole query: a log
+   * truncated mid-write by a full disk should still yield everything around
+   * the damage. The count of skipped lines is reported so a caller is never
+   * told the log is complete when it is not.
+   */
+  async query(options: UsageQueryOptions): Promise<UsageQueryResult> {
+    let raw: string;
+    try {
+      raw = await readFile(this.filePath, 'utf8');
+    } catch {
+      // No log yet is an empty log, not an error.
+      return { events: [], total: 0 };
+    }
+
+    const parsed: UsageEvent[] = [];
+    let skipped = 0;
+    for (const line of raw.split('\n')) {
+      if (!line) continue;
+      try {
+        parsed.push(JSON.parse(line) as UsageEvent);
+      } catch {
+        skipped++;
+      }
+    }
+    if (skipped > 0) {
+      logger.warn(
+        `Usage log has ${skipped} unreadable line(s) - results are incomplete`,
+        'usage',
+        { filePath: this.filePath, skipped }
+      );
+    }
+
+    const matching = parsed.filter((e) => {
+      if (options.types && !options.types.includes(e.type)) return false;
+      if (options.since && e.ts_utc < options.since) return false;
+      return true;
+    });
+
+    // Newest first: ts_utc is the sort key, never ts_local.
+    matching.sort((a, b) => (a.ts_utc < b.ts_utc ? 1 : a.ts_utc > b.ts_utc ? -1 : 0));
+
+    return {
+      events: matching.slice(0, options.limit),
+      total: matching.length,
+    };
   }
 
   private async append(event: UsageEvent): Promise<void> {

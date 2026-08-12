@@ -62,6 +62,37 @@ durations, comparing deployments) and `ts_local` for people — wall-clock time
 where the box actually sits, so nobody on shift has to do arithmetic. This key
 is the zone used for `ts_local`.
 
+### Optional: the usage query endpoint
+
+`GET /api/v1/usage` is **off by default and not registered at all** unless a
+token is configured. There is no way to reach it by accident.
+
+To turn it on, add to `.env`:
+
+```
+NOMAD_USAGE_API_TOKEN=<at least 32 characters>
+```
+
+Generate one with `openssl rand -hex 32`. A shorter value is rejected at
+startup, and there is no default — a default token is a published password.
+
+Call it with:
+
+```
+curl -H "Authorization: Bearer $NOMAD_USAGE_API_TOKEN" \
+     "http://localhost:4901/api/v1/usage?limit=100&type=model.run.failed"
+```
+
+Notes:
+
+- Responses are always bounded (default 100, maximum 1000) and report
+  `truncated: true` rather than implying completeness.
+- **Every read is itself logged**, including rejected ones. The presented token
+  is never written to the log.
+- The log holds identities, timestamps and activity patterns. Treat the token
+  like any other credential, and note that enabling the endpoint makes a
+  personnel-shaped record reachable over the network.
+
 ### Fresh installs
 
 No action needed. All installers write the key:
