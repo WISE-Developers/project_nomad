@@ -1,0 +1,135 @@
+name: Tests
+
+# Runs every suite in the repository on every change that could affect them.
+#
+# Until this existed, nothing ran any test automatically: the backend and
+# frontend Vitest suites and the bash installer suites executed only when
+# someone remembered. Two regressions reached main that way and were found by
+# hand on real installs (#322, and the .env.example newline bug). (#333)
+#
+# Triggers cover both merge paths. Feature branches MERGE into dev rather than
+# arriving by PR, so a pull_request-only trigger would never see them; push to
+# dev catches those.
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (typecheck + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Typecheck separately from tests: Vitest transpiles without type
+      # checking, so a type error can pass the suite and still break the build.
+      - name: Typecheck
+        run: npx tsc --noEmit
+        working-directory: backend
+
+      - name: Test
+        run: npx vitest run
+        working-directory: backend
+
+  frontend:
+    name: Frontend (typecheck + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+        working-directory: frontend
+
+      - name: Test
+        run: npx vitest run
+        working-directory: frontend
+
+  scripts:
+    name: Installer suites (bash)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # These suites had no runner at all - not an npm script, not a workflow.
+      # They are plain bash 3.x-compatible and self-contained, each exiting
+      # non-zero on failure.
+      - name: Run bash test suites
+        run: |
+          set -u
+          failed=0
+          for suite in scripts/__tests__/*.test.sh; do
+            echo "── $(basename "$suite") ─────────────────────────────"
+            if bash "$suite"; then
+              echo "PASS: $(basename "$suite")"
+            else
+              echo "FAIL: $(basename "$suite")"
+              failed=$((failed + 1))
+            fi
+            echo ""
+          done
+          # Run every suite before failing, so one broken suite does not hide
+          # the state of the others.
+          if [ "$failed" -gt 0 ]; then
+            echo "$failed suite(s) failed"
+            exit 1
+          fi
+          echo "All installer suites passed"
+
+      # Syntax-check the installers themselves. A script that does not parse is
+      # a broken install, and these are not otherwise exercised anywhere.
+      - name: Syntax-check installers
+        run: |
+          set -u
+          failed=0
+          for script in scripts/*.sh; do
+            if ! bash -n "$script"; then
+              echo "SYNTAX ERROR: $script"
+              failed=$((failed + 1))
+            fi
+          done
+          if [ "$failed" -gt 0 ]; then
+            echo "$failed script(s) have syntax errors"
+            exit 1
+          fi
+          echo "All installer scripts parse"
+
+  # Single required check to point branch protection at, so adding or renaming
+  # a job later does not silently leave the gate unprotected.
+  all-tests:
+    name: All tests
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, scripts]
+    if: always()
+    steps:
+      - name: Verify every suite passed
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') }}" = "true" ] \
+            || [ "${{ contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            echo "One or more test jobs did not pass"
+            exit 1
+          fi
+          echo "All test jobs passed"
