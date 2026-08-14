@@ -144,6 +144,13 @@ export class JobQueue implements IJobQueue {
     await this.repo.save(job);
     console.log(`[JobQueue] Job ${jobId} created for model ${modelId}`);
 
+    // Emitted here rather than on Pending -> Running: a run that dies during
+    // input generation never reaches Running, so emitting there produced a
+    // model.run.failed with no matching start, and failed/started could exceed
+    // 100%. Observed in a real deployment - a missing SpotWX key emitted a
+    // failure alone. "Started" therefore means "a run was requested".
+    await this.recordRun('model.run.started', modelId);
+
     return Result.ok(job);
   }
 
@@ -192,11 +199,8 @@ export class JobQueue implements IJobQueue {
     await this.repo.update(updated);
     console.log(`[JobQueue] Job ${jobId} status updated to ${status}`);
 
-    // Only the Pending -> Running transition is a run starting. Re-entering
-    // Running (progress updates arrive via updateProgress) must not double-count.
-    if (status === JobStatus.Running && existing.status !== JobStatus.Running) {
-      await this.recordRun('model.run.started', updated.modelId);
-    }
+    // No event here: model.run.started is emitted at enqueue so that every run
+    // has exactly one start, including runs that fail before reaching Running.
 
     return Result.ok(updated);
   }
