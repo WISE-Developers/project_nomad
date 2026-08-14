@@ -22,6 +22,7 @@ import { initSentry, setupSentryErrorHandler } from './infrastructure/observabil
 import { EnvironmentService } from './infrastructure/config/EnvironmentService.js';
 import { getUsageLogger } from './infrastructure/usage/index.js';
 import { recordAppStarted } from './application/usage/appStarted.js';
+import { resolveAppVersion } from './infrastructure/config/appVersion.js';
 
 // Load .env from project root (parent directory)
 dotenv.config({ path: resolve(process.cwd(), '..', '.env') });
@@ -253,6 +254,11 @@ async function startServer(): Promise<void> {
     const homeTimezone = EnvironmentService.getInstance().getHomeTimezone();
     logger.startup(`Home time zone: ${homeTimezone}`);
 
+    // Same rule, same reason: a service that cannot say what version it is
+    // should not serve. Throws rather than reporting a placeholder.
+    const appVersion = resolveAppVersion();
+    logger.startup(`Version: ${appVersion}`);
+
     // Initialize database first
     await initializeDatabaseLayer();
 
@@ -264,7 +270,7 @@ async function startServer(): Promise<void> {
       zone: homeTimezone,
       deploymentMode: EnvironmentService.getInstance().getDeploymentMode(),
       authMode: resolveAuthMode(),
-      version: process.env.npm_package_version || '0.0.0',
+      version: appVersion,
       now: new Date(),
     });
 
