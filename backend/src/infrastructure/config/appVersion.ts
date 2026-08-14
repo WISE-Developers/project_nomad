@@ -26,8 +26,15 @@ import { readFileSync } from 'node:fs';
 /** Semantic version, optionally with a pre-release suffix such as -dev.2 */
 const VERSION_PATTERN = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
 
-/** Written by the Dockerfile at build time from frontend/package.json. */
-export const VERSION_FILE = process.env.NOMAD_VERSION_FILE ?? '/app/VERSION';
+/**
+ * Written by the Dockerfile at build time from frontend/package.json.
+ *
+ * A fixed constant, not a configurable default: no deployment has a reason to
+ * move it, and an env var with a `??` would be a fallback wearing a path's
+ * clothes. If the file is absent and NOMAD_VERSION is unset, resolveAppVersion
+ * throws.
+ */
+export const VERSION_FILE = '/app/VERSION';
 
 /** Reads the baked version file, or undefined when it is not present. */
 function readVersionFile(): string | undefined {

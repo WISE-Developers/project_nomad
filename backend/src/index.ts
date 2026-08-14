@@ -259,6 +259,11 @@ async function startServer(): Promise<void> {
     const appVersion = resolveAppVersion();
     logger.startup(`Version: ${appVersion}`);
 
+    // Construct the usage logger here, before any side effect, so missing or
+    // invalid usage-log configuration fails at boot rather than lazily on the
+    // first event - by which point the app is serving and the failure is quiet.
+    const usageLogger = getUsageLogger();
+
     // Initialize database first
     await initializeDatabaseLayer();
 
@@ -266,7 +271,7 @@ async function startServer(): Promise<void> {
     // is authoritative for every event until the next boot, so it is recorded
     // unconditionally - and never blocks startup if the log cannot be written.
     await recordAppStarted({
-      usageLogger: getUsageLogger(),
+      usageLogger,
       zone: homeTimezone,
       deploymentMode: EnvironmentService.getInstance().getDeploymentMode(),
       authMode: resolveAuthMode(),

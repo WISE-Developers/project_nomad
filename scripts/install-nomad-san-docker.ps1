@@ -307,6 +307,10 @@ function New-EnvironmentFile {
     # Core settings
     Update-EnvValue "NOMAD_DEPLOYMENT_MODE" "SAN"
     Update-EnvValue "NOMAD_HOME_TIMEZONE" $HomeTimezone
+    # Container path: the dataset volume is mounted at /appl/data. A path
+    # outside a mount is destroyed whenever the container is recreated.
+    Update-EnvValue "NOMAD_USAGE_LOG_PATH" "/appl/data/usage/usage.jsonl"
+    Update-EnvValue "NOMAD_USAGE_LOG_MAX_BYTES" "52428800"
     Update-EnvValue "FIRESTARR_DATASET_PATH" $DatasetPath
     Update-EnvValue "FIRESTARR_EXECUTION_MODE" "docker"
     Update-EnvValue "NOMAD_DATA_PATH" $NomadDataPath

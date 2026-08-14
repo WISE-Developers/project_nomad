@@ -62,6 +62,31 @@ durations, comparing deployments) and `ts_local` for people — wall-clock time
 where the box actually sits, so nobody on shift has to do arithmetic. This key
 is the zone used for `ts_local`.
 
+### BREAKING: `NOMAD_USAGE_LOG_PATH` and `NOMAD_USAGE_LOG_MAX_BYTES` are required
+
+Same shape as the time zone above — the backend exits 1 if either is missing.
+
+Add to your `.env`:
+
+```
+NOMAD_USAGE_LOG_PATH=/appl/data/usage/usage.jsonl
+NOMAD_USAGE_LOG_MAX_BYTES=52428800
+```
+
+**The path MUST be on a mounted volume.** In the Docker deployment `/appl/data`
+is the mounted dataset path. A path outside a mount — `/data`, for instance —
+lives on the container's overlay filesystem and is **destroyed every time the
+container is recreated**, which includes every upgrade. The writes succeed, so
+nothing warns you; the log simply disappears exactly when you would want to
+compare before and after.
+
+On a bare-metal install there is no container, so use a real host path beside
+your dataset, e.g. `/home/you/firestarr_data/usage/usage.jsonl`.
+
+`NOMAD_USAGE_LOG_MAX_BYTES` bounds the file; `52428800` is 50 MB. It is required
+rather than defaulted because a field laptop cannot host an unbounded log, and
+the right size is a deployment decision.
+
 ### Optional: the usage query endpoint
 
 `GET /api/v1/usage` is **off by default and not registered at all** unless a

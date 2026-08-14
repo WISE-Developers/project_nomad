@@ -70,13 +70,26 @@ do
     bad "$installer exists" "not found at $f"
     continue
   fi
-  if grep -q 'NOMAD_HOME_TIMEZONE' "$f"; then
-    ok "$installer writes NOMAD_HOME_TIMEZONE"
-  else
-    bad "$installer writes NOMAD_HOME_TIMEZONE" \
-        "installs from this script produce a backend that cannot start"
-  fi
+  for key in NOMAD_HOME_TIMEZONE NOMAD_USAGE_LOG_PATH NOMAD_USAGE_LOG_MAX_BYTES; do
+    if grep -q "$key" "$f"; then
+      ok "$installer writes $key"
+    else
+      bad "$installer writes $key" \
+          "installs from this script produce a backend that cannot start"
+    fi
+  done
 done
+
+# ---- the usage log must land on a MOUNTED path --------------------------
+# /data is NOT a mount in the container: it lives on the overlay filesystem and
+# is destroyed whenever the container is recreated. Writes still succeed, so the
+# log silently evaporates on every upgrade.
+if grep -qE '^NOMAD_USAGE_LOG_PATH=/appl/data/' "$ENV_EXAMPLE"; then
+  ok ".env.example puts the usage log on the mounted dataset path"
+else
+  bad ".env.example puts the usage log on the mounted dataset path" \
+      "got: $(grep -n '^NOMAD_USAGE_LOG_PATH=' "$ENV_EXAMPLE" | head -1 || echo '<key absent>')"
+fi
 
 # ---- PowerShell installers must not be forgotten ------------------------
 # Aug 7 lesson: two regressions shipped because only the installers being
@@ -90,12 +103,14 @@ do
     bad "$installer exists" "not found at $f"
     continue
   fi
-  if grep -q 'NOMAD_HOME_TIMEZONE' "$f"; then
-    ok "$installer writes NOMAD_HOME_TIMEZONE"
-  else
-    bad "$installer writes NOMAD_HOME_TIMEZONE" \
-        "installs from this script produce a backend that cannot start"
-  fi
+  for key in NOMAD_HOME_TIMEZONE NOMAD_USAGE_LOG_PATH NOMAD_USAGE_LOG_MAX_BYTES; do
+    if grep -q "$key" "$f"; then
+      ok "$installer writes $key"
+    else
+      bad "$installer writes $key" \
+          "installs from this script produce a backend that cannot start"
+    fi
+  done
 done
 
 # ---- upgrade path is documented -----------------------------------------

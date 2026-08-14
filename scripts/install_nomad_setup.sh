@@ -1831,6 +1831,16 @@ generate_env_file() {
     # Update values based on wizard selections
     update_env_value "NOMAD_DEPLOYMENT_MODE" "$NOMAD_DEPLOYMENT_MODE"
     update_env_value "NOMAD_HOME_TIMEZONE" "$NOMAD_HOME_TIMEZONE"
+    # Usage log (#332). Both keys are REQUIRED - the backend will not start
+    # without them. The path MUST be on a mounted volume: a path outside a mount
+    # lives on the container overlay and is destroyed on every recreate, and the
+    # writes succeed, so the loss is silent.
+    if [ "$FIRESTARR_EXECUTION_MODE" = "binary" ]; then
+        update_env_value "NOMAD_USAGE_LOG_PATH" "${FIRESTARR_DATASET_PATH}/usage/usage.jsonl"
+    else
+        update_env_value "NOMAD_USAGE_LOG_PATH" "/appl/data/usage/usage.jsonl"
+    fi
+    update_env_value "NOMAD_USAGE_LOG_MAX_BYTES" "52428800"
     update_env_value "FIRESTARR_DATASET_PATH" "$FIRESTARR_DATASET_PATH"
     update_env_value "FIRESTARR_EXECUTION_MODE" "$FIRESTARR_EXECUTION_MODE"
 

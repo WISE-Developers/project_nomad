@@ -482,6 +482,9 @@ function New-EnvironmentFile {
 
     Update-EnvValue "NOMAD_DEPLOYMENT_MODE"      "SAN"
     Update-EnvValue "NOMAD_HOME_TIMEZONE"        $script:HomeTimezone
+    # Bare metal: no container, so the log sits beside the dataset on disk.
+    Update-EnvValue "NOMAD_USAGE_LOG_PATH"       (Join-Path $script:DatasetPath "usage\usage.jsonl")
+    Update-EnvValue "NOMAD_USAGE_LOG_MAX_BYTES"  "52428800"
     Update-EnvValue "FIRESTARR_DATASET_PATH"     $DatasetPath
     Update-EnvValue "FIRESTARR_EXECUTION_MODE"   "binary"
     Update-EnvValue "FIRESTARR_BINARY_PATH"      $firestarrBinary
