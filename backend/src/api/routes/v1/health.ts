@@ -5,6 +5,7 @@ import {
   isKnexInitialized,
 } from '../../../infrastructure/database/knex/KnexConnection.js';
 import { getModelExecutionService } from '../../../infrastructure/services/index.js';
+import { resolveAppVersion } from '../../../infrastructure/config/appVersion.js';
 
 const router = Router();
 const startTime = Date.now();
@@ -93,7 +94,7 @@ router.get('/health', async (_req, res) => {
 router.get('/info', (_req, res) => {
   const info = {
     name: 'Project Nomad',
-    version: process.env.npm_package_version || '1.0.0',
+    version: resolveAppVersion(),
     environment: process.env.NODE_ENV || 'development',
     deploymentMode: (process.env.NOMAD_DEPLOYMENT_MODE as 'SAN' | 'ACN') || 'SAN',
     capabilities: {

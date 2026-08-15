@@ -80,20 +80,42 @@ describe('JobQueue usage events', () => {
     log = collectingLogger();
   });
 
-  it('records nothing when a job is merely queued', async () => {
+  // model.run.started is emitted at ENQUEUE, meaning "a run was requested".
+  //
+  // It was originally emitted on the Pending -> Running transition, but a run
+  // that dies during input generation never reaches Running - so it produced a
+  // model.run.failed with no matching started, and failed/started could exceed
+  // 100%. Verified in a real deployment: a SpotWX key error emitted failed
+  // alone. Pairing every run makes the log safe to aggregate without knowing
+  // that caveat.
+  it('records model.run.started when a run is requested', async () => {
     const q = makeQueue({ logger: log, repo, userId: 'franco' });
     await q.enqueue(MODEL_ID);
-    expect(log.events).toHaveLength(0);
-  });
-
-  it('records model.run.started when a job begins running', async () => {
-    const q = makeQueue({ logger: log, repo, userId: 'franco' });
-    const job = (await q.enqueue(MODEL_ID)).value as Job;
-    await q.updateStatus(job.id, JobStatus.Running);
 
     expect(log.events).toHaveLength(1);
     expect(log.events[0].type).toBe('model.run.started');
     expect(log.events[0].modelId).toBe(MODEL_ID);
+  });
+
+  it('does not record a second start when the job begins running', async () => {
+    const q = makeQueue({ logger: log, repo, userId: 'franco' });
+    const job = (await q.enqueue(MODEL_ID)).value as Job;
+    await q.updateStatus(job.id, JobStatus.Running);
+
+    const started = log.events.filter((e) => e.type === 'model.run.started');
+    expect(started).toHaveLength(1);
+  });
+
+  it('pairs every failure with a start, even when the run never reaches the engine', async () => {
+    const q = makeQueue({ logger: log, repo, userId: 'franco' });
+    const job = (await q.enqueue(MODEL_ID)).value as Job;
+    // Straight to failed, as an input-generation error does - no Running.
+    await q.fail(job.id, 'SpotWX API key required');
+
+    const started = log.events.filter((e) => e.type === 'model.run.started');
+    const failed = log.events.filter((e) => e.type === 'model.run.failed');
+    expect(started).toHaveLength(1);
+    expect(failed).toHaveLength(1);
   });
 
   it('attributes the run to the model owner', async () => {

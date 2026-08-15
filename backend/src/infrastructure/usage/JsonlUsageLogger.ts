@@ -208,11 +208,35 @@ export class JsonlUsageLogger implements IUsageLogger, IUsageQuery {
  * so adapters expose a factory and are wired manually at the call site.
  */
 export function createJsonlUsageLogger(): JsonlUsageLogger {
-  const filePath = process.env.NOMAD_USAGE_LOG_PATH ?? '/data/usage/usage.jsonl';
-  const rawMax = process.env.NOMAD_USAGE_LOG_MAX_BYTES;
-  const maxBytes = rawMax ? Number(rawMax) : 50 * 1024 * 1024;
+  // BOTH values are required. There are deliberately no defaults.
+  //
+  // The previous default path, /data/usage/usage.jsonl, is NOT on a mounted
+  // volume in the container - it lands on the overlay filesystem and is
+  // destroyed every time the container is recreated. Writes succeeded, so
+  // nothing ever failed; the log simply evaporated on each deploy, which is
+  // precisely when a usage record is most wanted. A default that is wrong in
+  // the real environment and silent about it is the failure mode this project
+  // fails fast to avoid.
+  const filePath = process.env.NOMAD_USAGE_LOG_PATH?.trim();
+  if (!filePath) {
+    throw new Error(
+      'Required environment variable "NOMAD_USAGE_LOG_PATH" is not set. It must ' +
+        'point at a location on a MOUNTED volume, or the usage log is lost every ' +
+        'time the container is recreated.'
+    );
+  }
 
-  if (Number.isNaN(maxBytes) || maxBytes <= 0) {
+  const rawMax = process.env.NOMAD_USAGE_LOG_MAX_BYTES?.trim();
+  if (!rawMax) {
+    throw new Error(
+      'Required environment variable "NOMAD_USAGE_LOG_MAX_BYTES" is not set. ' +
+        'The log must have an explicit size bound - a field laptop cannot host ' +
+        'an unbounded file.'
+    );
+  }
+
+  const maxBytes = Number(rawMax);
+  if (!Number.isInteger(maxBytes) || maxBytes <= 0) {
     throw new Error(
       `Invalid NOMAD_USAGE_LOG_MAX_BYTES: "${rawMax}". Must be a positive number of bytes.`
     );

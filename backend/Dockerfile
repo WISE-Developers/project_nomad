@@ -79,6 +79,20 @@ COPY --from=backend-builder /app/backend/package.json ./backend/
 # Copy built frontend into workspace-relative location
 COPY --from=frontend-builder /app/dist ./frontend/dist
 
+# Bake the release version into the image.
+#
+# frontend/package.json is the release source of truth - dev-release.yml reads
+# `require('./frontend/package.json').version`, while the root and backend
+# package.json files sit at 0.5.0 and are never bumped.
+#
+# npm_package_version is NOT usable here: it is only set when a process starts
+# via npm, and this image runs `node dist/index.js` directly. Relying on it is
+# what made /api/v1/info report "1.0.0" from a box running v0.12.1.
+COPY --from=frontend-builder /app/package.json /tmp/frontend-package.json
+RUN node -p "require('/tmp/frontend-package.json').version" > /app/VERSION \
+    && rm /tmp/frontend-package.json \
+    && cat /app/VERSION
+
 EXPOSE 3001
 WORKDIR /app/backend
 CMD ["node", "dist/index.js"]

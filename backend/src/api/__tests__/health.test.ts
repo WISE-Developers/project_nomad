@@ -9,11 +9,17 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import healthRouter from '../routes/v1/health.js';
+import { resolveAppVersion } from '../../infrastructure/config/appVersion.js';
 
 describe('Health Endpoints', () => {
   let app: express.Application;
 
   beforeAll(() => {
+    // The app now refuses to report a version it cannot determine, so the test
+    // environment must supply one. Previously this endpoint fell back to a
+    // literal '1.0.0', which is what it served in production from a box running
+    // v0.12.1.
+    process.env.NOMAD_VERSION = '0.0.0-test';
     app = express();
     app.use(express.json());
     app.use('/api/v1', healthRouter);
@@ -77,6 +83,15 @@ describe('Health Endpoints', () => {
       const response = await request(app).get('/api/v1/info');
       expect(response.body.name).toBeDefined();
       expect(response.body.name).toBe('Project Nomad');
+    });
+
+    it('reports the version the app actually resolved, not a placeholder', async () => {
+      // The old assertion (a defined string) passed happily while the endpoint
+      // served a fabricated '1.0.0'. This asserts the property that was broken:
+      // what /info reports must be what the app resolved.
+      const response = await request(app).get('/api/v1/info');
+      expect(response.body.version).toBe(resolveAppVersion());
+      expect(response.body.version).not.toBe('1.0.0');
     });
 
     it('returns version field', async () => {

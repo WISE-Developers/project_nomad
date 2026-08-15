@@ -297,6 +297,8 @@ generate_env() {
     update_env "VITE_API_BASE_URL" "http://${NOMAD_SERVER_HOSTNAME}:${NOMAD_BACKEND_HOST_PORT}"
     update_env "NOMAD_SERVER_HOSTNAME" "$NOMAD_SERVER_HOSTNAME"
     update_env "NOMAD_HOME_TIMEZONE" "$NOMAD_HOME_TIMEZONE"
+    update_env "NOMAD_USAGE_LOG_PATH" "/appl/data/usage/usage.jsonl"
+    update_env "NOMAD_USAGE_LOG_MAX_BYTES" "52428800"
 
     # FireSTARR image
     detect_architecture

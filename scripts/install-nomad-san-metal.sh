@@ -283,6 +283,8 @@ generate_env() {
 
     update_env "NOMAD_DEPLOYMENT_MODE" "SAN"
     update_env "NOMAD_HOME_TIMEZONE" "$NOMAD_HOME_TIMEZONE"
+    update_env "NOMAD_USAGE_LOG_PATH" "${FIRESTARR_DATASET_PATH}/usage/usage.jsonl"
+    update_env "NOMAD_USAGE_LOG_MAX_BYTES" "52428800"
     update_env "FIRESTARR_DATASET_PATH" "$FIRESTARR_DATASET_PATH"
     # .env is built key-by-key here, not copied from .env.example, so the
     # example default never reaches it (see #322 regression).

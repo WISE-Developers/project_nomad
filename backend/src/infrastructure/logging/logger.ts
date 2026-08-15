@@ -83,9 +83,33 @@ const transports: winston.transport[] = [
   errorTransport,
 ];
 
-// Add console in non-production or when explicitly enabled
-if (process.env.NODE_ENV !== 'production' || process.env.NOMAD_LOG_CONSOLE === 'true') {
-  transports.push(consoleTransport);
+// Console transport is ALWAYS added, including in production.
+//
+// It used to be development-only, which meant that in every containerised
+// deployment nothing reached stdout: `docker logs` was empty while the
+// container crash-looped. The diagnostic existed, but only in a file inside a
+// container that exits - and a container that exits cannot be `docker exec`ed
+// into to read it. That is worse than not logging at all, because the operator
+// has no signal that a message exists.
+//
+// Observed on a real upgrade: a missing NOMAD_HOME_TIMEZONE produced 7 silent
+// restarts with an empty log; the error was only visible by running the entry
+// point by hand outside compose.
+//
+// In production the console format is plain (no colour) so the output stays
+// readable in `docker logs` and log aggregators.
+const isProductionEnv = process.env.NODE_ENV === 'production';
+transports.push(
+  isProductionEnv
+    ? new winston.transports.Console({ format: logFormat })
+    : consoleTransport
+);
+
+// Opt OUT for the rare case of a deployment that genuinely wants file-only
+// logging. Defaults to console-on, because silence during a boot failure is the
+// expensive direction to be wrong in.
+if (process.env.NOMAD_LOG_CONSOLE === 'false') {
+  transports.pop();
 }
 
 /**
