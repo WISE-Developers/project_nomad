@@ -4,10 +4,48 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.12.1
+## v0.13.0
+
+### 2026-08-16
+
+- [`47dcba2`](https://github.com/WISE-Developers/project_nomad/commit/47dcba252e9368ea275d995e1e0e341b4adf25b1) Merge pull request #345 from WISE-Developers/dev — *Franco Nogarin, 17:17*
+
+### 2026-08-15
+
+- [`b0fbf4d`](https://github.com/WISE-Developers/project_nomad/commit/b0fbf4dbf8bfc17fe03c72d2aeba31530cd87860) chore: dev build 3 [skip ci] — *github-actions[bot], 12:33*
+- [`6aefd67`](https://github.com/WISE-Developers/project_nomad/commit/6aefd6789f4a5ced338bf8803323a06b4deea94a) Merge fix/version-reporting: honest version, visible logs, no silent defaults — *Franco Nogarin, 06:33*
+
+### 2026-08-14
+
+- [`e87388b`](https://github.com/WISE-Developers/project_nomad/commit/e87388b92642e9a470de95aa1f63ff8ab5bdf616) fix: remove the last silent defaults from the usage log config — *Franco Nogarin, 11:55*
+- [`b5b3979`](https://github.com/WISE-Developers/project_nomad/commit/b5b3979b6c29e1e149bd25d65103c3492e4098e5) fix: log to stdout in production, and pair every run start with its failure — *Franco Nogarin, 10:55*
+- [`842c51e`](https://github.com/WISE-Developers/project_nomad/commit/842c51e33af557ff7a4d49e5ad795e54936277d6) fix: report the real version instead of a fabricated one — *Franco Nogarin, 08:18*
+
+### 2026-08-12
+
+- [`1916ac9`](https://github.com/WISE-Developers/project_nomad/commit/1916ac90027b4dfc5bbf57997b0cc524b37cf31c) chore: dev build 2 [skip ci] — *github-actions[bot], 15:06*
+- [`a24e813`](https://github.com/WISE-Developers/project_nomad/commit/a24e8130e82434100549032dfd8ba66ccf1ba914) Merge remote-tracking branch 'origin/dev' into dev — *Franco Nogarin, 09:06*
+- [`004505a`](https://github.com/WISE-Developers/project_nomad/commit/004505a799b2eb1d194832cdb3c28a9492b0a734) Merge feat/332-usage-log: structured usage log — *Franco Nogarin, 09:06*
+- [`6bd569b`](https://github.com/WISE-Developers/project_nomad/commit/6bd569b268c9fca7c29582d4392141d6b26421ae) Merge dev: pick up CI workflow (#333) — *Franco Nogarin, 09:04*
+- [`46aded1`](https://github.com/WISE-Developers/project_nomad/commit/46aded1da7786d5ec30eaf0d3a8a9b9f50699add) chore: dev build 1 [skip ci] — *github-actions[bot], 15:04*
+- [`9d2573b`](https://github.com/WISE-Developers/project_nomad/commit/9d2573b1a2039faaeb71d9284be187f070b7d07a) Merge chore/333-ci: run all test suites in CI — *Franco Nogarin, 09:03*
+- [`0742a09`](https://github.com/WISE-Developers/project_nomad/commit/0742a09953d8b52eb614bd154c1f4c6f3dd53bcb) ci: run on every branch, not only main and dev — *Franco Nogarin, 06:52*
+- [`bd45a9b`](https://github.com/WISE-Developers/project_nomad/commit/bd45a9b3b4475287fdf98f187e3539fbbc2b19f6) ci: run backend, frontend and bash suites on every change — *Franco Nogarin, 06:51*
+- [`198c006`](https://github.com/WISE-Developers/project_nomad/commit/198c0068cb68183384c453b11784d10e22189da7) feat: GET /api/v1/usage with fail-closed bearer token auth — *Franco Nogarin, 06:41*
+- [`c8da1f8`](https://github.com/WISE-Developers/project_nomad/commit/c8da1f8b3b7672891716444865f3f6d21606f31e) feat: record model run, session and export usage events — *Franco Nogarin, 06:37*
+
+### 2026-08-11
+
+- [`fddbb6b`](https://github.com/WISE-Developers/project_nomad/commit/fddbb6b3326556b3ea2fb53a8066f677d5c0c86a) feat: emit app.started and require NOMAD_HOME_TIMEZONE at boot — *Franco Nogarin, 09:20*
+- [`3eeba68`](https://github.com/WISE-Developers/project_nomad/commit/3eeba680d1231ba8c71b9a293bb7534b6557e745) feat: JSONL usage log adapter with retention bound — *Franco Nogarin, 06:59*
+- [`8cfeacd`](https://github.com/WISE-Developers/project_nomad/commit/8cfeacdfc0bcaa3dc39b60dcb5ca453c177ea45c) feat: IUsageLogger port and usage event domain types — *Franco Nogarin, 06:24*
+- [`530ac7d`](https://github.com/WISE-Developers/project_nomad/commit/530ac7dcb6aff852449ce18b963a2020cfe94ee8) feat: NOMAD_HOME_TIMEZONE config with fail-fast validation — *Franco Nogarin, 06:10*
+- [`a0f1606`](https://github.com/WISE-Developers/project_nomad/commit/a0f1606a69ed6ebc085072e464f0693d82a501df) fix: .env.example must end with a newline — *Franco Nogarin, 05:57*
 
 ### 2026-08-07
 
+- [`59c53bc`](https://github.com/WISE-Developers/project_nomad/commit/59c53bc6fa88f2087c2d3bc0db1a687231f51c93) chore: reset dev build counter after v0.12.1 [skip ci] — *github-actions[bot], 13:18*
+- [`c5c7ea8`](https://github.com/WISE-Developers/project_nomad/commit/c5c7ea82caa885fd0d7389aac45406074f6ad86a) chore: release v0.12.1 [skip ci] — *github-actions[bot], 13:17*
 - [`9d5e204`](https://github.com/WISE-Developers/project_nomad/commit/9d5e2042b16fdbe581ec433b4697638b1a827056) Merge pull request #329 from WISE-Developers/dev — *Franco Nogarin, 07:17*
 - [`0027c8b`](https://github.com/WISE-Developers/project_nomad/commit/0027c8b758e628c7cad63d653e9f39e10afdf6f0) chore: dev build 1 [skip ci] — *github-actions[bot], 13:15*
 - [`5890f24`](https://github.com/WISE-Developers/project_nomad/commit/5890f24075ca85876ef0598518077c9c4e39f6b7) fix: installers that generate .env must write a dataset source — *Franco Nogarin, 07:15*
