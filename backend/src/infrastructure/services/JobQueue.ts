@@ -8,8 +8,37 @@ import {
 } from '../../domain/entities/index.js';
 import { DomainError, NotFoundError, ValidationError } from '../../domain/errors/index.js';
 import { Result } from '../../application/common/index.js';
-import { IJobQueue, IJobRepository } from '../../application/interfaces/index.js';
-import { getJobRepository } from '../database/index.js';
+import { IJobQueue, IJobRepository, IModelRepository } from '../../application/interfaces/index.js';
+import { IUsageLogger } from '../../application/interfaces/IUsageLogger.js';
+import { getJobRepository, getModelRepository } from '../database/index.js';
+import { getUsageLogger } from '../usage/index.js';
+import { EnvironmentService } from '../config/EnvironmentService.js';
+import { resolveAuthMode } from '../../api/middleware/authMode.js';
+import { createUsageEvent, SINGLE_USER, UNKNOWN_USER } from '../../application/usage/usageEvent.js';
+import type { UsageEventType, AuthMode } from '../../domain/value-objects/UsageEvent.js';
+
+/**
+ * Collaborators, injectable for testing. Each falls back to the process-wide
+ * instance, so existing call sites are unchanged.
+ */
+/**
+ * Wall-clock duration between two job timestamps, or null when either is
+ * missing. Null rather than 0: "we did not record this" and "it took no time"
+ * are different facts and must not collapse into the same number.
+ */
+function elapsedSeconds(startedAt?: Date, completedAt?: Date): number | null {
+  if (!startedAt) return null;
+  const end = completedAt ?? new Date();
+  return Math.round((end.getTime() - startedAt.getTime()) / 1000);
+}
+
+export interface JobQueueDeps {
+  jobRepository?: IJobRepository;
+  modelRepository?: IModelRepository;
+  usageLogger?: IUsageLogger;
+  homeTimezone?: string;
+  authMode?: AuthMode;
+}
 
 /**
  * Database-backed job queue implementation.
@@ -19,18 +48,88 @@ import { getJobRepository } from '../database/index.js';
  * For high-volume production, consider Redis-backed queue (e.g., Bull/BullMQ).
  */
 export class JobQueue implements IJobQueue {
+  constructor(private readonly deps: JobQueueDeps = {}) {}
+
   private get repo(): IJobRepository {
-    return getJobRepository();
+    return this.deps.jobRepository ?? getJobRepository();
+  }
+
+  private get modelRepo(): IModelRepository {
+    return this.deps.modelRepository ?? getModelRepository();
+  }
+
+  /**
+   * Resolves who a run belongs to.
+   *
+   * Ownership is read from the job's model (fire_models.user_id, added in
+   * migration 002) rather than stored again on the job. Two copies of an owner
+   * is how they end up disagreeing - and reading through the model also works
+   * after a restart, which is what lets interrupted runs keep their attribution.
+   */
+  private async resolveRunActor(modelId: FireModelId): Promise<string> {
+    const authMode = this.deps.authMode ?? resolveAuthMode();
+
+    let userId: string | undefined;
+    try {
+      const model = await this.modelRepo.findById(modelId);
+      userId = model?.userId;
+    } catch {
+      // A lookup failure must not fail the job. Fall through to the unknown
+      // actor rather than guessing.
+      userId = undefined;
+    }
+
+    if (userId) return userId;
+    // In none mode there is genuinely one assumed user; elsewhere the absence
+    // of an owner is a gap, and the log should say so rather than imply a name.
+    return authMode === 'none' ? SINGLE_USER : UNKNOWN_USER;
+  }
+
+  /** Emits a usage event. Never throws - a run must not fail over its log. */
+  private async recordRun(
+    type: UsageEventType,
+    modelId: FireModelId,
+    detail?: Record<string, unknown>
+  ): Promise<void> {
+    try {
+      const zone =
+        this.deps.homeTimezone ?? EnvironmentService.getInstance().getHomeTimezone();
+      const event = createUsageEvent({
+        type,
+        actor: await this.resolveRunActor(modelId),
+        zone,
+        now: new Date(),
+        modelId,
+        detail,
+      });
+      await (this.deps.usageLogger ?? getUsageLogger()).record(event);
+    } catch {
+      // Swallowed here by design; the adapter logs its own write failures.
+    }
   }
 
   /**
    * Initialize the job queue, recovering from any incomplete state
    */
   async initialize(): Promise<void> {
+    // Capture the interrupted jobs BEFORE marking them, so each one can be
+    // recorded individually. markRunningAsFailed returns only a count.
+    const interrupted = await this.repo.findByStatus(JobStatus.Running);
+
     // Mark any running jobs as failed (they were interrupted by restart)
     const failedCount = await this.repo.markRunningAsFailed();
     if (failedCount > 0) {
       console.log(`[JobQueue] Marked ${failedCount} interrupted jobs as failed`);
+    }
+
+    // These failures happen at boot with no request in flight and no in-memory
+    // engine state - the reason run events are emitted here and not from the
+    // engine. Without this they would vanish from the record entirely.
+    for (const job of interrupted) {
+      await this.recordRun('model.run.failed', job.modelId, {
+        reason: 'Interrupted by restart',
+        interrupted_by_restart: true,
+      });
     }
   }
 
@@ -44,6 +143,13 @@ export class JobQueue implements IJobQueue {
 
     await this.repo.save(job);
     console.log(`[JobQueue] Job ${jobId} created for model ${modelId}`);
+
+    // Emitted here rather than on Pending -> Running: a run that dies during
+    // input generation never reaches Running, so emitting there produced a
+    // model.run.failed with no matching start, and failed/started could exceed
+    // 100%. Observed in a real deployment - a missing SpotWX key emitted a
+    // failure alone. "Started" therefore means "a run was requested".
+    await this.recordRun('model.run.started', modelId);
 
     return Result.ok(job);
   }
@@ -93,6 +199,9 @@ export class JobQueue implements IJobQueue {
     await this.repo.update(updated);
     console.log(`[JobQueue] Job ${jobId} status updated to ${status}`);
 
+    // No event here: model.run.started is emitted at enqueue so that every run
+    // has exactly one start, including runs that fail before reaching Running.
+
     return Result.ok(updated);
   }
 
@@ -139,6 +248,11 @@ export class JobQueue implements IJobQueue {
     await this.repo.update(failed);
     console.log(`[JobQueue] Job ${jobId} failed: ${error}`);
 
+    await this.recordRun('model.run.failed', failed.modelId, {
+      reason: error,
+      wall_clock_seconds: elapsedSeconds(failed.startedAt, failed.completedAt),
+    });
+
     return Result.ok(failed);
   }
 
@@ -151,6 +265,13 @@ export class JobQueue implements IJobQueue {
     const completed = existing.withStatus(JobStatus.Completed).withProgress(100);
     await this.repo.update(completed);
     console.log(`[JobQueue] Job ${jobId} completed`);
+
+    // Wall clock, which includes container startup. FireSTARR's own
+    // summary.durationSeconds is a different number and is recorded by the
+    // engine; both are wanted, and conflating them would misreport capacity.
+    await this.recordRun('model.run.completed', completed.modelId, {
+      wall_clock_seconds: elapsedSeconds(completed.startedAt, completed.completedAt),
+    });
 
     return Result.ok(completed);
   }

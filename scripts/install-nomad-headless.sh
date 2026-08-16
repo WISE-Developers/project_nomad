@@ -63,6 +63,33 @@ ENV_EXAMPLE="$PROJECT_DIR/.env.example"
 # Dry run mode
 DRY_RUN=false
 
+# Home time zone (#332)
+#
+# IANA zone used to stamp local timestamps in the usage log. The backend is
+# fail-fast on this: it will not start if the key is missing or invalid, because
+# the container's own clock is UTC and a fallback would record every local time
+# silently wrong.
+#
+# This script is intended to run unattended (#335), so the value is taken from
+# the environment and never prompted for.
+NOMAD_HOME_TIMEZONE="${NOMAD_HOME_TIMEZONE:-America/Edmonton}"
+
+# Validate here, so a typo fails next to the mistake rather than at first boot.
+case "$NOMAD_HOME_TIMEZONE" in
+    [+-]*)
+        echo "ERROR: NOMAD_HOME_TIMEZONE is \"$NOMAD_HOME_TIMEZONE\", a fixed UTC offset." >&2
+        echo "       A fixed offset cannot observe DST. Use an IANA zone name," >&2
+        echo "       for example America/Edmonton." >&2
+        exit 1
+        ;;
+    */*) ;;
+    *)
+        echo "ERROR: NOMAD_HOME_TIMEZONE is \"$NOMAD_HOME_TIMEZONE\", which is not an" >&2
+        echo "       IANA zone name. Expected Area/Location, for example America/Edmonton." >&2
+        exit 1
+        ;;
+esac
+
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -1783,6 +1810,20 @@ generate_env_file() {
 
     # Update values based on wizard selections
     update_env_value "NOMAD_DEPLOYMENT_MODE" "$NOMAD_DEPLOYMENT_MODE"
+    # Home time zone (#332). REQUIRED - the backend refuses to start without it.
+    # This script is intended to run unattended (#335), so the value is taken
+    # from the environment with a Mountain-time default and never prompted for.
+    update_env_value "NOMAD_HOME_TIMEZONE" "$NOMAD_HOME_TIMEZONE"
+    # Usage log (#332). Both keys are REQUIRED - the backend will not start
+    # without them. The path MUST be on a mounted volume: a path outside a mount
+    # lives on the container overlay and is destroyed on every recreate, and the
+    # writes succeed, so the loss is silent.
+    if [ "$FIRESTARR_EXECUTION_MODE" = "binary" ]; then
+        update_env_value "NOMAD_USAGE_LOG_PATH" "${FIRESTARR_DATASET_PATH}/usage/usage.jsonl"
+    else
+        update_env_value "NOMAD_USAGE_LOG_PATH" "/appl/data/usage/usage.jsonl"
+    fi
+    update_env_value "NOMAD_USAGE_LOG_MAX_BYTES" "52428800"
     update_env_value "FIRESTARR_DATASET_PATH" "$FIRESTARR_DATASET_PATH"
     update_env_value "FIRESTARR_EXECUTION_MODE" "$FIRESTARR_EXECUTION_MODE"
 

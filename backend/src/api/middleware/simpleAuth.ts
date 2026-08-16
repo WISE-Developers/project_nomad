@@ -13,7 +13,14 @@ import { Request, Response, NextFunction } from 'express';
 declare global {
   namespace Express {
     interface Request {
+      /** Display identity. In oauth mode this is `name || email`. */
       user?: string;
+      /**
+       * The authenticated user's email, set by betterAuthSession in oauth mode.
+       * The usage log is keyed on this rather than on `user`, which is mutable
+       * and not unique. (#332)
+       */
+      userEmail?: string;
     }
   }
 }

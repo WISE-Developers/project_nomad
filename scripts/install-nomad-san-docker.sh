@@ -55,6 +55,10 @@ NOMAD_PORT="${NOMAD_PORT:-4901}"
 NOMAD_FRONTEND_HOST_PORT="${NOMAD_FRONTEND_HOST_PORT:-3901}"
 NOMAD_BACKEND_HOST_PORT="${NOMAD_BACKEND_HOST_PORT:-4901}"
 NOMAD_SERVER_HOSTNAME="${NOMAD_SERVER_HOSTNAME:-localhost}"
+# IANA zone used to stamp local timestamps in the usage log. REQUIRED by the
+# backend - it will not start without it. This installer is non-interactive, so
+# the value comes from the environment or falls back to Mountain time.
+NOMAD_HOME_TIMEZONE="${NOMAD_HOME_TIMEZONE:-America/Edmonton}"
 
 # FireSTARR image configuration
 #
@@ -292,6 +296,9 @@ generate_env() {
     update_env "VITE_API_PORT" "$NOMAD_BACKEND_HOST_PORT"
     update_env "VITE_API_BASE_URL" "http://${NOMAD_SERVER_HOSTNAME}:${NOMAD_BACKEND_HOST_PORT}"
     update_env "NOMAD_SERVER_HOSTNAME" "$NOMAD_SERVER_HOSTNAME"
+    update_env "NOMAD_HOME_TIMEZONE" "$NOMAD_HOME_TIMEZONE"
+    update_env "NOMAD_USAGE_LOG_PATH" "/appl/data/usage/usage.jsonl"
+    update_env "NOMAD_USAGE_LOG_MAX_BYTES" "52428800"
 
     # FireSTARR image
     detect_architecture

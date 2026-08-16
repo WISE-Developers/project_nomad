@@ -111,4 +111,52 @@ export class EnvironmentService implements IEnvironmentService {
   getFireSTARRBinaryPath(): string | undefined {
     return this.get('FIRESTARR_BINARY_PATH');
   }
+
+  /**
+   * Gets and validates the deployment's home IANA time zone.
+   *
+   * Used to stamp ts_local in the usage log (#332). REQUIRED — there is
+   * deliberately no default and no fallback.
+   *
+   * The production container (node:22-slim) defaults to TZ=UTC, so any fallback
+   * would make ts_local byte-identical to ts_utc: a log that passes every health
+   * check while being six hours wrong. Crash instead.
+   *
+   * @returns a valid IANA zone name, e.g. 'America/Edmonton'
+   * @throws Error if unset, empty, a fixed offset, or not a real IANA zone
+   */
+  getHomeTimezone(): string {
+    const zone = this.getRequired('NOMAD_HOME_TIMEZONE').trim();
+
+    if (!zone) {
+      throw new Error(
+        'Required environment variable "NOMAD_HOME_TIMEZONE" is empty.'
+      );
+    }
+
+    // A fixed offset cannot observe DST. Accepting "-06:00" would freeze the
+    // deployment on the summer offset all winter, which is precisely the class
+    // of quietly-wrong clock this variable exists to prevent.
+    if (/^[+-]/.test(zone)) {
+      throw new Error(
+        `Invalid NOMAD_HOME_TIMEZONE: "${zone}" is a fixed UTC offset, not an ` +
+          'IANA time zone name. A fixed offset cannot observe DST. ' +
+          'Use a zone name such as "America/Edmonton".'
+      );
+    }
+
+    // Constructing a formatter IS the validation: ICU throws RangeError on an
+    // unknown zone. Verified full-ICU in node:22-slim, so no lookup table and
+    // no tzdata package is needed.
+    try {
+      new Intl.DateTimeFormat('en-CA', { timeZone: zone });
+    } catch {
+      throw new Error(
+        `Invalid NOMAD_HOME_TIMEZONE: "${zone}" is not a valid IANA time zone ` +
+          'name. Use a zone name such as "America/Edmonton".'
+      );
+    }
+
+    return zone;
+  }
 }

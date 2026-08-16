@@ -129,6 +129,10 @@ NOMAD_DATA_PATH="${NOMAD_DATA_PATH:-$FIRESTARR_DATASET_PATH}"
 NOMAD_FRONTEND_HOST_PORT="${NOMAD_FRONTEND_HOST_PORT:-3901}"
 NOMAD_BACKEND_HOST_PORT="${NOMAD_BACKEND_HOST_PORT:-4901}"
 NOMAD_SERVER_HOSTNAME="${NOMAD_SERVER_HOSTNAME:-$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo localhost)}"
+# IANA zone used to stamp local timestamps in the usage log. REQUIRED by the
+# backend - it will not start without it. The demo install is non-interactive,
+# so this comes from the environment or falls back to Mountain time.
+NOMAD_HOME_TIMEZONE="${NOMAD_HOME_TIMEZONE:-America/Edmonton}"
 DATASET_INSTALL_MODE="download"
 
 info "FIRESTARR_DATASET_PATH = $FIRESTARR_DATASET_PATH"
@@ -198,6 +202,9 @@ update_env_value "NOMAD_DATA_PATH"          "$NOMAD_DATA_PATH"
 update_env_value "NOMAD_FRONTEND_HOST_PORT" "$NOMAD_FRONTEND_HOST_PORT"
 update_env_value "NOMAD_BACKEND_HOST_PORT"  "$NOMAD_BACKEND_HOST_PORT"
 update_env_value "NOMAD_SERVER_HOSTNAME"    "$NOMAD_SERVER_HOSTNAME"
+update_env_value "NOMAD_HOME_TIMEZONE"      "$NOMAD_HOME_TIMEZONE"
+update_env_value "NOMAD_USAGE_LOG_PATH"     "/appl/data/usage/usage.jsonl"
+update_env_value "NOMAD_USAGE_LOG_MAX_BYTES" "52428800"
 update_env_value "VITE_API_BASE_URL"        "http://${NOMAD_SERVER_HOSTNAME}:${NOMAD_BACKEND_HOST_PORT}"
 update_env_value "VITE_API_PORT"            "$NOMAD_BACKEND_HOST_PORT"
 update_env_value "FIRESTARR_IMAGE"          "$FIRESTARR_IMAGE"

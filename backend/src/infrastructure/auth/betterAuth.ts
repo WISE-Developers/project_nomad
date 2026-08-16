@@ -11,9 +11,45 @@ import Database from 'better-sqlite3';
 import { createHash } from 'crypto';
 import { resolve } from 'path';
 import { logger } from '../logging/index.js';
+import { sessionUsageTracker } from '../../api/middleware/betterAuthSession.js';
+import { createUsageEvent, UNKNOWN_USER } from '../../application/usage/usageEvent.js';
+import { getUsageLogger } from '../usage/index.js';
+import { EnvironmentService } from '../config/EnvironmentService.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let authInstance: any = null;
+
+/**
+ * Emits session.logout when Better Auth deletes a session.
+ *
+ * Never throws: signing out must not fail because the usage log could not be
+ * written.
+ */
+async function recordLogout(session: { id?: string; token?: string }): Promise<void> {
+  try {
+    const sessionId = session?.id ?? session?.token;
+    if (!sessionId) return;
+
+    // Null when the session predates this process - after a restart our memory
+    // of it is gone. Recorded as unknown rather than guessing at a name.
+    const email = sessionUsageTracker.noteEnded(sessionId);
+
+    await getUsageLogger().record(
+      createUsageEvent({
+        type: 'session.logout',
+        actor: email ?? UNKNOWN_USER,
+        zone: EnvironmentService.getInstance().getHomeTimezone(),
+        now: new Date(),
+        detail: {
+          explicit: true,
+          actor_resolved: email !== null,
+        },
+      })
+    );
+  } catch {
+    // Usage logging must never break sign-out.
+  }
+}
 
 /**
  * Build Better Auth social provider config from environment variables.
@@ -147,6 +183,18 @@ export async function initBetterAuth(): Promise<any> {
     },
     session: {
       modelName: 'auth_session',
+    },
+    databaseHooks: {
+      session: {
+        delete: {
+          // Sign-out. The hook hands back a session carrying only a userId,
+          // while every other event in the usage log is keyed on email - so the
+          // email is resolved from the tracker the session middleware populates.
+          after: async (session: { id?: string; token?: string }) => {
+            await recordLogout(session);
+          },
+        },
+      },
     },
   });
 

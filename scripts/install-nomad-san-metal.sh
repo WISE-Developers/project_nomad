@@ -56,6 +56,45 @@ NOMAD_SERVER_HOSTNAME="${NOMAD_SERVER_HOSTNAME:-localhost}"
 NOMAD_DATA_PATH="${NOMAD_DATA_PATH:-$FIRESTARR_DATASET_PATH}"
 SIMS_OUTPUT_PATH="${SIMS_OUTPUT_PATH:-$FIRESTARR_DATASET_PATH/sims}"
 
+# Home time zone (#332)
+#
+# IANA zone used to stamp local timestamps in the usage log. The backend is
+# fail-fast on this: it will not start if the key is missing or invalid, because
+# the container's own clock is UTC and a fallback would record every local time
+# silently wrong.
+#
+# An environment value pre-fills the answer; the operator can override it. With
+# no tty the same default is taken silently, so a piped install cannot hang and
+# cannot pick a different zone than an attended one would.
+NOMAD_HOME_TIMEZONE="${NOMAD_HOME_TIMEZONE:-America/Edmonton}"
+
+if [ -t 0 ]; then
+    echo ""
+    echo "  Home time zone"
+    echo "  Usage log entries are stamped with local wall-clock time using this zone."
+    echo "  Use an IANA zone name, e.g. America/Edmonton, America/Winnipeg, America/Toronto."
+    read -p "  Time zone [$NOMAD_HOME_TIMEZONE]: " _tz_reply
+    if [ -n "$_tz_reply" ]; then
+        NOMAD_HOME_TIMEZONE="$_tz_reply"
+    fi
+fi
+
+# Validate here, so a typo fails next to the mistake rather than at first boot.
+case "$NOMAD_HOME_TIMEZONE" in
+    [+-]*)
+        echo "ERROR: NOMAD_HOME_TIMEZONE is \"$NOMAD_HOME_TIMEZONE\", a fixed UTC offset." >&2
+        echo "       A fixed offset cannot observe DST. Use an IANA zone name," >&2
+        echo "       for example America/Edmonton." >&2
+        exit 1
+        ;;
+    */*) ;;
+    *)
+        echo "ERROR: NOMAD_HOME_TIMEZONE is \"$NOMAD_HOME_TIMEZONE\", which is not an" >&2
+        echo "       IANA zone name. Expected Area/Location, for example America/Edmonton." >&2
+        exit 1
+        ;;
+esac
+
 # FireSTARR binary source
 FIRESTARR_BINARY_RELEASE_REPO="https://github.com/CWFMF/firestarr-cpp/releases/download"
 FIRESTARR_BINARY_RELEASE_TAG="${FIRESTARR_BINARY_RELEASE_TAG:-unstable-latest}"
@@ -243,6 +282,9 @@ generate_env() {
     }
 
     update_env "NOMAD_DEPLOYMENT_MODE" "SAN"
+    update_env "NOMAD_HOME_TIMEZONE" "$NOMAD_HOME_TIMEZONE"
+    update_env "NOMAD_USAGE_LOG_PATH" "${FIRESTARR_DATASET_PATH}/usage/usage.jsonl"
+    update_env "NOMAD_USAGE_LOG_MAX_BYTES" "52428800"
     update_env "FIRESTARR_DATASET_PATH" "$FIRESTARR_DATASET_PATH"
     # .env is built key-by-key here, not copied from .env.example, so the
     # example default never reaches it (see #322 regression).

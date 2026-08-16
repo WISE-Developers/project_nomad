@@ -54,6 +54,10 @@ $NomadPort = if ($env:NOMAD_PORT) { $env:NOMAD_PORT } else { 4901 }
 $FrontendPort = if ($env:NOMAD_FRONTEND_HOST_PORT) { $env:NOMAD_FRONTEND_HOST_PORT } else { 3901 }
 $BackendPort = if ($env:NOMAD_BACKEND_HOST_PORT) { $env:NOMAD_BACKEND_HOST_PORT } else { 4901 }
 $Hostname = if ($env:NOMAD_SERVER_HOSTNAME) { $env:NOMAD_SERVER_HOSTNAME } else { "localhost" }
+# IANA zone used to stamp local timestamps in the usage log. REQUIRED by the
+# backend - it will not start without it. This installer is non-interactive, so
+# the value comes from the environment or falls back to Mountain time.
+$HomeTimezone = if ($env:NOMAD_HOME_TIMEZONE) { $env:NOMAD_HOME_TIMEZONE } else { "America/Edmonton" }
 $NomadDataPath = if ($env:NOMAD_DATA_PATH) { $env:NOMAD_DATA_PATH } else { $DatasetPath }
 $SimsPath = if ($env:SIMS_OUTPUT_PATH) { $env:SIMS_OUTPUT_PATH } else { "$DatasetPath\sims" }
 
@@ -302,6 +306,11 @@ function New-EnvironmentFile {
 
     # Core settings
     Update-EnvValue "NOMAD_DEPLOYMENT_MODE" "SAN"
+    Update-EnvValue "NOMAD_HOME_TIMEZONE" $HomeTimezone
+    # Container path: the dataset volume is mounted at /appl/data. A path
+    # outside a mount is destroyed whenever the container is recreated.
+    Update-EnvValue "NOMAD_USAGE_LOG_PATH" "/appl/data/usage/usage.jsonl"
+    Update-EnvValue "NOMAD_USAGE_LOG_MAX_BYTES" "52428800"
     Update-EnvValue "FIRESTARR_DATASET_PATH" $DatasetPath
     Update-EnvValue "FIRESTARR_EXECUTION_MODE" "docker"
     Update-EnvValue "NOMAD_DATA_PATH" $NomadDataPath

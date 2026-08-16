@@ -51,6 +51,18 @@ export interface IEnvironmentService {
   getOrDefault(key: string, defaultValue: string): string;
 
   /**
+   * Gets and validates the deployment's home IANA time zone.
+   *
+   * Used to stamp ts_local in the usage log. REQUIRED — no default, no fallback,
+   * because the container defaults to UTC and a fallback would silently produce
+   * a log whose local times are all wrong.
+   *
+   * @returns Valid IANA zone name, e.g. 'America/Edmonton'
+   * @throws Error if unset, empty, a fixed offset, or not a real IANA zone
+   */
+  getHomeTimezone(): string;
+
+  /**
    * Checks if running in production mode.
    *
    * @returns True if NODE_ENV === 'production'
