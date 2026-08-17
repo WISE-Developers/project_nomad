@@ -11,7 +11,7 @@ export { requestLogger } from './logging.js';
 export { simpleAuthMiddleware } from './simpleAuth.js';
 export { resolveAuthMode, type AuthMode } from './authMode.js';
 export { betterAuthSessionMiddleware } from './betterAuthSession.js';
-export { resolveUserId } from './resolveUserId.js';
+export { resolveUserId, resolveUserIdCandidates } from './resolveUserId.js';
 export {
   acnAuthMiddleware,
   requireRoles,
