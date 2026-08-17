@@ -23,24 +23,27 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Increment dev build counter
+      - name: Bump patch version
         id: version
         run: |
-          CURRENT=$(node -p "require('./frontend/package.json').version")
-          COUNT_FILE=".github/dev-build-count"
-          BUILD_NUMBER=$(( $(cat "$COUNT_FILE") + 1 ))
-          echo "$BUILD_NUMBER" > "$COUNT_FILE"
-          DEV_TAG="v${CURRENT}-dev.${BUILD_NUMBER}"
-          echo "current=${CURRENT}" >> $GITHUB_OUTPUT
-          echo "tag=${DEV_TAG}" >> $GITHUB_OUTPUT
-          echo "build_number=${BUILD_NUMBER}" >> $GITHUB_OUTPUT
+          # Every change on dev bumps PATCH (#348). The patch digit counts the
+          # changes accumulated on the current line: 0.5.13 means thirteen
+          # changes since 0.5.0. Merging to main then bumps MINOR, which is the
+          # release.
+          PREVIOUS=$(node -p "require('./frontend/package.json').version")
+          chmod +x .github/scripts/bump-version.sh
+          NEW_VERSION=$(.github/scripts/bump-version.sh patch)
+          echo "previous=${PREVIOUS}" >> $GITHUB_OUTPUT
+          echo "current=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=v${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "Dev version: v${PREVIOUS} -> v${NEW_VERSION}"
 
-      - name: Commit build counter
+      - name: Commit version bump
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .github/dev-build-count
-          git commit -m "chore: dev build ${{ steps.version.outputs.build_number }} [skip ci]"
+          git add frontend/package.json
+          git commit -m "chore: dev v${{ steps.version.outputs.current }} [skip ci]"
           git push
 
       - name: Install dependencies
@@ -67,6 +70,5 @@ jobs:
             **Unstable pre-release** — not for production use.
 
             Branch: `dev`
-            Build: `${{ steps.version.outputs.build_number }}`
-            Base version: `v${{ steps.version.outputs.current }}`
+            Version: `v${{ steps.version.outputs.current }}` (was `v${{ steps.version.outputs.previous }}`)
             Commit: `${{ github.sha }}`
