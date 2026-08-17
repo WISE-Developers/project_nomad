@@ -123,8 +123,18 @@ export class KnexModelRepository implements IModelRepository {
         .where('created_at', '<=', filter.createdBetween.end.toISOString());
     }
 
-    // Filter by user ownership
-    if (filter.userId) {
+    // Filter by user ownership.
+    //
+    // An array matches ANY of the given identities. This is the transitional
+    // dual-match for #346: models created before that change are keyed by
+    // display name, newer ones by email, and a user should not open Nomad to
+    // find their earlier work missing. An empty array is treated as no filter,
+    // never as "match everything".
+    if (Array.isArray(filter.userId)) {
+      if (filter.userId.length > 0) {
+        query = query.whereIn('user_id', filter.userId);
+      }
+    } else if (filter.userId) {
       query = query.where('user_id', filter.userId);
     }
 

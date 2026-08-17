@@ -18,8 +18,15 @@ export interface ModelFilter {
   readonly engineType?: EngineType;
   /** Filter by creation date range */
   readonly createdBetween?: TimeRange;
-  /** Filter by user ID */
-  readonly userId?: string;
+  /**
+   * Filter by user ID. An array matches ANY of the identities given.
+   *
+   * The array form exists for the #346 transition: model ownership is now
+   * stored as the oauth email, while models created earlier are keyed by
+   * display name. Matching both keeps a user's existing work visible without a
+   * data migration.
+   */
+  readonly userId?: string | string[];
   /** Filter by name (partial match) */
   readonly nameContains?: string;
 }

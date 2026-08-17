@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as fs from 'fs';
-import { asyncHandler, resolveUserId } from '../../middleware/index.js';
+import { asyncHandler, resolveUserId, resolveUserIdCandidates } from '../../middleware/index.js';
 import { logger } from '../../../infrastructure/logging/index.js';
 import {
   FireModel,
@@ -1258,8 +1258,11 @@ router.get(
   '/models',
   asyncHandler(async (req, res) => {
     const modelRepo = getModelRepository();
-    const userId = resolveUserId(req);
-    const filter = userId ? { userId } : {};
+    // Dual-match during the #346 transition: newer models are keyed by email,
+    // older ones by display name. Matching both keeps a user's earlier work
+    // visible without a data migration.
+    const userIds = resolveUserIdCandidates(req);
+    const filter = userIds.length > 0 ? { userId: userIds } : {};
     const result = await modelRepo.find(filter);
 
     // Get the workspace-aware engine for working directory lookup
@@ -1345,8 +1348,10 @@ router.delete(
       throw new NotFoundError('Model', id);
     }
 
-    const userId = resolveUserId(req);
-    if (userId && model.userId && model.userId !== userId) {
+    // Dual-match as above: a user must still be able to delete a model they
+    // created before ownership moved from display name to email (#346).
+    const userIds = resolveUserIdCandidates(req);
+    if (userIds.length > 0 && model.userId && !userIds.includes(model.userId)) {
       throw new ValidationError('Permission denied', [
         { field: 'userId', message: 'You can only delete your own models' },
       ]);
