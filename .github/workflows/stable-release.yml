@@ -94,12 +94,12 @@ jobs:
           generate_release_notes: true
           files: frontend/nomad-frontend-*.tgz
 
-      - name: Sync version back to dev and reset build counter
+      - name: Sync released version back to dev
         run: |
+          # dev continues patch-bumping from the released version: after v0.6.0
+          # the next change on dev is v0.6.1 (#348). There is no build counter
+          # to reset any more - dev carries real versions.
           git fetch origin dev
           git checkout dev
           git merge main -m "chore: sync v${{ steps.newversion.outputs.version }} from main [skip ci]"
-          echo "0" > .github/dev-build-count
-          git add .github/dev-build-count
-          git commit -m "chore: reset dev build counter after v${{ steps.newversion.outputs.version }} [skip ci]"
           git push origin dev

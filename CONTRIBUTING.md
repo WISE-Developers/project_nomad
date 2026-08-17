@@ -68,26 +68,28 @@ Then create a PR on GitHub targeting the `dev` branch.
 
 ### 5. What Happens After Merge
 
-When your PR is merged into `dev`, an **unstable pre-release** is automatically built and published to GitHub Releases. These are tagged like `v0.3.0-dev.47` and marked as pre-releases.
+When your change is merged into `dev`, the **patch** version is bumped and an **unstable pre-release** is automatically built and published to GitHub Releases, tagged with that version (e.g. `v0.13.2`) and marked as a pre-release.
 
 ## How Releases Work
 
 ### Unstable (dev)
 
-Every merge to `dev` triggers an automatic pre-release build. No version bump occurs in `package.json` — the artifact is tagged with a build number (`v0.3.0-dev.47`). These builds are for testing and are not intended for production.
+Every merge to `dev` bumps the **patch** version in `frontend/package.json` and publishes a pre-release. The patch digit counts the changes accumulated on the current line: `0.5.13` means thirteen changes since `0.5.0`. These builds are for testing and are not intended for production.
 
 ### Stable (main)
 
 When the maintainer is ready to cut a stable release, they open a PR from `dev` to `main`. On merge, the CI automation:
 
-1. Scans all commits in the PR for issue references (`#NNN`)
-2. Checks the labels on each referenced issue via the GitHub API
-3. Determines the version bump:
-   - Any issue labeled `feature` or `enhancement` → **minor** bump
-   - Only `bug`/`task` labels or no issue references → **patch** bump
-   - PR labeled `release:major` → **major** bump (manual override)
-4. Bumps the version in `frontend/package.json`
-5. Creates a git tag and GitHub Release with the built tarball
+1. Bumps the **minor** version in `frontend/package.json` — a merge to `main` *is* the release,
+   so `0.5.13` becomes `0.6.0`. The patch digit resets, and the minor digit identifies the
+   released line.
+   - Unless the PR is labeled `release:major`, which bumps **major** instead (manual override)
+2. Regenerates `CHANGES.md` from git history
+3. Creates a git tag and GitHub Release with the built tarball
+4. Merges the released version back into `dev`, so development continues from `0.6.1`
+
+The bump level does **not** depend on issue labels. It previously did, which meant a release's
+version was decided by how issues happened to be labelled rather than by the release itself (#348).
 
 ### LTS (lts)
 
