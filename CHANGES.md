@@ -4,10 +4,19 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.13.0
+## v0.13.1
+
+### 2026-08-17
+
+- [`fc6a92a`](https://github.com/WISE-Developers/project_nomad/commit/fc6a92ae2812df2a822485fdb70f41d5362074ba) Merge pull request #347 from WISE-Developers/dev — *Franco Nogarin, 07:08*
+- [`463bbad`](https://github.com/WISE-Developers/project_nomad/commit/463bbad24980a1c8932698e5d8e6bf429e2d8f28) chore: dev build 1 [skip ci] — *github-actions[bot], 11:47*
+- [`b02dd19`](https://github.com/WISE-Developers/project_nomad/commit/b02dd196b0541132e735273b65cb32f0be484ac4) Merge fix/346-identity-split: one identity per person in the usage log — *Franco Nogarin, 05:47*
+- [`8f3ad99`](https://github.com/WISE-Developers/project_nomad/commit/8f3ad99dcfb1c5ac686eea428f4e0c35d7104bf6) fix: key model ownership on email, matching display name during transition — *Franco Nogarin, 05:33*
 
 ### 2026-08-16
 
+- [`7508e32`](https://github.com/WISE-Developers/project_nomad/commit/7508e32a88233d4c99a420d9a4259cf9387532f2) chore: reset dev build counter after v0.13.0 [skip ci] — *github-actions[bot], 23:18*
+- [`ae4e98b`](https://github.com/WISE-Developers/project_nomad/commit/ae4e98bdc48373ffce5979d9783d75b2e81416a6) chore: release v0.13.0 [skip ci] — *github-actions[bot], 23:18*
 - [`47dcba2`](https://github.com/WISE-Developers/project_nomad/commit/47dcba252e9368ea275d995e1e0e341b4adf25b1) Merge pull request #345 from WISE-Developers/dev — *Franco Nogarin, 17:17*
 
 ### 2026-08-15
