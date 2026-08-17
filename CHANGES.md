@@ -4,10 +4,16 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.13.1
+## v0.14.0
 
 ### 2026-08-17
 
+- [`600ef4b`](https://github.com/WISE-Developers/project_nomad/commit/600ef4b63ffd751f1645d94ed5d508cf7f7d6959) Merge pull request #349 from WISE-Developers/dev — *Franco Nogarin, 10:12*
+- [`f8591d1`](https://github.com/WISE-Developers/project_nomad/commit/f8591d138d9b08a5607ce8a8c31fd15a11312089) chore: dev v0.13.2 [skip ci] — *github-actions[bot], 13:37*
+- [`6bc87ee`](https://github.com/WISE-Developers/project_nomad/commit/6bc87eedc936331a06e25db1135b655fc37913af) Merge fix/348-versioning-scheme: patch on dev, minor on main — *Franco Nogarin, 07:37*
+- [`7db168a`](https://github.com/WISE-Developers/project_nomad/commit/7db168a111e2dd4945709730bcc19f55d9f5ec45) fix: implement the intended versioning scheme — *Franco Nogarin, 07:31*
+- [`2388513`](https://github.com/WISE-Developers/project_nomad/commit/238851399914bd838624e858c0e962790e5ef826) chore: reset dev build counter after v0.13.1 [skip ci] — *github-actions[bot], 13:09*
+- [`94874e1`](https://github.com/WISE-Developers/project_nomad/commit/94874e12e727a4f043e04df0888079ce982a390b) chore: release v0.13.1 [skip ci] — *github-actions[bot], 13:09*
 - [`fc6a92a`](https://github.com/WISE-Developers/project_nomad/commit/fc6a92ae2812df2a822485fdb70f41d5362074ba) Merge pull request #347 from WISE-Developers/dev — *Franco Nogarin, 07:08*
 - [`463bbad`](https://github.com/WISE-Developers/project_nomad/commit/463bbad24980a1c8932698e5d8e6bf429e2d8f28) chore: dev build 1 [skip ci] — *github-actions[bot], 11:47*
 - [`b02dd19`](https://github.com/WISE-Developers/project_nomad/commit/b02dd196b0541132e735273b65cb32f0be484ac4) Merge fix/346-identity-split: one identity per person in the usage log — *Franco Nogarin, 05:47*
