@@ -23,6 +23,7 @@ import {
   JobStatusToast,
   NotificationPermissionBanner,
 } from './features/Notifications';
+import { resolveIgnitionLatitude } from './features/ModelSetup/utils/ignitionLatitude';
 import { runModel } from './services/api';
 import { registerServiceWorker } from './services/serviceWorker';
 import type { ModelResultsResponse } from './features/ModelReview/types';
@@ -229,9 +230,7 @@ function AppContent() {
             source: 'raw_weather',
             rawWeatherContent: await readFileContent(data.weather.rawWeatherFile),
             startingCodes: data.weather.startingCodes,
-            latitude: data.geometry.features[0]?.geometry?.type === 'Point'
-              ? (data.geometry.features[0].geometry.coordinates as [number, number])[1]
-              : data.geometry.bounds?.[1],
+            latitude: resolveIgnitionLatitude(data.geometry),
           };
           break;
         case 'spotwx': {
@@ -252,10 +251,7 @@ function AppContent() {
             source: 'raw_weather',
             rawWeatherContent: normalizeSpotwxToRawWeather(spotwxRaw),
             startingCodes: data.weather.startingCodes,
-            latitude:
-              data.geometry.features[0]?.geometry?.type === 'Point'
-                ? (data.geometry.features[0].geometry.coordinates as [number, number])[1]
-                : data.geometry.bounds?.[1],
+            latitude: resolveIgnitionLatitude(data.geometry),
           };
           break;
         }
