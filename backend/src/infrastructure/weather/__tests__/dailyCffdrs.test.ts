@@ -136,8 +136,12 @@ describe('findStartingCodeCandidate', () => {
   });
 
   it('excludes a daily reading exactly at ignition — strictly before', () => {
+    // A single row, so nothing earlier can be returned instead. This isolates
+    // the boundary: the reading is at a daily hour and carries codes, and is
+    // rejected solely for being at ignition rather than before it.
     const atIgnition = new Date('2026-08-03T19:06:00Z');
-    expect(findStartingCodeCandidate(vitasRows(), atIgnition, ZONE)).toBeNull();
+    const rows = [daily('2026-08-03T19:06:00Z', 84.65, 20.72, 424.9)];
+    expect(findStartingCodeCandidate(rows, atIgnition, ZONE)).toBeNull();
   });
 
   it('returns null when no daily reading precedes ignition', () => {

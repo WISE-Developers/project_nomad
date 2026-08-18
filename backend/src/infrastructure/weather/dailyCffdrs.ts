@@ -64,8 +64,14 @@ function hasCodes(row: CffdrsRow): boolean {
  * Returns false when every row has codes (a conforming firestarr_csv) and false
  * when no row has codes (nothing to recover — a different failure).
  */
-export function hasDailyOnlyCffdrs(_rows: CffdrsRow[]): boolean {
-  throw new Error('not implemented');
+export function hasDailyOnlyCffdrs(rows: CffdrsRow[]): boolean {
+  if (rows.length === 0) return false;
+
+  const withCodes = rows.filter(hasCodes).length;
+
+  // Both sides must be non-empty. All-codes is a conforming firestarr_csv;
+  // no-codes is a different failure with nothing to recover.
+  return withCodes > 0 && withCodes < rows.length;
 }
 
 /**
@@ -79,14 +85,34 @@ export function hasDailyOnlyCffdrs(_rows: CffdrsRow[]): boolean {
  * Returns null when no such reading exists — the caller must not invent one.
  */
 export function findStartingCodeCandidate(
-  _rows: CffdrsRow[],
-  _ignition: Date,
-  _timezone: string,
+  rows: CffdrsRow[],
+  ignition: Date,
+  timezone: string,
 ): StartingCodeCandidate | null {
-  throw new Error('not implemented');
-}
+  let best: CffdrsRow | null = null;
 
-// Referenced by the implementation; declared above to keep the contract visible.
-void DAILY_READING_LOCAL_HOURS;
-void hasCodes;
-void DateTime;
+  for (const row of rows) {
+    if (!hasCodes(row)) continue;
+    if (row.datetime.getTime() >= ignition.getTime()) continue;
+
+    const local = DateTime.fromJSDate(row.datetime, { zone: timezone });
+    if (!DAILY_READING_LOCAL_HOURS.includes(local.hour)) continue;
+
+    if (best === null || row.datetime.getTime() > best.datetime.getTime()) {
+      best = row;
+    }
+  }
+
+  if (best === null) return null;
+
+  const local = DateTime.fromJSDate(best.datetime, { zone: timezone });
+
+  return {
+    ffmc: best.ffmc,
+    dmc: best.dmc,
+    dc: best.dc,
+    observedAt: best.datetime,
+    // Minutes are deliberately dropped — the reading names an hour, not an instant.
+    localLabel: `${local.toFormat('yyyy-MM-dd, HH')}00`,
+  };
+}
