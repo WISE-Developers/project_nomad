@@ -42,15 +42,6 @@ export interface StartingCodeCandidate {
   localLabel: string;
 }
 
-/**
- * Local hours that count as the daily CFFDRS reading.
- *
- * Daily codes are calculated at noon local standard time. Under daylight time
- * that lands on local hour 13, so both are accepted. Minutes are ignored
- * entirely — stations write at :00, :05, :06 or :10 depending on polling.
- */
-const DAILY_READING_LOCAL_HOURS = [12, 13];
-
 /** True when all three codes on a row are usable numbers. */
 function hasCodes(row: CffdrsRow): boolean {
   return (
@@ -75,6 +66,43 @@ export function hasDailyOnlyCffdrs(rows: CffdrsRow[]): boolean {
 }
 
 /**
+ * Derives the hour-of-day at which this file records its daily reading.
+ *
+ * Daily codes are calculated at noon LST, but we cannot look for local noon:
+ * the CSV Date column is parsed with parseTimestampInZone (WeatherService.ts:23),
+ * which interprets the naive timestamp IN the model timezone. A row written
+ * "19:06" therefore reads back as local hour 19 no matter which zone is
+ * declared, so a hardcoded noon never matches. See #354.
+ *
+ * The file already tells us. The hour that repeatedly carries codes IS the
+ * daily reading, under either reading of the Date column. Ties resolve to the
+ * first hour seen, which keeps the result deterministic.
+ *
+ * Returns null when no row carries codes.
+ */
+function deriveDailyHour(rows: CffdrsRow[], timezone: string): number | null {
+  const countByHour = new Map<number, number>();
+
+  for (const row of rows) {
+    if (!hasCodes(row)) continue;
+    const { hour } = DateTime.fromJSDate(row.datetime, { zone: timezone });
+    if (!Number.isFinite(hour)) continue;
+    countByHour.set(hour, (countByHour.get(hour) ?? 0) + 1);
+  }
+
+  let dailyHour: number | null = null;
+  let best = 0;
+  for (const [hour, count] of countByHour) {
+    if (count > best) {
+      best = count;
+      dailyHour = hour;
+    }
+  }
+
+  return dailyHour;
+}
+
+/**
  * Finds the daily reading to offer as starting codes: the last row at a daily
  * local hour that falls STRICTLY BEFORE ignition.
  *
@@ -89,14 +117,17 @@ export function findStartingCodeCandidate(
   ignition: Date,
   timezone: string,
 ): StartingCodeCandidate | null {
+  const dailyHour = deriveDailyHour(rows, timezone);
+  if (dailyHour === null) return null;
+
   let best: CffdrsRow | null = null;
 
   for (const row of rows) {
     if (!hasCodes(row)) continue;
     if (row.datetime.getTime() >= ignition.getTime()) continue;
 
-    const local = DateTime.fromJSDate(row.datetime, { zone: timezone });
-    if (!DAILY_READING_LOCAL_HOURS.includes(local.hour)) continue;
+    const { hour } = DateTime.fromJSDate(row.datetime, { zone: timezone });
+    if (hour !== dailyHour) continue;
 
     if (best === null || row.datetime.getTime() > best.datetime.getTime()) {
       best = row;

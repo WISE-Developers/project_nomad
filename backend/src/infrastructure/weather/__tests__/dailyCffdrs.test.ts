@@ -16,6 +16,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { DateTime } from 'luxon';
 import {
   hasDailyOnlyCffdrs,
   findStartingCodeCandidate,
@@ -39,17 +40,43 @@ function daily(
   return { datetime: new Date(iso), ffmc, dmc, dc };
 }
 
-/** Vita's file, reduced to the rows that matter. */
+/**
+ * Builds a row the way the parse path really builds one.
+ *
+ * WeatherService reads the CSV Date column with parseTimestampInZone
+ * (WeatherService.ts:23), which is DateTime.fromSQL(raw, { zone }) — the naive
+ * timestamp is interpreted IN the model timezone. So a row written
+ * "2026-08-01 19:06:00" reads back as local hour 19, whatever the zone is.
+ *
+ * The earlier fixture here built genuine UTC instants and so tested a shape the
+ * parser never produces. See #354 for the underlying contract gap.
+ */
+function row(csvTimestamp: string, codes?: [number, number, number]): CffdrsRow {
+  const [ffmc, dmc, dc] = codes ?? [NaN, NaN, NaN];
+  return {
+    datetime: DateTime.fromSQL(csvTimestamp, { zone: ZONE }).toJSDate(),
+    ffmc,
+    dmc,
+    dc,
+  };
+}
+
+/** An instant from a naive local timestamp, as the request's timeRange.start arrives. */
+function localInstant(csvTimestamp: string, zone: string = ZONE): Date {
+  return DateTime.fromSQL(csvTimestamp, { zone }).toJSDate();
+}
+
+/** Vita's file, reduced to the rows that matter — as parsed, not as idealised. */
 function vitasRows(): CffdrsRow[] {
   return [
-    blank('2026-08-01T06:06:00Z'), // 00:06 local
-    daily('2026-08-01T19:06:00Z', 81.66, 19.22, 412.67),
-    blank('2026-08-02T06:06:00Z'),
-    daily('2026-08-02T19:06:00Z', 76.3, 18.52, 418.6),
-    blank('2026-08-03T06:06:00Z'),
-    daily('2026-08-03T19:06:00Z', 84.65, 20.72, 424.9),
-    blank('2026-08-04T06:06:00Z'),
-    daily('2026-08-04T19:06:00Z', 88.44, 23.66, 432.05),
+    row('2026-08-01 00:06:00'),
+    row('2026-08-01 19:06:00', [81.66, 19.22, 412.67]),
+    row('2026-08-02 00:06:00'),
+    row('2026-08-02 19:06:00', [76.3, 18.52, 418.6]),
+    row('2026-08-03 00:06:00'),
+    row('2026-08-03 19:06:00', [84.65, 20.72, 424.9]),
+    row('2026-08-04 00:06:00'),
+    row('2026-08-04 19:06:00', [88.44, 23.66, 432.05]),
   ];
 }
 
@@ -88,7 +115,8 @@ describe('hasDailyOnlyCffdrs', () => {
 });
 
 describe('findStartingCodeCandidate', () => {
-  const ignition = new Date('2026-08-04T18:00:00Z'); // 12:00 local MDT
+  // Her ignition: 2026-08-04 12:00 local.
+  const ignition = localInstant('2026-08-04 12:00:00');
 
   it("returns Aug 3's codes for vita's Aug 4 noon ignition, NOT Aug 4's", () => {
     const found = findStartingCodeCandidate(vitasRows(), ignition, ZONE);
@@ -97,37 +125,49 @@ describe('findStartingCodeCandidate', () => {
     expect(found!.ffmc).toBe(84.65);
     expect(found!.dmc).toBe(20.72);
     expect(found!.dc).toBe(424.9);
-    expect(found!.observedAt.toISOString()).toBe('2026-08-03T19:06:00.000Z');
+    expect(found!.observedAt).toEqual(localInstant('2026-08-03 19:06:00'));
+  });
+
+  it('derives the daily hour from the file rather than assuming noon', () => {
+    // Nothing here sits at hour 12 or 13. The file's own rhythm is hour 19,
+    // and that is what makes these rows the daily readings.
+    const found = findStartingCodeCandidate(vitasRows(), ignition, ZONE);
+    expect(found!.ffmc).toBe(84.65);
+  });
+
+  it('works at any consistent hour — a station that writes its daily at 09:00', () => {
+    const rows = [
+      row('2026-08-01 09:00:00', [81.66, 19.22, 412.67]),
+      row('2026-08-02 03:00:00'),
+      row('2026-08-02 09:00:00', [84.65, 20.72, 424.9]),
+    ];
+    const found = findStartingCodeCandidate(rows, ignition, ZONE);
+    expect(found!.ffmc).toBe(84.65);
+  });
+
+  it('ignores a stray coded row that is off the file rhythm', () => {
+    // Four readings at hour 19 establish the rhythm. One row at 09:06 carries
+    // codes but is not the daily reading, and must not be offered.
+    const rows = [
+      ...vitasRows(),
+      row('2026-08-03 09:06:00', [99.9, 99.9, 99.9]),
+    ];
+    const found = findStartingCodeCandidate(rows, ignition, ZONE);
+    expect(found!.ffmc).toBe(84.65);
   });
 
   it('labels the reading in local time for a human to recognise', () => {
     const found = findStartingCodeCandidate(vitasRows(), ignition, ZONE);
-    expect(found!.localLabel).toBe('2026-08-03, 1300');
+    expect(found!.localLabel).toBe('2026-08-03, 1900');
   });
 
-  it('matches on local hour and ignores minutes entirely', () => {
-    // Stations write at :00, :05, :06, :10 depending on polling. All are the
-    // same daily reading.
+  it('ignores minutes entirely — stations poll at :00, :05, :06, :30', () => {
     for (const minute of ['00', '05', '06', '30', '59']) {
-      const rows = [daily(`2026-08-03T19:${minute}:00Z`, 84.65, 20.72, 424.9)];
+      const rows = [row(`2026-08-03 19:${minute}:00`, [84.65, 20.72, 424.9])];
       const found = findStartingCodeCandidate(rows, ignition, ZONE);
       expect(found, `minute :${minute} should match`).not.toBeNull();
       expect(found!.ffmc).toBe(84.65);
     }
-  });
-
-  it('accepts local hour 12 as well as 13 (standard time vs daylight time)', () => {
-    // 18:06Z = 12:06 MDT
-    const rows = [daily('2026-08-03T18:06:00Z', 84.65, 20.72, 424.9)];
-    const found = findStartingCodeCandidate(rows, ignition, ZONE);
-    expect(found).not.toBeNull();
-    expect(found!.ffmc).toBe(84.65);
-  });
-
-  it('ignores a populated row that is not at a daily hour', () => {
-    // 15:06Z = 09:06 local. Carries codes, but it is not the daily reading.
-    const rows = [daily('2026-08-03T15:06:00Z', 99.9, 99.9, 99.9)];
-    expect(findStartingCodeCandidate(rows, ignition, ZONE)).toBeNull();
   });
 
   it('takes the LAST daily reading before ignition, not the first', () => {
@@ -137,30 +177,38 @@ describe('findStartingCodeCandidate', () => {
 
   it('excludes a daily reading exactly at ignition — strictly before', () => {
     // A single row, so nothing earlier can be returned instead. This isolates
-    // the boundary: the reading is at a daily hour and carries codes, and is
-    // rejected solely for being at ignition rather than before it.
-    const atIgnition = new Date('2026-08-03T19:06:00Z');
-    const rows = [daily('2026-08-03T19:06:00Z', 84.65, 20.72, 424.9)];
-    expect(findStartingCodeCandidate(rows, atIgnition, ZONE)).toBeNull();
+    // the boundary: the row is on rhythm and carries codes, and is rejected
+    // solely for being at ignition rather than before it.
+    const at = localInstant('2026-08-03 19:06:00');
+    const rows = [row('2026-08-03 19:06:00', [84.65, 20.72, 424.9])];
+    expect(findStartingCodeCandidate(rows, at, ZONE)).toBeNull();
   });
 
   it('returns null when no daily reading precedes ignition', () => {
-    const earlyIgnition = new Date('2026-08-01T12:00:00Z');
-    expect(findStartingCodeCandidate(vitasRows(), earlyIgnition, ZONE)).toBeNull();
+    const early = localInstant('2026-08-01 12:00:00');
+    expect(findStartingCodeCandidate(vitasRows(), early, ZONE)).toBeNull();
   });
 
-  it('skips daily-hour rows whose codes are missing', () => {
+  it('returns null when no row carries codes at all', () => {
+    const rows = [row('2026-08-01 19:06:00'), row('2026-08-02 19:06:00')];
+    expect(findStartingCodeCandidate(rows, ignition, ZONE)).toBeNull();
+  });
+
+  it('skips rows on the rhythm whose codes are missing', () => {
     const rows = [
-      daily('2026-08-01T19:06:00Z', 81.66, 19.22, 412.67),
-      blank('2026-08-03T19:06:00Z'), // daily hour, no codes — not usable
+      row('2026-08-01 19:06:00', [81.66, 19.22, 412.67]),
+      row('2026-08-03 19:06:00'), // on rhythm, no codes — not usable
     ];
     const found = findStartingCodeCandidate(rows, ignition, ZONE);
     expect(found!.ffmc).toBe(81.66);
   });
 
-  it('resolves the daily hour in the supplied zone, not the server zone', () => {
-    // The same instants read in Asia/Tokyo are not local noon, so nothing matches.
+  it('labels in the supplied zone — the label moves, the reading does not', () => {
+    // Detection no longer depends on the zone: every row shifts together, so
+    // the rhythm survives. Only the human-facing label is zone-dependent.
     const found = findStartingCodeCandidate(vitasRows(), ignition, 'Asia/Tokyo');
-    expect(found).toBeNull();
+    expect(found).not.toBeNull();
+    expect(found!.ffmc).toBe(84.65);
+    expect(found!.localLabel).toBe('2026-08-04, 1000');
   });
 });
