@@ -14,6 +14,7 @@ import {
   type StartingCodeCandidate,
 } from '../weatherPreflight.js';
 import type { ModelSetupData } from '../../types/index.js';
+import { resolveZonedInstant } from '../zonedInstant.js';
 
 const CANDIDATE: StartingCodeCandidate = {
   ffmc: 84.65,
@@ -73,14 +74,19 @@ describe('buildIgnitionInstant', () => {
     expect(iso).toMatch(/Z$|[+-]\d{2}:\d{2}$/);
   });
 
-  it('matches what App.tsx sends as timeRange.start, byte for byte', () => {
-    // Deliberate: App.tsx:189 parses this naive string in the BROWSER zone,
-    // which is wrong (#355). The gate reproduces that exactly so the reading
-    // it offers cannot disagree with the run that follows. When #355 is fixed,
-    // both move together and this test is what proves it.
-    const { startDate, startTime } = baseData().temporal;
-    const appTsx = new Date(`${startDate}T${startTime}`).toISOString();
-    expect(buildIgnitionInstant(baseData().temporal)).toBe(appTsx);
+  it('resolves the wall clock in the MODEL timezone, not the browser zone', () => {
+    // 2026-08-04 12:00 in America/Edmonton (MDT, UTC-6) is 18:00Z. Before #355
+    // this depended on where the operator was sitting.
+    expect(buildIgnitionInstant(baseData().temporal)).toBe('2026-08-04T18:00:00.000Z');
+  });
+
+  it('agrees with what App.tsx sends as timeRange.start', () => {
+    // Both now go through resolveZonedInstant, so the codes offered cannot
+    // disagree with the run that follows.
+    const { startDate, startTime, timezone } = baseData().temporal;
+    expect(buildIgnitionInstant(baseData().temporal)).toBe(
+      resolveZonedInstant(startDate, startTime, timezone).toISOString(),
+    );
   });
 });
 

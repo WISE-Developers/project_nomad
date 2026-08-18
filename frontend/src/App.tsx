@@ -24,6 +24,7 @@ import {
   NotificationPermissionBanner,
 } from './features/Notifications';
 import { resolveIgnitionLatitude } from './features/ModelSetup/utils/ignitionLatitude';
+import { resolveZonedInstant } from './features/ModelSetup/utils/zonedInstant';
 import { runModel } from './services/api';
 import { registerServiceWorker } from './services/serviceWorker';
 import type { ModelResultsResponse } from './features/ModelReview/types';
@@ -187,7 +188,12 @@ function AppContent() {
       }
 
       // Build time range
-      const startDateTime = new Date(`${data.temporal.startDate}T${data.temporal.startTime}`);
+      // Resolved in the model's own timezone, never the browser's (#355).
+      const startDateTime = resolveZonedInstant(
+        data.temporal.startDate,
+        data.temporal.startTime,
+        data.temporal.timezone,
+      );
       const endDateTime = new Date(startDateTime.getTime() + data.temporal.durationHours * 60 * 60 * 1000);
 
       // Helper to read file content
