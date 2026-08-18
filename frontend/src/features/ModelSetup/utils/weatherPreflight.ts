@@ -18,6 +18,7 @@
  */
 
 import type { ModelSetupData, TemporalData, WeatherData } from '../types/index.js';
+import { resolveZonedInstant } from './zonedInstant.js';
 
 /** The reading recovered by the backend, as it arrives over JSON. */
 export interface StartingCodeCandidate {
@@ -45,18 +46,15 @@ export function needsPreflight(weather: WeatherData): boolean {
 }
 
 /**
- * The ignition instant, built exactly as App.tsx:189 builds timeRange.start.
+ * The ignition instant, resolved in the MODEL's timezone.
  *
- * That line parses a naive date-time string, which JavaScript reads in the
- * BROWSER's zone rather than the model's declared timezone — filed as #355.
- * This reproduces the bug deliberately: the pre-flight answer depends on which
- * daily reading precedes ignition, so if the gate computed a more correct
- * instant than the run that follows it, the codes offered could disagree with
- * the codes the model actually needed. One consistent error beats two
- * inconsistent ones. When #355 is fixed, both move together.
+ * Previously this deliberately reproduced App.tsx:189's browser-zone bug so the
+ * pre-flight answer could not disagree with the run that followed it. #355 is
+ * now fixed, and both sites moved together — App.tsx and this helper share
+ * resolveZonedInstant, so they cannot drift apart again.
  */
 export function buildIgnitionInstant(temporal: TemporalData): string {
-  return new Date(`${temporal.startDate}T${temporal.startTime}`).toISOString();
+  return resolveZonedInstant(temporal.startDate, temporal.startTime, temporal.timezone).toISOString();
 }
 
 /**
