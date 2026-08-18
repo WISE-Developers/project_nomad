@@ -147,6 +147,28 @@ export function validateWeatherData(weatherData: WeatherHourlyData[]): {
   for (let i = 0; i < weatherData.length; i++) {
     const w = weatherData[i];
 
+    // Finiteness must be checked BEFORE any range check. Every comparison with
+    // NaN is false, so `w.ffmc < 0 || w.ffmc > 101` calls NaN valid. That is how
+    // NaN reached FireSTARR on 2026-08-17 and segfaulted it (exit 139). See #350.
+    const numericFields: Array<[string, number]> = [
+      ['temp', w.temp],
+      ['rh', w.rh],
+      ['ws', w.ws],
+      ['wd', w.wd],
+      ['precip', w.precip],
+      ['ffmc', w.ffmc],
+      ['dmc', w.dmc],
+      ['dc', w.dc],
+      ['isi', w.isi],
+      ['bui', w.bui],
+      ['fwi', w.fwi],
+    ];
+    for (const [name, value] of numericFields) {
+      if (!Number.isFinite(value)) {
+        issues.push(`Row ${i}: ${name} is ${value} — not a finite number`);
+      }
+    }
+
     if (w.rh < 0 || w.rh > 100) {
       issues.push(`Row ${i}: RH ${w.rh} out of range [0-100]`);
     }
