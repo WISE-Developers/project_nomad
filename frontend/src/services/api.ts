@@ -374,3 +374,36 @@ export async function updateNotificationPreferences(
     body: JSON.stringify(data),
   });
 }
+
+/**
+ * Pre-flight weather inspection — issue #351.
+ *
+ * Read-only. Detects the daily-only CFFDRS shape and returns the starting codes
+ * already present in the user's file. Creates no model and no job, so declining
+ * the offer leaves nothing behind to clean up.
+ */
+export interface PreflightRequest {
+  timezone: string;
+  timeRange: { start: string; end: string };
+  weather: { source: 'firestarr_csv' | 'raw_weather' | 'spotwx'; firestarrCsvContent?: string };
+}
+
+export interface PreflightCandidate {
+  ffmc: number;
+  dmc: number;
+  dc: number;
+  observedAt: string;
+  localLabel: string;
+}
+
+export interface PreflightResponse {
+  dailyOnlyCffdrs: boolean;
+  candidate: PreflightCandidate | null;
+}
+
+export async function preflightWeather(body: PreflightRequest): Promise<PreflightResponse> {
+  return request<PreflightResponse>('/models/preflight', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
