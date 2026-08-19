@@ -20,6 +20,9 @@ const CANDIDATE: StartingCodeCandidate = {
   localLabel: '2026-08-03, 1900',
 };
 
+const MISMATCH = { dailyHour: 19, hoursFromNoon: 6, likelyZoneMismatch: true };
+const ON_CONTRACT = { dailyHour: 13, hoursFromNoon: 0, likelyZoneMismatch: false };
+
 describe('StartingCodesModal', () => {
   it('states the actual numbers found, not a vague reassurance', () => {
     render(<StartingCodesModal candidate={CANDIDATE} onConfirm={vi.fn()} onCancel={vi.fn()} />);
@@ -72,6 +75,68 @@ describe('StartingCodesModal', () => {
       const text = document.body.textContent ?? '';
       expect(text).toMatch(/before/i);
       expect(screen.getByRole('button', { name: /cancel/i })).toBeTruthy();
+    });
+  });
+
+  describe('timezone contract (#354)', () => {
+    it('warns when the file sits away from local noon, naming the gap', () => {
+      // Daily codes are recorded at noon local. Hers read 19:00 in Edmonton —
+      // six hours ahead, which is exactly UTC.
+      render(
+        <StartingCodesModal
+          candidate={CANDIDATE}
+          rhythm={MISMATCH}
+          timezone="America/Edmonton"
+          onConfirm={vi.fn()}
+          onCancel={vi.fn()}
+        />,
+      );
+
+      const text = document.body.textContent ?? '';
+      expect(text).toMatch(/6 hours ahead/i);
+      expect(text).toMatch(/America\/Edmonton/);
+    });
+
+    it('names UTC as the likely cause when the gap matches the zone offset', () => {
+      render(
+        <StartingCodesModal
+          candidate={CANDIDATE}
+          rhythm={MISMATCH}
+          timezone="America/Edmonton"
+          onConfirm={vi.fn()}
+          onCancel={vi.fn()}
+        />,
+      );
+
+      expect(document.body.textContent).toMatch(/UTC/);
+    });
+
+    it('says nothing about timezones when the file is on contract', () => {
+      render(
+        <StartingCodesModal
+          candidate={CANDIDATE}
+          rhythm={ON_CONTRACT}
+          timezone="America/Edmonton"
+          onConfirm={vi.fn()}
+          onCancel={vi.fn()}
+        />,
+      );
+
+      expect(document.body.textContent).not.toMatch(/hours ahead|hours behind/i);
+    });
+
+    it('says nothing when there is no rhythm to report', () => {
+      render(
+        <StartingCodesModal
+          candidate={CANDIDATE}
+          rhythm={null}
+          timezone="America/Edmonton"
+          onConfirm={vi.fn()}
+          onCancel={vi.fn()}
+        />,
+      );
+
+      expect(document.body.textContent).not.toMatch(/hours ahead|hours behind/i);
     });
   });
 });

@@ -11,7 +11,9 @@ import { getWeatherService } from '../../infrastructure/weather/WeatherService.j
 import {
   hasDailyOnlyCffdrs,
   findStartingCodeCandidate,
+  describeDailyRhythm,
   type StartingCodeCandidate,
+  type DailyRhythm,
 } from '../../infrastructure/weather/dailyCffdrs.js';
 import type { WeatherConfig } from '../interfaces/weather.js';
 import { ValidationError } from '../../domain/errors/index.js';
@@ -21,6 +23,13 @@ export interface WeatherPreflightResult {
   dailyOnlyCffdrs: boolean;
   /** The reading to offer, or null when none precedes ignition. Never invented. */
   candidate: StartingCodeCandidate | null;
+  /**
+   * How the file's daily rhythm compares with the contract — the Date column is
+   * local time in the model's timezone, and daily codes are recorded at noon
+   * (#354). Null for a conforming file, which has no daily rhythm to measure
+   * because every row carries codes.
+   */
+  rhythm: DailyRhythm | null;
 }
 
 /**
@@ -38,7 +47,7 @@ export async function preflightWeather(
   // Only firestarr_csv can have this shape. raw_weather carries explicit
   // starting codes already, and spotwx is generated rather than uploaded.
   if (weather.source !== 'firestarr_csv') {
-    return { dailyOnlyCffdrs: false, candidate: null };
+    return { dailyOnlyCffdrs: false, candidate: null, rhythm: null };
   }
 
   let rows;
@@ -58,11 +67,14 @@ export async function preflightWeather(
   }
 
   if (!hasDailyOnlyCffdrs(rows)) {
-    return { dailyOnlyCffdrs: false, candidate: null };
+    return { dailyOnlyCffdrs: false, candidate: null, rhythm: null };
   }
 
   return {
     dailyOnlyCffdrs: true,
     candidate: findStartingCodeCandidate(rows, ignition, timezone),
+    // Only meaningful for a daily-only file. When every row carries codes there
+    // is no rhythm to measure — every hour looks like the daily reading.
+    rhythm: describeDailyRhythm(rows, timezone),
   };
 }

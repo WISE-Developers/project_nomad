@@ -147,3 +147,65 @@ export function findStartingCodeCandidate(
     localLabel: `${local.toFormat('yyyy-MM-dd, HH')}00`,
   };
 }
+
+/**
+ * The hours at which a conforming file records its daily reading.
+ *
+ * The contract (#354) is that the CSV Date column carries LOCAL time in the
+ * model's timezone. Daily CFFDRS codes are calculated at noon LST — local hour
+ * 12, or 13 where daylight time is in force.
+ */
+const CONTRACT_DAILY_HOURS = [12, 13];
+
+/** What a file's own rhythm says about whether its timestamps match the declared zone. */
+export interface DailyRhythm {
+  /** The local hour that repeatedly carries codes. */
+  dailyHour: number;
+  /**
+   * Signed hours between that hour and noon, wrapped to the shorter way round
+   * the clock. Zero means on-contract. Six means the timestamps run six hours
+   * ahead of the zone the model declares.
+   */
+  hoursFromNoon: number;
+  /** True when the file's rhythm does not sit at noon — the declared zone is suspect. */
+  likelyZoneMismatch: boolean;
+}
+
+/** Wraps an hour difference into [-12, 12] so 01:00 reads as -11, not +13. */
+function wrapHours(difference: number): number {
+  if (difference > 12) return difference - 24;
+  if (difference < -12) return difference + 24;
+  return difference;
+}
+
+/**
+ * Measures a file's daily rhythm against the contract.
+ *
+ * A conforming file records its daily codes at local noon. When they land
+ * elsewhere the timestamps are not on the clock the model declared, and the
+ * distance is the offset — which is usually enough to name the real zone. A
+ * file six hours ahead of Mountain Daylight Time is UTC.
+ *
+ * Returns null when no row carries codes; there is nothing to measure.
+ */
+export function describeDailyRhythm(
+  rows: CffdrsRow[],
+  timezone: string,
+): DailyRhythm | null {
+  const dailyHour = deriveDailyHour(rows, timezone);
+  if (dailyHour === null) return null;
+
+  // Measure against whichever contract hour is closer, so a daylight-time file
+  // at 13:00 reads as on-contract rather than an hour adrift.
+  const hoursFromNoon = CONTRACT_DAILY_HOURS
+    .map((contractHour) => wrapHours(dailyHour - contractHour))
+    .reduce((closest, candidate) =>
+      Math.abs(candidate) < Math.abs(closest) ? candidate : closest,
+    );
+
+  return {
+    dailyHour,
+    hoursFromNoon,
+    likelyZoneMismatch: hoursFromNoon !== 0,
+  };
+}

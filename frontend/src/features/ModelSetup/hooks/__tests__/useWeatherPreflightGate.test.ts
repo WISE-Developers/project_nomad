@@ -129,6 +129,24 @@ describe('useWeatherPreflightGate', () => {
       await waitFor(() => expect(result.current.gate).toBeNull());
     });
 
+    it('carries the rhythm and the declared zone into the question', async () => {
+      // The user is told how far their file sits from the contract (#354),
+      // named against the zone they chose.
+      preflight.mockResolvedValue({
+        dailyOnlyCffdrs: true,
+        candidate: CANDIDATE,
+        rhythm: { dailyHour: 19, hoursFromNoon: 6, likelyZoneMismatch: true },
+      });
+      const { result } = setup();
+
+      await act(async () => {
+        await result.current.guardedComplete(firestarrData());
+      });
+
+      expect(result.current.gate?.rhythm?.hoursFromNoon).toBe(6);
+      expect(result.current.gate?.timezone).toBe('America/Edmonton');
+    });
+
     it('sends the file content and the ignition instant to the check', async () => {
       const { result } = setup();
 

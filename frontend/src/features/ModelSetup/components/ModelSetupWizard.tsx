@@ -269,6 +269,8 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId, topGutter = 0 
       {gate && (
         <StartingCodesModal
           candidate={gate.candidate}
+          rhythm={gate.rhythm}
+          timezone={gate.timezone}
           onConfirm={gate.confirm}
           onCancel={gate.cancel}
         />

@@ -148,6 +148,44 @@ describe('POST /models/preflight', () => {
     expect(res.body.jobId).toBeUndefined();
   });
 
+  describe('timezone contract (#354)', () => {
+    it("tells the user how far their file sits from the contract", async () => {
+      // The Date column is local time in the model's timezone, and daily codes
+      // are recorded at noon. Her rows read 19:06 with Edmonton declared —
+      // six hours ahead, which is exactly UTC.
+      const res = await request(app).post('/api/v1/models/preflight').send(validBody());
+
+      expect(res.body.rhythm.dailyHour).toBe(19);
+      expect(res.body.rhythm.hoursFromNoon).toBe(6);
+      expect(res.body.rhythm.likelyZoneMismatch).toBe(true);
+    });
+
+    it('reports no mismatch for a file that does record at local noon', async () => {
+      const onContract = [
+        HEADER,
+        blankRow('2026-08-01 00:06:00'),
+        dailyRow('2026-08-01 13:00:00', 81.66, 19.22, 412.67),
+        blankRow('2026-08-02 00:06:00'),
+        dailyRow('2026-08-02 13:00:00', 84.65, 20.72, 424.9),
+      ].join('\n');
+
+      const res = await request(app)
+        .post('/api/v1/models/preflight')
+        .send(validBody({ weather: { source: 'firestarr_csv', firestarrCsvContent: onContract } }));
+
+      expect(res.body.rhythm.likelyZoneMismatch).toBe(false);
+      expect(res.body.rhythm.hoursFromNoon).toBe(0);
+    });
+
+    it('reports no rhythm for a conforming file — every hour has codes, so there is none', async () => {
+      const res = await request(app)
+        .post('/api/v1/models/preflight')
+        .send(validBody({ weather: { source: 'firestarr_csv', firestarrCsvContent: FULLY_POPULATED_CSV } }));
+
+      expect(res.body.rhythm).toBeNull();
+    });
+  });
+
   describe('fail-fast validation', () => {
     it('rejects a missing timezone', async () => {
       const body = validBody();

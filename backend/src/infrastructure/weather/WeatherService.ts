@@ -20,6 +20,21 @@ import type {
  * "YYYY-MM-DDTHH:mm:ss") against an explicit IANA timezone. The CSV format
  * carries no offset, so the zone MUST be supplied externally.
  */
+/**
+ * Reads a naive weather timestamp as LOCAL time in the model's timezone.
+ *
+ * This is the timezone contract for uploaded weather (#354): the Date column of
+ * a FireSTARR CSV carries local time in the zone the model declares, never UTC.
+ * The upload UI states it, and this is where it is enforced —
+ * DateTime.fromSQL(raw, { zone }) interprets the naive string IN that zone.
+ *
+ * A consequence worth knowing when reasoning about detection: a naive timestamp
+ * parsed in zone Z always reads back as the same wall-clock hour in Z, so the
+ * declared zone cannot shift a row's local hour. A file whose daily CFFDRS rows
+ * do not land at local noon is therefore telling you its timestamps are on a
+ * different clock than declared — see describeDailyRhythm in dailyCffdrs.ts,
+ * which measures exactly that and is surfaced by the pre-flight check.
+ */
 function parseTimestampInZone(raw: string, zone: string): Date {
   const sql = DateTime.fromSQL(raw, { zone });
   if (sql.isValid) return sql.toJSDate();

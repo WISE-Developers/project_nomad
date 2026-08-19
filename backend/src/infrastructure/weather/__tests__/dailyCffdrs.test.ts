@@ -20,6 +20,7 @@ import { DateTime } from 'luxon';
 import {
   hasDailyOnlyCffdrs,
   findStartingCodeCandidate,
+  describeDailyRhythm,
   type CffdrsRow,
 } from '../dailyCffdrs.js';
 
@@ -210,5 +211,64 @@ describe('findStartingCodeCandidate', () => {
     expect(found).not.toBeNull();
     expect(found!.ffmc).toBe(84.65);
     expect(found!.localLabel).toBe('2026-08-04, 1000');
+  });
+});
+
+describe('describeDailyRhythm', () => {
+  // The contract (#354): the CSV Date column is LOCAL time in the model's
+  // timezone. Daily CFFDRS codes are calculated at noon LST, which is local
+  // hour 12, or 13 under daylight time. A file whose daily readings sit
+  // elsewhere is telling us its timestamps are not on the clock we were told.
+
+  it('reports a conforming file as on-contract', () => {
+    const rows = [
+      row('2026-08-01 13:00:00', [81.66, 19.22, 412.67]),
+      row('2026-08-02 03:00:00'),
+      row('2026-08-02 13:00:00', [84.65, 20.72, 424.9]),
+    ];
+    const rhythm = describeDailyRhythm(rows, ZONE);
+
+    expect(rhythm!.dailyHour).toBe(13);
+    expect(rhythm!.likelyZoneMismatch).toBe(false);
+    expect(rhythm!.hoursFromNoon).toBe(0);
+  });
+
+  it('accepts local hour 12 — standard time rather than daylight time', () => {
+    const rows = [row('2026-08-01 12:00:00', [81.66, 19.22, 412.67])];
+    const rhythm = describeDailyRhythm(rows, ZONE);
+
+    expect(rhythm!.likelyZoneMismatch).toBe(false);
+    expect(rhythm!.hoursFromNoon).toBe(0);
+  });
+
+  it("measures vita's file as six hours ahead of contract", () => {
+    // Her daily rows read 19:06. Declared zone is America/Edmonton, MDT, UTC-6.
+    // Six hours ahead of noon is exactly UTC — which is what her file is.
+    const rhythm = describeDailyRhythm(vitasRows(), ZONE);
+
+    expect(rhythm!.dailyHour).toBe(19);
+    expect(rhythm!.likelyZoneMismatch).toBe(true);
+    expect(rhythm!.hoursFromNoon).toBe(6);
+  });
+
+  it('reports a negative offset for a file behind the declared zone', () => {
+    const rows = [row('2026-08-01 09:00:00', [81.66, 19.22, 412.67])];
+    const rhythm = describeDailyRhythm(rows, ZONE);
+
+    expect(rhythm!.hoursFromNoon).toBe(-3);
+    expect(rhythm!.likelyZoneMismatch).toBe(true);
+  });
+
+  it('wraps around midnight rather than measuring the long way', () => {
+    // 01:00 is eleven hours BEFORE noon, not thirteen hours after it.
+    const rows = [row('2026-08-01 01:00:00', [81.66, 19.22, 412.67])];
+    const rhythm = describeDailyRhythm(rows, ZONE);
+
+    expect(rhythm!.hoursFromNoon).toBe(-11);
+    expect(rhythm!.likelyZoneMismatch).toBe(true);
+  });
+
+  it('returns null when no row carries codes — nothing to measure', () => {
+    expect(describeDailyRhythm([row('2026-08-01 13:00:00')], ZONE)).toBeNull();
   });
 });

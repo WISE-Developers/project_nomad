@@ -18,7 +18,12 @@
  */
 
 import { useCallback, useState } from 'react';
-import { preflightWeather as defaultPreflight, type PreflightRequest, type PreflightResponse } from '../../../services/api.js';
+import {
+  preflightWeather as defaultPreflight,
+  type PreflightRequest,
+  type PreflightResponse,
+  type PreflightRhythm,
+} from '../../../services/api.js';
 import {
   needsPreflight,
   buildIgnitionInstant,
@@ -32,6 +37,10 @@ import type { ModelSetupData } from '../types/index.js';
 export interface PreflightGate {
   /** What was found, or null when nothing precedes ignition. */
   candidate: StartingCodeCandidate | null;
+  /** How the file's rhythm compares with the timezone contract (#354). */
+  rhythm: PreflightRhythm | null;
+  /** The model's declared zone, so the question can name it back to the user. */
+  timezone: string;
   /** Accept the codes and submit on the raw_weather path. */
   confirm: () => Promise<void>;
   /** Abandon. Nothing was created, so there is nothing to clean up. */
@@ -103,6 +112,8 @@ export function useWeatherPreflightGate(
 
       setGate({
         candidate: result.candidate,
+        rhythm: result.rhythm,
+        timezone: data.temporal.timezone,
         confirm: async () => {
           setGate(null);
           if (result.candidate) {
