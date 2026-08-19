@@ -120,6 +120,20 @@ NOMAD_AGENCY_ID=nwt
 ' > "$tmp/.env"
 expect_status "commented placeholder ignored" 0 'assert_no_placeholders_in_env'
 
+# OPTIONAL placeholders must not block the install. Found on sulu against the
+# real .env.example: it ships 14 OAuth placeholders, and blocking on those would
+# fail every install that does not use OAuth — which is most of them.
+printf 'FIRESTARR_DATASET_PATH=/root/firestarr_data\nNOMAD_AUTH_MODE=simple\nNOMAD_OAUTH_GOOGLE_CLIENT_ID=your-google-client-id\n' > "$tmp/.env"
+expect_status "unused OAuth placeholder does not block a non-oauth install" 0 'assert_no_placeholders_in_env'
+
+# ...but they DO block when the install actually depends on them.
+printf 'FIRESTARR_DATASET_PATH=/root/firestarr_data\nNOMAD_AUTH_MODE=oauth\nNOMAD_OAUTH_GOOGLE_CLIENT_ID=your-google-client-id\n' > "$tmp/.env"
+expect_status "OAuth placeholder blocks an oauth install" 1 'assert_no_placeholders_in_env'
+
+# The incident key blocks whatever the auth mode.
+printf 'FIRESTARR_DATASET_PATH=/absolute/path/to/firestarr_data\nNOMAD_AUTH_MODE=simple\n' > "$tmp/.env"
+expect_status "dataset path placeholder blocks whatever the auth mode" 1 'assert_no_placeholders_in_env'
+
 echo
 echo "passed: $pass   failed: $fail"
 [ "$fail" -eq 0 ] || exit 1

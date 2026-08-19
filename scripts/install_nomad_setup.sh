@@ -1769,15 +1769,23 @@ check_git_autocrlf() {
 # ============================================
 
 assert_no_placeholders_in_env() {
-    # Fail the install if any shipped placeholder survived into .env (#343).
+    # Fail the install if a shipped placeholder that this install DEPENDS ON
+    # survived into .env (#343).
     #
     # The original incident reported SUCCESS while pointing the dataset
     # downloader at /absolute/path/to/firestarr_data. An install that finishes
-    # with a placeholder still in place has not finished; saying so here is
-    # cheaper than 5.5 GB in the wrong directory and an operator who has to read
-    # .env by hand to find out.
-    local offenders=()
-    local line key value
+    # with a placeholder in a key it actually uses has not finished.
+    #
+    # But .env.example ships 14 OAuth placeholders, and OAuth is optional —
+    # inert unless NOMAD_AUTH_MODE=oauth. Blocking on those would fail nearly
+    # every install. Found on sulu against the real .env.example; an earlier
+    # version of this check did exactly that. So placeholders are split:
+    # blocking for keys in use, advisory for keys that are not.
+    local blocking=()
+    local advisory=()
+    local line key value auth_mode
+
+    auth_mode="$(grep -m1 -E "^NOMAD_AUTH_MODE=" "$ENV_FILE" 2>/dev/null | cut -d= -f2- || true)"
 
     while IFS= read -r line; do
         case "$line" in
@@ -1787,15 +1795,30 @@ assert_no_placeholders_in_env() {
         key="${line%%=*}"
         value="${line#*=}"
         [ -n "$value" ] || continue
+        is_placeholder_value "$value" || continue
 
-        if is_placeholder_value "$value"; then
-            offenders+=("${key}=${value}")
-        fi
+        case "$key" in
+            NOMAD_OAUTH_*)
+                # Only matters when the deployment actually authenticates this way.
+                if [ "$auth_mode" = "oauth" ]; then
+                    blocking+=("${key}=${value}")
+                else
+                    advisory+=("${key}=${value}")
+                fi
+                ;;
+            *)
+                blocking+=("${key}=${value}")
+                ;;
+        esac
     done < "$ENV_FILE"
 
-    if [ "${#offenders[@]}" -gt 0 ]; then
-        print_error "Configuration incomplete — these still hold shipped placeholders:"
-        for line in "${offenders[@]}"; do
+    if [ "${#advisory[@]}" -gt 0 ]; then
+        print_info "${#advisory[@]} optional placeholder(s) left unset (OAuth is not in use) — fine to ignore."
+    fi
+
+    if [ "${#blocking[@]}" -gt 0 ]; then
+        print_error "Configuration incomplete — these hold shipped placeholders and this install uses them:"
+        for line in "${blocking[@]}"; do
             print_error "    $line"
         done
         print_error "Set them in $ENV_FILE and re-run. Nothing was left half-configured silently."
