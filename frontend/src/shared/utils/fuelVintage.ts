@@ -98,3 +98,32 @@ export function describeFuelVintage(
     blocking: false,
   };
 }
+
+/** A fuel vintage as recorded by the run that used it (#331). */
+export interface RecordedFuelVintage {
+  requestedYear: number;
+  vintage: string;
+  matchedRequestedYear: boolean;
+  usedFallback: boolean;
+  gridPath?: string;
+  recordedAt?: string;
+}
+
+/**
+ * Adapts a recorded vintage for display — issue #331.
+ *
+ * The run records the vintage DIRECTORY it used, which is a year ("2024") or
+ * "default". The display type carries a numeric vintage, so a non-numeric
+ * directory becomes undefined rather than being coerced into a year that was
+ * never used.
+ */
+export function recordedToResolved(record: RecordedFuelVintage): ResolvedFuelDataset {
+  const numeric = Number(record.vintage);
+
+  return {
+    requestedYear: record.requestedYear,
+    vintage: Number.isInteger(numeric) ? numeric : undefined,
+    matchedRequestedYear: record.matchedRequestedYear,
+    usedFallback: record.usedFallback,
+  };
+}

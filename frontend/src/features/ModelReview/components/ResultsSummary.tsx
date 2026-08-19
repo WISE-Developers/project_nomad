@@ -7,7 +7,7 @@
 import React from 'react';
 import type { ExecutionSummary, ExecutionState, ModelInputs, OutputConfig } from '../types';
 import { FuelVintageNotice } from '../../../shared/components/FuelVintageNotice';
-import { useFuelVintage } from '../../../shared/hooks/useFuelVintage';
+import { recordedToResolved } from '../../../shared/utils/fuelVintage';
 
 /**
  * Props for ResultsSummary
@@ -105,14 +105,13 @@ export function ResultsSummary({
 }: ResultsSummaryProps) {
   const ignition = inputs?.ignition;
 
-  // The year this fire was modelled FOR — not when it executed (#319).
-  // Absent when nothing on disk recorded it; the notice then renders nothing.
-  const modelYear = inputs?.modelStartDate
-    ? Number(inputs.modelStartDate.slice(0, 4))
-    : undefined;
-  const { resolved: fuelVintage } = useFuelVintage(
-    Number.isInteger(modelYear) ? modelYear : undefined
-  );
+  // The fuel vintage this run ACTUALLY used, as recorded when it ran (#331).
+  //
+  // This used to call useFuelVintage(), which re-resolved the vintage when the
+  // page was viewed — so installing a fuel year later retroactively rewrote
+  // what past runs claimed. A completed run is a record of what happened, so
+  // the results view reads the record and never re-resolves.
+  const fuelVintage = inputs?.fuelVintage;
   const statusInfo = getStatusInfo(summary.status);
   const isInProgress = ['queued', 'initializing', 'running'].includes(summary.status);
   const simLabel = outputConfig?.outputMode === 'deterministic'
@@ -359,7 +358,13 @@ export function ResultsSummary({
           border: '1px solid #e0e0e0',
           borderRadius: '6px',
         }}>
-          <FuelVintageNotice resolved={fuelVintage} label="Fuel vintage used" />
+          {fuelVintage ? (
+            <FuelVintageNotice resolved={recordedToResolved(fuelVintage)} label="Fuel vintage used" />
+          ) : (
+            <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+              Fuel vintage: not recorded — this model ran before Nomad began recording it.
+            </div>
+          )}
         </div>
       )}
 
