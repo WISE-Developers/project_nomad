@@ -7,6 +7,7 @@
 
 import { ffmc, dmc, dc, isi, bui, fwi } from 'cffdrs';
 import { DateTime, IANAZone } from 'luxon';
+import { localDayKey, localMonth, pickDailyDriverIndices } from './localCalendar.js';
 import type {
   WeatherConfig,
   FWIStartingCodes,
@@ -261,37 +262,48 @@ export class WeatherService {
 
     console.log(`[WeatherService] Processing ${rawRecords.length} raw weather records with cffdrs`);
 
-    // Progressive FWI calculation
-    // FFMC updates every hour (it's an hourly code).
-    // DMC/DC are DAILY codes — they must only update once per calendar day.
-    // Applying daily formulas to every hourly row compounds errors (#234).
-    let prevFFMC = startingCodes.ffmc;
+    // FFMC is an hourly code and steps forward every row.
+    //
+    // DMC and DC are DAILY codes. #234 stopped them recomputing every hour;
+    // #352 puts the once-a-day update on the right day and the right row:
+    // the LOCAL day (UTC midnight is 18:00 the previous local day in Edmonton,
+    // which was splitting single days in two) and the observation nearest
+    // local NOON, which is what CFFDRS defines them against. Driving them from
+    // whichever row came first meant the evening observation — cooler and
+    // damper than the afternoon peak — and biased both codes low for the whole
+    // run.
+    const dayKeys = rawRecords.map((r) => localDayKey(r.datetime, timezone));
+    const drivers = pickDailyDriverIndices(
+      rawRecords.map((r) => r.datetime),
+      timezone,
+    );
+
+    // Walk the days in order, each starting from the previous day's codes.
+    // Day keys are yyyy-MM-dd, so lexical order is chronological order even if
+    // the file itself is not sorted.
+    const dailyCodes = new Map<string, { dmc: number; dc: number }>();
     let prevDMC = startingCodes.dmc;
     let prevDC = startingCodes.dc;
-    let lastDMCUpdateDay = -1; // Track which calendar day we last updated DMC/DC
 
-    return rawRecords.map((record) => {
-      const month = record.datetime.getUTCMonth() + 1;
-      // Day-of-year computed against UTC year-start so the result doesn't shift
-      // by DST or the server's local offset.
-      const dayOfYear = Math.floor(
-        (record.datetime.getTime() - Date.UTC(record.datetime.getUTCFullYear(), 0, 0))
-        / (1000 * 60 * 60 * 24)
-      );
+    for (const day of [...drivers.keys()].sort()) {
+      const driver = rawRecords[drivers.get(day) as number];
+      const month = localMonth(driver.datetime, timezone);
 
+      prevDMC = dmc(prevDMC, driver.temp, driver.rh, driver.prec, latitude, month);
+      prevDC = dc(prevDC, driver.temp, driver.rh, driver.prec, latitude, month);
+      dailyCodes.set(day, { dmc: prevDMC, dc: prevDC });
+    }
+
+    let prevFFMC = startingCodes.ffmc;
+
+    return rawRecords.map((record, index) => {
       // FFMC updates every hour
       const newFFMC = ffmc(prevFFMC, record.temp, record.rh, record.ws, record.prec);
 
-      // DMC/DC update once per calendar day only
-      let newDMC = prevDMC;
-      let newDC = prevDC;
-      if (dayOfYear !== lastDMCUpdateDay) {
-        newDMC = dmc(prevDMC, record.temp, record.rh, record.prec, latitude, month);
-        newDC = dc(prevDC, record.temp, record.rh, record.prec, latitude, month);
-        lastDMCUpdateDay = dayOfYear;
-        prevDMC = newDMC;
-        prevDC = newDC;
-      }
+      // Every hour of a local day carries that day's daily codes.
+      const daily = dailyCodes.get(dayKeys[index]) as { dmc: number; dc: number };
+      const newDMC = daily.dmc;
+      const newDC = daily.dc;
 
       // Calculate derived indices
       const newISI = isi(newFFMC, record.ws);
