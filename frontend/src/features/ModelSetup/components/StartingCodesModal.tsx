@@ -22,11 +22,35 @@ import {
   cancelStyle,
 } from './preflightModalStyles.js';
 
+export interface DailyRhythm {
+  dailyHour: number;
+  hoursFromNoon: number;
+  likelyZoneMismatch: boolean;
+}
+
 export interface StartingCodesModalProps {
   /** The reading recovered from the file, or null when none precedes ignition. */
   candidate: StartingCodeCandidate | null;
+  /** How the file's rhythm compares with the contract (#354). */
+  rhythm?: DailyRhythm | null;
+  /** The model's declared IANA zone, named back to the user. */
+  timezone?: string;
   onConfirm: () => void;
   onCancel: () => void;
+}
+
+/** The declared zone's offset from UTC, in hours, right now. */
+function zoneOffsetHours(timeZone: string): number | null {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', { timeZone, timeZoneName: 'longOffset' });
+    const name = formatter.formatToParts(new Date()).find((p) => p.type === 'timeZoneName')?.value;
+    const match = /GMT([+-])(\d{2}):(\d{2})/.exec(name ?? '');
+    if (!match) return 0; // "GMT" with no suffix is UTC itself
+    const sign = match[1] === '-' ? -1 : 1;
+    return sign * (Number(match[2]) + Number(match[3]) / 60);
+  } catch {
+    return null;
+  }
 }
 
 /** Two decimals, so 424.9 reads as 424.90 alongside the others. */
@@ -34,7 +58,40 @@ function code(value: number): string {
   return value.toFixed(2);
 }
 
-export function StartingCodesModal({ candidate, onConfirm, onCancel }: StartingCodesModalProps) {
+/**
+ * Explains a rhythm that does not sit at local noon.
+ *
+ * The contract (#354) is that the Date column is local time in the model's
+ * timezone, and daily codes are recorded at noon. When the file's readings land
+ * elsewhere, the gap IS the offset — and if it matches the declared zone's own
+ * offset from UTC, the file is almost certainly UTC.
+ */
+function zoneNote(rhythm: DailyRhythm, timezone?: string): string {
+  const hours = Math.abs(rhythm.hoursFromNoon);
+  const direction = rhythm.hoursFromNoon > 0 ? 'ahead of' : 'behind';
+  const zone = timezone ?? 'the selected timezone';
+  const hourLabel = `${String(rhythm.dailyHour).padStart(2, '0')}:00`;
+
+  const offset = timezone ? zoneOffsetHours(timezone) : null;
+  const looksLikeUtc = offset !== null && Math.abs(rhythm.hoursFromNoon + offset) < 0.5;
+
+  const base =
+    `Its daily readings sit at ${hourLabel} in ${zone}, but daily codes are recorded at noon — ` +
+    `${hours} hours ${direction} the timezone this model declares.`;
+
+  return looksLikeUtc
+    ? `${base} That gap matches ${zone}'s offset exactly, so these timestamps are most likely UTC. ` +
+      `If they are, set the model timezone to UTC before running.`
+    : `${base} Check that the model timezone matches the clock your station records in.`;
+}
+
+export function StartingCodesModal({
+  candidate,
+  rhythm,
+  timezone,
+  onConfirm,
+  onCancel,
+}: StartingCodesModalProps) {
   return (
     <div style={overlayStyle} role="dialog" aria-modal="true" aria-label="Starting codes">
       <div style={modalStyle}>
@@ -66,6 +123,12 @@ export function StartingCodesModal({ candidate, onConfirm, onCancel }: StartingC
             Nomad could not offer starting codes: this file has no daily reading{' '}
             <strong>before</strong> your ignition time. Choose an ignition time covered by the file,
             or upload raw observations with the starting codes you want to use.
+          </p>
+        )}
+
+        {rhythm?.likelyZoneMismatch && (
+          <p style={{ ...noteStyle, color: '#fbbf24' }}>
+            {zoneNote(rhythm, timezone)}
           </p>
         )}
 

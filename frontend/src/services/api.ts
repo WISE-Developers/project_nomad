@@ -396,9 +396,17 @@ export interface PreflightCandidate {
   localLabel: string;
 }
 
+export interface PreflightRhythm {
+  dailyHour: number;
+  hoursFromNoon: number;
+  likelyZoneMismatch: boolean;
+}
+
 export interface PreflightResponse {
   dailyOnlyCffdrs: boolean;
   candidate: PreflightCandidate | null;
+  /** How the file's daily rhythm compares with the timezone contract (#354). */
+  rhythm: PreflightRhythm | null;
 }
 
 export async function preflightWeather(body: PreflightRequest): Promise<PreflightResponse> {
