@@ -183,6 +183,7 @@ export function buildParsedWeatherCSV(
   const hasFWIColumns = FWI_COLUMNS.every((col) => headerSet.has(col.toUpperCase()));
   const hasScenarioColumn = headerSet.has('SCENARIO');
   const dateRange = extractDateRange(headers, rows);
+  const fwiValues = analyseFwiValues(headers, rows);
 
   return {
     headers,
@@ -190,6 +191,7 @@ export function buildParsedWeatherCSV(
     previewRows: rows.slice(0, 5),
     hasScenarioColumn,
     hasFWIColumns,
+    ...(fwiValues ? { fwiValues } : {}),
     ...(dateRange ? { dateRange } : {}),
   };
 }
@@ -225,4 +227,68 @@ export function extractDateRange(
     if (d > maxDate) maxDate = d;
   }
   return { minDate, maxDate };
+}
+
+/** The three codes FireSTARR takes from the series. A row without all three is unusable. */
+const CORE_FWI_COLUMNS = ['FFMC', 'DMC', 'DC'];
+
+/** What the FWI columns actually CONTAIN, as opposed to whether they exist. */
+export interface FwiValueReport {
+  totalRows: number;
+  /** Rows carrying all three core codes as real numbers. */
+  rowsWithAllCodes: number;
+  /** Rows missing at least one of the three. */
+  rowsMissingCodes: number;
+  /** Count of absent values per FWI column, keyed by column name. */
+  missingByColumn: Record<string, number>;
+}
+
+/**
+ * Inspects the VALUES in the FWI columns — issue #357.
+ *
+ * hasFWIColumns only asks whether the headers are present. A file can carry
+ * every column and still be unusable: vita's recorded its indices once a day,
+ * so 253 of 264 rows held the text "NaN", and the upload step called it valid.
+ *
+ * Empty cells count as missing rather than as zero — parseFloat('') is NaN, and
+ * a blank FFMC is not an FFMC of nought.
+ *
+ * Returns null when the file has no FWI columns at all; that is a raw weather
+ * file and a different upload tab handles it.
+ */
+export function analyseFwiValues(
+  headers: string[],
+  rows: string[][],
+): FwiValueReport | null {
+  const upper = headers.map((h) => h.trim().toUpperCase());
+  const present = FWI_COLUMNS.filter((col) => upper.includes(col));
+  if (present.length === 0) return null;
+
+  const missingByColumn: Record<string, number> = {};
+  for (const col of present) missingByColumn[col] = 0;
+
+  let rowsWithAllCodes = 0;
+
+  for (const row of rows) {
+    let coreComplete = true;
+
+    for (const col of present) {
+      const value = row[upper.indexOf(col)]?.trim() ?? '';
+      const usable = value !== '' && Number.isFinite(Number(value));
+
+      if (!usable) {
+        missingByColumn[col] += 1;
+        if (CORE_FWI_COLUMNS.includes(col)) coreComplete = false;
+      }
+    }
+
+    if (coreComplete) rowsWithAllCodes += 1;
+  }
+
+  return {
+    totalRows: rows.length,
+    rowsWithAllCodes,
+    rowsMissingCodes: rows.length - rowsWithAllCodes,
+    missingByColumn,
+  };
 }
