@@ -70,8 +70,24 @@ async function request<T>(
     } catch {
       details = text;
     }
+    // Prefer the server's own explanation over the HTTP status text (#339).
+    // The backend now says exactly what is wrong — which noon record is
+    // missing, how to fix it — and "API request failed: Bad Request" would
+    // throw that away and leave the user with the same opacity as before.
+    // The backend nests it as { error: { message } }; some routes return a flat
+    // { message }. Verified against the running stack — reading only the flat
+    // form silently fell back to "Bad Request".
+    const asRecord = (v: unknown): Record<string, unknown> | undefined =>
+      v !== null && typeof v === 'object' ? (v as Record<string, unknown>) : undefined;
+
+    const body = asRecord(details);
+    const nested = asRecord(body?.error);
+    const serverMessage = [nested?.message, body?.message].find(
+      (m): m is string => typeof m === 'string' && m.length > 0,
+    );
+
     throw new ApiError(
-      `API request failed: ${response.statusText}`,
+      serverMessage ?? `API request failed: ${response.statusText}`,
       response.status,
       details
     );
