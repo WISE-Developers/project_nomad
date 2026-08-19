@@ -28,6 +28,7 @@ import { getModelRepository, getResultRepository } from '../../../infrastructure
 import type { ExecutionOptions, ModelMode } from '../../../application/interfaces/IFireModelingEngine.js';
 import type { WeatherConfig } from '../../../infrastructure/weather/types.js';
 import { parseIsoToDate } from '../../../shared/dateParsing.js';
+import { assertWeatherMeetsEngineContract } from '../../../application/services/WeatherContractCheck.js';
 
 const VALID_MODEL_MODES: ModelMode[] = ['probabilistic', 'deterministic', 'long-term-risk'];
 
@@ -169,6 +170,28 @@ router.post(
     const timeRange = new TimeRange(
       parseIsoToDate(body.timeRange.start, 'POST /models body.timeRange.start'),
       parseIsoToDate(body.timeRange.end, 'POST /models body.timeRange.end'),
+    );
+
+    // Check the weather against FireSTARR's input contract BEFORE anything is
+    // created (#339, #340, #341). FireSTARR builds its daily fire weather from
+    // each day's noon record; a day without one throws FATAL: map::at about ten
+    // seconds in, with the reason only in the container log. Four of six runs
+    // on the CIFFC demo died that way on 2026-08-19. Failing here means a 400
+    // naming the problem while the user can still fix it, and no orphaned model,
+    // job or sim directory to clean up.
+    const ignitionLatitude = Array.isArray(body.ignition.coordinates[0])
+      ? (body.ignition.coordinates as [number, number][])[0][1]
+      : (body.ignition.coordinates as [number, number])[1];
+    const ignitionLongitude = Array.isArray(body.ignition.coordinates[0])
+      ? (body.ignition.coordinates as [number, number][])[0][0]
+      : (body.ignition.coordinates as [number, number])[0];
+
+    await assertWeatherMeetsEngineContract(
+      body.weather,
+      timeRange.start,
+      body.timezone,
+      { latitude: ignitionLatitude, longitude: ignitionLongitude },
+      { start: timeRange.start, end: timeRange.end },
     );
 
     // Create model with queued status (skip draft)
