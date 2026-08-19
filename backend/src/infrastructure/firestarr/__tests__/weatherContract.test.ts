@@ -40,6 +40,54 @@ function hours(day: string, from: number, to: number): WeatherDataPoint[] {
 
 const NOON = at('2026-08-04 12:00:00');
 
+describe('validateFireStarrContract — the simulated window, not the whole file', () => {
+  // Regression: the check demanded a noon record on EVERY day present in the
+  // file, including partial days the simulation never reaches. Franco's
+  // known-good SS005-23 file is 240 hourly rows, 2023-06-19 06:00 to
+  // 2023-06-29 06:00 — that last day is a one-row stub with no noon, and it
+  // was rejecting a file that runs correctly.
+
+  const jun19 = at('2023-06-19 13:00:00');
+
+  /** His file's shape: full days, plus a trailing 06:00-only stub. */
+  function ss005Shape(): WeatherDataPoint[] {
+    const days = ['2023-06-19','2023-06-20','2023-06-21','2023-06-22'];
+    const points = days.flatMap((d, i) => hours(d, i === 0 ? 6 : 0, 23));
+    return [...points, ...hours('2023-06-23', 6, 6)];
+  }
+
+  it('accepts a file whose TRAILING day is a stub beyond the run', () => {
+    // 3-day run from Jun 19; the Jun 23 stub is past the end and irrelevant.
+    const result = validateFireStarrContract(ss005Shape(), jun19, ZONE, at('2023-06-22 13:00:00'));
+    expect(result.issues).toEqual([]);
+    expect(result.valid).toBe(true);
+  });
+
+  // NOTE: a LEADING partial day is deliberately still rejected. On the CIFFC
+  // demo, four runs whose weather began after noon on the day before the
+  // ignition all died with FATAL: map::at, so that side has crash evidence
+  // behind it and is not relaxed here.
+
+  it('still rejects a missing noon on the IGNITION day', () => {
+    // The day the fire starts must have its noon record.
+    const points = [...hours('2023-06-19', 17, 23), ...hours('2023-06-20', 0, 23)];
+    const result = validateFireStarrContract(points, at('2023-06-19 18:00:00'), ZONE, at('2023-06-20 20:00:00'));
+    expect(result.valid).toBe(false);
+    expect(result.issues.join(' ')).toMatch(/2023-06-19/);
+  });
+
+  it('still rejects a missing noon on a day INSIDE the run', () => {
+    const points = [
+      ...hours('2023-06-19', 0, 23),
+      ...hours('2023-06-20', 13, 23),
+      ...hours('2023-06-21', 0, 23),
+    ];
+    const result = validateFireStarrContract(points, jun19, ZONE, at('2023-06-21 20:00:00'));
+    expect(result.valid).toBe(false);
+    expect(result.issues.join(' ')).toMatch(/2023-06-20/);
+  });
+});
+
 describe('validateFireStarrContract', () => {
   describe('the day-1 noon record (#340)', () => {
     it('accepts a series whose every day carries an hour-12 record', () => {

@@ -34,7 +34,9 @@ export async function assertWeatherMeetsEngineContract(
     ]);
   }
 
-  const result = validateFireStarrContract(points, ignition, timezone);
+  // dateRange.end is timeRange.end — the contract applies to the simulated
+  // window, not to trailing weather the run never reaches (see #340 note).
+  const result = validateFireStarrContract(points, ignition, timezone, dateRange.end);
   if (!result.valid) {
     throw new ValidationError(result.issues.join(' '), [
       { field: 'weather', message: result.issues.join(' ') },

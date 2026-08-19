@@ -35,11 +35,19 @@ function local(instant: Date, timezone: string): DateTime {
  * @param points   the weather series as it will be written to weather.csv
  * @param ignition the model start instant — timeRange.start
  * @param timezone the model's declared IANA zone, which weather.csv is written in
+ * @param runEnd   timeRange.end. The contract applies to the SIMULATED WINDOW,
+ *                 not to the whole file: weather files routinely carry trailing
+ *                 hours past the end of the run, and a trailing stub day with no
+ *                 noon record is harmless because the simulation never reaches
+ *                 it. Requiring noon on those days rejected a known-good file
+ *                 (SS005-23: 240 hourly rows ending in a single 06:00 row).
+ *                 Omitted means "check every day", which only tests do.
  */
 export function validateFireStarrContract(
   points: WeatherDataPoint[],
   ignition: Date,
   timezone: string,
+  runEnd?: Date,
 ): ContractResult {
   const issues: string[] = [];
 
@@ -62,6 +70,15 @@ export function validateFireStarrContract(
   const daysWithoutNoon = [...noonByDay.entries()]
     .filter(([, noon]) => noon === null)
     .map(([day]) => day)
+    // Days the run never reaches cannot break it. A leading partial day is NOT
+    // excluded here — that side has production crashes behind it (#340).
+    .filter((day) => {
+      if (!runEnd) return true;
+      const noonThatDay = DateTime.fromFormat(day, 'yyyy-MM-dd', { zone: timezone }).set({
+        hour: NOON_HOUR,
+      });
+      return noonThatDay.toMillis() <= runEnd.getTime();
+    })
     .sort();
 
   if (daysWithoutNoon.length > 0) {
