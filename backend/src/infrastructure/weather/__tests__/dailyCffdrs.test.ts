@@ -272,3 +272,40 @@ describe('describeDailyRhythm', () => {
     expect(describeDailyRhythm([row('2026-08-01 13:00:00')], ZONE)).toBeNull();
   });
 });
+
+describe('invalid timezone (#353)', () => {
+  // Luxon returns an INVALID DateTime for an unrecognised zone rather than
+  // throwing, so local.hour is NaN, no row matches, and the caller receives the
+  // same null it gets for "this file has no usable reading". A configuration
+  // error and a legitimate absence must not look identical.
+
+  it('throws rather than reporting no candidate', () => {
+    expect(() =>
+      findStartingCodeCandidate(vitasRows(), localInstant('2026-08-04 12:00:00'), 'Mars/Olympus_Mons'),
+    ).toThrow(/timezone/i);
+  });
+
+  it('names the offending value', () => {
+    expect(() =>
+      findStartingCodeCandidate(vitasRows(), localInstant('2026-08-04 12:00:00'), 'Not/AZone'),
+    ).toThrow(/Not\/AZone/);
+  });
+
+  it('throws for an empty timezone too', () => {
+    expect(() =>
+      findStartingCodeCandidate(vitasRows(), localInstant('2026-08-04 12:00:00'), ''),
+    ).toThrow(/timezone/i);
+  });
+
+  it('throws from describeDailyRhythm as well', () => {
+    expect(() => describeDailyRhythm(vitasRows(), 'Mars/Olympus_Mons')).toThrow(/timezone/i);
+  });
+
+  it('still accepts every real zone it is given', () => {
+    for (const zone of ['America/Edmonton', 'America/St_Johns', 'UTC', 'Asia/Tokyo']) {
+      expect(() =>
+        findStartingCodeCandidate(vitasRows(), localInstant('2026-08-04 12:00:00'), zone),
+      ).not.toThrow();
+    }
+  });
+});
