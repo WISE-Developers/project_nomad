@@ -206,6 +206,14 @@ describe('buildParsedWeatherCSV', () => {
       previewRows: rows.slice(0, 5),
       hasScenarioColumn: true,
       hasFWIColumns: true,
+      // #357: the summary now reports what the FWI columns hold, not just that
+      // they exist. These rows are fully populated.
+      fwiValues: {
+        totalRows: 2,
+        rowsWithAllCodes: 2,
+        rowsMissingCodes: 0,
+        missingByColumn: { FFMC: 0, DMC: 0, DC: 0, ISI: 0, BUI: 0, FWI: 0 },
+      },
       dateRange: { minDate: '2025-07-15', maxDate: '2025-07-17' },
     });
   });

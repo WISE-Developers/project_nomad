@@ -303,8 +303,26 @@ export function FirestarrCsvUpload({ onUpload, fileName, parsed, error }: Firest
         </div>
       )}
 
+      {/* Missing FWI VALUES — the columns can all be present and still hold nothing (#357) */}
+      {hasFile && !displayError && (parsed?.fwiValues?.rowsMissingCodes ?? 0) > 0 && (
+        <div style={warningStyle}>
+          <strong>This file is missing FWI values</strong> - {parsed!.fwiValues!.rowsMissingCodes} of{' '}
+          {parsed!.fwiValues!.totalRows} rows have no FFMC, DMC or DC. FireSTARR needs them on every
+          row.
+          {parsed!.fwiValues!.rowsWithAllCodes > 0 && (
+            <>
+              {' '}
+              Only {parsed!.fwiValues!.rowsWithAllCodes} row
+              {parsed!.fwiValues!.rowsWithAllCodes === 1 ? ' does' : 's do'} — which usually means the
+              indices were recorded once a day rather than hourly. Nomad will offer to use those daily
+              codes as starting codes when you start the model.
+            </>
+          )}
+        </div>
+      )}
+
       {/* Success message */}
-      {hasFile && !displayError && (
+      {hasFile && !displayError && (parsed?.fwiValues?.rowsMissingCodes ?? 0) === 0 && (
         <div style={successStyle}>
           <strong>Valid FireSTARR weather file</strong> - {parsed?.rowCount} hourly records with all
           required columns including FWI indices.
