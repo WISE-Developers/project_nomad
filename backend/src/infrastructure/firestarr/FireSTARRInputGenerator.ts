@@ -204,6 +204,60 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
     );
   }
 
+  /**
+   * The vintage directory a resolved grid path sits in — "2024", "default".
+   *
+   * The layout is {gridRoot}/{vintage}/fuel_*.tif, so the segment immediately
+   * below the grid root IS the vintage. Derived from the path actually used
+   * rather than re-asked, so the record cannot disagree with the run.
+   */
+  private vintageFromGridPath(gridPath: string): string | undefined {
+    if (!this.config.gridRoot) return undefined;
+
+    const relative = gridPath.startsWith(this.config.gridRoot)
+      ? gridPath.slice(this.config.gridRoot.length)
+      : undefined;
+    if (relative === undefined) return undefined;
+
+    const [segment] = relative.split(/[\\/]/).filter(Boolean);
+    return segment;
+  }
+
+  /**
+   * Records the fuel vintage this run actually used — issue #331.
+   *
+   * The results view used to resolve the vintage when the page was VIEWED, so
+   * installing a fuel year later retroactively rewrote what past runs claimed.
+   * A completed run is a record of what happened; writing the answer down at
+   * the moment it is true is the only way it stays true.
+   */
+  private async recordFuelVintage(
+    workingDir: string,
+    gridPath: string,
+    requestedYear: number,
+  ): Promise<void> {
+    const vintage = this.vintageFromGridPath(gridPath);
+    const matchedRequestedYear = vintage === String(requestedYear);
+
+    const record = {
+      requestedYear,
+      vintage: vintage ?? null,
+      matchedRequestedYear,
+      usedFallback: !matchedRequestedYear,
+      gridPath,
+      recordedAt: new Date().toISOString(),
+    };
+
+    try {
+      await writeFile(join(workingDir, 'fuel-vintage.json'), JSON.stringify(record, null, 2), 'utf-8');
+    } catch (error) {
+      // Never fail a run because the audit note could not be written; the run
+      // itself is the valuable thing. It will read as "not recorded" later.
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[FireSTARRInputGenerator] Could not record fuel vintage: ${message}`);
+    }
+  }
+
   async generate(
     modelId: FireModelId,
     params: FireSTARRParams
@@ -239,6 +293,9 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
       if (!fuelGrid) {
         return Result.fail(new ValidationError(await this.describeMissingFuel(modelYear)));
       }
+
+      // Write down which vintage this run used, now, while it is true (#331).
+      await this.recordFuelVintage(workingDir, fuelGrid, modelYear);
 
       // Write weather CSV
       const weatherFile = join(workingDir, 'weather.csv');
