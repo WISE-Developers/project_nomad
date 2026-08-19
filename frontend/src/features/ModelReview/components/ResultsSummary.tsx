@@ -350,8 +350,10 @@ export function ResultsSummary({
         </div>
       )}
 
-      {/* Fuel vintage actually used for this run (#319) */}
-      {fuelVintage && (
+      {/* Fuel vintage actually used for this run (#319, recorded per #331).
+          Rendered unconditionally: a run with NO record must say so rather than
+          silently omitting the row, which reads as "nothing to report". */}
+      {(
         <div style={{
           marginTop: '16px',
           padding: '12px',
