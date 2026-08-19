@@ -205,6 +205,15 @@ describe('POST /models/preflight', () => {
       expect(JSON.stringify(res.body)).toMatch(/start|ignition/i);
     });
 
+    it('rejects an unknown timezone as a client error, not a 500 (#353)', async () => {
+      const res = await request(app)
+        .post('/api/v1/models/preflight')
+        .send(validBody({ timezone: 'Mars/Olympus_Mons' }));
+
+      expect(res.status).toBe(400);
+      expect(JSON.stringify(res.body)).toMatch(/timezone/i);
+    });
+
     it('rejects a missing weather config', async () => {
       const body = validBody();
       delete (body as Record<string, unknown>).weather;

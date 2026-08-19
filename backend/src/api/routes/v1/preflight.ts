@@ -9,6 +9,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { ValidationError } from '../../../domain/errors/index.js';
 import { preflightWeather } from '../../../application/services/WeatherPreflightService.js';
 import { parseIsoToDate } from '../../../shared/dateParsing.js';
+import { IANAZone } from 'luxon';
 
 const router = Router();
 
@@ -33,6 +34,14 @@ router.post('/models/preflight', async (req: Request, res: Response, next: NextF
     if (typeof timezone !== 'string' || timezone.trim() === '') {
       throw new ValidationError('timezone is required (IANA identifier)', [
         { field: 'timezone', message: 'required' },
+      ]);
+    }
+
+    // Reject an unresolvable zone here so it surfaces as a client error rather
+    // than a 500 from deeper in the stack (#353).
+    if (!IANAZone.isValidZone(timezone)) {
+      throw new ValidationError(`Unknown IANA timezone: ${timezone}`, [
+        { field: 'timezone', message: 'unknown zone' },
       ]);
     }
 

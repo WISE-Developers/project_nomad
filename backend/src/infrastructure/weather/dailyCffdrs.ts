@@ -17,7 +17,7 @@
  * Pure functions only. No HTTP, no filesystem, no engine.
  */
 
-import { DateTime } from 'luxon';
+import { DateTime, IANAZone } from 'luxon';
 
 /**
  * The minimal shape this module needs. Declared here rather than imported so
@@ -40,6 +40,21 @@ export interface StartingCodeCandidate {
   observedAt: Date;
   /** Human-facing local label, e.g. "2026-08-03, 1300". */
   localLabel: string;
+}
+
+/**
+ * Rejects a zone Luxon cannot resolve — issue #353.
+ *
+ * Luxon returns an INVALID DateTime for an unrecognised zone rather than
+ * throwing. Its .hour is then NaN, no row matches, and the caller receives the
+ * same null that means "this file has no usable reading". A configuration error
+ * and a legitimate absence must not be indistinguishable: the first is a bug to
+ * fix, the second is an answer.
+ */
+function assertZone(timezone: string): void {
+  if (!timezone || !IANAZone.isValidZone(timezone)) {
+    throw new Error(`Invalid IANA timezone: ${timezone === '' ? '(empty)' : timezone}`);
+  }
 }
 
 /** True when all three codes on a row are usable numbers. */
@@ -117,6 +132,8 @@ export function findStartingCodeCandidate(
   ignition: Date,
   timezone: string,
 ): StartingCodeCandidate | null {
+  assertZone(timezone);
+
   const dailyHour = deriveDailyHour(rows, timezone);
   if (dailyHour === null) return null;
 
@@ -192,6 +209,8 @@ export function describeDailyRhythm(
   rows: CffdrsRow[],
   timezone: string,
 ): DailyRhythm | null {
+  assertZone(timezone);
+
   const dailyHour = deriveDailyHour(rows, timezone);
   if (dailyHour === null) return null;
 
