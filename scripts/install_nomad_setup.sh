@@ -1768,9 +1768,73 @@ check_git_autocrlf() {
 # .env Generation
 # ============================================
 
+assert_no_placeholders_in_env() {
+    # Fail the install if any shipped placeholder survived into .env (#343).
+    #
+    # The original incident reported SUCCESS while pointing the dataset
+    # downloader at /absolute/path/to/firestarr_data. An install that finishes
+    # with a placeholder still in place has not finished; saying so here is
+    # cheaper than 5.5 GB in the wrong directory and an operator who has to read
+    # .env by hand to find out.
+    local offenders=()
+    local line key value
+
+    while IFS= read -r line; do
+        case "$line" in
+            \#*|"") continue ;;
+        esac
+
+        key="${line%%=*}"
+        value="${line#*=}"
+        [ -n "$value" ] || continue
+
+        if is_placeholder_value "$value"; then
+            offenders+=("${key}=${value}")
+        fi
+    done < "$ENV_FILE"
+
+    if [ "${#offenders[@]}" -gt 0 ]; then
+        print_error "Configuration incomplete — these still hold shipped placeholders:"
+        for line in "${offenders[@]}"; do
+            print_error "    $line"
+        done
+        print_error "Set them in $ENV_FILE and re-run. Nothing was left half-configured silently."
+        return 1
+    fi
+
+    return 0
+}
+
+is_placeholder_value() {
+    # True when a value is one of OUR shipped placeholders rather than something
+    # an operator chose (#343).
+    #
+    # .env.example ships non-empty placeholders, and the installer copies it to
+    # .env before writing any key. The #292 rule below ("never overwrite an
+    # existing non-empty value") could not tell the two apart, so it preserved
+    # the placeholder and discarded the answer given at the prompt. 5.5 GB of
+    # fuel rasters landed in a literal /absolute/path/to/firestarr_data.
+    #
+    # Anchored patterns only: a genuine path like /home/yourname/data or an
+    # agency id like changeme-inc must NOT be mistaken for a placeholder.
+    local value="$1"
+
+    case "$value" in
+        /absolute/path/to/*)      return 0 ;;
+        /path/to/*)               return 0 ;;
+        your-*)                   return 0 ;;
+        changeme|CHANGEME)        return 0 ;;
+        yourdomain.com|example.com) return 0 ;;
+        xxx|XXX|TODO|TBD)         return 0 ;;
+    esac
+
+    return 1
+}
+
 update_env_value() {
     local key="$1"
     local value="$2"
+    local existing_value
 
     if [ "$DRY_RUN" = true ]; then
         print_dry_run "Would set $key=$value"
@@ -1780,9 +1844,18 @@ update_env_value() {
     # Preserve an existing, non-empty value — never overwrite a user's .env.
     # (#292 demo lesson: the installer clobbered a manually-set host port on
     # re-run, which broke the Cloudflare tunnel. Set-if-absent only.)
+    #
+    # EXCEPT a placeholder we shipped ourselves (#343): that is not an operator
+    # value, and preserving it silently discards the answer they just gave.
     if grep -qE "^${key}=.+" "$ENV_FILE" 2>/dev/null; then
-        print_info "Keeping existing ${key} (not overwriting)"
-        return 0
+        existing_value="$(grep -m1 -E "^${key}=" "$ENV_FILE" | cut -d= -f2-)"
+
+        if is_placeholder_value "$existing_value"; then
+            print_warning "Replacing placeholder ${key}=${existing_value}"
+        else
+            print_info "Keeping existing ${key} (not overwriting)"
+            return 0
+        fi
     fi
 
     if grep -qE "^${key}=" "$ENV_FILE" 2>/dev/null; then
@@ -2336,6 +2409,19 @@ main() {
 
     # Verification
     verify_installation
+
+    # No shipped placeholder may survive into .env (#343). The original
+    # incident reported success while pointing the downloader at
+    # /absolute/path/to/firestarr_data, so "complete" has to mean configured.
+    if [ "$DRY_RUN" != true ]; then
+        if ! assert_no_placeholders_in_env; then
+            echo ""
+            echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
+            print_error "Project Nomad setup did NOT complete"
+            echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
+            exit 1
+        fi
+    fi
 
     echo ""
     echo -e "${BLUE}════════════════════════════════════════════════════════════${NC}"
