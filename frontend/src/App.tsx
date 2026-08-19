@@ -151,8 +151,13 @@ function AppContent() {
     setSubmitError(null);
 
     try {
-      // Request notification permission
-      await requestPermission();
+      // Ask for notification permission, but NEVER block submission on it (#358).
+      // This used to be awaited. If the user leaves the browser prompt sitting
+      // there the promise never settles, and since setIsSubmitting(true) has
+      // already run the UI hangs on "Submitting model..." forever with no
+      // timeout and no error. Notifications tell you when a model finishes;
+      // submitting the model is the actual work, and it must not wait on them.
+      void requestPermission();
 
       // Extract coordinates from geometry
       let coordinates: [number, number] | [number, number][] | [number, number][][] = [0, 0];
