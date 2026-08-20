@@ -4,11 +4,18 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.15.0
+## v0.16.0
 
 ### 2026-08-20
 
+- [`cf9ab85`](https://github.com/WISE-Developers/project_nomad/commit/cf9ab8524bc869ecacec0520250f8e2ab7a4ae55) Merge pull request #361 from WISE-Developers/dev — *Franco Nogarin, 09:04*
+- [`f51164b`](https://github.com/WISE-Developers/project_nomad/commit/f51164bdee279852ab3a3d3f20d2533b3c81a1d5) chore: dev v0.15.1 [skip ci] — *github-actions[bot], 14:48*
+- [`30391ae`](https://github.com/WISE-Developers/project_nomad/commit/30391ae8309977c3199afc9b5540e2a9c019dc6b) Merge fix/359-flaky-usage-tests: real test timeout, scoped env stubbing — *Franco Nogarin, 08:47*
+- [`471a693`](https://github.com/WISE-Developers/project_nomad/commit/471a693244f78bb0b7318c0a90275a0621d6d988) Merge origin/dev — *Franco Nogarin, 08:47*
+- [`3125a95`](https://github.com/WISE-Developers/project_nomad/commit/3125a9535948745344be7ffb3d4f70288be213b5) fix(#359): give the suite a real test timeout — *Franco Nogarin, 08:47*
+- [`55df3ac`](https://github.com/WISE-Developers/project_nomad/commit/55df3ac8a767fbe5a6b9cad535715f8db6d1e9a9) chore: release v0.15.0 [skip ci] — *github-actions[bot], 13:38*
 - [`605a23e`](https://github.com/WISE-Developers/project_nomad/commit/605a23edc6467f50d50f3e0b071305996b761d60) Merge pull request #360 from WISE-Developers/dev — *Franco Nogarin, 07:38*
+- [`109bb18`](https://github.com/WISE-Developers/project_nomad/commit/109bb1832f12524550177a89e5a13280cabe91fe) test(#359): scope usage-test env mutation instead of mutating process.env — *Franco Nogarin, 07:36*
 - [`61cf9bf`](https://github.com/WISE-Developers/project_nomad/commit/61cf9bfed94b03a0515f4b0af1f02c1ac03e7967) chore: dev v0.14.19 [skip ci] — *github-actions[bot], 13:05*
 - [`1ab2e2c`](https://github.com/WISE-Developers/project_nomad/commit/1ab2e2c3937af5508310e64555f126a9b0813b9f) Merge origin/dev — *Franco Nogarin, 07:05*
 - [`f68b280`](https://github.com/WISE-Developers/project_nomad/commit/f68b28054ddecabde71f4b3ae2ee712d6dbde83e) fix(#340): stop rejecting runs that extend past the weather — *Franco Nogarin, 07:05*
