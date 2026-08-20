@@ -67,22 +67,15 @@ export function validateFireStarrContract(
     }
   }
 
+  // NOTE: deliberately no "run extends past the weather" rejection here. That
+  // was an addition of mine beyond #341, which concerns the IGNITION sitting
+  // inside the series. The wizard already validates duration against the
+  // weather window at the Time Range step, with a clearer message, and this
+  // blunter copy rejected the SS005-23 fire, which runs correctly.
   const lastRecordInstant = points
     .map((p) => p.datetime)
     .sort((a, b) => a.getTime() - b.getTime())
     .at(-1) as Date;
-
-  // A run that continues past the weather is a different fault with a different
-  // remedy, and reporting it as a missing noon sends the user to trim a file
-  // that is fine. Say what is actually wrong.
-  const runOutlastsWeather = runEnd !== undefined && runEnd.getTime() > lastRecordInstant.getTime();
-  if (runOutlastsWeather) {
-    issues.push(
-      `The run continues to ${local(runEnd, timezone).toFormat('yyyy-MM-dd HH:mm')} but the weather ` +
-        `ends at ${local(lastRecordInstant, timezone).toFormat('yyyy-MM-dd HH:mm')}. ` +
-        `Provide weather covering the whole run, or shorten the run to end within it.`,
-    );
-  }
 
   const daysWithoutNoon = [...noonByDay.entries()]
     .filter(([, noon]) => noon === null)

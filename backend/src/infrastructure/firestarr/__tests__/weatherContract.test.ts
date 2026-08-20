@@ -68,17 +68,17 @@ describe('validateFireStarrContract — the simulated window, not the whole file
   // ignition all died with FATAL: map::at, so that side has crash evidence
   // behind it and is not relaxed here.
 
-  it('says the RUN OUTLASTS THE WEATHER rather than blaming a missing noon', () => {
-    // SS005-23 with the metadata's 241h duration: weather ends 06:00 on the
-    // final day, the run wants to continue to 14:00. Refusing is right; saying
-    // "this day has no noon record" sends the user to trim a file that is fine.
+  it('does NOT reject a run that extends past the end of the weather', () => {
+    // My own addition, removed after it rejected the SS005-23 fire. #341 is
+    // about the IGNITION falling inside the series, not the run end, and the
+    // wizard already guards duration-vs-weather at the Time Range step with a
+    // better message. Duplicating it here in a blunter form only produced
+    // false rejections of a fire that runs correctly.
     const points = [...hours('2023-06-19', 6, 23), ...hours('2023-06-20', 0, 23), ...hours('2023-06-21', 0, 6)];
     const result = validateFireStarrContract(points, at('2023-06-19 13:00:00'), ZONE, at('2023-06-21 14:00:00'));
 
-    expect(result.valid).toBe(false);
-    const text = result.issues.join(' ');
-    expect(text).toMatch(/weather ends|outlasts|past the weather/i);
-    expect(text).not.toMatch(/starts partway through a day/i);
+    expect(result.issues).toEqual([]);
+    expect(result.valid).toBe(true);
   });
 
   it('still rejects a missing noon on the IGNITION day', () => {
