@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import { usageRouter, isUsageEndpointEnabled, resolveUsageToken } from '../usage.js';
@@ -51,14 +51,17 @@ function makeApp(opts: {
 }
 
 describe('usage endpoint: registration is fail-closed', () => {
-  const original = process.env.NOMAD_USAGE_API_TOKEN;
-
+  // NOMAD_USAGE_API_TOKEN is read straight off process.env by
+  // isUsageEndpointEnabled() and resolveUsageToken(). Mutating it with a bare
+  // `delete` / assignment leaks across test FILES, because Vitest workers share
+  // process.env — which is how this suite came to fail a different test on each
+  // full-suite run (#359). vi.stubEnv is scoped and unwound by the runner even
+  // if a test throws partway, so the mutation cannot escape this block.
   beforeEach(() => {
-    delete process.env.NOMAD_USAGE_API_TOKEN;
+    vi.stubEnv('NOMAD_USAGE_API_TOKEN', '');
   });
   afterEach(() => {
-    if (original === undefined) delete process.env.NOMAD_USAGE_API_TOKEN;
-    else process.env.NOMAD_USAGE_API_TOKEN = original;
+    vi.unstubAllEnvs();
   });
 
   it('is disabled when no token is configured', () => {
@@ -66,17 +69,17 @@ describe('usage endpoint: registration is fail-closed', () => {
   });
 
   it('is enabled only once a token is configured', () => {
-    process.env.NOMAD_USAGE_API_TOKEN = TOKEN;
+    vi.stubEnv('NOMAD_USAGE_API_TOKEN', TOKEN);
     expect(isUsageEndpointEnabled()).toBe(true);
   });
 
   it('rejects a token that is too short to be worth having', () => {
-    process.env.NOMAD_USAGE_API_TOKEN = 'short';
+    vi.stubEnv('NOMAD_USAGE_API_TOKEN', 'short');
     expect(() => resolveUsageToken()).toThrow(/NOMAD_USAGE_API_TOKEN/);
   });
 
   it('rejects a whitespace-only token rather than treating it as set', () => {
-    process.env.NOMAD_USAGE_API_TOKEN = '                                   ';
+    vi.stubEnv('NOMAD_USAGE_API_TOKEN', '                                   ');
     expect(() => resolveUsageToken()).toThrow();
   });
 });
