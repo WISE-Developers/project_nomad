@@ -68,6 +68,19 @@ describe('validateFireStarrContract — the simulated window, not the whole file
   // ignition all died with FATAL: map::at, so that side has crash evidence
   // behind it and is not relaxed here.
 
+  it('says the RUN OUTLASTS THE WEATHER rather than blaming a missing noon', () => {
+    // SS005-23 with the metadata's 241h duration: weather ends 06:00 on the
+    // final day, the run wants to continue to 14:00. Refusing is right; saying
+    // "this day has no noon record" sends the user to trim a file that is fine.
+    const points = [...hours('2023-06-19', 6, 23), ...hours('2023-06-20', 0, 23), ...hours('2023-06-21', 0, 6)];
+    const result = validateFireStarrContract(points, at('2023-06-19 13:00:00'), ZONE, at('2023-06-21 14:00:00'));
+
+    expect(result.valid).toBe(false);
+    const text = result.issues.join(' ');
+    expect(text).toMatch(/weather ends|outlasts|past the weather/i);
+    expect(text).not.toMatch(/starts partway through a day/i);
+  });
+
   it('still rejects a missing noon on the IGNITION day', () => {
     // The day the fire starts must have its noon record.
     const points = [...hours('2023-06-19', 17, 23), ...hours('2023-06-20', 0, 23)];

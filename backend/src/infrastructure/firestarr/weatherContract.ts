@@ -67,6 +67,23 @@ export function validateFireStarrContract(
     }
   }
 
+  const lastRecordInstant = points
+    .map((p) => p.datetime)
+    .sort((a, b) => a.getTime() - b.getTime())
+    .at(-1) as Date;
+
+  // A run that continues past the weather is a different fault with a different
+  // remedy, and reporting it as a missing noon sends the user to trim a file
+  // that is fine. Say what is actually wrong.
+  const runOutlastsWeather = runEnd !== undefined && runEnd.getTime() > lastRecordInstant.getTime();
+  if (runOutlastsWeather) {
+    issues.push(
+      `The run continues to ${local(runEnd, timezone).toFormat('yyyy-MM-dd HH:mm')} but the weather ` +
+        `ends at ${local(lastRecordInstant, timezone).toFormat('yyyy-MM-dd HH:mm')}. ` +
+        `Provide weather covering the whole run, or shorten the run to end within it.`,
+    );
+  }
+
   const daysWithoutNoon = [...noonByDay.entries()]
     .filter(([, noon]) => noon === null)
     .map(([day]) => day)
@@ -77,7 +94,10 @@ export function validateFireStarrContract(
       const noonThatDay = DateTime.fromFormat(day, 'yyyy-MM-dd', { zone: timezone }).set({
         hour: NOON_HOUR,
       });
-      return noonThatDay.toMillis() <= runEnd.getTime();
+      // Bounded by the weather as well as the run: past the last observation
+      // the problem is the missing weather, already reported above.
+      const covered = Math.min(runEnd.getTime(), lastRecordInstant.getTime());
+      return noonThatDay.toMillis() <= covered;
     })
     .sort();
 
