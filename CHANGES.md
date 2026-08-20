@@ -4,10 +4,15 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.17.0
+## v0.18.0
 
 ### 2026-08-20
 
+- [`2b034b3`](https://github.com/WISE-Developers/project_nomad/commit/2b034b3f8b7cf7d74d7d127edf8a2b3d0d165d20) Merge pull request #363 from WISE-Developers/dev — *Franco Nogarin, 10:00*
+- [`4cb2ac5`](https://github.com/WISE-Developers/project_nomad/commit/4cb2ac5d342ba8e434ab624d1548fcc0484e4952) chore: dev v0.17.1 [skip ci] — *github-actions[bot], 15:28*
+- [`423ced0`](https://github.com/WISE-Developers/project_nomad/commit/423ced03ebdba0c7406aa0dcbf7575ec72fe4370) Merge chore/deploy-script: deploy procedure that cannot drift into root ownership — *Franco Nogarin, 09:28*
+- [`2e0df1f`](https://github.com/WISE-Developers/project_nomad/commit/2e0df1f96f9b10e15ecdac5770d596a61daae314) chore: add a deploy script that refuses root and repairs ownership drift — *Franco Nogarin, 09:28*
+- [`051749d`](https://github.com/WISE-Developers/project_nomad/commit/051749d1f1a91bae94ad6c946cd398806c77af7e) chore: release v0.17.0 [skip ci] — *github-actions[bot], 15:14*
 - [`abf94db`](https://github.com/WISE-Developers/project_nomad/commit/abf94db951162938abb0459d4ed387ccbbaa264d) Merge pull request #362 from WISE-Developers/dev — *Franco Nogarin, 09:13*
 - [`4654455`](https://github.com/WISE-Developers/project_nomad/commit/4654455863f5c48537976441763c261906ecf97f) chore: dev v0.16.1 [skip ci] — *github-actions[bot], 15:11*
 - [`0da5346`](https://github.com/WISE-Developers/project_nomad/commit/0da5346fd093d61abdfc860c4e6b934eb1339c15) Merge chore/splash-sprint17: demo splash reflects Sprint 17 fixes — *Franco Nogarin, 09:11*
