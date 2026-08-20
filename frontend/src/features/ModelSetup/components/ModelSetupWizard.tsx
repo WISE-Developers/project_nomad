@@ -20,6 +20,9 @@ import {
   useWizard,
 } from '../../Wizard';
 import { useModelSetup } from '../hooks/useModelSetup';
+import { useWeatherPreflightGate } from '../hooks/useWeatherPreflightGate';
+import { StartingCodesModal } from './StartingCodesModal';
+import { PreflightErrorModal } from './PreflightErrorModal';
 import { DrawingToolbar } from '../../Map';
 import { SpatialInputStep } from '../steps/SpatialInputStep';
 import { TemporalStep } from '../steps/TemporalStep';
@@ -241,17 +244,44 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId, topGutter = 0 
     y: initialDimensions.y,
   });
 
+  // Weather pre-flight (#351). A FireSTARR CSV that records its CFFDRS indices
+  // once a day writes NaN onto the FireSTARR command line and segfaults the
+  // engine. The gate holds the submission, offers the codes already in the
+  // user's file, and only calls onComplete on an explicit yes.
+  //
+  // It sits here rather than in App.tsx because App.tsx is only the SAN
+  // reference implementation — the wizard forwards to a host-supplied
+  // onComplete, so gating here protects ACN integrators too.
+  const { guardedComplete, gate, error: preflightError } = useWeatherPreflightGate(onComplete);
+
+  const [dismissedError, setDismissedError] = useState(false);
+
   const handleComplete = useCallback(
     async (data: ModelSetupData) => {
-      console.log('Model setup complete:', data);
-
-      // For MVP, just log the data
-      // In Phase 6, this will call the backend API
-      if (onComplete) {
-        await onComplete(data);
-      }
+      setDismissedError(false);
+      await guardedComplete(data);
     },
-    [onComplete]
+    [guardedComplete]
+  );
+
+  const preflightOverlay = (
+    <>
+      {gate && (
+        <StartingCodesModal
+          candidate={gate.candidate}
+          rhythm={gate.rhythm}
+          timezone={gate.timezone}
+          onConfirm={gate.confirm}
+          onCancel={gate.cancel}
+        />
+      )}
+      {preflightError && !dismissedError && (
+        <PreflightErrorModal
+          message={preflightError}
+          onDismiss={() => setDismissedError(true)}
+        />
+      )}
+    </>
   );
 
   const handleCancel = useCallback(() => {
@@ -269,6 +299,7 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId, topGutter = 0 
   if (isMobile) {
     return (
       <>
+        {preflightOverlay}
       <DrawingToolbar position="bottom-left" />
       <div
         style={{
@@ -335,6 +366,7 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId, topGutter = 0 
   if (isTablet) {
     return (
       <>
+        {preflightOverlay}
       <DrawingToolbar position="bottom-left" />
       <div style={{
         position: 'fixed',
@@ -392,6 +424,7 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId, topGutter = 0 
   // Desktop: draggable/resizable panel
   return (
     <>
+    {preflightOverlay}
     <DrawingToolbar position="bottom-left" />
     <Rnd
       default={{

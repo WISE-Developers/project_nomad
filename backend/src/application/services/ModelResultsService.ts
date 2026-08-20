@@ -27,6 +27,7 @@ import type {
 } from '../interfaces/index.js';
 import { createFireModelId } from '../../domain/entities/FireModel.js';
 import { readModelStartDate } from './modelStartDate.js';
+import { readFuelVintage, type FuelVintageRecord } from './fuelVintageRecord.js';
 
 /**
  * Execution summary for API response
@@ -82,6 +83,13 @@ export interface ModelInputs {
    * Absent when nothing on disk records it.
    */
   modelStartDate?: string;
+  /**
+   * The fuel vintage this run actually used, recorded when it ran (#331).
+   * Absent for runs that predate the recording — displayed as "not recorded"
+   * rather than re-resolved, because installing a year later must not rewrite
+   * what a past run claims.
+   */
+  fuelVintage?: FuelVintageRecord;
 }
 
 /**
@@ -371,6 +379,11 @@ export class ModelResultsService {
 
         // The year this fire was modelled for — drives fuel vintage display
         // in results (#319). Undefined when nothing on disk records it.
+        const fuelVintage = await readFuelVintage(simDir);
+        if (fuelVintage) {
+          inputs.fuelVintage = fuelVintage;
+        }
+
         const modelStartDate = await readModelStartDate(simDir);
         if (modelStartDate) {
           inputs.modelStartDate = modelStartDate.toISOString();

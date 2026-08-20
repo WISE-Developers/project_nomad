@@ -170,6 +170,94 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
     }
   }
 
+  /** Vintage directories actually present under the grid root, e.g. ["2023", "2026", "default"]. */
+  private async listInstalledVintages(): Promise<string[]> {
+    if (!this.config.gridRoot) return [];
+    try {
+      const entries = await readdir(this.config.gridRoot, { withFileTypes: true });
+      return entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name)
+        .sort();
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Says which fuel dataset is missing and what to do — issue #330.
+   *
+   * Naming the vintages that ARE installed turns the message from a refusal
+   * into a choice: install the missing year, or model a year you already have.
+   */
+  private async describeMissingFuel(modelYear: number): Promise<string> {
+    const installed = await this.listInstalledVintages();
+
+    const available = installed.length > 0
+      ? `Installed fuel datasets: ${installed.join(', ')}.`
+      : 'No fuel datasets are installed at all.';
+
+    return (
+      `No fuel dataset covers this ignition for ${modelYear}. ${available} ` +
+      `Install the ${modelYear} fuel dataset (or a default dataset), or set the model start ` +
+      `date to a year you already have. The model was not started.`
+    );
+  }
+
+  /**
+   * The vintage directory a resolved grid path sits in — "2024", "default".
+   *
+   * The layout is {gridRoot}/{vintage}/fuel_*.tif, so the segment immediately
+   * below the grid root IS the vintage. Derived from the path actually used
+   * rather than re-asked, so the record cannot disagree with the run.
+   */
+  private vintageFromGridPath(gridPath: string): string | undefined {
+    if (!this.config.gridRoot) return undefined;
+
+    const relative = gridPath.startsWith(this.config.gridRoot)
+      ? gridPath.slice(this.config.gridRoot.length)
+      : undefined;
+    if (relative === undefined) return undefined;
+
+    const [segment] = relative.split(/[\\/]/).filter(Boolean);
+    return segment;
+  }
+
+  /**
+   * Records the fuel vintage this run actually used — issue #331.
+   *
+   * The results view used to resolve the vintage when the page was VIEWED, so
+   * installing a fuel year later retroactively rewrote what past runs claimed.
+   * A completed run is a record of what happened; writing the answer down at
+   * the moment it is true is the only way it stays true.
+   */
+  private async recordFuelVintage(
+    workingDir: string,
+    gridPath: string,
+    requestedYear: number,
+  ): Promise<void> {
+    const vintage = this.vintageFromGridPath(gridPath);
+    const matchedRequestedYear = vintage === String(requestedYear);
+
+    const record = {
+      requestedYear,
+      vintage: vintage ?? null,
+      matchedRequestedYear,
+      usedFallback: !matchedRequestedYear,
+      gridPath,
+      recordedAt: new Date().toISOString(),
+    };
+
+    try {
+      await writeFile(join(workingDir, 'fuel-vintage.json'), JSON.stringify(record, null, 2), 'utf-8');
+    } catch (error) {
+      // Never fail a run because the audit note could not be written; the run
+      // itself is the valuable thing. It will read as "not recorded" later.
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[FireSTARRInputGenerator] Could not record fuel vintage: ${message}`);
+    }
+  }
+
   async generate(
     modelId: FireModelId,
     params: FireSTARRParams
@@ -190,6 +278,24 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
           new ValidationError(`Weather data validation failed: ${validation.issues.join('; ')}`)
         );
       }
+
+      // Fuel coverage must resolve BEFORE a container is launched (#330).
+      // This lookup already knew the answer — it logged "No fuel grid found
+      // containing coordinates" and carried on, so the user's only signal was
+      // "Process exited with code 1" after the engine died on a bare raster
+      // root. Reported here, while it can still be acted on.
+      const modelYear = params.startDate.getFullYear();
+      const fuelGrid = await this.findFuelGridForCoordinates(
+        params.latitude,
+        params.longitude,
+        modelYear,
+      );
+      if (!fuelGrid) {
+        return Result.fail(new ValidationError(await this.describeMissingFuel(modelYear)));
+      }
+
+      // Write down which vintage this run used, now, while it is true (#331).
+      await this.recordFuelVintage(workingDir, fuelGrid, modelYear);
 
       // Write weather CSV
       const weatherFile = join(workingDir, 'weather.csv');

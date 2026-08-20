@@ -1,0 +1,211 @@
+/**
+ * FireSTARR weather input contract — issues #339, #340, #341.
+ *
+ * From FireSTARR's own source, quoted in #340:
+ *
+ *   if (12 == t.tm_hour) { auto& s_daily = wx_daily.at(cur); s_daily.emplace(day, ...); }
+ *
+ * Daily values are recorded ONLY on an exact hour-12 record. A day with no such
+ * record never gets an entry, and the later lookup throws `FATAL: map::at` — ten
+ * seconds in, with the reason only in the container log.
+ *
+ * Observed in production on the CIFFC demo 2026-08-19: four of six runs died
+ * this way, every one of them with a weather series whose first day began after
+ * noon (17:00 or 23:00).
+ */
+
+import { describe, it, expect } from 'vitest';
+import { DateTime } from 'luxon';
+import { validateFireStarrContract } from '../weatherContract.js';
+import type { WeatherDataPoint } from '../../../application/interfaces/weather.js';
+
+const ZONE = 'America/Edmonton';
+
+function at(stamp: string): Date {
+  return DateTime.fromSQL(stamp, { zone: ZONE }).toJSDate();
+}
+
+/** Hourly points across the given local hours of a day. */
+function hours(day: string, from: number, to: number): WeatherDataPoint[] {
+  const points: WeatherDataPoint[] = [];
+  for (let h = from; h <= to; h++) {
+    points.push({
+      datetime: at(`${day} ${String(h).padStart(2, '0')}:00:00`),
+      temperature: 20, humidity: 45, windSpeed: 10, windDirection: 180,
+      precipitation: 0, ffmc: 85, dmc: 30, dc: 200, isi: 5, bui: 40, fwi: 10,
+    });
+  }
+  return points;
+}
+
+const NOON = at('2026-08-04 12:00:00');
+
+describe('validateFireStarrContract — the simulated window, not the whole file', () => {
+  // Regression: the check demanded a noon record on EVERY day present in the
+  // file, including partial days the simulation never reaches. Franco's
+  // known-good SS005-23 file is 240 hourly rows, 2023-06-19 06:00 to
+  // 2023-06-29 06:00 — that last day is a one-row stub with no noon, and it
+  // was rejecting a file that runs correctly.
+
+  const jun19 = at('2023-06-19 13:00:00');
+
+  /** His file's shape: full days, plus a trailing 06:00-only stub. */
+  function ss005Shape(): WeatherDataPoint[] {
+    const days = ['2023-06-19','2023-06-20','2023-06-21','2023-06-22'];
+    const points = days.flatMap((d, i) => hours(d, i === 0 ? 6 : 0, 23));
+    return [...points, ...hours('2023-06-23', 6, 6)];
+  }
+
+  it('accepts a file whose TRAILING day is a stub beyond the run', () => {
+    // 3-day run from Jun 19; the Jun 23 stub is past the end and irrelevant.
+    const result = validateFireStarrContract(ss005Shape(), jun19, ZONE, at('2023-06-22 13:00:00'));
+    expect(result.issues).toEqual([]);
+    expect(result.valid).toBe(true);
+  });
+
+  // NOTE: a LEADING partial day is deliberately still rejected. On the CIFFC
+  // demo, four runs whose weather began after noon on the day before the
+  // ignition all died with FATAL: map::at, so that side has crash evidence
+  // behind it and is not relaxed here.
+
+  it('does NOT reject a run that extends past the end of the weather', () => {
+    // My own addition, removed after it rejected the SS005-23 fire. #341 is
+    // about the IGNITION falling inside the series, not the run end, and the
+    // wizard already guards duration-vs-weather at the Time Range step with a
+    // better message. Duplicating it here in a blunter form only produced
+    // false rejections of a fire that runs correctly.
+    const points = [...hours('2023-06-19', 6, 23), ...hours('2023-06-20', 0, 23), ...hours('2023-06-21', 0, 6)];
+    const result = validateFireStarrContract(points, at('2023-06-19 13:00:00'), ZONE, at('2023-06-21 14:00:00'));
+
+    expect(result.issues).toEqual([]);
+    expect(result.valid).toBe(true);
+  });
+
+  it('still rejects a missing noon on the IGNITION day', () => {
+    // The day the fire starts must have its noon record.
+    const points = [...hours('2023-06-19', 17, 23), ...hours('2023-06-20', 0, 23)];
+    const result = validateFireStarrContract(points, at('2023-06-19 18:00:00'), ZONE, at('2023-06-20 20:00:00'));
+    expect(result.valid).toBe(false);
+    expect(result.issues.join(' ')).toMatch(/2023-06-19/);
+  });
+
+  it('still rejects a missing noon on a day INSIDE the run', () => {
+    const points = [
+      ...hours('2023-06-19', 0, 23),
+      ...hours('2023-06-20', 13, 23),
+      ...hours('2023-06-21', 0, 23),
+    ];
+    const result = validateFireStarrContract(points, jun19, ZONE, at('2023-06-21 20:00:00'));
+    expect(result.valid).toBe(false);
+    expect(result.issues.join(' ')).toMatch(/2023-06-20/);
+  });
+});
+
+describe('validateFireStarrContract', () => {
+  describe('the day-1 noon record (#340)', () => {
+    it('accepts a series whose every day carries an hour-12 record', () => {
+      const points = [...hours('2026-08-04', 0, 23), ...hours('2026-08-05', 0, 23)];
+      expect(validateFireStarrContract(points, NOON, ZONE).valid).toBe(true);
+    });
+
+    it("rejects Danny's shape — a first day that begins after noon", () => {
+      // The production failures: first day started at 17:00 or 23:00.
+      const points = [...hours('2026-08-04', 17, 23), ...hours('2026-08-05', 0, 23)];
+      const result = validateFireStarrContract(points, at('2026-08-05 12:00:00'), ZONE);
+
+      expect(result.valid).toBe(false);
+      expect(result.issues.join(' ')).toMatch(/2026-08-04/);
+      expect(result.issues.join(' ')).toMatch(/noon|12:00/i);
+    });
+
+    it('rejects a series whose first day starts at 23:00', () => {
+      const points = [...hours('2026-08-04', 23, 23), ...hours('2026-08-05', 0, 23)];
+      expect(validateFireStarrContract(points, at('2026-08-05 12:00:00'), ZONE).valid).toBe(false);
+    });
+
+    it('rejects a MIDDLE day with no noon record — the lookup throws there too', () => {
+      const points = [
+        ...hours('2026-08-04', 0, 23),
+        ...hours('2026-08-05', 13, 23),
+        ...hours('2026-08-06', 0, 23),
+      ];
+      const result = validateFireStarrContract(points, NOON, ZONE);
+
+      expect(result.valid).toBe(false);
+      expect(result.issues.join(' ')).toMatch(/2026-08-05/);
+    });
+
+    it('names every offending day, not just the first', () => {
+      const points = [
+        ...hours('2026-08-04', 13, 23),
+        ...hours('2026-08-05', 13, 23),
+      ];
+      const result = validateFireStarrContract(points, at('2026-08-04 13:00:00'), ZONE);
+
+      expect(result.issues.join(' ')).toMatch(/2026-08-04/);
+      expect(result.issues.join(' ')).toMatch(/2026-08-05/);
+    });
+
+    it('requires hour 12 exactly — 12:30 is not a noon record to FireSTARR', () => {
+      // tm_hour == 12 is the test in the engine, so :30 still satisfies it,
+      // but 13:00 does not. This pins that we match on the HOUR.
+      const half = hours('2026-08-04', 0, 23).map((p) =>
+        DateTime.fromJSDate(p.datetime, { zone: ZONE }).hour === 12
+          ? { ...p, datetime: at('2026-08-04 12:30:00') }
+          : p,
+      );
+      // Ignition at 13:00, after the 12:30 record, so this isolates the HOUR
+      // rule instead of also tripping the ignition-window rule.
+      expect(validateFireStarrContract(half, at('2026-08-04 13:00:00'), ZONE).valid).toBe(true);
+    });
+  });
+
+  describe('the ignition window (#341)', () => {
+    const twoDays = [...hours('2026-08-04', 0, 23), ...hours('2026-08-05', 0, 23)];
+
+    it('accepts an ignition exactly at the day-1 noon record', () => {
+      expect(validateFireStarrContract(twoDays, NOON, ZONE).valid).toBe(true);
+    });
+
+    it('accepts an ignition after noon', () => {
+      expect(validateFireStarrContract(twoDays, at('2026-08-04 15:00:00'), ZONE).valid).toBe(true);
+    });
+
+    it('rejects an ignition BEFORE the day-1 noon record', () => {
+      // 09:00 Monday with the first CFFDRS at noon: the fire starts before any
+      // codes exist for that day, so the codes supplied are never applied.
+      const result = validateFireStarrContract(twoDays, at('2026-08-04 09:00:00'), ZONE);
+
+      expect(result.valid).toBe(false);
+      expect(result.issues.join(' ')).toMatch(/ignition/i);
+    });
+
+    it('rejects an ignition after the weather series ends', () => {
+      const result = validateFireStarrContract(twoDays, at('2026-08-09 12:00:00'), ZONE);
+
+      expect(result.valid).toBe(false);
+      expect(result.issues.join(' ')).toMatch(/ignition/i);
+    });
+
+    it('says what the usable window actually is, so the user can fix it', () => {
+      const result = validateFireStarrContract(twoDays, at('2026-08-04 09:00:00'), ZONE);
+      expect(result.issues.join(' ')).toMatch(/2026-08-04 12:00/);
+    });
+  });
+
+  describe('degenerate input', () => {
+    it('rejects an empty series', () => {
+      const result = validateFireStarrContract([], NOON, ZONE);
+      expect(result.valid).toBe(false);
+      expect(result.issues.length).toBeGreaterThan(0);
+    });
+
+    it('reports every problem at once rather than one per attempt', () => {
+      // A first day with no noon AND an ignition outside the window.
+      const points = hours('2026-08-04', 17, 23);
+      const result = validateFireStarrContract(points, at('2026-08-01 09:00:00'), ZONE);
+
+      expect(result.issues.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+});

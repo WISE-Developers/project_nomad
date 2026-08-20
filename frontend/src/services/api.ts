@@ -70,8 +70,24 @@ async function request<T>(
     } catch {
       details = text;
     }
+    // Prefer the server's own explanation over the HTTP status text (#339).
+    // The backend now says exactly what is wrong — which noon record is
+    // missing, how to fix it — and "API request failed: Bad Request" would
+    // throw that away and leave the user with the same opacity as before.
+    // The backend nests it as { error: { message } }; some routes return a flat
+    // { message }. Verified against the running stack — reading only the flat
+    // form silently fell back to "Bad Request".
+    const asRecord = (v: unknown): Record<string, unknown> | undefined =>
+      v !== null && typeof v === 'object' ? (v as Record<string, unknown>) : undefined;
+
+    const body = asRecord(details);
+    const nested = asRecord(body?.error);
+    const serverMessage = [nested?.message, body?.message].find(
+      (m): m is string => typeof m === 'string' && m.length > 0,
+    );
+
     throw new ApiError(
-      `API request failed: ${response.statusText}`,
+      serverMessage ?? `API request failed: ${response.statusText}`,
       response.status,
       details
     );
@@ -372,5 +388,46 @@ export async function updateNotificationPreferences(
   return request<GetNotificationPreferencesResponse>('/notifications/preferences', {
     method: 'PUT',
     body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Pre-flight weather inspection — issue #351.
+ *
+ * Read-only. Detects the daily-only CFFDRS shape and returns the starting codes
+ * already present in the user's file. Creates no model and no job, so declining
+ * the offer leaves nothing behind to clean up.
+ */
+export interface PreflightRequest {
+  timezone: string;
+  timeRange: { start: string; end: string };
+  weather: { source: 'firestarr_csv' | 'raw_weather' | 'spotwx'; firestarrCsvContent?: string };
+}
+
+export interface PreflightCandidate {
+  ffmc: number;
+  dmc: number;
+  dc: number;
+  observedAt: string;
+  localLabel: string;
+}
+
+export interface PreflightRhythm {
+  dailyHour: number;
+  hoursFromNoon: number;
+  likelyZoneMismatch: boolean;
+}
+
+export interface PreflightResponse {
+  dailyOnlyCffdrs: boolean;
+  candidate: PreflightCandidate | null;
+  /** How the file's daily rhythm compares with the timezone contract (#354). */
+  rhythm: PreflightRhythm | null;
+}
+
+export async function preflightWeather(body: PreflightRequest): Promise<PreflightResponse> {
+  return request<PreflightResponse>('/models/preflight', {
+    method: 'POST',
+    body: JSON.stringify(body),
   });
 }

@@ -23,6 +23,8 @@ import {
   JobStatusToast,
   NotificationPermissionBanner,
 } from './features/Notifications';
+import { resolveIgnitionLatitude } from './features/ModelSetup/utils/ignitionLatitude';
+import { resolveZonedInstant } from './features/ModelSetup/utils/zonedInstant';
 import { runModel } from './services/api';
 import { registerServiceWorker } from './services/serviceWorker';
 import type { ModelResultsResponse } from './features/ModelReview/types';
@@ -149,8 +151,13 @@ function AppContent() {
     setSubmitError(null);
 
     try {
-      // Request notification permission
-      await requestPermission();
+      // Ask for notification permission, but NEVER block submission on it (#358).
+      // This used to be awaited. If the user leaves the browser prompt sitting
+      // there the promise never settles, and since setIsSubmitting(true) has
+      // already run the UI hangs on "Submitting model..." forever with no
+      // timeout and no error. Notifications tell you when a model finishes;
+      // submitting the model is the actual work, and it must not wait on them.
+      void requestPermission();
 
       // Extract coordinates from geometry
       let coordinates: [number, number] | [number, number][] | [number, number][][] = [0, 0];
@@ -186,7 +193,12 @@ function AppContent() {
       }
 
       // Build time range
-      const startDateTime = new Date(`${data.temporal.startDate}T${data.temporal.startTime}`);
+      // Resolved in the model's own timezone, never the browser's (#355).
+      const startDateTime = resolveZonedInstant(
+        data.temporal.startDate,
+        data.temporal.startTime,
+        data.temporal.timezone,
+      );
       const endDateTime = new Date(startDateTime.getTime() + data.temporal.durationHours * 60 * 60 * 1000);
 
       // Helper to read file content
@@ -229,9 +241,7 @@ function AppContent() {
             source: 'raw_weather',
             rawWeatherContent: await readFileContent(data.weather.rawWeatherFile),
             startingCodes: data.weather.startingCodes,
-            latitude: data.geometry.features[0]?.geometry?.type === 'Point'
-              ? (data.geometry.features[0].geometry.coordinates as [number, number])[1]
-              : data.geometry.bounds?.[1],
+            latitude: resolveIgnitionLatitude(data.geometry),
           };
           break;
         case 'spotwx': {
@@ -252,10 +262,7 @@ function AppContent() {
             source: 'raw_weather',
             rawWeatherContent: normalizeSpotwxToRawWeather(spotwxRaw),
             startingCodes: data.weather.startingCodes,
-            latitude:
-              data.geometry.features[0]?.geometry?.type === 'Point'
-                ? (data.geometry.features[0].geometry.coordinates as [number, number])[1]
-                : data.geometry.bounds?.[1],
+            latitude: resolveIgnitionLatitude(data.geometry),
           };
           break;
         }

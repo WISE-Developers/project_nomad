@@ -135,6 +135,17 @@ export interface ParsedWeatherCSV {
   hasScenarioColumn: boolean;
   /** Whether all FWI columns are present (FFMC, DMC, DC, ISI, BUI, FWI) */
   hasFWIColumns: boolean;
+  /**
+   * What those columns actually CONTAIN (#357). hasFWIColumns only reports that
+   * the headers exist — a file can carry every column and still hold nothing.
+   * Undefined for files with no FWI columns at all.
+   */
+  fwiValues?: {
+    totalRows: number;
+    rowsWithAllCodes: number;
+    rowsMissingCodes: number;
+    missingByColumn: Record<string, number>;
+  };
   /** Min and max date (YYYY-MM-DD) extracted from the parsed rows */
   dateRange?: { minDate: string; maxDate: string };
 }
