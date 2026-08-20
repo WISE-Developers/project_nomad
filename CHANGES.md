@@ -4,10 +4,15 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.16.0
+## v0.17.0
 
 ### 2026-08-20
 
+- [`abf94db`](https://github.com/WISE-Developers/project_nomad/commit/abf94db951162938abb0459d4ed387ccbbaa264d) Merge pull request #362 from WISE-Developers/dev — *Franco Nogarin, 09:13*
+- [`4654455`](https://github.com/WISE-Developers/project_nomad/commit/4654455863f5c48537976441763c261906ecf97f) chore: dev v0.16.1 [skip ci] — *github-actions[bot], 15:11*
+- [`0da5346`](https://github.com/WISE-Developers/project_nomad/commit/0da5346fd093d61abdfc860c4e6b934eb1339c15) Merge chore/splash-sprint17: demo splash reflects Sprint 17 fixes — *Franco Nogarin, 09:11*
+- [`00da8d7`](https://github.com/WISE-Developers/project_nomad/commit/00da8d7c81fc5842ee9a796ac93f977623e19f49) chore(#289): update the demo splash with what Sprint 17 fixed — *Franco Nogarin, 09:11*
+- [`6a622ec`](https://github.com/WISE-Developers/project_nomad/commit/6a622ecb487de1f914bae25a5913fe77e90ed12a) chore: release v0.16.0 [skip ci] — *github-actions[bot], 15:04*
 - [`cf9ab85`](https://github.com/WISE-Developers/project_nomad/commit/cf9ab8524bc869ecacec0520250f8e2ab7a4ae55) Merge pull request #361 from WISE-Developers/dev — *Franco Nogarin, 09:04*
 - [`f51164b`](https://github.com/WISE-Developers/project_nomad/commit/f51164bdee279852ab3a3d3f20d2533b3c81a1d5) chore: dev v0.15.1 [skip ci] — *github-actions[bot], 14:48*
 - [`30391ae`](https://github.com/WISE-Developers/project_nomad/commit/30391ae8309977c3199afc9b5540e2a9c019dc6b) Merge fix/359-flaky-usage-tests: real test timeout, scoped env stubbing — *Franco Nogarin, 08:47*
