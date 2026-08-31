@@ -74,7 +74,7 @@ curl ... | INSTALL_DIR=/opt/nomad bash
 # Custom dataset path
 curl ... | FIRESTARR_DATASET_PATH=/data/firestarr bash
 
-# Auto-download 50GB dataset
+# Auto-download dataset (~3GB, one fuel year by default)
 curl ... | AUTO_INSTALL_DATASET=1 bash
 
 # Install without starting

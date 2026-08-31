@@ -82,7 +82,7 @@ Open-source probabilistic fire modeling:
 | Component | Minimum | Details |
 |-----------|---------|---------|
 | **Nomad** | 2 cores, 4 GB RAM, 2 GB disk | [Full requirements](NOMAD_REQUIREMENTS.md) |
-| **FireSTARR** | 2 cores, 8 GB RAM, 50 GB disk (dataset) | [Full requirements](FIRESTARR_REQUIREMENTS.md) |
+| **FireSTARR** | 2 cores, 8 GB RAM, 11 GB disk (dataset) | [Full requirements](FIRESTARR_REQUIREMENTS.md) |
 
 Container mode requires a Docker-compatible API and Docker Compose v2. Bare metal mode requires Node.js >= 20, GDAL, and SQLite. See the requirements documents for complete details.
 
@@ -129,7 +129,7 @@ cd project_nomad
 
 The installer will guide you through:
 1. **Infrastructure selection** - Container (recommended) or Metal (bare metal)
-2. **FireSTARR dataset** - Download or use existing (~50GB national fuel/DEM data)
+2. **FireSTARR dataset** - Download or use existing (~11GB national fuel/DEM data, ~3GB per fuel year)
 3. **FireSTARR binary** - Download or use existing
 4. **Configuration** - Paths, ports, and environment setup
 
