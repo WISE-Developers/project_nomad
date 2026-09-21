@@ -75,7 +75,17 @@ export default defineConfig(({ mode }) => {
       // date, not the build date). Empty if the tag is missing.
       __RELEASE_DATE__: JSON.stringify(resolveReleaseDate()),
     },
-    resolve: {
+    // maplibre 6 resolves its tile worker from import.meta.url
+  // (dist/maplibre-gl-worker.mjs). Vite's dependency pre-bundling rewrites
+  // that to node_modules/.vite/deps/, where the worker file does not exist,
+  // so the worker 404s, no tiles are ever requested, and nothing is
+  // reported -- maplibre does not surface worker load failures yet
+  // (upstream #8018). Excluding it from pre-bundling keeps import.meta.url
+  // pointing at the real package. Refs #372.
+  optimizeDeps: {
+    exclude: ['maplibre-gl'],
+  },
+  resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
       },

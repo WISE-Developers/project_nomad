@@ -1,5 +1,6 @@
 import { useEffect, useRef, ReactNode } from 'react';
 import * as maplibregl from 'maplibre-gl';
+import '../maplibreWorker';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useMapInternal } from '../context/MapContext';
 import { DrawProvider } from '../context/DrawContext';
