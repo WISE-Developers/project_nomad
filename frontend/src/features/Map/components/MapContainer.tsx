@@ -1,5 +1,5 @@
 import { useEffect, useRef, ReactNode } from 'react';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useMapInternal } from '../context/MapContext';
 import { DrawProvider } from '../context/DrawContext';
@@ -134,7 +134,11 @@ export function MapContainer({
 
       map.on('error', (e) => {
         console.error('Map error:', e.error);
-        setError(e.error);
+        // maplibre 6 widened this to ErrorLike, which is not necessarily an
+        // Error instance. Normalise rather than cast, so the message a user
+        // eventually sees is never "[object Object]" (refs #372).
+        const raw: unknown = e.error;
+        setError(raw instanceof Error ? raw : new Error(String((raw as { message?: string })?.message ?? raw)));
       });
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));

@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import { PROBABILITY_LEGEND } from '../symbology/palettes.js';
 
 // =============================================================================
