@@ -140,3 +140,80 @@ describe('StartingCodesModal', () => {
     });
   });
 });
+
+/**
+ * The UTC heuristic must judge the reading by its own date — issue #374.
+ *
+ * zoneOffsetHours() asked what the zone's offset was at `new Date()` and
+ * used that to interpret a reading taken on some other date. A zone that
+ * observes DST has two offsets, so the same file was diagnosed correctly
+ * in one season and wrongly in the other.
+ *
+ * Both directions matter, and the false positive is the worse of the two:
+ * telling an operator their file is UTC when it is already local invites
+ * them to "fix" data that was correct.
+ *
+ * Dates here sit either side of Edmonton's 2026 DST period and are both
+ * before the 2026-11-01 permanent-UTC-06 change, so they hold whatever
+ * tzdata the runtime carries (see #365).
+ */
+describe('StartingCodesModal UTC heuristic uses the reading date (#374)', () => {
+  /** Taken in winter: Edmonton is MST, UTC-7. */
+  const WINTER_READING: StartingCodeCandidate = {
+    ...CANDIDATE,
+    observedAt: '2026-01-15T19:00:00.000Z',
+    localLabel: '2026-01-15, 1200',
+  };
+
+  /** Taken in summer: Edmonton is MDT, UTC-6. */
+  const SUMMER_READING: StartingCodeCandidate = {
+    ...CANDIDATE,
+    observedAt: '2026-07-15T18:00:00.000Z',
+    localLabel: '2026-07-15, 1200',
+  };
+
+  it('names UTC for a winter reading whose gap matches the winter offset', () => {
+    // 7 hours from noon against MST's -7 is the signature of a UTC file.
+    render(
+      <StartingCodesModal
+        candidate={WINTER_READING}
+        rhythm={{ dailyHour: 19, hoursFromNoon: 7, likelyZoneMismatch: true }}
+        timezone="America/Edmonton"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    expect(document.body.textContent).toMatch(/UTC/);
+  });
+
+  it('does not name UTC for a winter reading whose gap matches the SUMMER offset', () => {
+    // 6 hours from noon is the UTC signature in summer, not in winter. Judging
+    // this reading by today's offset accuses a correct file of being UTC.
+    render(
+      <StartingCodesModal
+        candidate={WINTER_READING}
+        rhythm={{ dailyHour: 18, hoursFromNoon: 6, likelyZoneMismatch: true }}
+        timezone="America/Edmonton"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    expect(document.body.textContent).not.toMatch(/UTC/);
+  });
+
+  it('names UTC for a summer reading whose gap matches the summer offset', () => {
+    render(
+      <StartingCodesModal
+        candidate={SUMMER_READING}
+        rhythm={{ dailyHour: 18, hoursFromNoon: 6, likelyZoneMismatch: true }}
+        timezone="America/Edmonton"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    expect(document.body.textContent).toMatch(/UTC/);
+  });
+});
