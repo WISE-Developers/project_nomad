@@ -2,7 +2,8 @@
  * Centralized logging service with file rotation.
  *
  * Features:
- * - Local datetime timestamps (not UTC)
+ * - Timestamps in the deployment's zone (NOMAD_HOME_TIMEZONE), always
+ *   carrying their UTC offset
  * - Daily file rotation with 14-day retention
  * - Max 50MB per file, 200MB total
  * - Separate error log file
@@ -12,31 +13,18 @@
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import path from 'path';
+import { formatLogTimestamp } from './logTimestamp.js';
 
 // Determine log directory from env or default to ./logs
 const LOG_DIR = process.env.NOMAD_LOG_DIR || path.join(process.cwd(), 'logs');
 
-/**
- * Format timestamp in local timezone: YYYY-MM-DD HH:mm:ss.SSS
- */
-function localTimestamp(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  const seconds = String(now.getSeconds()).padStart(2, '0');
-  const ms = String(now.getMilliseconds()).padStart(3, '0');
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${ms}`;
-}
 
 /**
  * Custom format for log messages.
- * Output: [2024-01-19 08:30:45.123] [INFO] [Category] Message
+ * Output: [2024-01-19 08:30:45.123 -07:00] [INFO] [Category] Message
  */
 const logFormat = winston.format.printf(({ level, message, category, correlationId }) => {
-  const timestamp = localTimestamp();
+  const timestamp = formatLogTimestamp(new Date());
   const categoryPart = category ? `[${category}] ` : '';
   const correlationPart = correlationId ? `[${correlationId}] ` : '';
   return `[${timestamp}] [${level.toUpperCase()}] ${correlationPart}${categoryPart}${message}`;
