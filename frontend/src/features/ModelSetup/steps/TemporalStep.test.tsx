@@ -137,3 +137,58 @@ describe('TemporalStep default start date', () => {
     expect(dateInput.max).toBe('2026-04-22');
   });
 });
+
+/**
+ * Zone-correctness of the "model ends at" preview — issue #367.
+ *
+ * The preview is built from the start date, start time and duration. Doing
+ * that with `new Date("YYYY-MM-DDTHH:mm")` reads the string in the BROWSER's
+ * zone and formats the result there too, so the model's own timezone never
+ * reaches the calculation. This is the bug class #355 fixed elsewhere via
+ * resolveZonedInstant; this helper was missed.
+ *
+ * The two mistakes cancel for most inputs, which is why it survived: wall
+ * clock plus duration comes out the same in either zone when both zones sit
+ * at a constant offset across the window. They stop cancelling when a DST
+ * transition falls inside the window in one zone and not the other -- so
+ * that is the case asserted here.
+ *
+ * Window: 2026-03-07 12:00 in America/Edmonton, running 48 hours. Edmonton
+ * springs forward on 2026-03-08, so 48 real hours advance the local clock by
+ * 49. The model therefore ends at 13:00 local, not 12:00.
+ *
+ * These tests run with TZ=UTC (see the npm script), which has no transition
+ * in that window -- exactly the mismatch that exposes the defect.
+ */
+describe('TemporalStep end-time preview (#367)', () => {
+  const dstCrossing: ModelSetupData = {
+    ...DEFAULT_MODEL_SETUP_DATA,
+    temporal: {
+      ...DEFAULT_MODEL_SETUP_DATA.temporal,
+      startDate: '2026-03-07',
+      startTime: '12:00',
+      durationHours: 48,
+      timezone: 'America/Edmonton',
+    },
+  };
+
+  it("honours the model's timezone across a DST transition, not the browser's", () => {
+    const Wrapper = createWizardWrapper(dstCrossing);
+    render(<TemporalStep />, { wrapper: Wrapper });
+
+    // 2026-03-07 12:00 MST is 19:00Z. Plus 48h is 2026-03-09 19:00Z, which
+    // is 13:00 in Edmonton because the zone moved to MDT on the 8th.
+    expect(screen.getByText(/13:00/)).toBeTruthy();
+  });
+
+  it('labels the preview with a timezone so the reader cannot misread it', () => {
+    const Wrapper = createWizardWrapper(dstCrossing);
+    render(<TemporalStep />, { wrapper: Wrapper });
+
+    // A bare time on a model that carries an explicit zone is ambiguous:
+    // the operator cannot tell whether they are reading fire-local time or
+    // their own. Every other zone-aware surface in this codebase emits a
+    // zone name alongside the value.
+    expect(screen.getByText(/MDT|MST|GMT[+-]\d/)).toBeTruthy();
+  });
+});
