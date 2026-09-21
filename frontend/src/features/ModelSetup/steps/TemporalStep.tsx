@@ -8,6 +8,7 @@
 
 import React, { useCallback, useMemo, useRef, useEffect } from 'react';
 import { useWizardData } from '../../Wizard';
+import { resolveZonedInstant } from '../utils/zonedInstant';
 import type { ModelSetupData } from '../types';
 import {
   computeDefaultStartDate,
@@ -151,13 +152,30 @@ function formatDuration(hours: number): string {
 }
 
 /**
- * Calculate end date/time from start and duration
+ * Calculate end date/time from start and duration, in the model's own zone.
+ *
+ * Both halves must use `timeZone` (refs #367). Reading the start with
+ * `new Date("YYYY-MM-DDTHH:mm")` parses it in the BROWSER's zone, and
+ * formatting without `timeZone` renders it there too. Those two mistakes
+ * cancel while both zones hold a constant offset across the window, which
+ * is why this survived — they stop cancelling the moment a DST transition
+ * falls inside the window in one zone and not the other, and the preview
+ * is then an hour out.
+ *
+ * `timeZoneName` is not decoration. The operator's browser is frequently
+ * not in the fire's zone, and an unlabelled time gives them no way to tell
+ * which one they are reading.
  */
-function calculateEndDateTime(startDate: string, startTime: string, durationHours: number): string {
-  if (!startDate || !startTime) return '';
+function calculateEndDateTime(
+  startDate: string,
+  startTime: string,
+  durationHours: number,
+  timeZone: string
+): string {
+  if (!startDate || !startTime || !timeZone) return '';
 
   try {
-    const start = new Date(`${startDate}T${startTime}`);
+    const start = resolveZonedInstant(startDate, startTime, timeZone);
     const end = new Date(start.getTime() + durationHours * 60 * 60 * 1000);
 
     return end.toLocaleString(undefined, {
@@ -168,6 +186,8 @@ function calculateEndDateTime(startDate: string, startTime: string, durationHour
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
+      timeZone,
+      timeZoneName: 'short',
     });
   } catch {
     return '';
@@ -302,8 +322,14 @@ export function TemporalStep() {
 
   // Calculate end date/time
   const endDateTime = useMemo(
-    () => calculateEndDateTime(temporal.startDate, temporal.startTime, temporal.durationHours),
-    [temporal.startDate, temporal.startTime, temporal.durationHours]
+    () =>
+      calculateEndDateTime(
+        temporal.startDate,
+        temporal.startTime,
+        temporal.durationHours,
+        temporal.timezone
+      ),
+    [temporal.startDate, temporal.startTime, temporal.durationHours, temporal.timezone]
   );
 
   const activeQuickSelect = getActiveQuickSelect(temporal.startDate);
