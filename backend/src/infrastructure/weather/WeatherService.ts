@@ -581,38 +581,6 @@ export class WeatherService {
       };
     });
   }
-
-  /**
-   * Converts weather data points to FireSTARR CSV format.
-   *
-   * @param points - Array of weather data points
-   * @returns CSV string in FireSTARR format
-   */
-  toFirestarrCsv(points: WeatherDataPoint[]): string {
-    const header = 'Scenario,Date,PREC,TEMP,RH,WS,WD,FFMC,DMC,DC,ISI,BUI,FWI';
-    const lines = [header];
-
-    for (const point of points) {
-      const dateStr = this.formatDate(point.datetime);
-      lines.push(
-        `0,${dateStr},${point.precipitation.toFixed(1)},${point.temperature.toFixed(1)},` +
-        `${point.humidity.toFixed(1)},${point.windSpeed.toFixed(1)},${point.windDirection.toFixed(1)},` +
-        `${point.ffmc.toFixed(1)},${point.dmc.toFixed(1)},${point.dc.toFixed(1)},` +
-        `${(point.isi ?? 0).toFixed(2)},${(point.bui ?? 0).toFixed(2)},${(point.fwi ?? 0).toFixed(2)}`
-      );
-    }
-
-    return lines.join('\n');
-  }
-
-  /**
-   * Format date for FireSTARR CSV
-   */
-  private formatDate(date: Date): string {
-    const pad = (n: number): string => n.toString().padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
-      `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-  }
 }
 
 /**
