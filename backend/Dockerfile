@@ -69,6 +69,17 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
+# Ship our own ICU timezone data (refs #364, #365).
+#
+# Node resolves zones through its BUNDLED ICU, not the OS, so installing
+# tzdata here would change nothing. No published Node image carries the
+# release that covers NWT/Alberta dropping DST on 2026-11-01 -- node:22-*
+# is still on 2026a -- so the data is vendored and ICU is pointed at it.
+# process.versions.tz reports the override, and tzdataCurrency.test.ts
+# asserts it.
+COPY vendor/icu-tzdata/2026c /opt/icu-tzdata
+ENV ICU_TIMEZONE_FILES_DIR=/opt/icu-tzdata
+
 # Preserve workspace-relative paths so the backend can find frontend/dist
 # Backend code: resolve(__dirname, '../../frontend/dist')
 # __dirname = /app/backend/dist → ../../frontend/dist = /app/frontend/dist

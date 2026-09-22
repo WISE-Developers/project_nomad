@@ -23,9 +23,28 @@ import { defineConfig } from 'vitest/config';
  * doubles as a performance assertion produces exactly this — failures that
  * point at the wrong test and teach people to re-run instead of read.
  */
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+const here = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Point ICU at the timezone data this product ships (refs #364, #365).
+ *
+ * Without this the suite asserts against whatever tzdata the developer's
+ * Node happens to bundle, which is not what runs in production and is
+ * usually older. Setting it here means the timezone tests exercise the
+ * same data as the container.
+ */
+process.env.ICU_TIMEZONE_FILES_DIR =
+  process.env.ICU_TIMEZONE_FILES_DIR ?? resolve(here, '../vendor/icu-tzdata/2026c');
+
 export default defineConfig({
   test: {
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    env: {
+      ICU_TIMEZONE_FILES_DIR: process.env.ICU_TIMEZONE_FILES_DIR,
+    },
   },
 });
