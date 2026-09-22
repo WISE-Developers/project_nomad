@@ -55,6 +55,12 @@ readonly FIRESTARR_VERSION="v0.9.20"
 readonly DATASET_VERSION="nomad-fuel-datasets/v1"
 readonly DATASET_INDEX_URL="https://fgmfiles.spyd.com/datasets/nomad/index.json"
 
+# Native addons, pinned to what the backend actually resolves today. These ship
+# as prebuilt binaries rather than being compiled, so the builder needs no
+# toolchain and runs anywhere -- including a Mac building for Windows.
+readonly BETTER_SQLITE3_VERSION="12.9.0"
+readonly GDAL_ASYNC_VERSION="3.12.3"
+
 # GitHub publishes a sha256 digest for every release asset, so FireSTARR's
 # authoritative hash comes from the release API rather than from a list we
 # maintain by hand.
@@ -147,6 +153,42 @@ expected_sha256_for() {
 }
 
 # ---------------------------------------------------------------------------
+# Node major -> V8 module ABI.
+#
+# A prebuilt native addon is valid for exactly one ABI. Carrying the ABI as a
+# constant beside NODE_VERSION would mean two numbers that must move together
+# and look nothing alike -- and there is a live suggestion to move Nomad to
+# Node 24, which is ABI 137, not 127. Someone making that entirely reasonable
+# change would leave a stale constant behind, every prebuild would be wrong,
+# and nothing would fail until a practitioner's laptop could not load its own
+# database driver. So it is derived.
+#
+# Values verified against nodejs.org/dist/index.json, not recalled.
+node_abi_for() {
+  local version="$1"
+  local major="${version#v}"
+  major="${major%%.*}"
+
+  case "$major" in
+    18) echo 108 ;;
+    19) echo 111 ;;
+    20) echo 115 ;;
+    21) echo 120 ;;
+    22) echo 127 ;;
+    23) echo 131 ;;
+    24) echo 137 ;;
+    25) echo 141 ;;
+    26) echo 147 ;;
+    *)  die "unknown Node major '$major' (from $version) -- no ABI mapping.
+
+       Add it from nodejs.org/dist/index.json rather than guessing. A guessed
+       ABI downloads real, correctly-checksummed addons that the bundled Node
+       cannot load, and that failure surfaces on a field laptop rather than
+       here." ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
 # The record written beside the bundle.
 #
 # A hash checked at build time and then discarded answers "was this download
@@ -231,6 +273,68 @@ ENVFILE
 }
 
 # ---------------------------------------------------------------------------
+# Ask GitHub what an asset is supposed to be, rather than trusting what arrives.
+# ---------------------------------------------------------------------------
+github_asset_digest() {
+  local repo="$1" tag="$2" asset="$3"
+  command -v gh >/dev/null 2>&1 || die "gh is required to read published digests"
+  gh api "repos/${repo}/releases/tags/${tag}" \
+    --jq ".assets[] | select(.name==\"${asset}\") | .digest" 2>/dev/null | sed 's/^sha256://'
+}
+
+# ---------------------------------------------------------------------------
+# Prebuilt native addons for the TARGET, not for this machine.
+#
+# better-sqlite3 and gdal-async are compiled addons. Installing them normally
+# would build or download binaries for whatever machine runs the builder --
+# which for Nomad is usually a Mac, producing a bundle that cannot start on
+# the Windows laptop it was built for.
+#
+# Both projects publish prebuilds per ABI/platform/arch with digests, so we
+# select the target's explicitly and verify them like every other input. That
+# also means the builder needs no compiler toolchain at all.
+#
+# Staged rather than installed: they are dropped into app/node_modules once the
+# JS payload exists, so that a normal `npm ci --ignore-scripts` can provide the
+# JavaScript without ever building a native for the wrong platform.
+fetch_natives() {
+  local dest="$1" abi="$2" plat="$3" arch="$4"
+  mkdir -p "$dest"
+
+  local bs_asset="better-sqlite3-v${BETTER_SQLITE3_VERSION}-node-v${abi}-${plat}-${arch}.tar.gz"
+  local bs_tag="v${BETTER_SQLITE3_VERSION}"
+  local bs_sha
+  bs_sha="$(github_asset_digest "WiseLibs/better-sqlite3" "$bs_tag" "$bs_asset")"
+  [ -n "$bs_sha" ] || die "no prebuild published: $bs_asset
+
+       better-sqlite3 ${BETTER_SQLITE3_VERSION} has no binary for Node ABI ${abi}
+       on ${plat}-${arch}. Building it here would produce an addon for THIS
+       machine, which is the failure this bundle exists to avoid."
+
+  info "fetching $bs_asset"
+  curl -fsSL -o "$dest/$bs_asset" \
+    "https://github.com/WiseLibs/better-sqlite3/releases/download/${bs_tag}/${bs_asset}" \
+    || die "could not download $bs_asset"
+  verify_sha256 "$dest/$bs_asset" "$bs_sha" "better-sqlite3 ${BETTER_SQLITE3_VERSION} (ABI ${abi}, ${plat}-${arch})"
+
+  local gd_asset="node-v${abi}-${plat}-${arch}.tar.gz"
+  local gd_tag="v${GDAL_ASYNC_VERSION}"
+  local gd_sha
+  gd_sha="$(github_asset_digest "mmomtchev/node-gdal-async" "$gd_tag" "$gd_asset")"
+  [ -n "$gd_sha" ] || die "no prebuild published: $gd_asset
+
+       gdal-async ${GDAL_ASYNC_VERSION} has no binary for Node ABI ${abi} on
+       ${plat}-${arch}. gdal-async bundles its own GDAL, so there is no host
+       GDAL to fall back on -- this is fatal, not degradable."
+
+  info "fetching gdal-async $gd_asset"
+  curl -fsSL -o "$dest/gdal-async-$gd_asset" \
+    "https://github.com/mmomtchev/node-gdal-async/releases/download/${gd_tag}/${gd_asset}" \
+    || die "could not download gdal-async $gd_asset"
+  verify_sha256 "$dest/gdal-async-$gd_asset" "$gd_sha" "gdal-async ${GDAL_ASYNC_VERSION} (ABI ${abi}, ${plat}-${arch})"
+}
+
+# ---------------------------------------------------------------------------
 # Argument parsing. Unknown flags are fatal: a typo that silently builds the
 # wrong bundle is worse than one that stops.
 # ---------------------------------------------------------------------------
@@ -247,13 +351,19 @@ done
 
 case "$PLATFORM" in
   windows-x64) NODE_ARCHIVE="node-${NODE_VERSION}-win-x64.zip"
-               FIRESTARR_ASSET="firestarr-windows-x64-cl-Release.zip" ;;
+               FIRESTARR_ASSET="firestarr-windows-x64-cl-Release.zip"
+               NATIVE_PLATFORM="win32"; NATIVE_ARCH="x64" ;;
   linux-x64)   NODE_ARCHIVE="node-${NODE_VERSION}-linux-x64.tar.xz"
-               FIRESTARR_ASSET="firestarr-ubuntu-x64-gcc-Release.tar.gz" ;;
+               FIRESTARR_ASSET="firestarr-ubuntu-x64-gcc-Release.tar.gz"
+               NATIVE_PLATFORM="linux"; NATIVE_ARCH="x64" ;;
   macos-arm64) NODE_ARCHIVE="node-${NODE_VERSION}-darwin-arm64.tar.gz"
-               FIRESTARR_ASSET="firestarr-macos-arm64-clang-Release.tar.gz" ;;
+               FIRESTARR_ASSET="firestarr-macos-arm64-clang-Release.tar.gz"
+               NATIVE_PLATFORM="darwin"; NATIVE_ARCH="arm64" ;;
   *)           die "unsupported --platform '$PLATFORM' (windows-x64 | linux-x64 | macos-arm64)" ;;
 esac
+
+# Derived, never carried as a constant. See node_abi_for().
+NODE_ABI="$(node_abi_for "$NODE_VERSION")"
 
 [ "$INCLUDE_DATASET" -eq 0 ] || [ -n "$DATASET_YEARS" ] || \
   die "specify --years (e.g. --years 2025) or pass --no-data.
@@ -265,8 +375,8 @@ mkdir -p "$OUT_DIR"
 WORK="$OUT_DIR/inputs"
 mkdir -p "$WORK"
 
-info "platform   $PLATFORM"
-info "node       $NODE_VERSION"
+info "platform   $PLATFORM ($NATIVE_PLATFORM-$NATIVE_ARCH)"
+info "node       $NODE_VERSION (ABI $NODE_ABI)"
 info "firestarr  $FIRESTARR_VERSION"
 
 # ---------------------------------------------------------------------------
@@ -431,6 +541,8 @@ if [ "$INCLUDE_DATASET" -eq 1 ]; then
     extract_into "$f" "$BUNDLE/data" keep
   done
 fi
+
+fetch_natives "$WORK/natives" "$NODE_ABI" "$NATIVE_PLATFORM" "$NATIVE_ARCH"
 
 write_env "$BUNDLE/.env" "$BINARY_REL"
 write_manifest "$BUNDLE/manifest.json" "$NODE_SHA" "$FIRESTARR_SHA" "$DATASET_ENTRIES"
