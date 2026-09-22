@@ -273,6 +273,113 @@ ENVFILE
 }
 
 # ---------------------------------------------------------------------------
+# Nomad itself: the built app and its production dependencies.
+#
+# Four things here go quietly wrong if left to defaults.
+#
+# Install scripts are suppressed. A normal install makes better-sqlite3 and
+# gdal-async build or fetch binaries for THIS machine, silently replacing the
+# verified target prebuilds fetched earlier -- and the build still succeeds.
+#
+# devDependencies are omitted. Not only for size: vitest currently carries a
+# CRITICAL advisory and has no business on a field laptop.
+#
+# The frontend is built with `npm run build`, never `build:lib`. Both write to
+# frontend/dist, and build:lib replaces the application with the embeddable
+# component library. The launcher would then serve nothing.
+#
+# The install runs against a STAGED copy of the workspace manifests, not the
+# repository. That keeps the committed lockfile as the source of truth -- so
+# the bundle is reproducible -- without destroying the developer's own
+# node_modules as a side effect of building a bundle.
+assemble_app() {
+  local bundle="$1" abi="$2" plat="$3" arch="$4"
+  local repo="$SCRIPT_DIR/.."
+  local stage="$WORK/npm-stage"
+
+  info "building backend and frontend"
+  ( cd "$repo" && npm run build --workspace @nomad/backend ) >/dev/null \
+    || die "backend build failed -- the bundle would ship source, not an application"
+  ( cd "$repo" && npm run build --workspace @nomad/frontend ) >/dev/null \
+    || die "frontend build failed"
+
+  [ -f "$repo/frontend/dist/index.html" ] \
+    || die "frontend/dist has no index.html after the build.
+       If the embeddable library build ran instead of the application build,
+       dist now holds a component library and the bundle would serve nothing."
+
+  info "installing production dependencies (no scripts, no devDependencies)"
+  rm -rf "$stage"
+  mkdir -p "$stage/backend" "$stage/frontend"
+  cp "$repo/package.json" "$repo/package-lock.json" "$stage/"
+  cp "$repo/backend/package.json" "$stage/backend/"
+  cp "$repo/frontend/package.json" "$stage/frontend/"
+  ( cd "$stage" && npm ci --omit=dev --omit=peer --ignore-scripts ) >/dev/null \
+    || die "npm ci failed in the staging copy"
+
+  rm -rf "$bundle/app"
+  mkdir -p "$bundle/app"
+  cp -R "$stage/node_modules" "$bundle/app/node_modules"
+  cp -R "$repo/backend/dist" "$bundle/app/backend"
+  cp -R "$repo/frontend/dist" "$bundle/app/frontend"
+  cp "$repo/backend/package.json" "$bundle/app/package.json"
+
+  # Drop the verified target prebuilds into the paths each package resolves.
+  # A correct binary in the wrong directory fails identically to a missing one.
+  local bs_dir="$bundle/app/node_modules/better-sqlite3/build/Release"
+  mkdir -p "$bs_dir"
+  tar xzf "$WORK/natives/better-sqlite3-v${BETTER_SQLITE3_VERSION}-node-v${abi}-${plat}-${arch}.tar.gz" \
+      -C "$WORK/natives" || die "could not unpack the better-sqlite3 prebuild"
+  cp "$WORK/natives/build/Release/better_sqlite3.node" "$bs_dir/" \
+    || die "better-sqlite3 prebuild did not contain build/Release/better_sqlite3.node"
+
+  # node-pre-gyp resolves {node_abi}-{platform}-{arch}; composed, never literal.
+  local gd_dir="$bundle/app/node_modules/gdal-async/lib/binding/node-v${abi}-${plat}-${arch}"
+  mkdir -p "$gd_dir"
+  tar xzf "$WORK/natives/gdal-async-node-v${abi}-${plat}-${arch}.tar.gz" \
+      -C "$WORK/natives" || die "could not unpack the gdal-async prebuild"
+  cp "$WORK/natives/node-v${abi}-${plat}-${arch}/gdal.node" "$gd_dir/" \
+    || die "gdal-async prebuild did not contain gdal.node"
+
+  # --omit=dev is not enough, and trusting it was a mistake worth recording.
+  #
+  # better-auth lists vitest as an OPTIONAL PEER dependency. npm resolves peers
+  # automatically, so vitest installed into the production tree even though it
+  # is nobody's runtime dependency -- and vitest currently carries a CRITICAL
+  # advisory. The flag was present and correct; the outcome was still wrong.
+  #
+  # So the outcome is checked rather than the flag. A test-only package on a
+  # field laptop is both dead weight and the first thing a scanner reports.
+  # Removed deliberately, and safe to remove: better-auth lists vitest in
+  # peerDependenciesMeta, which marks the peer OPTIONAL. It runs without it.
+  # npm ci installs from the lockfile, where the peer is already recorded, so
+  # neither --omit=dev nor --omit=peer excludes it -- both flags are applied
+  # and correct, and the package arrives anyway.
+  for unwanted in vitest @vitest eslint; do
+    rm -rf "$bundle/app/node_modules/$unwanted"
+  done
+
+  local leaked=""
+  for unwanted in vitest @vitest eslint; do
+    [ -e "$bundle/app/node_modules/$unwanted" ] && leaked="$leaked $unwanted"
+  done
+  [ -z "$leaked" ] || die "test/lint packages reached the bundle:$leaked
+
+       These are not runtime dependencies of anything Nomad needs. vitest in
+       particular carries a CRITICAL advisory and arrives as an optional PEER
+       dependency of better-auth, which --omit=dev does not exclude."
+
+  # Copying is not proof. Check, fatally -- otherwise a missing addon surfaces
+  # on the practitioner's laptop instead of here.
+  [ -f "$bs_dir/better_sqlite3.node" ] \
+    || die "better_sqlite3.node is not in place at $bs_dir"
+  [ -f "$gd_dir/gdal.node" ] \
+    || die "gdal.node is not in place at $gd_dir"
+
+  info "app payload assembled (ABI $abi, $plat-$arch)"
+}
+
+# ---------------------------------------------------------------------------
 # Ask GitHub what an asset is supposed to be, rather than trusting what arrives.
 # ---------------------------------------------------------------------------
 github_asset_digest() {
@@ -352,13 +459,16 @@ done
 case "$PLATFORM" in
   windows-x64) NODE_ARCHIVE="node-${NODE_VERSION}-win-x64.zip"
                FIRESTARR_ASSET="firestarr-windows-x64-cl-Release.zip"
-               NATIVE_PLATFORM="win32"; NATIVE_ARCH="x64" ;;
+               NATIVE_PLATFORM="win32"; NATIVE_ARCH="x64"
+               LAUNCHER_NAME="Nomad.cmd" ;;
   linux-x64)   NODE_ARCHIVE="node-${NODE_VERSION}-linux-x64.tar.xz"
                FIRESTARR_ASSET="firestarr-ubuntu-x64-gcc-Release.tar.gz"
-               NATIVE_PLATFORM="linux"; NATIVE_ARCH="x64" ;;
+               NATIVE_PLATFORM="linux"; NATIVE_ARCH="x64"
+               LAUNCHER_NAME="nomad.sh" ;;
   macos-arm64) NODE_ARCHIVE="node-${NODE_VERSION}-darwin-arm64.tar.gz"
                FIRESTARR_ASSET="firestarr-macos-arm64-clang-Release.tar.gz"
-               NATIVE_PLATFORM="darwin"; NATIVE_ARCH="arm64" ;;
+               NATIVE_PLATFORM="darwin"; NATIVE_ARCH="arm64"
+               LAUNCHER_NAME="nomad.sh" ;;
   *)           die "unsupported --platform '$PLATFORM' (windows-x64 | linux-x64 | macos-arm64)" ;;
 esac
 
@@ -543,6 +653,7 @@ if [ "$INCLUDE_DATASET" -eq 1 ]; then
 fi
 
 fetch_natives "$WORK/natives" "$NODE_ABI" "$NATIVE_PLATFORM" "$NATIVE_ARCH"
+assemble_app "$BUNDLE" "$NODE_ABI" "$NATIVE_PLATFORM" "$NATIVE_ARCH"
 
 write_env "$BUNDLE/.env" "$BINARY_REL"
 write_manifest "$BUNDLE/manifest.json" "$NODE_SHA" "$FIRESTARR_SHA" "$DATASET_ENTRIES"
@@ -555,26 +666,31 @@ write_manifest "$BUNDLE/manifest.json" "$NODE_SHA" "$FIRESTARR_SHA" "$DATASET_EN
 # whole ticket exists to avoid, so it is marked rather than left to be
 # discovered.
 # ---------------------------------------------------------------------------
-cat > "$BUNDLE/BUNDLE_INCOMPLETE.txt" <<'NOTICE'
+rm -f "$BUNDLE/BUNDLE_INCOMPLETE.txt"
+
+if [ -f "$BUNDLE/$LAUNCHER_NAME" ]; then
+  info "bundle tree: $BUNDLE"
+else
+  cat > "$BUNDLE/BUNDLE_INCOMPLETE.txt" <<NOTICE
 This bundle is NOT ready to ship.
 
 Present and verified:
-  runtime/   Node
-  engine/    firestarr + proj.db
+  runtime/   Node $NODE_VERSION (ABI $NODE_ABI)
+  engine/    firestarr $FIRESTARR_VERSION + proj.db
+  app/       built backend and frontend, production dependencies,
+             native addons for $NATIVE_PLATFORM-$NATIVE_ARCH
   .env       relative paths, binary execution mode
   manifest.json
 
-Not yet assembled:
-  app/       backend build, frontend build, production node_modules
-             WITH native modules (better-sqlite3, gdal-async) compiled for the
-             TARGET Node ABI and architecture -- not the build host's.
-  launcher   Nomad.cmd / nomad.sh
+Missing:
+  $LAUNCHER_NAME   the launcher that sets the environment, starts the server
+                   and opens a browser
 
-A wrong native ABI fails on a practitioner's laptop, not on our bench, which
-is why it is not being improvised here.
+Without it there is nothing for the practitioner to double-click, so the
+bundle cannot yet be handed to anyone.
 
-Delete this file when the above are done. See #318.
+See #318.
 NOTICE
-
-info "bundle tree: $BUNDLE"
-info "NOT yet shippable -- see BUNDLE_INCOMPLETE.txt"
+  info "bundle tree: $BUNDLE"
+  info "NOT yet shippable -- no launcher; see BUNDLE_INCOMPLETE.txt"
+fi
