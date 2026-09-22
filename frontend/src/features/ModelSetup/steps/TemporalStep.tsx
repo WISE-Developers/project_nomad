@@ -223,7 +223,11 @@ export function TemporalStep() {
       startDate: defaultStartDate,
       startTime: '12:00',
       durationHours: 72,
+      // Filled from the operator's device, and marked as such: this is a
+      // starting guess about where the FIRE is, made from where the OPERATOR
+      // is, and those differ often enough to matter (refs #368).
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezoneSource: 'inferred' as const,
       isForecast: false,
     };
 
@@ -404,10 +408,55 @@ export function TemporalStep() {
           />
         </div>
 
-        <div style={{ fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <i className="fa-solid fa-globe" style={{ fontSize: '11px' }} />
-          Timezone: {temporal.timezone}
-        </div>
+        {/* Timezone provenance (refs #368). A zone filled in from the
+            operator's device is a guess, and the operator is frequently not
+            in the same zone as the fire. Say so, and make confirming it a
+            deliberate act rather than a silent default. */}
+        {temporal.timezoneSource === 'chosen' ? (
+          <div style={{ fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <i className="fa-solid fa-globe" style={{ fontSize: '11px' }} />
+            Timezone: {temporal.timezone}
+          </div>
+        ) : (
+          <div
+            style={{
+              fontSize: '12px',
+              color: '#7a4b00',
+              background: '#fff7e6',
+              border: '1px solid #f0c36d',
+              borderRadius: '4px',
+              padding: '10px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <i className="fa-solid fa-globe" style={{ fontSize: '11px' }} />
+            <span>
+              Timezone <strong>{temporal.timezone}</strong> was detected from this device — not
+              from the fire.
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setField('temporal', { ...temporal, timezoneSource: 'chosen' })
+              }
+              style={{
+                padding: '4px 10px',
+                fontSize: '12px',
+                fontWeight: 600,
+                border: '1px solid #f0c36d',
+                borderRadius: '4px',
+                background: 'white',
+                color: '#7a4b00',
+                cursor: 'pointer',
+              }}
+            >
+              Confirm
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Duration */}

@@ -17,6 +17,10 @@ function makeData(overrides: Partial<ModelSetupData['temporal']>, dateRange?: {
   return {
     ...DEFAULT_MODEL_SETUP_DATA,
     temporal: {
+      // These cases are about the weather window, not the timezone. Marking
+      // the zone as chosen keeps the #368 provenance rule from failing them
+      // for an unrelated reason.
+      timezoneSource: 'chosen',
       startDate: '2026-04-18',
       startTime: '00:00',
       durationHours: 72,
