@@ -173,6 +173,64 @@ MANIFEST
 }
 
 # ---------------------------------------------------------------------------
+# The .env that ships inside the bundle.
+#
+# Every path here is RELATIVE to the bundle root, and that is the whole point.
+# Acceptance criterion #4 is "build -> copy to USB -> install on N laptops":
+# one build, many machines, a different drive letter or mount point on each.
+# An absolute path baked in by the build host works perfectly on the build host
+# and nowhere else -- it passes every check we can run here and fails only in
+# the field, which is the worst failure shape available to us.
+#
+# FIRESTARR_EXECUTION_MODE is the other thing that must be right. getExecutor.ts
+# returns 'docker' whenever the value is absent or anything but 'binary', and
+# Docker is the one thing guaranteed absent on a locked-down field laptop. Get
+# this wrong and the first run at an incident reaches for a daemon that is not
+# there, with no network to look up why.
+#
+# PROJ_DATA points at engine/ rather than engine/proj/ because that is where
+# proj.db actually lands: the FireSTARR release archive carries it at its root,
+# verified by listing the real v0.9.20 Windows asset.
+write_env() {
+  local dest="$1"
+  local binary_rel="${2:-engine/firestarr.exe}"
+
+  cat > "$dest" <<ENVFILE
+# Nomad offline bundle (refs #318). Generated -- edit the builder, not this.
+#
+# All paths are relative to the bundle root, so this file is identical on
+# every laptop the bundle is copied to. Do not make any of them absolute.
+
+# Docker is not present on the target. Without this, getExecutor.ts falls
+# back to docker and the first run fails reaching for a daemon that is not
+# there.
+FIRESTARR_EXECUTION_MODE=binary
+FIRESTARR_BINARY_PATH=$binary_rel
+
+# proj.db ships at the root of the FireSTARR release archive, so PROJ_DATA is
+# the directory we extracted that archive into.
+PROJ_DATA=engine
+
+# Fuel data. May be absent when the bundle was built with --no-data; the app
+# should say so plainly rather than behaving as though a dataset is present.
+FIRESTARR_DATASET_PATH=data
+
+# SQLite and run output. Kept inside the bundle so the whole thing stays
+# portable and deleting the folder is the uninstall.
+NOMAD_DATA_PATH=db
+
+# No network means no OAuth provider to redirect to, so sign-in would
+# dead-end. Telemetry is left unconfigured for the same reason.
+NOMAD_AUTH_MODE=none
+
+# Above 1024 so no elevation is needed to bind it.
+PORT=4900
+ENVFILE
+
+  info "wrote bundle .env: $dest"
+}
+
+# ---------------------------------------------------------------------------
 # Argument parsing. Unknown flags are fatal: a typo that silently builds the
 # wrong bundle is worse than one that stops.
 # ---------------------------------------------------------------------------
@@ -308,6 +366,103 @@ else
   info "dataset omitted (--no-data)"
 fi
 
-write_manifest "$OUT_DIR/manifest.json" "$NODE_SHA" "$FIRESTARR_SHA" "$DATASET_ENTRIES"
+# ---------------------------------------------------------------------------
+# Assemble the portable tree.
+#
+# Nothing here installs. The practitioner copies a folder and runs a script
+# inside it: no registry writes, no services, no PATH edits, no ports below
+# 1024, no WSL2. Deleting the folder is the uninstall.
+# ---------------------------------------------------------------------------
+BUNDLE="$OUT_DIR/Nomad"
+rm -rf "$BUNDLE"
+mkdir -p "$BUNDLE/runtime" "$BUNDLE/engine" "$BUNDLE/app" "$BUNDLE/data" "$BUNDLE/db"
 
-info "inputs acquired and verified in $WORK"
+extract_into() {
+  local archive="$1" dest="$2" strip_top="$3"
+  case "$archive" in
+    *.zip)
+      command -v unzip >/dev/null 2>&1 || die "unzip is required to extract $(basename "$archive")"
+      unzip -q -o "$archive" -d "$dest" || die "could not extract $(basename "$archive")" ;;
+    *.tar.gz|*.tgz|*.tar.xz)
+      tar -xf "$archive" -C "$dest" || die "could not extract $(basename "$archive")" ;;
+    *) die "do not know how to extract $(basename "$archive")" ;;
+  esac
+
+  # Node's archives wrap everything in a versioned top-level directory. Flatten
+  # it so the launcher's path does not carry the version number -- otherwise
+  # bumping NODE_VERSION silently breaks every relative path that points here.
+  if [ "$strip_top" = "strip" ]; then
+    local inner
+    inner="$(find "$dest" -mindepth 1 -maxdepth 1 -type d | head -1)"
+    if [ -n "$inner" ] && [ "$(find "$dest" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')" = "1" ]; then
+      (cd "$inner" && tar cf - .) | (cd "$dest" && tar xf -)
+      rm -rf "$inner"
+    fi
+  fi
+}
+
+info "extracting node runtime"
+extract_into "$WORK/$NODE_ARCHIVE" "$BUNDLE/runtime" strip
+
+info "extracting firestarr engine"
+extract_into "$WORK/$FIRESTARR_ASSET" "$BUNDLE/engine" keep
+
+case "$PLATFORM" in
+  windows-x64) BINARY_REL="engine/firestarr.exe" ;;
+  *)           BINARY_REL="engine/firestarr" ;;
+esac
+
+[ -f "$BUNDLE/$BINARY_REL" ] \
+  || die "expected $BINARY_REL after extracting $FIRESTARR_ASSET, but it is not there.
+       The release archive layout has changed; the bundle would ship without an engine."
+
+# proj.db is what firestarr resolves at runtime. install-nomad-san-metal.ps1
+# documents that it fast-fails with Windows status 0xC0000409 when this is
+# missing -- a loud failure at an incident that looks like a broken laptop.
+[ -f "$BUNDLE/engine/proj.db" ] \
+  || die "proj.db is not in $FIRESTARR_ASSET.
+       PROJ_DATA would point at nothing and firestarr would fast-fail on the
+       target with an opaque status code. See #381."
+
+if [ "$INCLUDE_DATASET" -eq 1 ]; then
+  for f in "$WORK"/FireSTARR_Fuel_*.zip; do
+    [ -f "$f" ] || continue
+    info "extracting $(basename "$f")"
+    extract_into "$f" "$BUNDLE/data" keep
+  done
+fi
+
+write_env "$BUNDLE/.env" "$BINARY_REL"
+write_manifest "$BUNDLE/manifest.json" "$NODE_SHA" "$FIRESTARR_SHA" "$DATASET_ENTRIES"
+
+# ---------------------------------------------------------------------------
+# Say plainly what is not here yet.
+#
+# The application payload and its native modules are the next slice. A tree
+# that looks complete but cannot run is exactly the silent-failure shape this
+# whole ticket exists to avoid, so it is marked rather than left to be
+# discovered.
+# ---------------------------------------------------------------------------
+cat > "$BUNDLE/BUNDLE_INCOMPLETE.txt" <<'NOTICE'
+This bundle is NOT ready to ship.
+
+Present and verified:
+  runtime/   Node
+  engine/    firestarr + proj.db
+  .env       relative paths, binary execution mode
+  manifest.json
+
+Not yet assembled:
+  app/       backend build, frontend build, production node_modules
+             WITH native modules (better-sqlite3, gdal-async) compiled for the
+             TARGET Node ABI and architecture -- not the build host's.
+  launcher   Nomad.cmd / nomad.sh
+
+A wrong native ABI fails on a practitioner's laptop, not on our bench, which
+is why it is not being improvised here.
+
+Delete this file when the above are done. See #318.
+NOTICE
+
+info "bundle tree: $BUNDLE"
+info "NOT yet shippable -- see BUNDLE_INCOMPLETE.txt"
