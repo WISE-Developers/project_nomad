@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import { useMap } from './MapContext';
 import { useOpenNomad } from '../../../openNomad/context';
 import { useRasterHover } from '../hooks/useRasterHover';
