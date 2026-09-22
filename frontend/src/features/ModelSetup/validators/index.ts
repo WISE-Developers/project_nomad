@@ -89,6 +89,26 @@ export const temporalValidator: StepValidator<ModelSetupData> = (data): Validati
     });
   }
 
+  // The zone the run is interpreted in must have been looked at by a human
+  // (refs #368). The backend refuses a missing zone outright; because the
+  // wizard always supplies one, that guard is unreachable unless provenance
+  // is checked here.
+  if (!data.temporal?.timezone) {
+    errors.push({
+      field: 'timezone',
+      message: 'Please select the timezone the fire is in',
+      type: 'error',
+    });
+  } else if (data.temporal.timezoneSource !== 'chosen') {
+    errors.push({
+      field: 'timezone',
+      message:
+        `Timezone was detected from this device as ${data.temporal.timezone}. ` +
+        'Confirm it matches the fire, or choose a different one.',
+      type: 'error',
+    });
+  }
+
   if (!data.temporal?.durationHours || data.temporal.durationHours < 1) {
     errors.push({
       field: 'durationHours',
