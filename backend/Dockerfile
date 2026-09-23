@@ -49,6 +49,71 @@ COPY backend/ ./backend/
 # Build backend
 RUN npm run build --workspace=@nomad/backend
 
+# ---- Stage 2b: Production dependencies ----
+#
+# The runtime tree is installed separately from the build tree (refs #382).
+#
+# backend-builder legitimately needs devDependencies -- typescript compiles the
+# backend -- so its node_modules is not the thing to ship. Copying it wholesale
+# put vitest 2.1.9, typescript 5.9.3, eslint 9.39.4 and tar 7.5.13 into the
+# runtime image: 850 MB and 448 packages, two of them carrying CRITICAL
+# advisories. A scanner then reports every advisory in the dev tree rather than
+# what the runtime can actually reach.
+FROM node:22-slim AS prod-deps
+
+WORKDIR /app
+
+# gdal-async and better-sqlite3 are native addons. node-pre-gyp fetches a
+# prebuild where one matches and falls back to compiling, so the toolchain has
+# to be present here as well as in the build stage.
+RUN apt-get update && apt-get install -y \
+    gdal-bin \
+    libgdal-dev \
+    python3 \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY package.json package-lock.json ./
+COPY backend/package.json ./backend/
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --workspace=@nomad/backend --omit=dev --omit=peer
+
+# --omit=dev is NOT sufficient on its own, and neither is --omit=peer.
+#
+# vitest is an optional PEER dependency of better-auth. npm resolves peers
+# automatically, and `npm ci` installs from the lockfile where the peer is
+# already recorded, so both flags are correct and applied and the package
+# arrives regardless. Removing it is safe because peerDependenciesMeta marks
+# that peer optional -- better-auth runs without it.
+#
+# Found the hard way in #318, where the first version of the offline bundle
+# passed its own tests with vitest sitting inside it.
+RUN rm -rf \
+    node_modules/vitest \
+    node_modules/@vitest \
+    node_modules/typescript \
+    node_modules/eslint \
+    node_modules/@eslint \
+    node_modules/@typescript-eslint
+
+# Check the outcome, not the flag. This is the assertion that would have caught
+# the original bug; every flag above was individually reasonable.
+RUN for p in vitest @vitest typescript eslint; do \
+      if [ -e "node_modules/$p" ]; then \
+        echo "ERROR: $p is in the production dependency tree"; \
+        exit 1; \
+      fi; \
+    done; \
+    echo "production tree carries no test or lint packages"
+
+# The native runtime modules must have SURVIVED the pruning.
+#
+# This is the failure most likely to go unnoticed: dropping gdal-async or
+# better-sqlite3 still produces a smaller image that builds cleanly, and fails
+# only when the server starts. Loading them here turns that into a build error.
+RUN node -e "require('gdal-async'); require('better-sqlite3'); console.log('gdal-async and better-sqlite3 load in the production tree')"
+
 # ---- Stage 3: Production ----
 FROM node:22-slim AS production
 
@@ -84,7 +149,7 @@ ENV ICU_TIMEZONE_FILES_DIR=/opt/icu-tzdata
 # Backend code: resolve(__dirname, '../../frontend/dist')
 # __dirname = /app/backend/dist → ../../frontend/dist = /app/frontend/dist
 COPY --from=backend-builder /app/backend/dist ./backend/dist
-COPY --from=backend-builder /app/node_modules ./node_modules
+COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=backend-builder /app/backend/package.json ./backend/
 
 # Copy built frontend into workspace-relative location
