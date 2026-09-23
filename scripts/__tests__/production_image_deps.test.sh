@@ -39,6 +39,11 @@ DOCKERFILE="$TEST_DIR/../../backend/Dockerfile"
 pass=0
 fail=0
 
+# A note on the patterns below: they use `.*`, never `[^\n]*`. Inside a POSIX
+# bracket expression `\n` is not a newline -- it is the two characters
+# backslash and "n" -- so `[^\n]*` means "not a backslash and not the letter
+# n", which cannot cross the word "node_modules". An earlier version of this
+# suite used it and silently could not match once a second path was added.
 ok()  { pass=$((pass + 1)); echo "    ok   $1"; }
 bad() { fail=$((fail + 1)); echo "  FAIL   $1"; [ $# -gt 1 ] && echo "         $2"; }
 
@@ -79,14 +84,14 @@ fi
 # ---------------------------------------------------------------------------
 # Production must not take node_modules from the build stage.
 # ---------------------------------------------------------------------------
-if echo "$CODE" | grep -qE 'COPY --from=backend-builder[^\n]*node_modules'; then
+if echo "$CODE" | grep -qE 'COPY --from=backend-builder.*node_modules'; then
   bad "production does not copy node_modules from backend-builder" \
       "that stage holds the full dev tree; it needs typescript to compile"
 else
   ok "production does not copy node_modules from backend-builder"
 fi
 
-if echo "$CODE" | grep -qE 'COPY --from=[a-z-]*(prod|runtime)[a-z-]*[^\n]*node_modules'; then
+if echo "$CODE" | grep -qE 'COPY --from=[a-z-]*(prod|runtime)[a-z-]*.*node_modules'; then
   ok "production copies node_modules from a production-deps stage"
 else
   bad "production copies node_modules from a production-deps stage" \
@@ -96,7 +101,7 @@ fi
 # ---------------------------------------------------------------------------
 # The flag is not enough. There must be an explicit removal AND a check.
 # ---------------------------------------------------------------------------
-if echo "$JOINED" | grep -qE 'rm -rf[^\n]*node_modules/(vitest|@vitest|typescript|eslint)'; then
+if echo "$JOINED" | grep -qE 'rm -rf.*node_modules/(vitest|@vitest|typescript|eslint)'; then
   ok "test and lint packages are removed explicitly"
 else
   bad "test and lint packages are removed explicitly" \
@@ -111,12 +116,48 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# node-gyp compiles native addons. It is a runtime dependency of gdal-async on
+# paper, but only because gdal-async may fall back to building from source --
+# and the image already has a built binding. It drags in `tar`, which carries a
+# CRITICAL advisory (#379).
+#
+# Verified in the built image before asserting it: with node-gyp and the
+# hoisted tar both deleted, gdal-async reports GDAL 3.12.3, lists 139 drivers
+# and round-trips a raster, and better-sqlite3 round-trips a query.
+#
+# This removes ONE of the two tar instances. The other is bundled inside
+# gdal-async's own tarball (bundleDependencies: ["@mapbox/node-pre-gyp"]) and
+# cannot be reached by npm overrides at all -- that one is upstream's.
+# ---------------------------------------------------------------------------
+if echo "$JOINED" | grep -qE 'rm -rf.*node_modules/node-gyp'; then
+  ok "node-gyp is removed from the production tree"
+else
+  bad "node-gyp is removed from the production tree" \
+      "it exists to compile from source, and it drags in tar (CRITICAL)"
+fi
+
+if echo "$JOINED" | grep -qE 'rm -rf.*node_modules/tar([^a-z/-]|$)'; then
+  ok "the hoisted tar is removed from the production tree"
+else
+  bad "the hoisted tar is removed from the production tree" \
+      "nothing in the runtime needs it once node-gyp is gone"
+fi
+
+# ---------------------------------------------------------------------------
 # The native modules are genuine runtime dependencies and must survive.
 #
 # This is the part most likely to break silently: pruning that removes
 # gdal-async or better-sqlite3 still produces a smaller image that builds
 # cleanly, and fails only when the server starts.
 # ---------------------------------------------------------------------------
+# Requiring is not enough -- a broken binding can import and fail on first use.
+if echo "$JOINED" | grep -qE 'gdal\.open|drivers\.count|gdal\.version'; then
+  ok "the build exercises GDAL, not just imports it"
+else
+  bad "the build exercises GDAL, not just imports it" \
+      "a require that succeeds proves the module resolves, not that the binding works"
+fi
+
 if echo "$CODE" | grep -qE 'gdal-async' && echo "$CODE" | grep -qE 'better-sqlite3'; then
   ok "the build asserts the native runtime modules survived"
 else
