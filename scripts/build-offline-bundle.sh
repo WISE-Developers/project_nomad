@@ -155,6 +155,38 @@ expected_sha256_for() {
 }
 
 # ---------------------------------------------------------------------------
+# Download something large, surviving a dropped connection.
+#
+# A plain `curl -fsSL` failed part-way through a 2.8 GB fuel dataset and took
+# the whole build with it -- and a build of all four vintages moves about
+# 11 GB, so this is the common case rather than bad luck. The transfer resumes
+# rather than restarting, retries a bounded number of times, and treats a
+# stalled connection as a failure instead of hanging until someone notices.
+#
+# Resuming is only safe because every download is checksum-verified afterwards:
+# a resume that stitches together the wrong bytes fails the hash, which is the
+# outcome we want rather than a silent corruption on a field laptop.
+fetch_large() {
+  local url="$1" dest="$2" label="$3"
+  local attempt=1
+  while [ "$attempt" -le 4 ]; do
+    if curl -fL --retry 3 --retry-delay 5 --retry-connrefused \
+            --speed-limit 1024 --speed-time 60 \
+            -C - -o "$dest" "$url" 2>/dev/null; then
+      return 0
+    fi
+    info "download of $label interrupted (attempt $attempt) -- resuming"
+    attempt=$((attempt + 1))
+    sleep 5
+  done
+  die "could not download $label after 4 attempts from
+       $url
+
+       The partial file was kept at $dest, so a further run resumes rather
+       than starting again. Delete it if you would rather start clean."
+}
+
+# ---------------------------------------------------------------------------
 # Node major -> V8 module ABI.
 #
 # A prebuilt native addon is valid for exactly one ABI. Carrying the ABI as a
@@ -763,7 +795,7 @@ if [ "$INCLUDE_DATASET" -eq 1 ]; then
     base="$(echo "$entry" | cut -f4)"
 
     info "fetching $file ($((bytes / 1000000)) MB)"
-    curl -fsSL -o "$WORK/$file" "${base}${file}" || die "could not download $file"
+    fetch_large "${base}${file}" "$WORK/$file" "$file"
     verify_sha256 "$WORK/$file" "$sha" "fuel dataset $year"
 
     [ -z "$DATASET_ENTRIES" ] || DATASET_ENTRIES="$DATASET_ENTRIES,"
