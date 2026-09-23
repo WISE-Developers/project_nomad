@@ -66,7 +66,7 @@ source "$tmp/fn.sh"
 HARNESS
 
 ENV_FILE="$tmp/.env"
-if ! bash -c "source '$tmp/harness.sh'; write_env '$ENV_FILE'" 2>"$tmp/err"; then
+if ! bash -c "source '$tmp/harness.sh'; write_env '$ENV_FILE' 'engine/firestarr.exe' 'America/Edmonton'" 2>"$tmp/err"; then
   bad "write_env produces a file" "$(head -2 "$tmp/err")"
   echo
   echo "offline_bundle_env: $pass passed, $fail failed"
@@ -91,7 +91,11 @@ fi
 # Binary mode is driven by exactly two variables; both must be present or the
 # executor has nothing to run and no projection data to run it with.
 # ---------------------------------------------------------------------------
-for var in FIRESTARR_BINARY_PATH PROJ_DATA FIRESTARR_DATASET_PATH; do
+# NOMAD_HOME_TIMEZONE and both usage-log keys are REQUIRED by the backend with
+# deliberately no defaults -- EnvironmentService throws on startup without them.
+# Found by running the bundle: every test passed while it could not boot.
+for var in FIRESTARR_BINARY_PATH PROJ_DATA FIRESTARR_DATASET_PATH \
+           NOMAD_HOME_TIMEZONE NOMAD_USAGE_LOG_PATH NOMAD_USAGE_LOG_MAX_BYTES; do
   if grep -qE "^${var}=" "$ENV_FILE"; then
     ok "$var is set"
   else
@@ -140,6 +144,13 @@ fi
 # An air-gapped machine cannot reach an OAuth provider, and telemetry cannot
 # reach Sentry. Neither should be configured to try.
 # ---------------------------------------------------------------------------
+# A fixed offset cannot observe DST, and the backend rejects one outright.
+tz="$(grep -E '^NOMAD_HOME_TIMEZONE=' "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"')"
+case "$tz" in
+  */*) ok "NOMAD_HOME_TIMEZONE is an IANA zone name ($tz)" ;;
+  *)   bad "NOMAD_HOME_TIMEZONE is an IANA zone name" "got '${tz:-<unset>}'; a fixed offset freezes the clock on one season" ;;
+esac
+
 auth="$(grep -E '^NOMAD_AUTH_MODE=' "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"')"
 if [ "$auth" != "oauth" ]; then
   ok "NOMAD_AUTH_MODE is not oauth (got '${auth:-<unset>}')"

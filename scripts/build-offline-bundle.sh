@@ -86,6 +86,7 @@ PLATFORM="windows-x64"
 OUT_DIR="$SCRIPT_DIR/../dist-offline"
 DATASET_YEARS=""
 INCLUDE_DATASET=1
+HOME_TIMEZONE=""
 
 die() {
   echo "ERROR: $*" >&2
@@ -101,6 +102,7 @@ Build an offline Nomad bundle.
   --platform <id>    windows-x64 (default) | linux-x64 | macos-arm64
   --years <list>     comma-separated fuel vintages, e.g. 2025 or 2024,2025
   --no-data          omit the fuel dataset entirely
+  --timezone <zone>  REQUIRED. IANA zone for the target, e.g. America/Edmonton
   --out <dir>        output directory (default: dist-offline/)
 
 Pinned inputs:
@@ -203,6 +205,7 @@ write_manifest() {
   "schema": "nomad-offline-bundle/v1",
   "builtAt": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')",
   "platform": "$PLATFORM",
+  "nomadVersion": "$NOMAD_APP_VERSION",
   "inputs": {
     "node":      { "version": "$NODE_VERSION",      "sha256": "$node_sha" },
     "firestarr": { "version": "$FIRESTARR_VERSION", "sha256": "$firestarr_sha" },
@@ -235,7 +238,9 @@ MANIFEST
 # verified by listing the real v0.9.20 Windows asset.
 write_env() {
   local dest="$1"
-  local binary_rel="${2:-engine/firestarr.exe}"
+  local binary_rel="$2"
+  local timezone="$3"
+  local app_version="$4"
 
   cat > "$dest" <<ENVFILE
 # Nomad offline bundle (refs #318). Generated -- edit the builder, not this.
@@ -264,6 +269,17 @@ NOMAD_DATA_PATH=db
 # No network means no OAuth provider to redirect to, so sign-in would
 # dead-end. Telemetry is left unconfigured for the same reason.
 NOMAD_AUTH_MODE=none
+
+# Required, and chosen at build time rather than guessed. The zone belongs to
+# where this bundle is USED. Must be an IANA name: a fixed offset cannot
+# observe DST.
+NOMAD_HOME_TIMEZONE=$timezone
+
+# Required, both of them, with no defaults. The usage log records who used
+# Nomad and when, so it is a personnel record -- kept inside the bundle so it
+# travels with it and is not written somewhere that gets wiped.
+NOMAD_USAGE_LOG_PATH=db/usage/usage.jsonl
+NOMAD_USAGE_LOG_MAX_BYTES=52428800
 
 # Above 1024 so no elevation is needed to bind it.
 PORT=4900
@@ -320,8 +336,13 @@ assemble_app() {
   rm -rf "$bundle/app"
   mkdir -p "$bundle/app"
   cp -R "$stage/node_modules" "$bundle/app/node_modules"
-  cp -R "$repo/backend/dist" "$bundle/app/backend"
-  cp -R "$repo/frontend/dist" "$bundle/app/frontend"
+  # The backend resolves the frontend as ../../frontend/dist from its own
+  # __dirname, so the bundle mirrors the repository layout exactly. Flattening
+  # it (app/backend + app/frontend) makes the backend look outside app/ and it
+  # silently serves no UI -- found by running the bundle, not by any test.
+  mkdir -p "$bundle/app/backend" "$bundle/app/frontend"
+  cp -R "$repo/backend/dist" "$bundle/app/backend/dist"
+  cp -R "$repo/frontend/dist" "$bundle/app/frontend/dist"
   cp "$repo/backend/package.json" "$bundle/app/package.json"
 
   # Drop the verified target prebuilds into the paths each package resolves.
@@ -377,6 +398,150 @@ assemble_app() {
     || die "gdal.node is not in place at $gd_dir"
 
   info "app payload assembled (ABI $abi, $plat-$arch)"
+}
+
+# ---------------------------------------------------------------------------
+# The launcher: the only part of the bundle a practitioner touches.
+#
+# It resolves every path against its OWN location. Someone double-clicks this
+# from Explorer, or runs it from a USB root, and the working directory is
+# whatever Windows felt like -- so nothing may be relative to the CWD.
+#
+# It runs the BUNDLED Node explicitly. This is the step that would otherwise
+# undo all the ABI work: a government laptop may already have some other Node
+# on PATH, and loading addons matched to ABI 127 under a different major fails
+# with an error naming the addon rather than the Node. It reads as "the bundle
+# is broken".
+#
+# It needs no administrator: no registry writes, no setx, no service, and a
+# port above 1024.
+write_launcher() {
+  local bundle="$1" name="$2" platform="$3" timezone="$4" app_version="${5:-0.0.0}"
+
+  if [ "$platform" = "windows-x64" ]; then
+    cat > "$bundle/$name" <<'LAUNCHER'
+@echo off
+rem Nomad offline bundle launcher (refs #318).
+rem
+rem Every path is derived from this file's own location, so the bundle works
+rem from any drive letter or folder. Nothing here needs administrator.
+setlocal
+
+set "NOMAD_HOME=%~dp0"
+if "%NOMAD_HOME:~-1%"=="\" set "NOMAD_HOME=%NOMAD_HOME:~0,-1%"
+
+rem The .env in this folder carries these as relative paths, for the record of
+rem what the bundle is. They are made absolute here because the server is
+rem started from an unpredictable working directory.
+set "NODE_ENV=production"
+set "FIRESTARR_EXECUTION_MODE=binary"
+set "FIRESTARR_BINARY_PATH=%NOMAD_HOME%\engine\firestarr.exe"
+set "PROJ_DATA=%NOMAD_HOME%\engine"
+set "PROJ_LIB=%NOMAD_HOME%\engine"
+set "FIRESTARR_DATASET_PATH=%NOMAD_HOME%\data"
+set "NOMAD_DATA_PATH=%NOMAD_HOME%\db"
+set "NOMAD_AUTH_MODE=none"
+set "PORT=4900"
+set "NOMAD_HOME_TIMEZONE=@@TZ@@"
+set "NOMAD_USAGE_LOG_PATH=%NOMAD_HOME%\db\usage\usage.jsonl"
+set "NOMAD_USAGE_LOG_MAX_BYTES=52428800"
+set "NOMAD_VERSION=@@VER@@"
+
+if not exist "%NOMAD_HOME%\runtime\node.exe" (
+  echo.
+  echo This bundle is missing its Node runtime ^(runtime\node.exe^).
+  echo The copy is incomplete -- copy the whole Nomad folder again.
+  echo.
+  pause
+  exit /b 1
+)
+
+if not exist "%NOMAD_HOME%\engine\proj.db" (
+  echo.
+  echo This bundle is missing engine\proj.db.
+  echo FireSTARR would fail with an unreadable status code instead of a
+  echo message, so it is being stopped here where the reason is visible.
+  echo.
+  pause
+  exit /b 1
+)
+
+rem Open a browser shortly after, so the page is not requested before the
+rem server is listening. The server itself stays in this window: closing the
+rem window stops Nomad, which is the whole uninstall story.
+start "" cmd /c "timeout /t 4 /nobreak >nul & start "" http://localhost:4900"
+
+echo Starting Nomad. Close this window to stop it.
+echo Opening http://localhost:4900
+echo.
+"%NOMAD_HOME%\runtime\node.exe" "%NOMAD_HOME%\app\backend\dist\index.js"
+
+if errorlevel 1 (
+  echo.
+  echo Nomad stopped unexpectedly. The message above says why.
+  pause
+)
+endlocal
+LAUNCHER
+  else
+    cat > "$bundle/$name" <<'LAUNCHER'
+#!/usr/bin/env bash
+# Nomad offline bundle launcher (refs #318).
+#
+# Every path is derived from this file's own location, so the bundle runs from
+# anywhere it was copied to. Nothing here needs root.
+set -eu
+
+NOMAD_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+export NODE_ENV=production
+export FIRESTARR_EXECUTION_MODE=binary
+export FIRESTARR_BINARY_PATH="$NOMAD_HOME/engine/firestarr"
+export PROJ_DATA="$NOMAD_HOME/engine"
+export PROJ_LIB="$NOMAD_HOME/engine"
+export FIRESTARR_DATASET_PATH="$NOMAD_HOME/data"
+export NOMAD_DATA_PATH="$NOMAD_HOME/db"
+export NOMAD_AUTH_MODE=none
+export PORT=4900
+export NOMAD_HOME_TIMEZONE="@@TZ@@"
+export NOMAD_USAGE_LOG_PATH="$NOMAD_HOME/db/usage/usage.jsonl"
+export NOMAD_USAGE_LOG_MAX_BYTES=52428800
+export NOMAD_VERSION="@@VER@@"
+
+NODE_BIN="$NOMAD_HOME/runtime/bin/node"
+
+if [ ! -x "$NODE_BIN" ]; then
+  echo "This bundle is missing its Node runtime (runtime/bin/node)."
+  echo "The copy is incomplete -- copy the whole Nomad folder again."
+  exit 1
+fi
+
+if [ ! -f "$NOMAD_HOME/engine/proj.db" ]; then
+  echo "This bundle is missing engine/proj.db."
+  echo "FireSTARR would fail with an unreadable status instead of a message,"
+  echo "so it is being stopped here where the reason is visible."
+  exit 1
+fi
+
+( sleep 4
+  if command -v xdg-open >/dev/null 2>&1; then xdg-open http://localhost:4900
+  elif command -v open >/dev/null 2>&1; then open http://localhost:4900
+  fi ) >/dev/null 2>&1 &
+
+echo "Starting Nomad. Press Ctrl+C to stop it."
+echo "Opening http://localhost:4900"
+exec "$NODE_BIN" "$NOMAD_HOME/app/backend/dist/index.js"
+LAUNCHER
+    chmod +x "$bundle/$name"
+  fi
+
+  # The launcher bodies are quoted heredocs so that %VAR% and $VAR survive
+  # verbatim; the one build-time value is substituted afterwards.
+  sed -i.bak -e "s|@@TZ@@|$timezone|g" -e "s|@@VER@@|$app_version|g" "$bundle/$name" && rm -f "$bundle/$name.bak"
+
+  mkdir -p "$bundle/db/usage"
+
+  info "wrote launcher: $name (timezone $timezone)"
 }
 
 # ---------------------------------------------------------------------------
@@ -450,6 +615,7 @@ while [ $# -gt 0 ]; do
     --platform) PLATFORM="${2:-}"; [ -n "$PLATFORM" ] || die "--platform needs a value"; shift 2 ;;
     --years)    DATASET_YEARS="${2:-}"; [ -n "$DATASET_YEARS" ] || die "--years needs a value"; shift 2 ;;
     --no-data)  INCLUDE_DATASET=0; shift ;;
+    --timezone) HOME_TIMEZONE="${2:-}"; [ -n "$HOME_TIMEZONE" ] || die "--timezone needs a value"; shift 2 ;;
     --out)      OUT_DIR="${2:-}"; [ -n "$OUT_DIR" ] || die "--out needs a value"; shift 2 ;;
     -h|--help)  usage; exit 0 ;;
     *)          die "unknown option: $1 (see --help)" ;;
@@ -475,11 +641,35 @@ esac
 # Derived, never carried as a constant. See node_abi_for().
 NODE_ABI="$(node_abi_for "$NODE_VERSION")"
 
+# The backend refuses to start without a version rather than reporting a
+# placeholder, and the container normally bakes this in at image build time
+# from frontend/package.json. A bundle is built the same way, from the same
+# source -- and it answers "which Nomad is on that USB stick?", which is the
+# question this whole ticket exists to make answerable.
+NOMAD_APP_VERSION="$(node -p "require('$SCRIPT_DIR/../frontend/package.json').version" 2>/dev/null || true)"
+[ -n "$NOMAD_APP_VERSION" ] || die "could not read the app version from frontend/package.json"
+
 [ "$INCLUDE_DATASET" -eq 0 ] || [ -n "$DATASET_YEARS" ] || \
   die "specify --years (e.g. --years 2025) or pass --no-data.
        There is no default fuel vintage: guessing which year's fuels a
        practitioner needs is exactly the kind of silent assumption that
        produces a confidently wrong fire."
+
+[ -n "$HOME_TIMEZONE" ] || die "--timezone is required (e.g. --timezone America/Edmonton).
+
+       The backend refuses to start without NOMAD_HOME_TIMEZONE and has no
+       default, deliberately. There is no safe guess to make here either: the
+       zone belongs to where the bundle will be USED, which the machine
+       building it cannot know. See #368 for the same mistake made once
+       already, where an operator's browser zone was written into a model.
+       It must be an IANA zone NAME -- a fixed offset like -06:00 cannot
+       observe DST."
+
+case "$HOME_TIMEZONE" in
+  [+-][0-9]*|UTC[+-]*|*:*) die "--timezone '$HOME_TIMEZONE' looks like a fixed offset.
+       It must be an IANA zone name such as America/Edmonton: a fixed offset
+       cannot observe DST and would freeze the deployment on one offset." ;;
+esac
 
 mkdir -p "$OUT_DIR"
 WORK="$OUT_DIR/inputs"
@@ -655,7 +845,8 @@ fi
 fetch_natives "$WORK/natives" "$NODE_ABI" "$NATIVE_PLATFORM" "$NATIVE_ARCH"
 assemble_app "$BUNDLE" "$NODE_ABI" "$NATIVE_PLATFORM" "$NATIVE_ARCH"
 
-write_env "$BUNDLE/.env" "$BINARY_REL"
+write_launcher "$BUNDLE" "$LAUNCHER_NAME" "$PLATFORM" "$HOME_TIMEZONE" "$NOMAD_APP_VERSION"
+write_env "$BUNDLE/.env" "$BINARY_REL" "$HOME_TIMEZONE" "$NOMAD_APP_VERSION"
 write_manifest "$BUNDLE/manifest.json" "$NODE_SHA" "$FIRESTARR_SHA" "$DATASET_ENTRIES"
 
 # ---------------------------------------------------------------------------
