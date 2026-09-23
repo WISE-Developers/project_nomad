@@ -97,6 +97,26 @@ RUN rm -rf \
     node_modules/@eslint \
     node_modules/@typescript-eslint
 
+# node-gyp and the hoisted tar go too (refs #379).
+#
+# node-gyp is a runtime dependency of gdal-async on paper, but only because
+# gdal-async can fall back to building from source. This image already has a
+# built binding, so it compiles nothing -- and node-gyp is what drags in `tar`,
+# which carries a CRITICAL advisory.
+#
+# Confirmed in the built image before doing this: with both deleted, gdal-async
+# reports GDAL 3.12.3, lists 139 drivers and round-trips a raster, and
+# better-sqlite3 round-trips a query.
+#
+# This removes ONE of the two tar instances. The other is bundled inside
+# gdal-async's own published tarball -- it declares
+# bundleDependencies: ["@mapbox/node-pre-gyp"] -- so npm installs it verbatim
+# and `overrides` cannot reach it. That one is upstream's to fix, and
+# gdal-async 3.12.3 is already the latest release.
+RUN rm -rf \
+    node_modules/node-gyp \
+    node_modules/tar
+
 # Check the outcome, not the flag. This is the assertion that would have caught
 # the original bug; every flag above was individually reasonable.
 RUN for p in vitest @vitest typescript eslint; do \
@@ -112,7 +132,24 @@ RUN for p in vitest @vitest typescript eslint; do \
 # This is the failure most likely to go unnoticed: dropping gdal-async or
 # better-sqlite3 still produces a smaller image that builds cleanly, and fails
 # only when the server starts. Loading them here turns that into a build error.
-RUN node -e "require('gdal-async'); require('better-sqlite3'); console.log('gdal-async and better-sqlite3 load in the production tree')"
+# Exercise them, do not merely import them. A broken or mismatched binding
+# imports cleanly and fails on first real use, which would move the failure
+# from this build to somebody's deployment.
+RUN node -e "\
+    const gdal = require('gdal-async'); \
+    const ds = gdal.open('/vsimem/build-check.tif', 'w', 'GTiff', 8, 8, 1, gdal.GDT_Float32); \
+    const band = ds.bands.get(1); \
+    band.pixels.set(0, 0, 42.5); \
+    if (band.pixels.get(0, 0) !== 42.5) { throw new Error('GDAL raster round-trip failed'); } \
+    ds.close(); \
+    if (gdal.drivers.count() < 1) { throw new Error('GDAL has no drivers'); } \
+    const Database = require('better-sqlite3'); \
+    const db = new Database(':memory:'); \
+    db.exec('create table t(x)'); \
+    db.prepare('insert into t values (?)').run(7); \
+    if (db.prepare('select x from t').get().x !== 7) { throw new Error('sqlite round-trip failed'); } \
+    console.log('GDAL ' + gdal.version + ', ' + gdal.drivers.count() + ' drivers, and better-sqlite3 both work'); \
+  "
 
 # ---- Stage 3: Production ----
 FROM node:22-slim AS production
