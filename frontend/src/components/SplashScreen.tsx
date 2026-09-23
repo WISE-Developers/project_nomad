@@ -54,6 +54,12 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
   const [username, setUsername] = useState('');
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [loadingProviders, setLoadingProviders] = useState(AUTH_MODE === 'oauth');
+  // A failed sign-in used to show the operator nothing at all (refs #380):
+  // signIn.social was called without await or catch, so a rejected request
+  // left the page sitting exactly as it was. A dead button is indistinguishable
+  // from a misclick, and the natural next move is to suspect the provider
+  // configuration, which is usually not what is wrong.
+  const [signInError, setSignInError] = useState<string | null>(null);
 
   // Load saved username from localStorage
   useEffect(() => {
@@ -220,12 +226,40 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
               No OAuth providers configured. Check your .env file.
             </p>
           )}
+          {signInError && (
+            <p
+              role="alert"
+              style={{ color: '#ef4444', fontSize: '14px', textAlign: 'center', margin: '0 0 4px 0' }}
+            >
+              {signInError}
+            </p>
+          )}
           {providers.map(provider => {
             const style = PROVIDER_STYLES[provider.id] ?? { bg: '#475569', label: provider.name };
             return (
               <button
                 key={provider.id}
-                onClick={() => authClient.signIn.social({ provider: provider.id as 'google', callbackURL: '/' })}
+                onClick={async () => {
+                  setSignInError(null);
+                  try {
+                    const result = await authClient.signIn.social({
+                      provider: provider.id as 'google',
+                      callbackURL: '/',
+                    });
+                    // The client reports failures in the result rather than
+                    // by throwing, so an unchecked call swallows them.
+                    if (result?.error) {
+                      setSignInError(
+                        result.error.message
+                          ?? `Sign-in was rejected (${result.error.status ?? 'error'}).`
+                      );
+                    }
+                  } catch (e) {
+                    setSignInError(
+                      e instanceof Error ? e.message : 'Sign-in failed for an unknown reason.'
+                    );
+                  }
+                }}
                 style={{
                   width: '100%',
                   padding: '12px 16px',
