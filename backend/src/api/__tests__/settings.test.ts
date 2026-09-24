@@ -14,31 +14,36 @@ const _store = new Map<string, string>();
 
 vi.mock('../../infrastructure/database/repositories/KnexSettingsRepository.js', () => {
   return {
-    KnexSettingsRepository: vi.fn().mockImplementation(() => ({
-      get: vi.fn().mockImplementation((key: string) => {
-        return Promise.resolve(_store.get(key) ?? null);
-      }),
-      getWithSource: vi.fn().mockImplementation((key: string) => {
-        const dbValue = _store.get(key);
-        if (dbValue !== undefined) {
-          return Promise.resolve({ value: dbValue, source: 'db' });
-        }
-        const envValue = process.env[key];
-        if (envValue !== undefined) {
-          return Promise.resolve({ value: envValue, source: 'env' });
-        }
-        return Promise.resolve(null);
-      }),
-      set: vi.fn().mockImplementation((key: string, value: string) => {
-        _store.set(key, value);
-        return Promise.resolve();
-      }),
-      delete: vi.fn().mockImplementation((key: string) => {
-        const existed = _store.has(key);
-        _store.delete(key);
-        return Promise.resolve(existed);
-      }),
-    })),
+    // vitest 4 constructs mocked classes with `new`, and an arrow function
+    // cannot be constructed. The implementation must be a `function` or a
+    // `class` — vitest names this fix in the failure itself. Refs #384.
+    KnexSettingsRepository: vi.fn().mockImplementation(function () {
+      return {
+        get: vi.fn().mockImplementation((key: string) => {
+          return Promise.resolve(_store.get(key) ?? null);
+        }),
+        getWithSource: vi.fn().mockImplementation((key: string) => {
+          const dbValue = _store.get(key);
+          if (dbValue !== undefined) {
+            return Promise.resolve({ value: dbValue, source: 'db' });
+          }
+          const envValue = process.env[key];
+          if (envValue !== undefined) {
+            return Promise.resolve({ value: envValue, source: 'env' });
+          }
+          return Promise.resolve(null);
+        }),
+        set: vi.fn().mockImplementation((key: string, value: string) => {
+          _store.set(key, value);
+          return Promise.resolve();
+        }),
+        delete: vi.fn().mockImplementation((key: string) => {
+          const existed = _store.has(key);
+          _store.delete(key);
+          return Promise.resolve(existed);
+        }),
+      };
+    }),
   };
 });
 

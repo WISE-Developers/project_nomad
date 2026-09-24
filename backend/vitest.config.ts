@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 /**
  * Vitest configuration — issue #359.
@@ -41,6 +41,20 @@ process.env.ICU_TIMEZONE_FILES_DIR =
 
 export default defineConfig({
   test: {
+    /**
+     * Never collect tests out of dist/ (refs #384).
+     *
+     * `tsc -b` compiles the suite alongside the source, so dist/ holds a
+     * COMPILED COPY of all 88 test files. Vitest 2 excluded dist/ by default;
+     * Vitest 4 does not, so the bump made every test run twice -- once from
+     * source and once from whatever stale JS the last build left behind.
+     *
+     * Those stale copies then failed on Vitest 4's stricter mocked-class
+     * construction while the identical source test passed, which reads as a
+     * real regression and is not one. Excluded explicitly rather than trusting
+     * a default that has already changed once.
+     */
+    exclude: [...configDefaults.exclude, 'dist/**'],
     testTimeout: 30_000,
     hookTimeout: 30_000,
     env: {
