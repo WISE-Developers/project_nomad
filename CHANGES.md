@@ -4,10 +4,90 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.18.0
+## v0.19.0
+
+### 2026-09-25
+
+- [`070e09b`](https://github.com/WISE-Developers/project_nomad/commit/070e09ba0c29677427548781e0008d99a08f15aa) Merge pull request #388 from WISE-Developers/dev — *Franco Nogarin, 10:57*
+
+### 2026-09-24
+
+- [`187ac29`](https://github.com/WISE-Developers/project_nomad/commit/187ac29794c4ad967bb0fddee03ee69661bcdae1) chore: dev v0.18.12 [skip ci] — *github-actions[bot], 15:49*
+- [`e6e8d86`](https://github.com/WISE-Developers/project_nomad/commit/e6e8d86c07f678db2e017383d431ed9e6ee7d754) Merge branch 'fix/384-vitest-advisory-floor' into dev — *Franco Nogarin, 09:48*
+- [`6f4cc00`](https://github.com/WISE-Developers/project_nomad/commit/6f4cc00ae6654a8f8b8d9dda0bcd0cc4fe9fdf93) fix: clear vitest CRITICAL and vite HIGH by bumping to the advisory floors — *Franco Nogarin, 09:48*
+- [`c2b6907`](https://github.com/WISE-Developers/project_nomad/commit/c2b6907075576dab0112646389e4d16885dd67b3) chore: dev v0.18.11 [skip ci] — *github-actions[bot], 14:07*
+- [`e401f62`](https://github.com/WISE-Developers/project_nomad/commit/e401f62386af05aa46fd255f8bf42be728f5eed4) Merge remote-tracking branch 'origin/dev' into dev — *Franco Nogarin, 08:06*
+- [`c4d75c1`](https://github.com/WISE-Developers/project_nomad/commit/c4d75c1769200c8d06d168f52a75aac16e08b361) Merge branch 'fix/373-docker-crontab' into dev — *Franco Nogarin, 08:06*
+- [`7179699`](https://github.com/WISE-Developers/project_nomad/commit/7179699b319e9a7e56031f9890b6995e687ed0be) Delete .docker/, which nothing builds and nothing could build (closes #373) — *Franco Nogarin, 08:06*
+- [`1c14fcc`](https://github.com/WISE-Developers/project_nomad/commit/1c14fcc73cac9b29995ffcdae03d5ffe36975233) Merge branch 'fix/376-firestarr-tag' into dev — *Franco Nogarin, 07:49*
+- [`128957a`](https://github.com/WISE-Developers/project_nomad/commit/128957a10a946a85b16711b6b2a1baf642a7bb0a) Point .env.example at a FireSTARR image tag that exists (closes #376) — *Franco Nogarin, 07:49*
+
+### 2026-09-23
+
+- [`b03502f`](https://github.com/WISE-Developers/project_nomad/commit/b03502f97db824bdc7dda2443d1f26bf7c892d1f) chore: dev v0.18.10 [skip ci] — *github-actions[bot], 17:48*
+- [`9460a37`](https://github.com/WISE-Developers/project_nomad/commit/9460a3705c77cbdca923b81bbca6fc14e093dc2b) Merge remote-tracking branch 'origin/dev' into dev — *Franco Nogarin, 11:48*
+- [`0964099`](https://github.com/WISE-Developers/project_nomad/commit/0964099da6d324fe2e80d13bd516e3efe992153f) Merge branch 'fix/379-tar-nodegyp' into dev — *Franco Nogarin, 11:48*
+- [`0e0f5e0`](https://github.com/WISE-Developers/project_nomad/commit/0e0f5e04e1e1343b2f8654518fede20755fa12ce) Drop node-gyp and the hoisted tar from the production image (refs #379) — *Franco Nogarin, 11:48*
+- [`172e1c6`](https://github.com/WISE-Developers/project_nomad/commit/172e1c6ddb34ced7568f2b395543b8469854a865) chore: dev v0.18.9 [skip ci] — *github-actions[bot], 16:41*
+- [`4cde422`](https://github.com/WISE-Developers/project_nomad/commit/4cde42208919d8c91e617aab55401b6d32e654fc) Merge remote-tracking branch 'origin/dev' into dev — *Franco Nogarin, 10:41*
+- [`aaa981e`](https://github.com/WISE-Developers/project_nomad/commit/aaa981eeb22ca94bf69f9ce0ed95e4965f8b2496) Merge branch 'fix/382-prod-image-dev-tree' into dev — *Franco Nogarin, 10:41*
+- [`b31befc`](https://github.com/WISE-Developers/project_nomad/commit/b31befc5d5103e169d7712d27a179e9203ec2f83) Stop shipping the dev dependency tree in the production image (refs #382) — *Franco Nogarin, 10:41*
+- [`c247e09`](https://github.com/WISE-Developers/project_nomad/commit/c247e091902270a569aed273ac9f8a9daff2e875) chore: dev v0.18.8 [skip ci] — *github-actions[bot], 15:25*
+- [`84c1357`](https://github.com/WISE-Developers/project_nomad/commit/84c13570959de9a9dc115103c10b66c85fbe97dd) Merge remote-tracking branch 'origin/dev' into dev — *Franco Nogarin, 09:24*
+- [`f9249b5`](https://github.com/WISE-Developers/project_nomad/commit/f9249b5ea777486f5b57ed57ae8289ea21750092) Merge branch 'fix/380-trusted-origins' into dev — *Franco Nogarin, 09:23*
+- [`ce137ca`](https://github.com/WISE-Developers/project_nomad/commit/ce137ca6c75f3100bf776334761d9cba2f24bd58) Make trusted origins configurable, and show a rejected sign-in (closes #380) — *Franco Nogarin, 09:23*
+- [`d078259`](https://github.com/WISE-Developers/project_nomad/commit/d07825909e3e9976f0a086c6fcbcc2390f8d4b29) chore: dev v0.18.7 [skip ci] — *github-actions[bot], 14:27*
+- [`9ed66c7`](https://github.com/WISE-Developers/project_nomad/commit/9ed66c7b67e2476278cadb88ded884f59f94102c) Merge remote-tracking branch 'origin/dev' into dev — *Franco Nogarin, 08:25*
+- [`f1e6ed6`](https://github.com/WISE-Developers/project_nomad/commit/f1e6ed65f7ed6a92f0f3a6829f41d15c5c54997b) Merge branch 'fix/377-adm-zip' into dev — *Franco Nogarin, 08:25*
+- [`2781110`](https://github.com/WISE-Developers/project_nomad/commit/2781110f8f455c51140c272c911397cbca15a417) Raise adm-zip past its advisory ceiling (closes #377) — *Franco Nogarin, 08:25*
+- [`bdab425`](https://github.com/WISE-Developers/project_nomad/commit/bdab4258d690f96d5bf39f8c1be1eafa62e264e2) Merge branch 'fix/378-multer-dos' into dev — *Franco Nogarin, 08:23*
+- [`954de2e`](https://github.com/WISE-Developers/project_nomad/commit/954de2e3a6a80b29b74dc218b88bb29160ddd93a) Raise multer past its advisory ceiling (closes #378) — *Franco Nogarin, 08:23*
+- [`97f451d`](https://github.com/WISE-Developers/project_nomad/commit/97f451d97291486f4ca408ba54adadb903d47075) chore: dev v0.18.6 [skip ci] — *github-actions[bot], 14:03*
+- [`a362be5`](https://github.com/WISE-Developers/project_nomad/commit/a362be547f7ab64b4ba38f3c491e1bdc71fda9d4) Merge branch 'feat/318-offline-bundle-builder' into dev — *Franco Nogarin, 08:02*
+- [`f3e4341`](https://github.com/WISE-Developers/project_nomad/commit/f3e43412ff69b26f97a58434852e58a12c3ea8a1) Document the build -> USB -> install workflow, and survive a dropped download (refs #318) — *Franco Nogarin, 07:23*
+- [`757ee1b`](https://github.com/WISE-Developers/project_nomad/commit/757ee1b76370f7d49c9de4f5223fe998ad4b3ba2) Add the launcher, and make the bundle actually start (refs #318) — *Franco Nogarin, 06:48*
+
+### 2026-09-22
+
+- [`873be7d`](https://github.com/WISE-Developers/project_nomad/commit/873be7d3d17bb9d68564976f194c1979529ef47e) Assemble the application payload into the bundle (refs #318) — *Franco Nogarin, 10:51*
+- [`6d01df4`](https://github.com/WISE-Developers/project_nomad/commit/6d01df45b263376531e6d3b1c4367673ea7d4485) Fetch native addons for the target ABI, not the build host (refs #318) — *Franco Nogarin, 10:42*
+- [`3ed69cd`](https://github.com/WISE-Developers/project_nomad/commit/3ed69cd7b5b68d7c3a585c8a39899c892578bfbb) Assemble the portable tree and the .env that ships in it (refs #318) — *Franco Nogarin, 10:21*
+- [`bff4ff9`](https://github.com/WISE-Developers/project_nomad/commit/bff4ff9d65cc9ce94648a8308c63797b76caab5b) Acquire and verify pinned inputs for the offline bundle (refs #318) — *Franco Nogarin, 10:11*
+- [`7213b93`](https://github.com/WISE-Developers/project_nomad/commit/7213b9361c294e296444cdea7bdd322e6856a191) chore: dev v0.18.5 [skip ci] — *github-actions[bot], 15:27*
+- [`6dd08b1`](https://github.com/WISE-Developers/project_nomad/commit/6dd08b1fe2214ecbb1b1219b0766007a80dae603) Merge branch 'fix/375-better-auth-critical' into dev — *Franco Nogarin, 09:26*
+- [`9383fe7`](https://github.com/WISE-Developers/project_nomad/commit/9383fe70a0fccdb0b5298135bdf3dc53272d07f0) Raise better-auth past its advisory ceiling (closes #375) — *Franco Nogarin, 09:26*
+- [`98c6b3b`](https://github.com/WISE-Developers/project_nomad/commit/98c6b3b62565237145f81b5e1d92079402de521a) chore: dev v0.18.4 [skip ci] — *github-actions[bot], 14:59*
+- [`3b2b902`](https://github.com/WISE-Developers/project_nomad/commit/3b2b9029a800f1e370238e54ec6173b66835fdd1) Merge origin/dev (v0.18.3) into dev — *Franco Nogarin, 08:58*
+- [`8dff505`](https://github.com/WISE-Developers/project_nomad/commit/8dff505efe1833eec7eb7700a1ebd00cee5fc358) Merge branch 'fix/368-timezone-inferred' into dev — *Franco Nogarin, 08:55*
+- [`f214405`](https://github.com/WISE-Developers/project_nomad/commit/f214405feec12981d25c394b0b6d2d8ec80a8e8b) Merge branch 'fix/365-icu-tzdata-override' into dev — *Franco Nogarin, 08:55*
+- [`b535721`](https://github.com/WISE-Developers/project_nomad/commit/b535721a129deac34d71d5964b1e87d42a6a3041) Make an inferred timezone visible and require confirmation (closes #368) — *Franco Nogarin, 07:06*
+- [`542d0cc`](https://github.com/WISE-Developers/project_nomad/commit/542d0cc2f834855102e7d48ace4d995d15a53d8c) Ship our own ICU timezone data so NWT/Alberta clocks are right (closes #365, closes #366) — *Franco Nogarin, 07:02*
+- [`4c9678d`](https://github.com/WISE-Developers/project_nomad/commit/4c9678d56f0cb311ae70701d09affa69b833e14b) chore: dev v0.18.3 [skip ci] — *github-actions[bot], 12:49*
+- [`698debe`](https://github.com/WISE-Developers/project_nomad/commit/698debe8a7e40417d63fa75ab6023fca24dc1b2d) Merge branch 'docs/ss005-23-test-fire-readme' into dev — *Franco Nogarin, 06:48*
+- [`6d1c85b`](https://github.com/WISE-Developers/project_nomad/commit/6d1c85bb79511e69b6f1cdbae489c25062b4220a) Merge branch 'fix/372-maplibre-6-cve' into dev — *Franco Nogarin, 06:48*
+- [`17acee8`](https://github.com/WISE-Developers/project_nomad/commit/17acee8223b938a9443c0e02ff9f324147020f3b) Document the SS005-23 test fire's weather files — *Franco Nogarin, 05:57*
+
+### 2026-09-21
+
+- [`e2ca063`](https://github.com/WISE-Developers/project_nomad/commit/e2ca06315f74c98f8641fcb0c4219ed03aeaf274) Give maplibre 6 a worker URL that Vite actually emits (refs #372) — *Franco Nogarin, 13:11*
+- [`1b67576`](https://github.com/WISE-Developers/project_nomad/commit/1b67576a39291cbd6f186c2b9f5a050b6b53bdfe) Upgrade maplibre-gl 5.24.0 -> 6.10.0 to clear CVE GHSA-jrc7-96c5-q579 (refs #372) — *Franco Nogarin, 10:22*
+- [`98c5c51`](https://github.com/WISE-Developers/project_nomad/commit/98c5c51db1ec924d92eec1357a7906e6eca3f6f0) chore: dev v0.18.2 [skip ci] — *github-actions[bot], 15:13*
+- [`c95eb7f`](https://github.com/WISE-Developers/project_nomad/commit/c95eb7f9a306c403e5ae970d11b647109e529861) Merge remote-tracking branch 'origin/dev' into dev — *Franco Nogarin, 09:12*
+- [`667d1a0`](https://github.com/WISE-Developers/project_nomad/commit/667d1a0f1f95a96339c6542152ea8287cfb7dc3e) Merge branch 'fix/374-offset-at-reading-time' into dev — *Franco Nogarin, 09:11*
+- [`7a00d28`](https://github.com/WISE-Developers/project_nomad/commit/7a00d2855ca3687d8d77622169484f6c061766d5) Judge a weather file's UTC signature by the reading's own date (closes #374) — *Franco Nogarin, 09:11*
+- [`84e899d`](https://github.com/WISE-Developers/project_nomad/commit/84e899db3a78e0ad86e9a652ca12f79b278c7586) chore: dev v0.18.1 [skip ci] — *github-actions[bot], 14:59*
+- [`9869a1a`](https://github.com/WISE-Developers/project_nomad/commit/9869a1acaa0f360c5095d0f4dd660cb1f016e508) Merge branch 'fix/371-log-timestamp-zone' into dev — *Franco Nogarin, 08:57*
+- [`f1ee096`](https://github.com/WISE-Developers/project_nomad/commit/f1ee09699522f97ee9b266263271f7bf66e11b9a) Merge branch 'fix/370-remove-dead-firestarr-csv' into dev — *Franco Nogarin, 08:57*
+- [`173db96`](https://github.com/WISE-Developers/project_nomad/commit/173db96f8322d03aafb568921b26b2d674255bec) Merge branch 'fix/369-capture-timestamp-zone' into dev — *Franco Nogarin, 08:57*
+- [`03857fb`](https://github.com/WISE-Developers/project_nomad/commit/03857fb055df4802ce8f0bf39f23cd9c776a5e25) Merge branch 'fix/367-wizard-end-time-zone' into dev — *Franco Nogarin, 08:57*
+- [`82c892b`](https://github.com/WISE-Developers/project_nomad/commit/82c892b5601a8beff6ef2993fcc4e8e90706682b) Put an explicit UTC offset on every log timestamp (closes #371) — *Franco Nogarin, 08:40*
+- [`dcea91f`](https://github.com/WISE-Developers/project_nomad/commit/dcea91f9b3856267a59838149dbecf7fd2a9f493) Remove dead process-local CSV formatting from WeatherService (closes #370) — *Franco Nogarin, 08:26*
+- [`f7db39d`](https://github.com/WISE-Developers/project_nomad/commit/f7db39d985164e522d95b7dfed54daf06eef2aa5) Label the timezone on exported map capture timestamps (closes #369) — *Franco Nogarin, 08:21*
+- [`8baecc4`](https://github.com/WISE-Developers/project_nomad/commit/8baecc4c4e3d65fbfe84a6843e8bc756ba19fe25) Honour the model's timezone in the wizard end-time preview (closes #367) — *Franco Nogarin, 08:16*
 
 ### 2026-08-20
 
+- [`74cd451`](https://github.com/WISE-Developers/project_nomad/commit/74cd451bcebe8c0a8168395ed92ced663f42ae41) chore: release v0.18.0 [skip ci] — *github-actions[bot], 16:01*
 - [`2b034b3`](https://github.com/WISE-Developers/project_nomad/commit/2b034b3f8b7cf7d74d7d127edf8a2b3d0d165d20) Merge pull request #363 from WISE-Developers/dev — *Franco Nogarin, 10:00*
 - [`4cb2ac5`](https://github.com/WISE-Developers/project_nomad/commit/4cb2ac5d342ba8e434ab624d1548fcc0484e4952) chore: dev v0.17.1 [skip ci] — *github-actions[bot], 15:28*
 - [`423ced0`](https://github.com/WISE-Developers/project_nomad/commit/423ced03ebdba0c7406aa0dcbf7575ec72fe4370) Merge chore/deploy-script: deploy procedure that cannot drift into root ownership — *Franco Nogarin, 09:28*
