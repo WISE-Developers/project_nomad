@@ -49,6 +49,108 @@ COPY backend/ ./backend/
 # Build backend
 RUN npm run build --workspace=@nomad/backend
 
+# ---- Stage 2b: Production dependencies ----
+#
+# The runtime tree is installed separately from the build tree (refs #382).
+#
+# backend-builder legitimately needs devDependencies -- typescript compiles the
+# backend -- so its node_modules is not the thing to ship. Copying it wholesale
+# put vitest 2.1.9, typescript 5.9.3, eslint 9.39.4 and tar 7.5.13 into the
+# runtime image: 850 MB and 448 packages, two of them carrying CRITICAL
+# advisories. A scanner then reports every advisory in the dev tree rather than
+# what the runtime can actually reach.
+FROM node:22-slim AS prod-deps
+
+WORKDIR /app
+
+# gdal-async and better-sqlite3 are native addons. node-pre-gyp fetches a
+# prebuild where one matches and falls back to compiling, so the toolchain has
+# to be present here as well as in the build stage.
+RUN apt-get update && apt-get install -y \
+    gdal-bin \
+    libgdal-dev \
+    python3 \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY package.json package-lock.json ./
+COPY backend/package.json ./backend/
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --workspace=@nomad/backend --omit=dev --omit=peer
+
+# --omit=dev is NOT sufficient on its own, and neither is --omit=peer.
+#
+# vitest is an optional PEER dependency of better-auth. npm resolves peers
+# automatically, and `npm ci` installs from the lockfile where the peer is
+# already recorded, so both flags are correct and applied and the package
+# arrives regardless. Removing it is safe because peerDependenciesMeta marks
+# that peer optional -- better-auth runs without it.
+#
+# Found the hard way in #318, where the first version of the offline bundle
+# passed its own tests with vitest sitting inside it.
+RUN rm -rf \
+    node_modules/vitest \
+    node_modules/@vitest \
+    node_modules/typescript \
+    node_modules/eslint \
+    node_modules/@eslint \
+    node_modules/@typescript-eslint
+
+# node-gyp and the hoisted tar go too (refs #379).
+#
+# node-gyp is a runtime dependency of gdal-async on paper, but only because
+# gdal-async can fall back to building from source. This image already has a
+# built binding, so it compiles nothing -- and node-gyp is what drags in `tar`,
+# which carries a CRITICAL advisory.
+#
+# Confirmed in the built image before doing this: with both deleted, gdal-async
+# reports GDAL 3.12.3, lists 139 drivers and round-trips a raster, and
+# better-sqlite3 round-trips a query.
+#
+# This removes ONE of the two tar instances. The other is bundled inside
+# gdal-async's own published tarball -- it declares
+# bundleDependencies: ["@mapbox/node-pre-gyp"] -- so npm installs it verbatim
+# and `overrides` cannot reach it. That one is upstream's to fix, and
+# gdal-async 3.12.3 is already the latest release.
+RUN rm -rf \
+    node_modules/node-gyp \
+    node_modules/tar
+
+# Check the outcome, not the flag. This is the assertion that would have caught
+# the original bug; every flag above was individually reasonable.
+RUN for p in vitest @vitest typescript eslint; do \
+      if [ -e "node_modules/$p" ]; then \
+        echo "ERROR: $p is in the production dependency tree"; \
+        exit 1; \
+      fi; \
+    done; \
+    echo "production tree carries no test or lint packages"
+
+# The native runtime modules must have SURVIVED the pruning.
+#
+# This is the failure most likely to go unnoticed: dropping gdal-async or
+# better-sqlite3 still produces a smaller image that builds cleanly, and fails
+# only when the server starts. Loading them here turns that into a build error.
+# Exercise them, do not merely import them. A broken or mismatched binding
+# imports cleanly and fails on first real use, which would move the failure
+# from this build to somebody's deployment.
+RUN node -e "\
+    const gdal = require('gdal-async'); \
+    const ds = gdal.open('/vsimem/build-check.tif', 'w', 'GTiff', 8, 8, 1, gdal.GDT_Float32); \
+    const band = ds.bands.get(1); \
+    band.pixels.set(0, 0, 42.5); \
+    if (band.pixels.get(0, 0) !== 42.5) { throw new Error('GDAL raster round-trip failed'); } \
+    ds.close(); \
+    if (gdal.drivers.count() < 1) { throw new Error('GDAL has no drivers'); } \
+    const Database = require('better-sqlite3'); \
+    const db = new Database(':memory:'); \
+    db.exec('create table t(x)'); \
+    db.prepare('insert into t values (?)').run(7); \
+    if (db.prepare('select x from t').get().x !== 7) { throw new Error('sqlite round-trip failed'); } \
+    console.log('GDAL ' + gdal.version + ', ' + gdal.drivers.count() + ' drivers, and better-sqlite3 both work'); \
+  "
+
 # ---- Stage 3: Production ----
 FROM node:22-slim AS production
 
@@ -69,11 +171,22 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
+# Ship our own ICU timezone data (refs #364, #365).
+#
+# Node resolves zones through its BUNDLED ICU, not the OS, so installing
+# tzdata here would change nothing. No published Node image carries the
+# release that covers NWT/Alberta dropping DST on 2026-11-01 -- node:22-*
+# is still on 2026a -- so the data is vendored and ICU is pointed at it.
+# process.versions.tz reports the override, and tzdataCurrency.test.ts
+# asserts it.
+COPY vendor/icu-tzdata/2026c /opt/icu-tzdata
+ENV ICU_TIMEZONE_FILES_DIR=/opt/icu-tzdata
+
 # Preserve workspace-relative paths so the backend can find frontend/dist
 # Backend code: resolve(__dirname, '../../frontend/dist')
 # __dirname = /app/backend/dist → ../../frontend/dist = /app/frontend/dist
 COPY --from=backend-builder /app/backend/dist ./backend/dist
-COPY --from=backend-builder /app/node_modules ./node_modules
+COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=backend-builder /app/backend/package.json ./backend/
 
 # Copy built frontend into workspace-relative location

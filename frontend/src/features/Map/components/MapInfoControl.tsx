@@ -34,7 +34,10 @@ export function MapInfoControl() {
       setCursorLng(e.lngLat.lng);
     };
 
-    const handleMouseLeave = () => {
+    // maplibre 6 types enforce what the docs always said: mouseenter and
+    // mouseleave are layer-scoped and require a layer id. The map-level
+    // event for "pointer left the canvas" is mouseout (refs #372).
+    const handleMouseOut = () => {
       setCursorLat(null);
       setCursorLng(null);
     };
@@ -47,12 +50,12 @@ export function MapInfoControl() {
     };
 
     map.on('mousemove', handleMouseMove);
-    map.on('mouseleave', handleMouseLeave);
+    map.on('mouseout', handleMouseOut);
     map.on('move', handleMove);
 
     return () => {
       map.off('mousemove', handleMouseMove);
-      map.off('mouseleave', handleMouseLeave);
+      map.off('mouseout', handleMouseOut);
       map.off('move', handleMove);
     };
   }, [map, isLoaded]);

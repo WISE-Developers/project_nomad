@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useOpenNomad } from '../../../openNomad/context';
 import { PROBABILITY_LEGEND } from '../../Map/symbology/palettes';

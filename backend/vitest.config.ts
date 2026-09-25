@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 /**
  * Vitest configuration — issue #359.
@@ -23,9 +23,42 @@ import { defineConfig } from 'vitest/config';
  * doubles as a performance assertion produces exactly this — failures that
  * point at the wrong test and teach people to re-run instead of read.
  */
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+const here = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Point ICU at the timezone data this product ships (refs #364, #365).
+ *
+ * Without this the suite asserts against whatever tzdata the developer's
+ * Node happens to bundle, which is not what runs in production and is
+ * usually older. Setting it here means the timezone tests exercise the
+ * same data as the container.
+ */
+process.env.ICU_TIMEZONE_FILES_DIR =
+  process.env.ICU_TIMEZONE_FILES_DIR ?? resolve(here, '../vendor/icu-tzdata/2026c');
+
 export default defineConfig({
   test: {
+    /**
+     * Never collect tests out of dist/ (refs #384).
+     *
+     * `tsc -b` compiles the suite alongside the source, so dist/ holds a
+     * COMPILED COPY of all 88 test files. Vitest 2 excluded dist/ by default;
+     * Vitest 4 does not, so the bump made every test run twice -- once from
+     * source and once from whatever stale JS the last build left behind.
+     *
+     * Those stale copies then failed on Vitest 4's stricter mocked-class
+     * construction while the identical source test passed, which reads as a
+     * real regression and is not one. Excluded explicitly rather than trusting
+     * a default that has already changed once.
+     */
+    exclude: [...configDefaults.exclude, 'dist/**'],
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    env: {
+      ICU_TIMEZONE_FILES_DIR: process.env.ICU_TIMEZONE_FILES_DIR,
+    },
   },
 });

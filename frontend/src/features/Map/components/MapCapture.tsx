@@ -6,6 +6,7 @@
  */
 
 import { useCallback } from 'react';
+import { formatCaptureTimestamp } from '../utils/captureTimestamp';
 import { useMap } from '../context/MapContext';
 import { useLayers } from '../context/LayerContext';
 import html2canvas from 'html2canvas';
@@ -206,7 +207,7 @@ export function MapCapture() {
     // Step 6: Metadata strip at bottom
     const zoom = map.getZoom();
     const scale = 40075016.686 / (Math.pow(2, zoom) * 256);
-    const timestamp = new Date().toLocaleString();
+    const timestamp = formatCaptureTimestamp(new Date());
 
     const stripY = compositeCanvas.height + border * 2;
     const stripFontSize = Math.max(11, Math.min(13, finalWidth / 120)) * dpr;

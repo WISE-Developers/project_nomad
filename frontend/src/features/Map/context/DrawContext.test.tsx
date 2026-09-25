@@ -31,17 +31,22 @@ const mockOn = vi.fn();
 const mockAddFeatures = vi.fn(() => []);
 
 vi.mock('terra-draw', () => ({
-  TerraDraw: vi.fn().mockImplementation(() => ({
-    on: mockOn,
-    start: mockStart,
-    stop: mockStop,
-    setMode: mockSetMode,
-    getSnapshot: mockGetSnapshot,
-    getSnapshotFeature: mockGetSnapshotFeature,
-    removeFeatures: mockRemoveFeatures,
-    clear: mockClear,
-    addFeatures: mockAddFeatures,
-  })),
+  // vitest 4 constructs mocked classes with `new`, and an arrow function
+  // cannot be constructed. The implementation must be a `function` or a
+  // `class` — vitest names this fix in the failure itself. Refs #384.
+  TerraDraw: vi.fn().mockImplementation(function () {
+    return {
+      on: mockOn,
+      start: mockStart,
+      stop: mockStop,
+      setMode: mockSetMode,
+      getSnapshot: mockGetSnapshot,
+      getSnapshotFeature: mockGetSnapshotFeature,
+      removeFeatures: mockRemoveFeatures,
+      clear: mockClear,
+      addFeatures: mockAddFeatures,
+    };
+  }),
   TerraDrawPointMode: vi.fn(),
   TerraDrawLineStringMode: vi.fn(),
   TerraDrawPolygonMode: vi.fn(),

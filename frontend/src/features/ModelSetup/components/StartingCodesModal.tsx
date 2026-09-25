@@ -39,11 +39,18 @@ export interface StartingCodesModalProps {
   onCancel: () => void;
 }
 
-/** The declared zone's offset from UTC, in hours, right now. */
-function zoneOffsetHours(timeZone: string): number | null {
+/**
+ * The declared zone's offset from UTC, in hours, AT A GIVEN INSTANT.
+ *
+ * The instant matters (#374). A zone that observes DST has two offsets, and
+ * asking for "now" while judging a reading taken in another season gives the
+ * wrong one — which made the UTC heuristic below correct in one half of the
+ * year and wrong in the other.
+ */
+function zoneOffsetHours(timeZone: string, at: Date): number | null {
   try {
     const formatter = new Intl.DateTimeFormat('en-CA', { timeZone, timeZoneName: 'longOffset' });
-    const name = formatter.formatToParts(new Date()).find((p) => p.type === 'timeZoneName')?.value;
+    const name = formatter.formatToParts(at).find((p) => p.type === 'timeZoneName')?.value;
     const match = /GMT([+-])(\d{2}):(\d{2})/.exec(name ?? '');
     if (!match) return 0; // "GMT" with no suffix is UTC itself
     const sign = match[1] === '-' ? -1 : 1;
@@ -66,13 +73,18 @@ function code(value: number): string {
  * elsewhere, the gap IS the offset — and if it matches the declared zone's own
  * offset from UTC, the file is almost certainly UTC.
  */
-function zoneNote(rhythm: DailyRhythm, timezone?: string): string {
+function zoneNote(rhythm: DailyRhythm, timezone?: string, observedAt?: string): string {
   const hours = Math.abs(rhythm.hoursFromNoon);
   const direction = rhythm.hoursFromNoon > 0 ? 'ahead of' : 'behind';
   const zone = timezone ?? 'the selected timezone';
   const hourLabel = `${String(rhythm.dailyHour).padStart(2, '0')}:00`;
 
-  const offset = timezone ? zoneOffsetHours(timezone) : null;
+  // Judge the reading by its own date. Falling back to "now" only when the
+  // file gave us no instant keeps the note working rather than dropping it,
+  // and that is the one case where no better answer exists.
+  const readingInstant = observedAt ? new Date(observedAt) : new Date();
+  const at = Number.isNaN(readingInstant.getTime()) ? new Date() : readingInstant;
+  const offset = timezone ? zoneOffsetHours(timezone, at) : null;
   const looksLikeUtc = offset !== null && Math.abs(rhythm.hoursFromNoon + offset) < 0.5;
 
   const base =
@@ -128,7 +140,7 @@ export function StartingCodesModal({
 
         {rhythm?.likelyZoneMismatch && (
           <p style={{ ...noteStyle, color: '#fbbf24' }}>
-            {zoneNote(rhythm, timezone)}
+            {zoneNote(rhythm, timezone, candidate?.observedAt)}
           </p>
         )}
 

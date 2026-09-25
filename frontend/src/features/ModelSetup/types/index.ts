@@ -103,6 +103,19 @@ export interface TemporalData {
   durationHours: number;
   /** IANA timezone identifier */
   timezone: string;
+  /**
+   * Where `timezone` came from (refs #368).
+   *
+   * `inferred` means the wizard filled it from the operator's browser and
+   * nobody has looked at it. `chosen` means a human confirmed or picked it.
+   * Absent is treated as `inferred`: drafts saved before this field existed
+   * cannot be assumed to have been reviewed.
+   *
+   * The zone belongs to the fire, not to the person modelling it, so an
+   * operator working an incident in another zone must not inherit their own
+   * silently.
+   */
+  timezoneSource?: 'inferred' | 'chosen';
   /** Whether the start date is in the future (forecast mode) */
   isForecast: boolean;
 }
@@ -269,6 +282,7 @@ export const DEFAULT_MODEL_SETUP_DATA: ModelSetupData = {
     startTime: '12:00',
     durationHours: 72,
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezoneSource: 'inferred',
     isForecast: false,
   },
   model: {

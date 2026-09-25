@@ -8,6 +8,7 @@
 
 import React, { useCallback, useMemo, useRef, useEffect } from 'react';
 import { useWizardData } from '../../Wizard';
+import { resolveZonedInstant } from '../utils/zonedInstant';
 import type { ModelSetupData } from '../types';
 import {
   computeDefaultStartDate,
@@ -151,13 +152,30 @@ function formatDuration(hours: number): string {
 }
 
 /**
- * Calculate end date/time from start and duration
+ * Calculate end date/time from start and duration, in the model's own zone.
+ *
+ * Both halves must use `timeZone` (refs #367). Reading the start with
+ * `new Date("YYYY-MM-DDTHH:mm")` parses it in the BROWSER's zone, and
+ * formatting without `timeZone` renders it there too. Those two mistakes
+ * cancel while both zones hold a constant offset across the window, which
+ * is why this survived — they stop cancelling the moment a DST transition
+ * falls inside the window in one zone and not the other, and the preview
+ * is then an hour out.
+ *
+ * `timeZoneName` is not decoration. The operator's browser is frequently
+ * not in the fire's zone, and an unlabelled time gives them no way to tell
+ * which one they are reading.
  */
-function calculateEndDateTime(startDate: string, startTime: string, durationHours: number): string {
-  if (!startDate || !startTime) return '';
+function calculateEndDateTime(
+  startDate: string,
+  startTime: string,
+  durationHours: number,
+  timeZone: string
+): string {
+  if (!startDate || !startTime || !timeZone) return '';
 
   try {
-    const start = new Date(`${startDate}T${startTime}`);
+    const start = resolveZonedInstant(startDate, startTime, timeZone);
     const end = new Date(start.getTime() + durationHours * 60 * 60 * 1000);
 
     return end.toLocaleString(undefined, {
@@ -168,6 +186,8 @@ function calculateEndDateTime(startDate: string, startTime: string, durationHour
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
+      timeZone,
+      timeZoneName: 'short',
     });
   } catch {
     return '';
@@ -203,7 +223,11 @@ export function TemporalStep() {
       startDate: defaultStartDate,
       startTime: '12:00',
       durationHours: 72,
+      // Filled from the operator's device, and marked as such: this is a
+      // starting guess about where the FIRE is, made from where the OPERATOR
+      // is, and those differ often enough to matter (refs #368).
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezoneSource: 'inferred' as const,
       isForecast: false,
     };
 
@@ -302,8 +326,14 @@ export function TemporalStep() {
 
   // Calculate end date/time
   const endDateTime = useMemo(
-    () => calculateEndDateTime(temporal.startDate, temporal.startTime, temporal.durationHours),
-    [temporal.startDate, temporal.startTime, temporal.durationHours]
+    () =>
+      calculateEndDateTime(
+        temporal.startDate,
+        temporal.startTime,
+        temporal.durationHours,
+        temporal.timezone
+      ),
+    [temporal.startDate, temporal.startTime, temporal.durationHours, temporal.timezone]
   );
 
   const activeQuickSelect = getActiveQuickSelect(temporal.startDate);
@@ -378,10 +408,55 @@ export function TemporalStep() {
           />
         </div>
 
-        <div style={{ fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <i className="fa-solid fa-globe" style={{ fontSize: '11px' }} />
-          Timezone: {temporal.timezone}
-        </div>
+        {/* Timezone provenance (refs #368). A zone filled in from the
+            operator's device is a guess, and the operator is frequently not
+            in the same zone as the fire. Say so, and make confirming it a
+            deliberate act rather than a silent default. */}
+        {temporal.timezoneSource === 'chosen' ? (
+          <div style={{ fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <i className="fa-solid fa-globe" style={{ fontSize: '11px' }} />
+            Timezone: {temporal.timezone}
+          </div>
+        ) : (
+          <div
+            style={{
+              fontSize: '12px',
+              color: '#7a4b00',
+              background: '#fff7e6',
+              border: '1px solid #f0c36d',
+              borderRadius: '4px',
+              padding: '10px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <i className="fa-solid fa-globe" style={{ fontSize: '11px' }} />
+            <span>
+              Timezone <strong>{temporal.timezone}</strong> was detected from this device — not
+              from the fire.
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setField('temporal', { ...temporal, timezoneSource: 'chosen' })
+              }
+              style={{
+                padding: '4px 10px',
+                fontSize: '12px',
+                fontWeight: 600,
+                border: '1px solid #f0c36d',
+                borderRadius: '4px',
+                background: 'white',
+                color: '#7a4b00',
+                cursor: 'pointer',
+              }}
+            >
+              Confirm
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Duration */}
