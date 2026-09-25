@@ -484,7 +484,7 @@ export function ResultsSummary({
                     }}
                   >
                     <i className="fa-solid fa-bezier-curve" style={{ marginRight: '4px' }} />
-                    Add Igntion to Map
+                    Add Ignition to Map
                   </button>
                 )}
               </div>
