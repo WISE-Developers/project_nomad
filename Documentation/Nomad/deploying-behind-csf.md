@@ -52,7 +52,36 @@ Note the implication: **you cannot roll back out of this.** The old image will n
 
 ---
 
-## The fix
+## The fix: three layers, because there are two separate trigger paths
+
+There is no single fix. CSF wipes the chains by **two different routes**, and they need
+different answers. Both were confirmed by direct test, in both directions.
+
+### Layer 1 — `DOCKER = "1"` (covers the frequent path)
+
+In `/etc/csf/csf.conf`:
+
+```ini
+DOCKER          = "1"
+DOCKER_NETWORK4 = "172.16.0.0/12"
+```
+
+Then `csf -r`.
+
+`DOCKER = "1"` makes CSF **create** Docker's rules as part of its own ruleset instead of
+deleting them. You can see it in the reload output:
+
+    MASQUERADE  all -- !docker0  172.16.0.0/12 -> 0.0.0.0/0
+    ACCEPT      all -- docker0 ...
+
+Use `172.16.0.0/12`, **not** the shipped default of `172.17.0.0/16`. The default covers only
+`docker0`; compose creates bridges on `172.18.0.x` and upward. `172.16.0.0/12` spans Docker's
+whole default pool (172.17–172.31), so bridges created later are covered too.
+
+**This is the path that matters most**, because it is the one that fires constantly — see
+"How lfd makes it recur" below.
+
+### Layer 2 — a systemd drop-in (covers a full unit restart)
 
 `/etc/systemd/system/csf.service.d/restart-docker.conf`
 
@@ -63,38 +92,59 @@ ExecStartPost=-/usr/bin/systemctl --no-block restart docker
 
 Then `systemctl daemon-reload`.
 
-Whenever CSF restarts and rebuilds the ruleset, Docker restarts behind it and recreates its
-chains. It changes **no firewall rules** — it is a service-ordering change.
+**Layer 1 does not cover this path.** With `DOCKER = "1"` set, `systemctl restart csf` *still*
+deletes the chains — verified 2026-09-27 09:24. Docker restarting behind it recreates them.
 
 - `-` so a failure here can never block CSF from starting
 - `--no-block` so a slow Docker restart can never hang CSF
 
-**Cost:** containers blink whenever CSF restarts. Measured on the CIFFC demo: **19 seconds**,
-self-healed, no intervention.
+**Cost:** containers blink whenever `csf.service` restarts. Measured: **19 seconds**, self-healed.
 
 **Revert:** delete the file and `systemctl daemon-reload`.
 
-### Verified, not assumed
+### Layer 3 — the deploy guard (covers both failing)
 
-Applied 2026-09-27 and tested by deliberately restarting CSF:
+`scripts/deploy.sh` probes for the chain **before it tears anything down** and refuses to deploy
+if it is definitely absent. See `probe_docker_chain` / `docker_chain_verdict`. This is what turns
+a site outage into an error message.
 
-    07:48:03  CSF restart issued
-    07:48:05  csf: Deleting chain `DOCKER'          <- the cause, from CSF's own journal
-    07:48:17  Starting Docker Application Container Engine...   <- ExecStartPost firing
-    07:48:19  DOCKER chain: EXISTS                  <- recreated
-    07:48:22  demo serving v0.19.0, container Up 4 seconds
+### Verified, in both directions
 
-## What does NOT fix it
+| Trigger | Chain after | Container start |
+|---|---|---|
+| `csf -r` (the lfd path) | **EXISTS** — fixed by layer 1 | OK |
+| `systemctl restart csf` | deleted, then recreated by layer 2 | OK |
+| 14-minute soak, sampled every minute | EXISTS at every sample | — |
+| Real `docker run -p 127.0.0.1:…` | — | **OK** |
 
-**`DOCKER = "1"` in `/etc/csf/csf.conf`** — two reasons:
+The last row is the one that counts. Chain existence is a proxy; starting a container with a
+published port is the operation that actually fails in this mode.
 
-1. Its `DOCKER_NETWORK4` defaults to `172.17.0.0/16`, but compose-created bridges are on
-   `172.18.0.x`. The failing rule above is `-d 172.18.0.2`.
-2. More fundamentally, it does not recreate Docker's own chains. Only the daemon starting does.
+## How lfd makes it recur — and why one measurement is not enough
+
+`lfd` watches the ruleset and re-applies CSF **on its own, outside systemd**:
+
+    lfd: iptables appears to have been flushed - running *csf startup*...
+    lfd: csf startup completed
+
+Restarting Docker inserts Docker's rules, lfd reads that as a flush, and re-runs CSF — which
+(before layer 1) deleted the chains again. Roughly three minutes after a Docker restart.
+
+This is how the first attempt at this fix was wrongly declared successful: the chain was checked
+19 seconds after a Docker restart, found present, and called fixed. lfd undid it at T+3m.
+
+**So verify across at least two lfd sweeps — 10 minutes minimum — never a single sample.**
+
+## What does NOT fix it on its own
 
 **`/etc/csf/csfpost.sh`** — the CIFFC demo already has one, ACCEPTing `docker0`, `br-+` and
 `172.18.0.0/16` on FORWARD/OUTPUT/INPUT. That governs traffic **flow**, which was never the
 broken part. It solves the half that was already working.
+
+**The systemd drop-in alone** — it hooks `csf.service` restarts, and lfd's `csf startup` is not
+one. That is layer 1's job.
+
+**`DOCKER = "1"` alone** — does not survive a full `systemctl restart csf`. That is layer 2's job.
 
 ---
 
