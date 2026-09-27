@@ -23,6 +23,8 @@ trap 'rm -rf "$tmp"' EXIT
 
 sed -n '/^refuse_root() {/,/^}/p'      "$DEPLOY" >  "$tmp/fn.sh"
 sed -n '/^owner_drift_count() {/,/^}/p' "$DEPLOY" >> "$tmp/fn.sh"
+sed -n '/^probe_docker_chain() {/,/^}/p'   "$DEPLOY" >> "$tmp/fn.sh"
+sed -n '/^docker_chain_verdict() {/,/^}/p' "$DEPLOY" >> "$tmp/fn.sh"
 
 cat > "$tmp/harness.sh" <<EOF
 print_error(){ echo "ERROR: \$*"; }
@@ -61,6 +63,48 @@ check "counts files owned by another user" 0 \
 
 check "missing directory reports 0 rather than erroring" 0 \
   "[ \"\$(owner_drift_count '$tmp/nope' \$(id -un))\" = 0 ]"
+
+echo
+echo "probe_docker_chain"
+
+# CSF deletes Docker's DOCKER/DOCKER-USER chains whenever it restores its saved
+# ruleset. Running containers keep serving (a 127.0.0.1 publish is handled by
+# docker-proxy and never traverses the chain), so the fault is invisible until
+# something STARTS a container — which is exactly what a deploy does, after it
+# has already torn the working container down. Refs #392.
+#
+# Three outcomes, and the third matters: a host with no iptables, or no sudo
+# rights to read it, must not have its deploys blocked. Only a definite
+# "iptables answered and the chain is not there" aborts.
+
+# Chain present: probe command succeeds.
+check "reports present (0) when the probe succeeds" 0 \
+  "probe_docker_chain true; [ \$? -eq 0 ]"
+
+# Chain missing: probe runs but exits non-zero, the way iptables does with
+# "No chain/target/match by that name".
+check "reports missing (1) when the probe exits non-zero" 0 \
+  "probe_docker_chain false; [ \$? -eq 1 ]"
+
+# Cannot determine: the probe command does not exist at all.
+check "reports undeterminable (2) when the probe is not installed" 0 \
+  "probe_docker_chain '$tmp/definitely-not-a-command'; [ \$? -eq 2 ]"
+
+echo
+echo "docker_chain_verdict"
+
+check "proceeds when the chain is present"         0 'docker_chain_verdict 0'
+check "ABORTS when the chain is definitely missing" 1 'docker_chain_verdict 1'
+check "proceeds when it cannot be determined"      0 'docker_chain_verdict 2'
+
+# A missing chain must say so loudly; a silent abort is as bad as no guard.
+check "names the chain in the abort message" 0 \
+  "docker_chain_verdict 1 2>&1 | grep -q DOCKER"
+
+# The operator needs to know rollback is not an escape route: the previous
+# image cannot start either, for the same reason.
+check "abort message rules out rollback as a workaround" 0 \
+  "docker_chain_verdict 1 2>&1 | grep -qi rollback"
 
 echo
 echo "passed: $pass   failed: $fail"
