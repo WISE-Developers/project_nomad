@@ -22,7 +22,7 @@
     "build": "tsc -b && vite build",
     "build:lib": "vite build --config vite.lib.config.ts",
     "preview": "vite preview",
-    "lint": "eslint src/**/*.{ts,tsx}",
+    "lint": "eslint src",
     "test": "vitest",
     "test:watch": "vitest watch",
     "test:e2e": "playwright test",
