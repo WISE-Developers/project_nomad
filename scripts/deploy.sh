@@ -64,6 +64,78 @@ owner_drift_count() {
     find "$dir" -path "$dir/node_modules" -prune -o ! -user "$owner" -print 2>/dev/null | wc -l | tr -d ' '
 }
 
+probe_docker_chain() {
+    # Is Docker's DOCKER iptables chain present?
+    #
+    # CSF deletes it (along with DOCKER-USER and DOCKER-INTERNAL) every time it
+    # restores its saved ruleset. Docker creates those chains at DAEMON startup,
+    # so CSF's restore never brings them back.
+    #
+    # Nothing appears to break. A container published on 127.0.0.1 is served by
+    # docker-proxy in userspace and never traverses the chain, so the CIFFC demo
+    # kept serving for a full day with the chains gone. The fault surfaces only
+    # when a container is STARTED -- which is what a deploy does, immediately
+    # after tearing down the one that was working.
+    #
+    # $1 overrides the probe command (the tests inject one). Returns:
+    #   0  chain present
+    #   1  iptables answered and the chain is NOT there
+    #   2  cannot be determined
+    #
+    # The third state is deliberate. A host with no iptables, or no sudo rights
+    # to read it, must not have its deploys blocked -- a guard that fails closed
+    # everywhere is worse than no guard. Only a definite absence aborts.
+    local probe="${1:-}"
+
+    if [ -n "$probe" ]; then
+        command -v "${probe%% *}" >/dev/null 2>&1 || return 2
+        $probe >/dev/null 2>&1 && return 0
+        return 1
+    fi
+
+    local ipt
+    for ipt in iptables-nft iptables; do
+        command -v "$ipt" >/dev/null 2>&1 || continue
+        sudo -n "$ipt" -t filter -L DOCKER -n >/dev/null 2>&1 && return 0
+        # Distinguish "no such chain" from "cannot read iptables at all": if the
+        # NAT table is readable, the tool and our rights are fine and the chain
+        # really is gone.
+        sudo -n "$ipt" -t filter -L -n >/dev/null 2>&1 && return 1
+    done
+    return 2
+}
+
+docker_chain_verdict() {
+    # Turn a probe result into proceed (0) or abort (1). Refs #392.
+    case "$1" in
+        0)
+            print_success "Docker iptables chain present"
+            return 0
+            ;;
+        1)
+            print_error "Docker's DOCKER iptables chain is missing. A deploy would"
+            print_error "stop the running container and then FAIL to start its"
+            print_error "replacement, taking the site down."
+            print_error ""
+            print_error "Rollback is not a way out: the previous image cannot start"
+            print_error "either, for the same reason."
+            print_error ""
+            print_error "This host is almost certainly running CSF, which deletes"
+            print_error "Docker's chains whenever it restores its ruleset. Fix:"
+            print_error "  sudo systemctl restart docker"
+            print_error "and to stop it recurring, see"
+            print_error "  Documentation/Nomad/deploying-behind-csf.md"
+            return 1
+            ;;
+        *)
+            print_warning "Could not determine whether Docker's iptables chain exists."
+            print_warning "Proceeding. If the new container fails to start, see"
+            print_warning "Documentation/Nomad/deploying-behind-csf.md"
+            return 0
+            ;;
+    esac
+}
+
 repair_ownership() {
     local dir="$1" owner="$2" drift
     drift="$(owner_drift_count "$dir" "$owner")"
@@ -95,6 +167,13 @@ main() {
 
     print_info "Deploying $root from origin/$BRANCH as $owner"
     [ "$DRY_RUN" = true ] && print_info "DRY RUN — nothing will change"
+
+    # Before anything is torn down. A deploy that stops the running container
+    # and then cannot start its replacement is strictly worse than a deploy
+    # that refuses to begin. Refs #392.
+    local chain_state=0
+    probe_docker_chain || chain_state=$?
+    docker_chain_verdict "$chain_state" || exit 1
 
     repair_ownership "$root" "$owner"
 
