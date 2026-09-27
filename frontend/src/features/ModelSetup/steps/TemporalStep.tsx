@@ -265,7 +265,17 @@ export function TemporalStep() {
         });
       }
     }
-  }, []); // Only run once on mount
+    // Mount-only is deliberate, and safe because the wizard SWAPS step
+    // components rather than keeping them mounted: ModelSetupWizard renders a
+    // single `const Component = getStepComponent(currentStepIndex)`, so the
+    // component type changes between steps and React unmounts/remounts this
+    // one. That is what makes "since the user last visited this step" work --
+    // revisiting the step re-runs the clamp against the current weather range.
+    //
+    // Adding the reported deps would re-run the clamp on every keystroke that
+    // changes temporal state, fighting the user's own edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Update start date
   const handleDateChange = useCallback(

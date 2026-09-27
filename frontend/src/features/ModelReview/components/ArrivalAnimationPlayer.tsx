@@ -78,6 +78,12 @@ export function ArrivalAnimationPlayer({
   // Re-anchor current if the dataset changes (e.g. different model).
   useEffect(() => {
     if (bounds) setCurrent(bounds.minOffset);
+    // Depending on the two primitives rather than the `bounds` object is
+    // deliberate and MORE stable, not less: `bounds` is a useMemo over `data`,
+    // so it is a fresh object whenever `data` is, and depending on it would
+    // re-anchor the playhead on renders where the actual frame range is
+    // unchanged -- visibly yanking the animation back to its first frame.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bounds?.minOffset, bounds?.maxOffset]);
 
   // Emit the initial frame to the parent so the map reflects it immediately.
@@ -100,6 +106,10 @@ export function ArrivalAnimationPlayer({
       });
     }, tickIntervalMs);
     return () => clearInterval(id);
+    // Same reason as the re-anchor effect above: the primitives are the stable
+    // dependency. Depending on the `bounds` object would tear down and restart
+    // the playback interval on unrelated re-renders, dropping frames.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing, bounds?.minOffset, bounds?.maxOffset, tickIntervalMs]);
 
   if (!bounds) {
