@@ -4,7 +4,7 @@
  * Provides wizard state and navigation to all child components.
  */
 
-import { createContext, useContext, useCallback, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useCallback, useEffect, useRef, ReactNode } from 'react';
 import { useWizardState } from '../hooks/useWizardState';
 import type {
   WizardContextValue,
@@ -72,7 +72,11 @@ export function WizardProvider<T extends Record<string, unknown>>({
   });
 
   // Previous step index for change detection
-  const prevStepIndexRef = { current: currentStepIndex };
+  // A real ref, not an object literal — issue #393. Written as
+  // `{ current: currentStepIndex }` this was rebuilt every render with
+  // `current` already equal to the current index, so the guard below could
+  // never be true and onStepChange never fired for any consumer.
+  const prevStepIndexRef = useRef(currentStepIndex);
 
   // Trigger step change callback
   useEffect(() => {
