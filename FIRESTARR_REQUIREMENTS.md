@@ -17,7 +17,7 @@ FireSTARR is an open-source probabilistic fire spread simulation system implemen
 |----------|---------|-------------|
 | CPU | 2 cores | 4+ cores |
 | RAM | 8 GB | 16 GB+ |
-| Disk | 50 GB (dataset) | 100 GB+ |
+| Disk | 11 GB (dataset, all 4 fuel years) | 30 GB+ |
 
 ## Platform Support
 
@@ -30,10 +30,10 @@ The national dataset is required for Canadian fire modeling:
 
 | Component | Description | Size |
 |-----------|-------------|------|
-| Fuel grids | 100m resolution fuel type rasters | ~40 GB |
+| Fuel grids | 100m resolution fuel type rasters, ~3 GB per fuel year | ~11 GB (4 years) |
 | DEM | Digital elevation model | included |
 | Fuel lookup | `fuel.lut` classification table | < 1 MB |
-| **Total** | | **~50 GB** |
+| **Total** | | **~11 GB** |
 
 ### Container Image
 

@@ -450,6 +450,16 @@ export function LayerProvider({ children }: { children: ReactNode }) {
       console.warn('[LayerContext] Failed to parse stored layers:', err);
       localStorage.removeItem(LAYERS_STORAGE_KEY);
     }
+    // `api` is deliberately not a dependency. This restores persisted layers
+    // ONCE, when the map finishes loading. Re-running it because the api
+    // object changed identity would add every stored layer to the map a
+    // second time -- duplicate sources and duplicate ids, which maplibre
+    // rejects noisily and which would leave the layer panel wrong.
+    //
+    // The effect captures `api` at the moment the map loads and only uses it
+    // for the fetches it starts there, so a later `api` is not a value this
+    // effect has any use for.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, map]);
 
   const addGeoJSONLayer = useCallback(

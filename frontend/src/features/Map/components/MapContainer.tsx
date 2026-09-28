@@ -156,7 +156,17 @@ export function MapContainer({
         setIsLoaded(false);
       }
     };
-  }, []); // Only run once on mount
+    // Mount-only is the point: this constructs the maplibre Map and the
+    // cleanup destroys it. Including `options` (initialCenter/zoom/style) or
+    // the context setters would tear down and rebuild the map whenever any of
+    // them changed identity -- discarding the user's pan and zoom, every
+    // layer added to it, and the draw state, for a prop that is only ever
+    // meant to seed the INITIAL view.
+    //
+    // The map's live state lives in maplibre after construction; `options` is
+    // seed data, not a binding.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const containerStyle: React.CSSProperties = {
     width: '100%',
