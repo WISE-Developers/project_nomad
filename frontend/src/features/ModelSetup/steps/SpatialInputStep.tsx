@@ -21,6 +21,18 @@ import type { DrawnFeature } from '../../Map/types/geometry';
 import { shouldAutoFrame } from '../../Map/utils/shouldAutoFrame';
 import type { GeoJSONGeometry } from '../../../openNomad/api';
 
+/**
+ * Stable empty list for the embedded branch of `features` — issue #393.
+ *
+ * Written inline as `isEmbeddedMode ? [] : ...` this was a fresh array on
+ * every render, destabilising the deps of handleDeleteFeature and the
+ * auto-frame effect below.
+ *
+ * Shared and must never be mutated. Nothing here does — every use is
+ * `.filter`, `.length` or iteration.
+ */
+const EMPTY_FEATURES: DrawnFeature[] = [];
+
 const containerStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
@@ -156,7 +168,7 @@ export function SpatialInputStep() {
   const isLoaded = mapContext?.isLoaded ?? false;
 
   // Features and readiness depend on mode
-  const features = isEmbeddedMode ? [] : geometrySync.features;
+  const features = isEmbeddedMode ? EMPTY_FEATURES : geometrySync.features;
   const isReady = isEmbeddedMode ? true : geometrySync.isReady;
 
   // Embedded mode: track drawn geometry locally
