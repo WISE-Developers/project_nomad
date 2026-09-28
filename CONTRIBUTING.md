@@ -56,6 +56,29 @@ Commit message prefixes are optional but encouraged:
 | `docs:` | Documentation only |
 | `chore:` | Maintenance, tooling |
 
+#### Never put GitHub's skip-CI marker in a commit message
+
+GitHub treats `[skip` `ci]` — written as one bracketed token, along with `[ci skip]`,
+`[no ci]`, `[skip actions]` and `[actions skip]` — as an instruction, **anywhere in the commit
+message, including the body**. It suppresses *every* workflow for that commit. There is no way
+to quote or escape it: GitHub does not care that your sentence is merely describing the marker.
+
+That matters more here than in most repos, because of two things:
+
+- `main` requires the `All tests` check to pass. A commit with no check runs has nothing to
+  satisfy that requirement, so the PR sits blocked rather than failing.
+- The head of a `dev` → `main` release PR is whatever `dev`'s head happens to be.
+
+This is not hypothetical. It swallowed the CI for two commits of the very change that removed
+these markers from the release workflows (#333), including a commit message whose only mention
+of the marker was an explanation of why it was being removed.
+
+If you need to refer to it in a message, changelog entry or PR title, describe it instead —
+"the native skip-CI marker" — or split the token so it is not literal.
+
+The release workflows now use `[release-bot]`, which GitHub does not treat specially, so CI
+still runs on automated version-bump commits.
+
 ### 4. Open a Pull Request to `dev`
 
 Push your branch and open a PR targeting `dev`:
