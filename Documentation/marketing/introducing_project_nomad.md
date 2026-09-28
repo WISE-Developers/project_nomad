@@ -136,7 +136,7 @@ Imagine running 1,000 slightly different versions of a fire, each with small var
 
 **SAN (Stand Alone Nomad)** - Currently available
 - Self-contained application for individual users or small teams
-- Interactive installer handles everything (Node.js, dependencies, database, FireSTARR engine, 50GB national fuel/terrain dataset)
+- Interactive installer handles everything (Node.js, dependencies, database, FireSTARR engine, 11GB national fuel/terrain dataset)
 - Runs on Linux, macOS, or Windows (Docker or bare metal)
 - SQLite database - no external services required
 - Perfect for: field offices, demonstrations, research labs, standalone deployments
@@ -184,7 +184,7 @@ The Government of Northwest Territories is deploying Nomad integrated with their
 - Model dashboard with search and management
 - Interactive installer for easy deployment
 - Docker and bare metal deployment options
-- 50GB national fuel/DEM dataset integration
+- 11GB national fuel/DEM dataset integration
 
 ### Coming next:
 - Full Progressive Web App with offline capability

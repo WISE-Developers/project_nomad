@@ -7,10 +7,10 @@
 # install-firestarr-dataset.sh's year picker (run_year_picker) chooses the
 # years. Asking the user to pick a source twice is the bug this guards against.
 #
-# The PATH prompts must survive: the year picker never asks where the ~50GB
+# The PATH prompts must survive: the year picker never asks where the ~11GB
 # archive is downloaded or installed, and install-firestarr-dataset.sh exits 1
 # if FIRESTARR_DATASET_PATH is unset (load_config, :81-84). Defaulting those
-# silently would decide where 50GB lands without telling the user.
+# silently would decide where 11GB lands without telling the user.
 #
 # Expected behaviour in index mode:
 #   - the "Select an option [1-3]" source menu is never shown

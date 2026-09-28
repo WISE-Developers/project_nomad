@@ -99,7 +99,7 @@ For full control over all options (ACN mode, custom database, OIDC auth, etc.), 
 
 - **Git** - to clone the repository
 - Docker & Docker Compose (Docker mode) or Node.js >= 20 (Metal mode)
-- ~55GB disk space for the FireSTARR dataset
+- ~11GB disk space for the FireSTARR dataset (all 4 fuel years, ~3GB each)
 
 ### Installation
 
