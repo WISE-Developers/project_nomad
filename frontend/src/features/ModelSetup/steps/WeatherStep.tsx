@@ -14,7 +14,11 @@ import { FirestarrCsvUpload } from '../components/FirestarrCsvUpload';
 import { RawWeatherUpload } from '../components/RawWeatherUpload';
 import { SpotwxUpload } from '../components/SpotwxUpload';
 import { StartingCodesInput } from '../components/StartingCodesInput';
-import type { ModelSetupData, WeatherSource, ParsedWeatherCSV, FWIStartingCodes } from '../types';
+import type { ModelSetupData, WeatherSource, ParsedWeatherCSV, FWIStartingCodes, WeatherData } from '../types';
+
+// Shared fallback for `data.weather` when unset. Module-level so it has a
+// stable identity across renders (refs #393) — must never be mutated.
+const DEFAULT_WEATHER: WeatherData = { source: 'firestarr_csv' };
 
 const containerStyle: React.CSSProperties = {
   display: 'flex',
@@ -112,7 +116,7 @@ export function WeatherStep() {
     []
   );
 
-  const weather = data.weather ?? { source: 'firestarr_csv' };
+  const weather = data.weather ?? DEFAULT_WEATHER;
   const [activeTab, setActiveTab] = useState<WeatherSource>(weather.source);
 
   // Handle tab change

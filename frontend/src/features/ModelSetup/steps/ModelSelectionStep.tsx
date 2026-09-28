@@ -6,7 +6,16 @@
 
 import React, { useCallback } from 'react';
 import { useWizardData } from '../../Wizard';
-import type { ModelSetupData, FireEngine, ModelMode } from '../types';
+import type { ModelSetupData, FireEngine, ModelMode, ModelData } from '../types';
+
+// Shared fallback for `data.model` when unset. Module-level so it has a
+// stable identity across renders (refs #393) — must never be mutated.
+const DEFAULT_MODEL: ModelData = {
+  engine: 'firestarr',
+  runType: 'deterministic',
+  outputMode: 'probabilistic',
+  modelMode: 'probabilistic',
+};
 
 const containerStyle: React.CSSProperties = {
   display: 'flex',
@@ -149,12 +158,7 @@ const modelModes: ModelModeOption[] = [
 export function ModelSelectionStep() {
   const { data, setField } = useWizardData<ModelSetupData>();
 
-  const model = data.model ?? {
-    engine: 'firestarr',
-    runType: 'deterministic',
-    outputMode: 'probabilistic',
-    modelMode: 'probabilistic',
-  };
+  const model = data.model ?? DEFAULT_MODEL;
 
   // Update engine selection
   const handleEngineChange = useCallback(

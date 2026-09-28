@@ -6,13 +6,17 @@
 #
 # Regenerate with: scripts/lint-ratchet.sh --update
 #
-# Breakdown at the time of writing (108):
+# Breakdown at the time of writing (94):
 #   41  @typescript-eslint/no-unused-vars   (frontend)  mechanical cleanup
 #   29  react-refresh/only-export-components            dev-experience only
-#   16  react-hooks/exhaustive-deps                     #393 groups B and C
 #   14  @typescript-eslint/no-unused-vars   (backend)   mechanical cleanup
 #    3  @typescript-eslint/no-explicit-any  (backend)
 #    2  @typescript-eslint/no-namespace     (backend)
-#    2  @typescript-eslint/no-empty-object-type
+#    2  @typescript-eslint/no-empty-object-type         (frontend)
+#    2  react-hooks/exhaustive-deps                     #393 group C only
 #    1  unused eslint-disable directive (RasterLegend.tsx:397)
-108
+#
+# 108 -> 94: #393 group B cleared all 14 unstable-reference findings.
+# The 2 remaining exhaustive-deps are group C — useJobs.ts:216 (a real
+# subscription leak) and WizardContext.tsx:83.
+94
