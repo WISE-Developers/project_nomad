@@ -4,10 +4,49 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.19.0
+## v0.20.0
+
+### 2026-09-28
+
+- [`2eeabe6`](https://github.com/WISE-Developers/project_nomad/commit/2eeabe60dcd3c1e79851bb847296c1bf2370ef64) Merge pull request #394 from WISE-Developers/dev — *Franco Nogarin, 07:51*
+- [`7a5550f`](https://github.com/WISE-Developers/project_nomad/commit/7a5550f4b4bf84a7f6617f479b742782ac9ea330) chore: dev v0.19.8 [skip ci] — *github-actions[bot], 13:51*
+- [`27ce217`](https://github.com/WISE-Developers/project_nomad/commit/27ce217d40d3e500ac01728121526ccf48e43f37) Merge pull request #391 from Jah-yee/fix/ignition-typo — *Franco Nogarin, 07:51*
+- [`af45d65`](https://github.com/WISE-Developers/project_nomad/commit/af45d651507ccfedc43795b6aa8ebd0f6ab32747) chore: dev v0.19.7 [skip ci] — *github-actions[bot], 12:03*
+- [`48cc997`](https://github.com/WISE-Developers/project_nomad/commit/48cc9979af39b93e79e06089c93cd398e8c8e52f) Merge branch 'chore/dataset-size-docs' into dev — *Franco Nogarin, 06:02*
+- [`ed4f4d3`](https://github.com/WISE-Developers/project_nomad/commit/ed4f4d3d5336378c37199600b0e9df5935230bb0) chore: dev v0.19.6 [skip ci] — *github-actions[bot], 10:47*
+- [`fb94c9b`](https://github.com/WISE-Developers/project_nomad/commit/fb94c9bd4f0577cfcfe93a2855993e4c2d429b7d) Merge remote-tracking branch 'origin/dev' into dev — *Franco Nogarin, 04:47*
+- [`fdd62f7`](https://github.com/WISE-Developers/project_nomad/commit/fdd62f7b2dfceccf4983d798388bf8e097cbb31b) Merge branch 'fix/386-lint-ratchet-ci' into dev — *Franco Nogarin, 04:47*
+- [`d155f97`](https://github.com/WISE-Developers/project_nomad/commit/d155f9725d3469671480ccc07692f698c33d44c9) fix: gate lint in CI with a ratchet, so the 108 findings cannot grow — *Franco Nogarin, 04:47*
+
+### 2026-09-27
+
+- [`bc35494`](https://github.com/WISE-Developers/project_nomad/commit/bc35494fc022d3fdc076143c6bfee60f30b7c2ea) chore: dev v0.19.5 [skip ci] — *github-actions[bot], 14:30*
+- [`a530500`](https://github.com/WISE-Developers/project_nomad/commit/a5305005351f0d8aedcb12efca4507833986ec0a) Merge remote-tracking branch 'origin/dev' into dev — *Franco Nogarin, 08:30*
+- [`0c1ac85`](https://github.com/WISE-Developers/project_nomad/commit/0c1ac8506afb99c3cf160739e5f2f237c5b2dd6c) Merge branch 'fix/393-exhaustive-deps-group-a' into dev — *Franco Nogarin, 08:30*
+- [`75e6f4e`](https://github.com/WISE-Developers/project_nomad/commit/75e6f4e4e2926dbeb095bccba6f80e80c6f98d71) docs: record why six exhaustive-deps omissions are deliberate — *Franco Nogarin, 08:30*
+- [`40e0d0a`](https://github.com/WISE-Developers/project_nomad/commit/40e0d0a879f65116a2b0c557ea2d59fd76299339) chore: dev v0.19.4 [skip ci] — *github-actions[bot], 14:14*
+- [`703f5c7`](https://github.com/WISE-Developers/project_nomad/commit/703f5c715f446ff4b934207182014daa92b359ba) Merge remote-tracking branch 'origin/dev' into dev — *Franco Nogarin, 08:13*
+- [`8ecbc21`](https://github.com/WISE-Developers/project_nomad/commit/8ecbc21cfff0eb95af1f0b1455c58f7324875416) Merge branch 'fix/386-eslint-config' into dev — *Franco Nogarin, 08:13*
+- [`b450aff`](https://github.com/WISE-Developers/project_nomad/commit/b450affb77427b38f2ff9b2bbddce6eeda7d2cba) fix: make npm run lint actually run, and establish the baseline — *Franco Nogarin, 08:13*
+- [`c3e2521`](https://github.com/WISE-Developers/project_nomad/commit/c3e2521dde5748689451921db948c56791e66164) chore: dev v0.19.3 [skip ci] — *github-actions[bot], 13:26*
+- [`5565a6f`](https://github.com/WISE-Developers/project_nomad/commit/5565a6fead22608d459320606f27a6c5c28f0a5b) Merge remote-tracking branch 'origin/dev' into dev — *Franco Nogarin, 07:25*
+- [`e93548b`](https://github.com/WISE-Developers/project_nomad/commit/e93548be843f03a09f26e714d38b7ed06f832134) Merge branch 'docs/csf-three-layers' into dev — *Franco Nogarin, 07:25*
+- [`9a4e8a1`](https://github.com/WISE-Developers/project_nomad/commit/9a4e8a1334e395eac1961b8b53674c2dd270e268) docs: correct the CSF fix — one layer was not enough, and why — *Franco Nogarin, 07:25*
+- [`cf65625`](https://github.com/WISE-Developers/project_nomad/commit/cf6562550503aa1e248dd8bb527c3ad5f47bc415) chore: dev v0.19.2 [skip ci] — *github-actions[bot], 13:08*
+- [`e97bf9a`](https://github.com/WISE-Developers/project_nomad/commit/e97bf9ab6f4b573163b8ae3cd29fe039591eddab) Merge branch 'dev' of https://github.com/WISE-Developers/project_nomad into dev — *Franco Nogarin, 07:08*
+- [`d3950e5`](https://github.com/WISE-Developers/project_nomad/commit/d3950e56272848850926c897777995cc3513f0db) Merge branch 'fix/392-deploy-docker-chain-guard' into dev — *Franco Nogarin, 07:08*
+- [`9467c72`](https://github.com/WISE-Developers/project_nomad/commit/9467c7269c1dce4104b33ecc6e3098432933efbc) fix: refuse to deploy when Docker's iptables chain is missing — *Franco Nogarin, 07:08*
+- [`72899ee`](https://github.com/WISE-Developers/project_nomad/commit/72899ee1a79b2897224fb5c9e169652e10700ce8) chore: dev v0.19.1 [skip ci] — *github-actions[bot], 12:10*
+- [`f2e0a02`](https://github.com/WISE-Developers/project_nomad/commit/f2e0a02f4c1200258575e5d8a3c672090a5505e4) Merge branch 'docs/csf-docker-chains' into dev — *Franco Nogarin, 06:10*
+- [`db57b35`](https://github.com/WISE-Developers/project_nomad/commit/db57b3503dad30366f466420f75ddc1b158337b9) docs: how CSF deletes Docker's iptables chains, and the fix — *Franco Nogarin, 06:10*
+
+### 2026-09-26
+
+- [`2bed448`](https://github.com/WISE-Developers/project_nomad/commit/2bed4489135e297097095d37fd8cc4d3fd6e393c) fix: correct Igntion to Ignition in Model Results panel button — *Jah-yee, 02:27*
 
 ### 2026-09-25
 
+- [`42bbc2d`](https://github.com/WISE-Developers/project_nomad/commit/42bbc2d39dedd35154211385fc34c6a80b13829f) chore: release v0.19.0 [skip ci] — *github-actions[bot], 16:58*
 - [`070e09b`](https://github.com/WISE-Developers/project_nomad/commit/070e09ba0c29677427548781e0008d99a08f15aa) Merge pull request #388 from WISE-Developers/dev — *Franco Nogarin, 10:57*
 
 ### 2026-09-24
@@ -84,6 +123,10 @@ Auto-generated from git history. Do not edit manually.
 - [`dcea91f`](https://github.com/WISE-Developers/project_nomad/commit/dcea91f9b3856267a59838149dbecf7fd2a9f493) Remove dead process-local CSV formatting from WeatherService (closes #370) — *Franco Nogarin, 08:26*
 - [`f7db39d`](https://github.com/WISE-Developers/project_nomad/commit/f7db39d985164e522d95b7dfed54daf06eef2aa5) Label the timezone on exported map capture timestamps (closes #369) — *Franco Nogarin, 08:21*
 - [`8baecc4`](https://github.com/WISE-Developers/project_nomad/commit/8baecc4c4e3d65fbfe84a6843e8bc756ba19fe25) Honour the model's timezone in the wizard end-time preview (closes #367) — *Franco Nogarin, 08:16*
+
+### 2026-08-31
+
+- [`736d02a`](https://github.com/WISE-Developers/project_nomad/commit/736d02ad01b8224bb842b0cb3248494d4211ace2) Correct stale dataset-size figures to measured ~3GB/year, ~11GB total — *Franco Nogarin, 06:08*
 
 ### 2026-08-20
 
