@@ -433,6 +433,77 @@ check_glibc_early() {
     fi
 }
 
+# ============================================
+# CSF detection (#400)
+# ============================================
+#
+# CSF (ConfigServer Security & Firewall) deletes Docker's iptables chains
+# whenever it rebuilds its ruleset. Nothing looks broken until the next container
+# start, because a 127.0.0.1 publish goes through docker-proxy and never touches
+# the DOCKER chain. It took the CIFFC demo down, days after the chains vanished
+# (#392).
+#
+# CSF is common on cPanel/WHM-style VPS hosting, which is plausibly what a
+# self-hosting agency reaches for. The symptom -- a container that starts with
+# nothing listening, or a deploy that fails having worked last week -- points
+# nowhere near the firewall.
+#
+# WARN ONLY, per the decision on #400. This writes nothing: modifying a security
+# tool the installer does not own, on someone else's host, is a bigger commitment
+# than an install script should make, and would have to be idempotent and
+# reversible to be safe. The operator is told what to change and where it is
+# documented.
+
+# Is CSF installed? Takes the config path so it is testable.
+csf_present() {
+    local csf_conf="${1:-/etc/csf/csf.conf}"
+
+    [ -f "$csf_conf" ] && return 0
+    command -v csf >/dev/null 2>&1 && return 0
+    return 1
+}
+
+# Warn if CSF is present. ALWAYS returns 0 -- a host without CSF is the normal
+# case and must not see anything, and a host with CSF must not have its install
+# blocked over a firewall interaction it can fix afterwards.
+check_csf_early() {
+    local csf_conf="${1:-/etc/csf/csf.conf}"
+
+    csf_present "$csf_conf" || return 0
+
+    print_warning "CSF firewall detected — it will break Docker networking unless configured"
+    echo ""
+    echo "    CSF deletes Docker's iptables chains when it rebuilds its ruleset."
+    echo "    Nothing appears wrong until the next container start, because a"
+    echo "    127.0.0.1 publish goes through docker-proxy and never touches the"
+    echo "    DOCKER chain. This has taken a production Nomad deployment down."
+    echo ""
+    echo "    Three changes are needed, and all three matter:"
+    echo ""
+    echo "      1. In $csf_conf:"
+    echo "           DOCKER = \"1\""
+    echo "           DOCKER_NETWORK4 = \"172.16.0.0/12\""
+    echo "         Covers 'csf -r' and lfd's own rebuilds."
+    echo ""
+    echo "      2. A csf.service systemd drop-in that restarts docker afterwards."
+    echo "         'systemctl restart csf' deletes the chains even with DOCKER=1."
+    echo ""
+    echo "      3. Nothing to do — scripts/deploy.sh already refuses to deploy"
+    echo "         when the DOCKER chain is missing, rather than tearing down a"
+    echo "         working container it cannot bring back."
+    echo ""
+    echo "    Full write-up, including how to verify it actually held:"
+    echo "      Documentation/Nomad/deploying-behind-csf.md"
+    echo ""
+    echo "    Verify by STARTING A CONTAINER after both 'csf -r' and"
+    echo "    'systemctl restart csf', across at least two lfd sweeps."
+    echo "    Inspecting the chain once is how this was first declared fixed"
+    echo "    when it was not."
+    echo ""
+
+    return 0
+}
+
 # NOTE: FireSTARR binary is fully self-contained (statically linked)
 # No external library dependencies beyond base system (libc, libstdc++, libgcc_s)
 
@@ -498,6 +569,9 @@ step2_infrastructure() {
             FIRESTARR_INFRA="docker"
             FIRESTARR_EXECUTION_MODE="docker"
             print_success "Selected: Docker"
+            # Only relevant to the Docker path — CSF deletes Docker's iptables
+            # chains, which cannot affect a metal install (#400).
+            check_csf_early
             ;;
         2)
             # Check ALL metal dependencies at once - fail fast with complete list
