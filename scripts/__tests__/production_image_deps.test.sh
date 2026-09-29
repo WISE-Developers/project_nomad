@@ -99,20 +99,30 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# The flag is not enough. There must be an explicit removal AND a check.
+# Two flags are not enough either. There must be --omit=optional AND a check
+# that asserts the outcome.
+#
+# These two assertions previously pinned a `rm -rf` of four package names and a
+# check that grepped for those same names. That mechanism was replaced in #389,
+# because it was the mechanism that FAILED: the named check passed while vite
+# 6.4.3 and rollup sat in the runtime tree, having been chosen from the packages
+# someone thought to look for.
+#
+# The intent is unchanged and is what is still asserted here -- do not trust the
+# flags alone, and fail the build on a violation. Only the mechanism moved.
 # ---------------------------------------------------------------------------
-if echo "$JOINED" | grep -qE 'rm -rf.*node_modules/(vitest|@vitest|typescript|eslint)'; then
-  ok "test and lint packages are removed explicitly"
+if echo "$JOINED" | grep -qE 'npm ci.*--omit=optional'; then
+  ok "the production install also omits optional dependencies"
 else
-  bad "test and lint packages are removed explicitly" \
-      "--omit=dev does not exclude vitest, which is an optional peer of better-auth"
+  bad "the production install also omits optional dependencies" \
+      "npm marks vite/rollup/vitest devOptional; --omit=dev alone leaves them in place (#389)"
 fi
 
-if echo "$CODE" | grep -qE 'exit 1' && echo "$CODE" | grep -qiE 'vitest|typescript'; then
-  ok "the build fails if a test or lint package is still present"
+if echo "$JOINED" | grep -qE 'assert-prod-tree-clean\.mjs'; then
+  ok "the build runs the derived production-tree guard"
 else
-  bad "the build fails if a test or lint package is still present" \
-      "checking the flag is not checking the outcome; this is what #318 got wrong first"
+  bad "the build runs the derived production-tree guard" \
+      "checking the flags is not checking the outcome; a name list is a snapshot of what someone looked for"
 fi
 
 # ---------------------------------------------------------------------------

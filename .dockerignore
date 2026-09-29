@@ -11,6 +11,11 @@ dist
 Documentation
 configuration
 scripts
+# ...except the production-tree guard, which the prod-deps stage runs to assert
+# no dev package survived the install (#389). The negation must stay AFTER the
+# `scripts` line above — Docker applies these in order, so re-including first
+# would be undone by the exclusion.
+!scripts/assert-prod-tree-clean.mjs
 **/*.test.ts
 **/*.spec.ts
 coverage

@@ -76,26 +76,22 @@ RUN apt-get update && apt-get install -y \
 COPY package.json package-lock.json ./
 COPY backend/package.json ./backend/
 
+# --omit=optional is load-bearing, not belt-and-braces (#389).
+#
+# npm marks a package `devOptional` when it is reachable BOTH as a dev
+# dependency and through an optional path. --omit=dev only drops entries flagged
+# `dev`; a devOptional entry survives it and needs --omit=optional too.
+#
+# That is why typescript (plain `dev`) was removed by the previous flags while
+# vite 6.4.3 and rollup were not: both are devOptional, pulled in via vitest.
+# 31 packages reached the runtime tree that way, including the whole @vitest
+# family, chai, postcss and jsdom's dependencies.
+#
+# Measured before changing this, by installing the tree both ways from this
+# lockfile: with --omit=optional the 31 are gone, express / better-sqlite3 /
+# gdal-async / better-auth all survive, and nothing new appears.
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --workspace=@nomad/backend --omit=dev --omit=peer
-
-# --omit=dev is NOT sufficient on its own, and neither is --omit=peer.
-#
-# vitest is an optional PEER dependency of better-auth. npm resolves peers
-# automatically, and `npm ci` installs from the lockfile where the peer is
-# already recorded, so both flags are correct and applied and the package
-# arrives regardless. Removing it is safe because peerDependenciesMeta marks
-# that peer optional -- better-auth runs without it.
-#
-# Found the hard way in #318, where the first version of the offline bundle
-# passed its own tests with vitest sitting inside it.
-RUN rm -rf \
-    node_modules/vitest \
-    node_modules/@vitest \
-    node_modules/typescript \
-    node_modules/eslint \
-    node_modules/@eslint \
-    node_modules/@typescript-eslint
+    npm ci --workspace=@nomad/backend --omit=dev --omit=peer --omit=optional
 
 # node-gyp and the hoisted tar go too (refs #379).
 #
@@ -119,13 +115,18 @@ RUN rm -rf \
 
 # Check the outcome, not the flag. This is the assertion that would have caught
 # the original bug; every flag above was individually reasonable.
-RUN for p in vitest @vitest typescript eslint; do \
-      if [ -e "node_modules/$p" ]; then \
-        echo "ERROR: $p is in the production dependency tree"; \
-        exit 1; \
-      fi; \
-    done; \
-    echo "production tree carries no test or lint packages"
+#
+# Derived from the lockfile rather than a list of names (#389). The previous
+# version of this check asserted the absence of four packages chosen because
+# someone had looked for them -- and passed while vite sat in the tree. The
+# guard now fails on ANY package the lockfile marks dev or devOptional, so a new
+# one cannot arrive silently, and the check needs no edit when dependencies
+# change.
+#
+# Its own behaviour is covered by scripts/__tests__/prod_tree_guard.test.sh,
+# which CI runs; a guard nobody tests is a guard nobody can trust.
+COPY scripts/assert-prod-tree-clean.mjs ./scripts/
+RUN node scripts/assert-prod-tree-clean.mjs .
 
 # The native runtime modules must have SURVIVED the pruning.
 #
