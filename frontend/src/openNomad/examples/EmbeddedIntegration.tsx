@@ -10,7 +10,7 @@
  */
 
 import React, { useMemo, useCallback, useState } from 'react';
-import { OpenNomadProvider } from '../context/OpenNomadContext.js';
+import { OpenNomadProvider } from '../context/OpenNomadProvider.js';
 import { DashboardContainer } from '../../features/Dashboard/components/DashboardContainer.js';
 import { createAgencyAdapter, type AgencyAdapterOptions } from './ExampleAgencyAdapter.js';
 
