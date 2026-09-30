@@ -8,7 +8,7 @@
 
 import { type ReactNode, type CSSProperties } from 'react';
 import type { NomadAction, ActionPlacement, NomadSlots } from './types.js';
-import { useNomadCustomizationOptional, useActionsForPlacement } from './NomadCustomizationContext.js';
+import { useNomadCustomizationOptional, useActionsForPlacement } from './useNomadCustomization.js';
 
 // =============================================================================
 // Themed Container
