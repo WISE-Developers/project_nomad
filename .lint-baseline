@@ -6,17 +6,22 @@
 #
 # Regenerate with: scripts/lint-ratchet.sh --update
 #
-# Breakdown at the time of writing (92):
-#   41  @typescript-eslint/no-unused-vars   (frontend)  mechanical cleanup
-#   29  react-refresh/only-export-components            dev-experience only
-#   14  @typescript-eslint/no-unused-vars   (backend)   mechanical cleanup
-#    3  @typescript-eslint/no-explicit-any  (backend)
-#    2  @typescript-eslint/no-namespace     (backend)
-#    2  @typescript-eslint/no-empty-object-type         (frontend)
-#    1  unused eslint-disable directive (RasterLegend.tsx:397)
+# 108 -> 94 -> 92 -> 0.
 #
-# 108 -> 94 -> 92: issue #393 is complete. react-hooks/exhaustive-deps is
-# now at ZERO — group B hoisted 14 unstable references to module constants,
-# and group C fixed WizardContext's object-literal-posing-as-a-ref plus
-# documented one deliberate disable in useJobs.ts.
-92
+# #393 took exhaustive-deps to zero. #386 cleared the remaining 92:
+#   56  @typescript-eslint/no-unused-vars + 2 stale disables
+#       47 of those were already underscore-prefixed and only ever flagged
+#       because neither eslint config gave the TS rule an ignore pattern.
+#   29  react-refresh/only-export-components
+#       10 files split so each exports either components or non-components.
+#       MapContext and DrawContext kept their hooks at the original module
+#       path on purpose — six vi.mock calls target those specifiers and would
+#       have stopped intercepting silently had the hooks moved.
+#    5  backend style: 2 no-namespace ACCEPTED (Express Request augmentation
+#       has no module-syntax form), 3 no-explicit-any fixed. One of those was
+#       hiding a test that asserted nothing.
+#    2  no-empty-object-type — empty extending interfaces became type aliases.
+#
+# The ceiling is now 0. Per the note above, the next step is to delete
+# scripts/lint-ratchet.sh and make the CI lint job plain and blocking.
+0
