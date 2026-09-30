@@ -9,7 +9,9 @@
 
 import { useState, useCallback, useMemo, useEffect, type CSSProperties } from 'react';
 import { Rnd } from 'react-rnd';
-import { DashboardProvider, useDashboardTabs, useDashboardView, type DashboardTab } from '../context/DashboardContext.js';
+import { DashboardProvider } from '../context/DashboardProvider.js';
+import { useDashboardTabs, useDashboardView } from '../context/useDashboard.js';
+import type { DashboardTab } from '../context/DashboardContext.js';
 import { useJobs } from '../hooks/useJobs.js';
 import { ModelList } from './ModelList.js';
 import { DraftsDashboard } from './DraftsDashboard.js';

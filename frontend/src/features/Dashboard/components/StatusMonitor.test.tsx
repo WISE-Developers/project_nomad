@@ -10,7 +10,7 @@ import React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { StatusMonitor } from './StatusMonitor.js';
-import { DashboardProvider } from '../context/DashboardContext.js';
+import { DashboardProvider } from '../context/DashboardProvider.js';
 import { OpenNomadProvider } from '../../../openNomad/context/OpenNomadProvider.js';
 import { createMockOpenNomadAPI } from '../../../test/mocks/openNomad.js';
 import type { IOpenNomadAPI, Job } from '../../../openNomad/api.js';

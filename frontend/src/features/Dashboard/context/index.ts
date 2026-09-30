@@ -8,6 +8,9 @@
 
 export {
   DashboardProvider,
+  type DashboardProviderProps,
+} from './DashboardProvider.js';
+export {
   useDashboard,
   useDashboardOptional,
   useDashboardState,
@@ -15,12 +18,13 @@ export {
   useDashboardView,
   useModelSelection,
   useDraftSelection,
-  type DashboardProviderProps,
-  type DashboardState,
-  type DashboardAction,
-  type DashboardTab,
-  type DashboardView,
-  type ModelSortOption,
-  type ModelFilterOptions,
-  type LoadingState,
+} from './useDashboard.js';
+export type {
+  DashboardState,
+  DashboardAction,
+  DashboardTab,
+  DashboardView,
+  ModelSortOption,
+  ModelFilterOptions,
+  LoadingState,
 } from './DashboardContext.js';

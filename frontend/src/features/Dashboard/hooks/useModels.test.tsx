@@ -13,7 +13,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useModels } from './useModels.js';
 import { OpenNomadProvider } from '../../../openNomad/context/OpenNomadProvider.js';
-import { DashboardProvider } from '../context/DashboardContext.js';
+import { DashboardProvider } from '../context/DashboardProvider.js';
 import { createMockOpenNomadAPI } from '../../../test/mocks/openNomad.js';
 import type { IOpenNomadAPI } from '../../../openNomad/api.js';
 

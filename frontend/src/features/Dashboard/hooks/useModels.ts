@@ -9,7 +9,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useOpenNomad } from '../../../openNomad/index.js';
-import { useDashboard } from '../context/DashboardContext.js';
+import { useDashboard } from '../context/useDashboard.js';
 import type {
   Model,
   ModelFilter,
