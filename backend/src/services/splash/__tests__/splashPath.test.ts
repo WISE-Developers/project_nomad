@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { resolveSplashPath, DEFAULT_SPLASH_PATH } from '../splashPath';
+import { resolveSplashPath, DEFAULT_SPLASH_PATH, type SplashEnv } from '../splashPath';
 
 describe('resolveSplashPath', () => {
   it('returns NOMAD_SPLASH_PATH when set', () => {
@@ -21,9 +21,9 @@ describe('resolveSplashPath', () => {
 
   it('does not derive from NOMAD_DATA_PATH (data vs config separation)', () => {
     // NOMAD_DATA_PATH is for runtime data (sims, db, outputs) and must never
-    // be used as a splash content source. The SplashEnv type should not
-    // accept it either — passing it as an extra key is silently ignored.
-    const p = resolveSplashPath({ NOMAD_SPLASH_PATH: undefined } as any);
+    // be used as a splash content source. SplashEnv does not declare the key,
+    // so the cast is what lets us feed it in and prove it is ignored.
+    const p = resolveSplashPath({ NOMAD_DATA_PATH: '/var/nomad/data' } as unknown as SplashEnv);
     expect(p).toBe(DEFAULT_SPLASH_PATH);
   });
 
