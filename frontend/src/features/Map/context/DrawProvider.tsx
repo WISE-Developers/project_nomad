@@ -1,8 +1,9 @@
-import { createContext, useContext, ReactNode, useState, useCallback, useEffect, useRef } from 'react';
+import { ReactNode, useState, useCallback, useEffect, useRef } from 'react';
 import { TerraDraw, TerraDrawPointMode, TerraDrawLineStringMode, TerraDrawPolygonMode, TerraDrawSelectMode } from 'terra-draw';
 import type { GeoJSONStoreFeatures } from 'terra-draw';
 import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter';
 import { useMap } from './MapContext';
+import { DrawContext, type DrawContextValue } from './DrawContext';
 import type { DrawingMode, DrawnFeature, DrawingState } from '../types/geometry';
 
 /**
@@ -18,33 +19,7 @@ function toDrawnFeatures(features: GeoJSONStoreFeatures[]): DrawnFeature[] {
   return features as DrawnFeature[];
 }
 
-/**
- * Draw context value
- */
-interface DrawContextValue {
-  /** Current drawing state */
-  state: DrawingState;
-  /** Set drawing mode */
-  setMode: (mode: DrawingMode) => void;
-  /** Get all drawn features */
-  getFeatures: () => DrawnFeature[];
-  /** Delete selected features */
-  deleteSelected: () => void;
-  /** Delete all features */
-  deleteAll: () => void;
-  /** Add features programmatically */
-  addFeatures: (features: DrawnFeature[]) => void;
-  /** Whether drawing is ready */
-  isReady: boolean;
-  /** Register a callback for create events */
-  onCreateSubscribe: (callback: (features: DrawnFeature[]) => void) => () => void;
-  /** Register a callback for update events */
-  onUpdateSubscribe: (callback: (features: DrawnFeature[]) => void) => () => void;
-  /** Register a callback for delete events */
-  onDeleteSubscribe: (callback: (features: DrawnFeature[]) => void) => () => void;
-}
 
-const DrawContext = createContext<DrawContextValue | null>(null);
 
 /**
  * Props for DrawProvider
@@ -294,27 +269,4 @@ export function DrawProvider({ children }: DrawProviderProps) {
       {children}
     </DrawContext.Provider>
   );
-}
-
-/**
- * Hook to access the shared draw context.
- *
- * @throws Error if used outside of DrawProvider
- */
-export function useDraw(): DrawContextValue {
-  const context = useContext(DrawContext);
-  if (!context) {
-    throw new Error('useDraw must be used within a DrawProvider');
-  }
-  return context;
-}
-
-/**
- * Optional version of useDraw that returns null if no provider.
- *
- * Use this when the component may be rendered outside of DrawProvider,
- * such as when embedded in a host application that provides its own map.
- */
-export function useDrawOptional(): DrawContextValue | null {
-  return useContext(DrawContext);
 }

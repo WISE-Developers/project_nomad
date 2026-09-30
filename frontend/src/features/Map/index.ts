@@ -20,7 +20,8 @@ export { MapCapture } from './components/MapCapture';
 // Context
 export { MapProvider } from './context/MapProvider';
 export { useMap } from './context/MapContext';
-export { DrawProvider, useDraw } from './context/DrawContext';
+export { DrawProvider } from './context/DrawProvider';
+export { useDraw } from './context/DrawContext';
 export { LayerProvider } from './context/LayerProvider';
 export { useLayers } from './context/useLayers';
 
