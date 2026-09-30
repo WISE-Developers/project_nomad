@@ -4,17 +4,10 @@
  * Provides wizard state and navigation to all child components.
  */
 
-import { createContext, useContext, useCallback, useEffect, useRef, ReactNode } from 'react';
+import { useCallback, useEffect, useRef, ReactNode } from 'react';
 import { useWizardState } from '../hooks/useWizardState';
-import type {
-  WizardContextValue,
-  WizardConfig,
-  ValidationResult,
-  ValidationError,
-} from '../types';
-
-// Create context with generic type
-const WizardContext = createContext<WizardContextValue | null>(null);
+import type { WizardContextValue, WizardConfig } from '../types';
+import { WizardContext } from './WizardContext';
 
 /**
  * Props for WizardProvider
@@ -151,81 +144,4 @@ export function WizardProvider<T extends Record<string, unknown>>({
       {children}
     </WizardContext.Provider>
   );
-}
-
-/**
- * Hook to access wizard context
- *
- * @throws Error if used outside of WizardProvider
- */
-export function useWizard<T extends Record<string, unknown> = Record<string, unknown>>(): WizardContextValue<T> {
-  const context = useContext(WizardContext);
-  if (!context) {
-    throw new Error('useWizard must be used within a WizardProvider');
-  }
-  return context as WizardContextValue<T>;
-}
-
-/**
- * Hook to access wizard validation
- */
-export function useWizardValidation(): {
-  validateStep: () => Promise<ValidationResult>;
-  getErrors: () => ValidationError[];
-  hasErrors: boolean;
-} {
-  const { validateStep, getErrors, state, currentStepIndex } = useWizard();
-  const currentValidation = state.steps[currentStepIndex]?.validation;
-
-  return {
-    validateStep,
-    getErrors,
-    hasErrors: currentValidation?.isValid === false,
-  };
-}
-
-/**
- * Hook to access wizard navigation
- */
-export function useWizardNavigation() {
-  const {
-    goNext,
-    goPrev,
-    goToStep,
-    complete,
-    cancel,
-    isFirstStep,
-    isLastStep,
-    canGoNext,
-    canGoPrev,
-    currentStepIndex,
-    totalSteps,
-  } = useWizard();
-
-  return {
-    goNext,
-    goPrev,
-    goToStep,
-    complete,
-    cancel,
-    isFirstStep,
-    isLastStep,
-    canGoNext,
-    canGoPrev,
-    currentStepIndex,
-    totalSteps,
-  };
-}
-
-/**
- * Hook to access wizard data
- */
-export function useWizardData<T extends Record<string, unknown> = Record<string, unknown>>() {
-  const { getData, updateData, setField } = useWizard<T>();
-
-  return {
-    data: getData(),
-    updateData,
-    setField,
-  };
 }

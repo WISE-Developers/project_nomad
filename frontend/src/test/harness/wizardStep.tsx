@@ -46,7 +46,7 @@ import { render, type RenderResult } from '@testing-library/react';
 
 import { OpenNomadProvider } from '../../openNomad/context/OpenNomadProvider.js';
 import { createMockOpenNomadAPI } from '../mocks/openNomad.js';
-import { WizardProvider } from '../../features/Wizard/context/WizardContext.js';
+import { WizardProvider } from '../../features/Wizard/context/WizardProvider.js';
 
 import type { IOpenNomadAPI } from '../../openNomad/api.js';
 import type { WizardConfig, WizardStep } from '../../features/Wizard/types/index.js';
