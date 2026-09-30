@@ -24,31 +24,8 @@ import { useWeatherPreflightGate } from '../hooks/useWeatherPreflightGate';
 import { StartingCodesModal } from './StartingCodesModal';
 import { PreflightErrorModal } from './PreflightErrorModal';
 import { DrawingToolbar } from '../../Map';
-import { SpatialInputStep } from '../steps/SpatialInputStep';
-import { TemporalStep } from '../steps/TemporalStep';
-import { ModelSelectionStep } from '../steps/ModelSelectionStep';
-import { WeatherStep } from '../steps/WeatherStep';
-import { ReviewStep } from '../steps/ReviewStep';
-import type { ModelSetupData, ModelSetupStepId } from '../types';
-import { MODEL_SETUP_STEPS } from '../types';
-
-const STEP_COMPONENTS_BY_ID: Record<ModelSetupStepId, React.ComponentType> = {
-  spatial: SpatialInputStep,
-  weather: WeatherStep,
-  temporal: TemporalStep,
-  model: ModelSelectionStep,
-  review: ReviewStep,
-};
-
-/**
- * Returns the step component for a given wizard step index, derived from
- * MODEL_SETUP_STEPS order. Returns null if the index is out of range.
- */
-export function getStepComponent(index: number): React.ComponentType | null {
-  const step = MODEL_SETUP_STEPS[index];
-  if (!step) return null;
-  return STEP_COMPONENTS_BY_ID[step.id] ?? null;
-}
+import { getStepComponent } from './stepComponents';
+import type { ModelSetupData } from '../types';
 
 export interface ModelSetupWizardProps {
   /** Called when model setup completes */
