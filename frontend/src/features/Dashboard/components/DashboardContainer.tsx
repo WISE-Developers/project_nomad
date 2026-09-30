@@ -632,9 +632,9 @@ function EmbeddedDashboard({
 // Inner Dashboard Component (wraps with DashboardProvider)
 // =============================================================================
 
-interface InnerDashboardProps extends DashboardContainerProps {
-  // All props from DashboardContainerProps
-}
+// Identical to DashboardContainerProps; named separately so the inner
+// component's signature reads for itself.
+type InnerDashboardProps = DashboardContainerProps;
 
 function InnerDashboard({
   mode = 'floating',
