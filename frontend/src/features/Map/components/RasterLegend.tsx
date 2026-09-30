@@ -12,7 +12,7 @@
  */
 
 import React from 'react';
-import { useLayers } from '../context/LayerContext.js';
+import { useLayers } from '../context/useLayers.js';
 import type {
   ArrivalTimestep,
   ArrivalRasterMeta,

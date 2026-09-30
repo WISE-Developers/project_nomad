@@ -20,7 +20,7 @@ import { ARRIVAL_RAMP_PRESETS } from '../utils/arrivalTimeSymbolization.js';
 
 const mockUseLayers = vi.fn();
 
-vi.mock('../context/LayerContext.js', () => ({
+vi.mock('../context/useLayers.js', () => ({
   useLayers: () => mockUseLayers(),
 }));
 
