@@ -87,6 +87,21 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Root-only dependencies, for the suites that need one.
+      #
+      # fgmj_decode.test.sh needs protobufjs to decode .fgmj fixtures against the
+      # vendored WISE schema (#294). --workspaces=false keeps this to the two root
+      # devDependencies instead of installing backend and frontend, which is what
+      # this job was deliberately avoiding.
+      #
+      # That suite fails loudly rather than skipping when protobufjs is absent, so
+      # if this step is ever removed the failure says why instead of going quiet.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Install root dependencies only
+        run: npm ci --workspaces=false --ignore-scripts
+
       # These suites had no runner at all - not an npm script, not a workflow.
       # They are plain bash 3.x-compatible and self-contained, each exiting
       # non-zero on failure.

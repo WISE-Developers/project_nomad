@@ -26,6 +26,7 @@
     "npm": ">=11.0.0"
   },
   "devDependencies": {
-    "cross-env": "^7.0.3"
+    "cross-env": "^7.0.3",
+    "protobufjs": "^8.8.0"
   }
 }
