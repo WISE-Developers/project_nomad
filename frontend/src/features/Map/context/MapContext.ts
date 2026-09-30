@@ -1,59 +1,34 @@
-import { createContext, useContext, ReactNode, useState, useCallback } from 'react';
+/**
+ * Map context objects and the hooks that read them.
+ *
+ * Deliberately kept at this path, and deliberately holding the hooks rather
+ * than only the context objects. Consumers import `useMap` from
+ * '../context/MapContext', and several test files mock that exact module
+ * specifier. Moving the hooks elsewhere would leave those vi.mock calls
+ * pointing at a module nobody imports any more — they would stop intercepting
+ * silently, and the tests would run against the real map without failing.
+ *
+ * The provider component lives in MapProvider.tsx so that file exports nothing
+ * but a component, which is what Vite's fast refresh needs.
+ */
+
+import { createContext, useContext } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import type { MapContextValue } from '../types';
 
-const MapContext = createContext<MapContextValue | null>(null);
-
-/**
- * Props for MapProvider component
- */
-interface MapProviderProps {
-  children: ReactNode;
-}
+export const MapContext = createContext<MapContextValue | null>(null);
 
 /**
  * Extended context value with setters for internal use
  */
-interface MapContextInternal extends MapContextValue {
+export interface MapContextInternal extends MapContextValue {
   setMap: (map: MapLibreMap | null) => void;
   setIsLoaded: (loaded: boolean) => void;
   setIsLoading: (loading: boolean) => void;
   setError: (error: Error | null) => void;
 }
 
-const MapContextInternal = createContext<MapContextInternal | null>(null);
-
-/**
- * Provides map context to child components.
- *
- * This provider manages the MapLibre GL map instance and loading state,
- * making them available to any child component via the useMap hook.
- */
-export function MapProvider({ children }: MapProviderProps) {
-  const [map, setMap] = useState<MapLibreMap | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  const value: MapContextInternal = {
-    map,
-    isLoaded,
-    isLoading,
-    error,
-    setMap: useCallback((m: MapLibreMap | null) => setMap(m), []),
-    setIsLoaded: useCallback((l: boolean) => setIsLoaded(l), []),
-    setIsLoading: useCallback((l: boolean) => setIsLoading(l), []),
-    setError: useCallback((e: Error | null) => setError(e), []),
-  };
-
-  return (
-    <MapContextInternal.Provider value={value}>
-      <MapContext.Provider value={{ map, isLoaded, isLoading, error }}>
-        {children}
-      </MapContext.Provider>
-    </MapContextInternal.Provider>
-  );
-}
+export const MapContextInternal = createContext<MapContextInternal | null>(null);
 
 /**
  * Hook to access the map context.
@@ -94,7 +69,7 @@ export function useMapOptional(): MapContextValue | null {
 
 /**
  * Internal hook for MapContainer to set map state.
- * Not exported from the module - only for internal use.
+ * Not part of the feature's public surface — only for internal use.
  */
 export function useMapInternal(): MapContextInternal {
   const context = useContext(MapContextInternal);
