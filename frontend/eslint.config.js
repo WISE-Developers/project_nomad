@@ -46,6 +46,19 @@ export default [
       'no-undef': 'off',
       'no-unused-vars': 'off',
 
+      // A leading underscore is this codebase's existing marker for "declared
+      // deliberately, not used" — stub params, positional args before the one
+      // that matters, caught errors we intend to swallow. The TS rule's
+      // defaults ignore none of those patterns, so the convention was being
+      // flagged wherever it was followed. Severity stays `error`: this widens
+      // what counts as intentional, it does not weaken the rule.
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+        destructuredArrayIgnorePattern: '^_',
+      }],
+
       // Declaration merging: MapContext.tsx declares `MapContextInternal` as
       // both a type and a value, which is legal and intentional.
       'no-redeclare': 'off',

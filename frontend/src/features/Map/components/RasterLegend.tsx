@@ -394,7 +394,6 @@ export function RasterLegend() {
       } as Partial<RasterLayerConfig>);
     } catch (err) {
       // Fail loudly — no silent fallback to a default ramp.
-      // eslint-disable-next-line no-alert
       alert(`Could not load colour ramp: ${err instanceof Error ? err.message : String(err)}`);
     }
   };

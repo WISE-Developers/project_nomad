@@ -47,6 +47,19 @@ export default [
       // type-only imports; the base rule does not.
       'no-unused-vars': 'off',
 
+      // A leading underscore is this codebase's existing marker for "declared
+      // deliberately, not used" — Express's `_next`, engine stubs, caught
+      // errors we intend to swallow. The TS rule's defaults ignore none of
+      // those patterns, so the convention was being flagged wherever it was
+      // followed. Severity stays `error`: this widens what counts as
+      // intentional, it does not weaken the rule.
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+        destructuredArrayIgnorePattern: '^_',
+      }],
+
       // TypeScript's declaration merging deliberately declares a type and a
       // value under one name -- see Result.ts, where `Result` is both. The base
       // rule reads that as a redeclaration; tsc, which actually understands it,

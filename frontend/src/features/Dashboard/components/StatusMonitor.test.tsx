@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { StatusMonitor } from './StatusMonitor.js';
 import { DashboardProvider } from '../context/DashboardContext.js';

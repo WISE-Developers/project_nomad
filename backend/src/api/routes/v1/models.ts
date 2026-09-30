@@ -1315,7 +1315,7 @@ router.get(
             const probFiles = files.filter(f => f.match(/^probability_\d+(?:_[\d-]+)?\.tif$/));
             baseInfo.durationDays = probFiles.length;
           }
-        } catch (e) {
+        } catch (_e) {
           // Ignore errors reading filesystem - just return null for durationDays
         }
       }
