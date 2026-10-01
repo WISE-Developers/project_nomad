@@ -22,6 +22,7 @@ import { applyWeatherPatch } from './applyWeatherPatch.js';
 import { extractIgnitions, type ExtractedIgnition } from './extractIgnitions.js';
 import type { ResolvedFilter } from './resolveScenarios.js';
 import { validateImportedWeather } from './validateImportedWeather.js';
+import { timezoneOf } from './importTimezone.js';
 import type { WeatherHourlyData } from '../../infrastructure/firestarr/types.js';
 
 /** Why a scenario cannot be run as imported. */
@@ -33,6 +34,11 @@ export interface ScenarioImportPlan {
   startTime: string;
   endTime: string;
   durationHours: number;
+  /**
+   * The UTC offset the file carried, e.g. "-06:00" — not a guessed IANA zone.
+   * Accepted by both Intl and Luxon, which is what the engine chain uses.
+   */
+  timezone: string;
 
   ignitions: ExtractedIgnition[];
   /** The scenario's own stream, with the scenario's own patches applied. */
@@ -172,6 +178,7 @@ export function planFgmjImport(filePath: string): ScenarioImportPlan[] {
       startTime: scenario.startTime,
       endTime: scenario.endTime,
       durationHours: scenario.durationHours,
+      timezone: timezoneOf(scenario.startTime),
       ignitions,
       weather,
       startingCodes,

@@ -23,45 +23,16 @@ import {
   type TimestampedWeatherRow,
 } from '../../infrastructure/firestarr/weatherContract.js';
 import type { ScenarioImportPlan } from './planFgmjImport.js';
-
-const OFFSET = /([+-])(\d{2}):?(\d{2})$/;
-
-/**
- * Turn the file's UTC offset into a fixed Luxon zone.
- *
- * Deliberately NOT an IANA zone name. The fgmj records "-06:00" and "MDT"; a
- * zone name to go with it would be a guess, and MDT alone maps to several. For
- * deciding which local day an hour falls in, the offset the file carried is the
- * authority.
- *
- * The limitation this accepts: a fixed offset cannot represent a DST change
- * part-way through a long stream. The offset is taken from the scenario window,
- * so a run spanning a transition would bucket the far side by the near side's
- * offset.
- */
-function fixedZoneFor(iso: string): string {
-  if (/[Zz]$/.test(iso)) return 'UTC';
-
-  const match = OFFSET.exec(iso);
-  if (!match) {
-    throw new Error(
-      `Scenario start time "${iso}" carries no UTC offset, so the local day of each ` +
-        'weather hour cannot be determined. Refusing to guess a timezone.',
-    );
-  }
-
-  const [, sign, hours, minutes] = match;
-  const h = Number(hours);
-  const m = Number(minutes);
-  return m === 0 ? `UTC${sign}${h}` : `UTC${sign}${h}:${minutes}`;
-}
+import { timezoneOf } from './importTimezone.js';
 
 /**
  * @returns every problem found, phrased for the person who has to fix it.
  *          Empty means the stream satisfies the contract.
  */
 export function validateImportedWeather(plan: ScenarioImportPlan): string[] {
-  const zone = fixedZoneFor(plan.startTime);
+  // One spelling for both libraries: Luxon accepts 'UTC-6' but Intl does not,
+  // and these offsets reach both. See importTimezone.
+  const zone = plan.timezone || timezoneOf(plan.startTime);
 
   // Only the timestamps matter here. Nothing is invented to fill the
   // fire-weather codes the observations do not yet carry.
