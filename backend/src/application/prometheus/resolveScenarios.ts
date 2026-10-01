@@ -1,0 +1,192 @@
+/**
+ * Resolve each scenario's references and time window (refs #294).
+ *
+ * The fgmj declares ignitions, stations, streams and filters once, and each
+ * scenario points at them BY NAME — despite the fields being called
+ * `fireIndex`, `weatherIndex` and `filterIndex`. So this builds a name → object
+ * table and every lookup becomes a failure point. That is deliberate: an
+ * unresolved reference means the file describes a run we cannot reproduce, and
+ * importing it anyway would produce a model that looks right and burns
+ * differently.
+ *
+ * Duration comes from the scenario window and nothing else. In the sample file
+ * all three scenarios share one weather stream and run 24, 24 and 72 hours, so
+ * any duration taken from the weather would be wrong for two of them.
+ * tools/extract-wise-jobs.ts sets `durationHours = weatherRows.length`; that is
+ * correct for its own purpose and must not be carried over here.
+ */
+
+import type { FgmjProject } from './loadFgmjProject.js';
+
+type Obj = Record<string, unknown>;
+
+export interface ResolvedScenario {
+  name: string;
+  ignitionNames: string[];
+  ignitions: Obj[];
+  stationName: string;
+  station: Obj;
+  streamName: string;
+  stream: Obj;
+  weatherFilterNames: string[];
+  /** The unwrapped filter objects, each carrying its own `name`. */
+  weatherFilters: (Obj & { name: string })[];
+  /** ISO 8601 with the offset the file carried, not normalised to UTC. */
+  startTime: string;
+  endTime: string;
+  durationHours: number;
+}
+
+function asArray(value: unknown): Obj[] {
+  return Array.isArray(value) ? (value as Obj[]) : [];
+}
+
+/**
+ * Read a `name`, which the schema declares inconsistently.
+ *
+ * Some names are plain strings (a station, a scenario entry) and some are
+ * `google.protobuf.StringValue`, which decodes to `{ value: "..." }` — a
+ * weather stream's name is one of those. Both shapes mean the same thing, and
+ * a resolver that handled only the first silently failed to find every stream
+ * in the corpus.
+ */
+function nameOf(entry: Obj): string | undefined {
+  const raw = entry.name;
+  if (typeof raw === 'string') return raw;
+  if (raw && typeof raw === 'object') {
+    const wrapped = (raw as Obj).value;
+    if (typeof wrapped === 'string') return wrapped;
+  }
+  return undefined;
+}
+
+/**
+ * Filters arrive wrapped in the schema's `oneof` — `{ polyWeather: {...} }` for
+ * a weather patch, a different key for other filter types — so the name lives
+ * one level down under a key that varies by kind.
+ */
+function unwrapFilter(entry: Obj): (Obj & { name: string }) | undefined {
+  for (const value of Object.values(entry)) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const inner = value as Obj;
+      const name = nameOf(inner);
+      // Normalise the name onto the returned object so callers get one shape,
+      // whether the schema wrapped it or not.
+      if (name !== undefined) return { ...inner, name } as Obj & { name: string };
+    }
+  }
+  return undefined;
+}
+
+/** `{ time: "2025-06-26T13:00:00-06:00", timezone: "MDT", ... }` */
+function timeOf(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const t = (value as Obj).time;
+  return typeof t === 'string' ? t : undefined;
+}
+
+function must<T>(found: T | undefined, what: string, name: string, scenario: string): T {
+  if (found === undefined) {
+    throw new Error(
+      `Scenario "${scenario}" references ${what} "${name}", which this .fgmj does not declare. ` +
+        'Refusing to import a scenario whose inputs cannot be resolved.',
+    );
+  }
+  return found;
+}
+
+export function resolveScenarios(project: FgmjProject): ResolvedScenario[] {
+  // name -> object, built once for the whole file
+  const ignitionsByName = new Map<string, Obj>();
+  for (const ignition of project.ignitions) {
+    const n = nameOf(ignition);
+    if (n) ignitionsByName.set(n, ignition);
+  }
+
+  const stationsByName = new Map<string, Obj>();
+  const streamsByName = new Map<string, Obj>();
+  for (const station of project.stations) {
+    const n = nameOf(station);
+    if (n) stationsByName.set(n, station);
+    // Streams are nested inside the station's own settings message.
+    const inner = (station.station ?? {}) as Obj;
+    for (const stream of asArray(inner.streams)) {
+      const sn = nameOf(stream);
+      if (sn) streamsByName.set(sn, stream);
+    }
+  }
+
+  const filtersByName = new Map<string, Obj & { name: string }>();
+  for (const filter of project.weatherFilters) {
+    const inner = unwrapFilter(filter);
+    if (inner) filtersByName.set(inner.name, inner);
+  }
+
+  return project.scenarios.map((scenario) => {
+    const entry = scenario.raw;
+    const where = scenario.name;
+
+    const ignitionNames = asArray(entry.fireIndex)
+      .map(nameOf)
+      .filter((n): n is string => n !== undefined);
+    const ignitions = ignitionNames.map((n) =>
+      must(ignitionsByName.get(n), 'ignition', n, where),
+    );
+
+    const weather = asArray(entry.weatherIndex)[0];
+    if (!weather) {
+      throw new Error(
+        `Scenario "${where}" names no weather stream. ` +
+          'A scenario without weather cannot produce a run.',
+      );
+    }
+    const stationName = must(
+      nameOf((weather.stationIndex ?? {}) as Obj),
+      'a weather station',
+      '(unnamed)',
+      where,
+    );
+    const streamName = must(
+      nameOf((weather.streamIndex ?? {}) as Obj),
+      'a weather stream',
+      '(unnamed)',
+      where,
+    );
+    const station = must(stationsByName.get(stationName), 'weather station', stationName, where);
+    const stream = must(streamsByName.get(streamName), 'weather stream', streamName, where);
+
+    const weatherFilterNames = asArray(entry.filterIndex)
+      .map(nameOf)
+      .filter((n): n is string => n !== undefined);
+    const weatherFilters = weatherFilterNames.map((n) =>
+      must(filtersByName.get(n), 'weather filter', n, where),
+    );
+
+    const inner = (entry.scenario ?? {}) as Obj;
+    const startTime = must(timeOf(inner.startTime), 'a start time', '(absent)', where);
+    const endTime = must(timeOf(inner.endTime), 'an end time', '(absent)', where);
+
+    const spanMs = new Date(endTime).getTime() - new Date(startTime).getTime();
+    if (!Number.isFinite(spanMs) || spanMs <= 0) {
+      throw new Error(
+        `Scenario "${where}" has a non-positive window: ${startTime} to ${endTime}.`,
+      );
+    }
+    const durationHours = spanMs / 3_600_000;
+
+    return {
+      name: where,
+      ignitionNames,
+      ignitions,
+      stationName,
+      station,
+      streamName,
+      stream,
+      weatherFilterNames,
+      weatherFilters,
+      startTime,
+      endTime,
+      durationHours,
+    };
+  });
+}
