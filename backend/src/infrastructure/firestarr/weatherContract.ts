@@ -16,7 +16,21 @@
  */
 
 import { DateTime } from 'luxon';
-import type { WeatherDataPoint } from '../../application/interfaces/weather.js';
+
+/**
+ * All this check needs of a weather row.
+ *
+ * Narrower than WeatherDataPoint on purpose: the contract is about WHEN rows
+ * fall, not what they contain, and it reads nothing but `datetime`. Asking for
+ * the full point would force a caller that has observations but not yet the
+ * fire-weather codes to invent ffmc/dmc/dc values just to call this — which is
+ * exactly the kind of fabricated-default the Prometheus importer (#294) refuses
+ * to do. WeatherDataPoint still satisfies this, so every existing caller is
+ * unaffected.
+ */
+export interface TimestampedWeatherRow {
+  datetime: Date;
+}
 
 export interface ContractResult {
   valid: boolean;
@@ -44,7 +58,7 @@ function local(instant: Date, timezone: string): DateTime {
  *                 Omitted means "check every day", which only tests do.
  */
 export function validateFireStarrContract(
-  points: WeatherDataPoint[],
+  points: readonly TimestampedWeatherRow[],
   ignition: Date,
   timezone: string,
   runEnd?: Date,

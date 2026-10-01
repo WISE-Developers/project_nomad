@@ -21,10 +21,11 @@ import { extractWeatherStream, type WeatherObservation, type StartingCodes } fro
 import { applyWeatherPatch } from './applyWeatherPatch.js';
 import { extractIgnitions, type ExtractedIgnition } from './extractIgnitions.js';
 import type { ResolvedFilter } from './resolveScenarios.js';
+import { validateImportedWeather } from './validateImportedWeather.js';
 import type { WeatherHourlyData } from '../../infrastructure/firestarr/types.js';
 
 /** Why a scenario cannot be run as imported. */
-export type ImportBlocker = 'crs' | 'polygonWeatherPatch';
+export type ImportBlocker = 'crs' | 'polygonWeatherPatch' | 'weatherContract';
 
 export interface ScenarioImportPlan {
   scenarioName: string;
@@ -166,7 +167,7 @@ export function planFgmjImport(filePath: string): ScenarioImportPlan[] {
     const latLonPoint =
       !projected && ignitions[0]?.latLonPoints?.[0] ? ignitions[0].latLonPoints[0] : undefined;
 
-    return {
+    const plan: ScenarioImportPlan = {
       scenarioName: scenario.name,
       startTime: scenario.startTime,
       endTime: scenario.endTime,
@@ -185,5 +186,22 @@ export function planFgmjImport(filePath: string): ScenarioImportPlan[] {
       divergences,
       runnable: blockers.length === 0,
     };
+
+    // FireSTARR reads its daily weather from noon rows only, and a missing one
+    // kills the run ten seconds in with the reason buried in a container log.
+    // Checked against the assembled plan, because patches and decisions can
+    // change the stream before it is written.
+    const contractIssues = validateImportedWeather(plan);
+    if (contractIssues.length > 0) {
+      plan.blockers = [...plan.blockers, 'weatherContract'];
+      plan.blockerDetail = [
+        ...plan.blockerDetail,
+        `Scenario "${scenario.name}" produces weather FireSTARR cannot read: ` +
+          `${contractIssues.join(' ')}`,
+      ];
+      plan.runnable = false;
+    }
+
+    return plan;
   });
 }
