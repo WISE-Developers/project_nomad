@@ -21,10 +21,10 @@ import type { Feature, Geometry } from 'geojson';
 import { IInputGenerator, InputGenerationResult } from '../../application/interfaces/IInputGenerator.js';
 import { Result } from '../../application/common/index.js';
 import { DomainError, ValidationError } from '../../domain/errors/index.js';
-import { type FireModelId, GeometryType } from '../../domain/entities/index.js';
+import { type FireModelId } from '../../domain/entities/index.js';
 import { FireSTARRParams } from './types.js';
 import { writeWeatherCSV, validateWeatherData } from './WeatherCSVWriter.js';
-import { rasterizePerimeter, isGDALAvailable } from './PerimeterRasterizer.js';
+import { rasterizePerimeter, isGDALAvailable, isSupportedPerimeterGeometry } from './PerimeterRasterizer.js';
 
 /**
  * Configuration for FireSTARR input generation.
@@ -324,9 +324,9 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
       let perimeterFile: string | undefined;
       let perimeterCentroid: { latitude: number; longitude: number } | undefined;
       if (params.perimeter) {
-        if (params.perimeter.type !== GeometryType.Polygon && params.perimeter.type !== GeometryType.LineString) {
+        if (!isSupportedPerimeterGeometry(params.perimeter.type)) {
           return Result.fail(
-            new ValidationError(`Perimeter must be a polygon or linestring, got ${params.perimeter.type}`)
+            new ValidationError(`Perimeter must be a polygon, linestring, or multipolygon, got ${params.perimeter.type}`)
           );
         }
 

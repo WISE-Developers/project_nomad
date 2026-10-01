@@ -19,6 +19,23 @@ import { ValidationError } from '../../domain/errors/index.js';
 const FIRESTARR_GRID_HALF_SIZE = 200000; // 200km
 
 /**
+ * Geometry types the rasterizer (and its callers) can turn into a perimeter
+ * raster. Single source of truth for the type gate — FireSTARRInputGenerator
+ * and FireSTARREngine's perimeter rule both check against this instead of
+ * repeating the Polygon/LineString/MultiPolygon list themselves (refs #294).
+ */
+export const PERIMETER_GEOMETRY_TYPES: readonly GeometryType[] = [
+  GeometryType.Polygon,
+  GeometryType.LineString,
+  GeometryType.MultiPolygon,
+];
+
+/** Whether a geometry type can be rasterized as a FireSTARR perimeter. */
+export function isSupportedPerimeterGeometry(type: GeometryType): boolean {
+  return PERIMETER_GEOMETRY_TYPES.includes(type);
+}
+
+/**
  * Options for perimeter rasterization.
  */
 export interface RasterizeOptions {
@@ -50,9 +67,9 @@ export interface RasterizeResult {
 
 /**
  * Converts geometry coordinates to WKT format.
- * Supports Polygon and LineString geometries.
+ * Supports Polygon, LineString, and MultiPolygon geometries.
  */
-function geometryToWKT(geometry: SpatialGeometry): string {
+export function geometryToWKT(geometry: SpatialGeometry): string {
   if (geometry.type === GeometryType.Polygon) {
     const coords = geometry.coordinates as number[][][];
     const rings = coords.map((ring) =>
@@ -61,13 +78,27 @@ function geometryToWKT(geometry: SpatialGeometry): string {
     return `POLYGON((${rings.join('), (')}))`;
   }
 
+  if (geometry.type === GeometryType.MultiPolygon) {
+    // One parenthesized group per MEMBER, each wrapped exactly the way a
+    // standalone polygon is (exterior ring then holes). GDAL's fromWKT
+    // accepts this directly — no new parsing needed upstream.
+    const members = geometry.coordinates as number[][][][];
+    const memberGroups = members.map((rings) => {
+      const ringStrings = rings.map((ring) =>
+        ring.map(([x, y]) => `${x} ${y}`).join(', ')
+      );
+      return `((${ringStrings.join('), (')}))`;
+    });
+    return `MULTIPOLYGON(${memberGroups.join(', ')})`;
+  }
+
   if (geometry.type === GeometryType.LineString) {
     const coords = geometry.coordinates as number[][];
     const points = coords.map(([x, y]) => `${x} ${y}`).join(', ');
     return `LINESTRING(${points})`;
   }
 
-  throw new Error(`Expected Polygon or LineString geometry, got ${geometry.type}`);
+  throw new Error(`Expected Polygon, LineString, or MultiPolygon geometry, got ${geometry.type}`);
 }
 
 /**
@@ -151,13 +182,14 @@ export async function rasterizePerimeter(
   const { geometry, templatePath, outputPath, burnValue = 1 } = options;
 
   // Validate geometry type
-  if (geometry.type !== GeometryType.Polygon && geometry.type !== GeometryType.LineString) {
+  if (!isSupportedPerimeterGeometry(geometry.type)) {
     return Result.fail(
-      new ValidationError(`Perimeter must be a polygon or linestring, got ${geometry.type}`)
+      new ValidationError(`Perimeter must be a polygon, linestring, or multipolygon, got ${geometry.type}`)
     );
   }
 
   const isLineString = geometry.type === GeometryType.LineString;
+  const shapeLabel = isLineString ? 'LineString' : geometry.type === GeometryType.MultiPolygon ? 'MultiPolygon' : 'Polygon';
 
   try {
     // Dynamic import of gdal-async for coordinate transformation
@@ -218,7 +250,7 @@ export async function rasterizePerimeter(
     const centerX = utmCentroid.x as number;
     const centerY = utmCentroid.y as number;
 
-    console.log(`[PerimeterRasterizer] ${isLineString ? 'LineString' : 'Polygon'} centroid (UTM): ${centerX.toFixed(1)}, ${centerY.toFixed(1)}`);
+    console.log(`[PerimeterRasterizer] ${shapeLabel} centroid (UTM): ${centerX.toFixed(1)}, ${centerY.toFixed(1)}`);
 
     // Transform UTM centroid back to WGS84 for use as ignition point
     // This ensures the ignition point matches the perimeter raster center
@@ -226,8 +258,8 @@ export async function rasterizePerimeter(
     const wgs84Centroid = inverseTransform.transformPoint(centerX, centerY);
     const centroidLongitude = wgs84Centroid.x;
     const centroidLatitude = wgs84Centroid.y;
-    console.log(`[PerimeterRasterizer] ${isLineString ? 'LineString' : 'Polygon'} centroid (WGS84): ${centroidLongitude.toFixed(6)}, ${centroidLatitude.toFixed(6)}`);
-    console.log(`[PerimeterRasterizer] ${isLineString ? 'LineString' : 'Polygon'} envelope: [${envelope.minX.toFixed(1)}, ${envelope.minY.toFixed(1)}, ${envelope.maxX.toFixed(1)}, ${envelope.maxY.toFixed(1)}]`);
+    console.log(`[PerimeterRasterizer] ${shapeLabel} centroid (WGS84): ${centroidLongitude.toFixed(6)}, ${centroidLatitude.toFixed(6)}`);
+    console.log(`[PerimeterRasterizer] ${shapeLabel} envelope: [${envelope.minX.toFixed(1)}, ${envelope.minY.toFixed(1)}, ${envelope.maxX.toFixed(1)}, ${envelope.maxY.toFixed(1)}]`);
 
     // Calculate local extent: 200km buffer around polygon centroid, snapped to pixel boundaries
     let minX = centerX - FIRESTARR_GRID_HALF_SIZE;
