@@ -246,7 +246,12 @@ export function TemporalStep() {
   // last visited this step (refs #244).
   useEffect(() => {
     if (!data.temporal || !data.temporal.startDate) {
-      const defaultStartDate = computeDefaultStartDate(data.weather) ?? getTodayDate();
+      // `temporal` already holds this value: in exactly this branch the memo
+      // above returned defaultTemporal, whose startDate is the same
+      // computeDefaultStartDate(...) ?? getTodayDate(). Recomputing it here
+      // duplicated the expression across two sites that had to be kept in step
+      // by hand, and only this one was observable to any test (#404).
+      const defaultStartDate = temporal.startDate;
       setField('temporal', {
         ...temporal,
         startDate: defaultStartDate,
