@@ -131,3 +131,63 @@ describe('parsePerimeterShapefile — coordinate range validation', () => {
     }
   });
 });
+
+describe('parsePerimeterShapefile — reprojection from a projected CRS', () => {
+  /**
+   * This path had no coverage at all: every other fixture here is already in
+   * EPSG:4326, so `needsReproject` is false and the transform never runs.
+   *
+   * It is worth a test because gdal-async is NOT self-consistent about axis
+   * order. GDAL 3 honours the authority order, and EPSG:4326 declares latitude
+   * first, so `new CoordinateTransformation(src, SpatialReference.fromEPSG(4326))
+   * .transformPoint(x, y)` returns x = LATITUDE. Verified:
+   *
+   *   fromEPSG(4326) + transformPoint   ->  x=60.2698   y=-116.7706
+   *   proj4 longlat  + transformPoint   ->  x=-116.7706 y=60.2698
+   *
+   * `geom.transform()` followed by `toObject()` does the opposite and emits
+   * GeoJSON's lon-lat, which is why the parser is right today despite building
+   * its target with fromEPSG(4326). Nothing pins that down, so a GDAL upgrade
+   * changing it would silently swap every imported perimeter's coordinates —
+   * a fire in the wrong hemisphere, from a pair of numbers that still look
+   * like a location.
+   *
+   * Ground truth is computed here rather than hardcoded, so the test states
+   * "the parser agrees with gdal" instead of "the parser matches two numbers
+   * someone once wrote down".
+   */
+  it('reprojects to WGS84 and emits lon,lat — not lat,lon', async () => {
+    // EPSG:3978, NAD83 / Canada Atlas Lambert — metres, in the NWT.
+    const ring: Array<[number, number]> = [
+      [-1300000, 2700000],
+      [-1299000, 2700000],
+      [-1299000, 2701000],
+      [-1300000, 2701000],
+      [-1300000, 2700000],
+    ];
+
+    const gdal = (await import('gdal-async')).default;
+    const transform = new gdal.CoordinateTransformation(
+      gdal.SpatialReference.fromEPSG(3978),
+      // Explicit longlat, so this expectation cannot inherit the axis-order
+      // ambiguity it exists to detect.
+      gdal.SpatialReference.fromProj4('+proj=longlat +datum=WGS84 +no_defs'),
+    );
+    const expected = transform.transformPoint(ring[0][0], ring[0][1]);
+
+    const result = await parsePerimeterShapefile(
+      zipShapefileFiles(buildShapefileFiles({ epsg: 3978, coordinates: ring })),
+    );
+
+    const coords = (result.features[0].geometry as { coordinates: number[][][] }).coordinates;
+    const [lon, lat] = coords[0][0];
+
+    expect(lon).toBeCloseTo(expected.x, 6);
+    expect(lat).toBeCloseTo(expected.y, 6);
+
+    // Independent of the above: a swap would put -132 in the latitude slot,
+    // which is not a latitude at all.
+    expect(Math.abs(lat)).toBeLessThanOrEqual(90);
+    expect(lon).toBeLessThan(-90);
+  });
+});
