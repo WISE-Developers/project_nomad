@@ -37,38 +37,60 @@ const lwf184 = () => {
   return plan;
 };
 
-describe('toExecutionOptions — the starting codes, which nothing else carries', () => {
-  it('puts the file’s own starting codes on the first weather row', () => {
+describe('toExecutionOptions — weather goes through Nomad\u2019s own CFFDRS stepping', () => {
+  /**
+   * NOT pre-resolved weatherData. buildParams has two branches: pre-resolved
+   * `weatherData` is used verbatim, while `weatherConfig` is resolved through
+   * WeatherService, which steps the starting codes forward with the real
+   * `cffdrs` library.
+   *
+   * The .fgmj records observations and STARTING codes only — no hourly indices.
+   * Taking the weatherData branch means inventing values for the FFMC/DMC/DC
+   * columns, and a zero in a CFFDRS column is a signal to FireSTARR NOT TO BURN
+   * that hour (Franco, 2026-10-01). Zero-filling them produced a fire that
+   * ignited and never spread.
+   *
+   * So the config branch is the only correct one, and it is also the one the
+   * importer already had: toWeatherConfig.
+   */
+  it('hands over a raw_weather config, not pre-resolved weather rows', () => {
     const { options } = toExecutionOptions(lwf184());
-    const [first] = options.weatherData!;
-    expect(first.ffmc).toBe(37);
-    expect(first.dmc).toBe(2);
-    expect(first.dc).toBe(297);
+    expect(options.weatherConfig).toBeDefined();
+    expect(options.weatherConfig!.source).toBe('raw_weather');
+    expect(options.weatherData).toBeUndefined();
   });
 
-  it('does not invent indices for later rows that the file never recorded', () => {
-    // The stream has no fire-weather indices. Carrying the day-one codes
-    // forward onto every row would assert a drying trend the file never
-    // described; FireSTARR recomputes them from the observations itself.
+  it('passes the file\u2019s starting codes for CFFDRS to step forward', () => {
     const { options } = toExecutionOptions(lwf184());
-    const [, second] = options.weatherData!;
-    expect(second.ffmc).toBe(0);
-    expect(second.dmc).toBe(0);
-    expect(second.dc).toBe(0);
+    expect(options.weatherConfig!.startingCodes).toEqual({ ffmc: 37, dmc: 2, dc: 297 });
   });
 
-  it('carries every observation row across, with its five real columns', () => {
+  it('emits no fire-weather columns at all, rather than inventing them', () => {
+    const { options } = toExecutionOptions(lwf184());
+    const [header] = options.weatherConfig!.rawWeatherContent!.split('\n');
+    expect(header).toBe('Date,PREC,TEMP,RH,WS,WD');
+    expect(header).not.toMatch(/FFMC|DMC|DC|ISI|BUI|FWI/);
+  });
+
+  it('carries every observation row across', () => {
     const plan = lwf184();
     const { options } = toExecutionOptions(plan);
-    expect(options.weatherData).toHaveLength(241);
-    expect(options.weatherData).toHaveLength(plan.weather.length);
-    const [first] = options.weatherData!;
-    expect(first.temperature).toBe(10.9);
-    expect(first.humidity).toBe(98);
-    expect(first.windSpeed).toBe(16);
-    expect(first.windDirection).toBe(320);
-    expect(first.precipitation).toBe(0);
-    expect(first.datetime.toISOString()).toBe('2021-09-02T06:00:00.000Z');
+    const lines = options.weatherConfig!.rawWeatherContent!.split('\n');
+    expect(lines).toHaveLength(plan.weather.length + 1); // + header
+    expect(lines).toHaveLength(242);
+  });
+
+  it('writes local wall-clock times with no offset, the offset travelling separately', () => {
+    const { options } = toExecutionOptions(lwf184());
+    const [, firstRow] = options.weatherConfig!.rawWeatherContent!.split('\n');
+    // 2021-09-02T06:00:00Z at -06:00 is midnight local.
+    expect(firstRow).toBe('2021-09-02 00:00,0,10.9,98,16,320');
+    expect(options.weatherConfig!.timezone).toBe('-06:00');
+  });
+
+  it('needs no zero-fill notice, because nothing is zero-filled', () => {
+    const { notices } = toExecutionOptions(lwf184());
+    expect(notices.filter((n) => /zero/i.test(n))).toEqual([]);
   });
 });
 
@@ -103,21 +125,16 @@ describe('toExecutionOptions — the ignition', () => {
   });
 });
 
-describe('toExecutionOptions — telling the operator what was done', () => {
-  it('says plainly that the hourly index columns were left at zero, and why', () => {
-    // The operator is comparing an imported run against a historical one. A
-    // silent zero-fill would look like recorded data.
-    const { notices } = toExecutionOptions(lwf184());
-    const weather = notices.find((n) => /index/i.test(n));
-    expect(weather).toBeDefined();
-    expect(weather).toContain('FFMC 37');
-    expect(weather).toContain('DMC 2');
-    expect(weather).toContain('DC 297');
-    expect(weather).toMatch(/zero/i);
-  });
-});
-
 describe('toExecutionOptions — refusals', () => {
+  it('refuses a plan whose weather resolved to nothing', () => {
+    // toWeatherConfig owns this validation. toExecutionOptions carried a
+    // duplicate guard with nothing asserting it; a mutation removing the
+    // duplicate survived even after this test was added, which is what
+    // revealed the duplication. One guard, one test.
+    const plan = { ...lwf184(), weather: [] };
+    expect(() => toExecutionOptions(plan)).toThrow(/no weather rows to hand over/i);
+  });
+
   it('refuses a plan that is not runnable rather than filling in what is missing', () => {
     const plans = planFgmjImport(fixture('prometheus_job_sage1_patches_multiignition.fgmj'));
     const blocked = plans.find((p) => !p.runnable);
