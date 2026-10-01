@@ -79,6 +79,51 @@ function formatInOffset(date: Date, offsetMinutes: number | undefined): string {
   return `${shifted.toISOString().slice(0, 19)}${sign}${hh}:${mm}`;
 }
 
+
+const SECONDS_PER_DAY = 86_400;
+
+/**
+ * Parse an `HSS.Times.WTimeSpan` into seconds from midnight.
+ *
+ * These are DURATIONS, not clock times, and the corpus writes them two ways:
+ * 68 occurrences as "13:00:00:00" and 7 as "13:00:00" for the same thing. That
+ * pairing settles the format — the leading field is HOURS, not days, and any
+ * fourth field sits below seconds and is ignored.
+ *
+ * Absent means zero, i.e. midnight.
+ */
+function spanSeconds(value: unknown, patchName: string, which: string): number {
+  if (value === undefined || value === null) return 0;
+
+  const text = timeOf(value);
+  if (text === undefined) return 0;
+
+  const parts = text.split(':');
+  if (parts.length < 3) {
+    throw new Error(
+      `Weather patch "${patchName}" has an unreadable ${which} "${text}". ` +
+        'Expected h:mm:ss, optionally with a fourth sub-second field.',
+    );
+  }
+
+  const [h, m, sec] = parts.slice(0, 3).map(Number);
+  if (![h, m, sec].every(Number.isFinite)) {
+    throw new Error(
+      `Weather patch "${patchName}" has an unreadable ${which} "${text}". ` +
+        'Expected h:mm:ss, optionally with a fourth sub-second field.',
+    );
+  }
+
+  return h * 3600 + m * 60 + sec;
+}
+
+/** Seconds since local midnight, in the offset the patch window was written in. */
+function localSecondsOfDay(date: Date, offsetMinutes: number): number {
+  const shifted = date.getTime() + offsetMinutes * 60_000;
+  const within = Math.floor(shifted / 1000) % SECONDS_PER_DAY;
+  return within < 0 ? within + SECONDS_PER_DAY : within;
+}
+
 function applyOperation(
   current: number,
   operation: string,
@@ -137,19 +182,40 @@ export function applyWeatherPatch(
     );
   }
 
-  // Declared in the schema and seen in the wild as "13:00:00:00", constraining
-  // the hours of each day the patch touches. No fixture carries one, so it is
-  // refused rather than ignored: silently applying a patch to hours it was
-  // meant to spare is exactly the kind of plausible-looking error this importer
-  // exists to avoid.
-  if (filter.startTimeOfDay !== undefined || filter.endTimeOfDay !== undefined) {
+  const windowOffset = offsetMinutesOf(startTime);
+
+  // The hours of each day the patch touches. 75 of the 78 occurrences in the
+  // corpus have start == end, which is the whole cycle and therefore no
+  // constraint at all; only 2 files carry a differing pair.
+  const fromSeconds = spanSeconds(filter.startTimeOfDay, patch.name, 'startTimeOfDay');
+  const toSeconds = spanSeconds(filter.endTimeOfDay, patch.name, 'endTimeOfDay');
+  const constrainsHours = fromSeconds !== toSeconds;
+
+  // A time-of-day window is meaningless without knowing which clock it is on.
+  // Both differing files write their scenario times in UTC and keep the real
+  // zone in timeZoneSettings.timezoneIndex (131084), a WISE-internal id this
+  // importer cannot decode — so it refuses rather than measuring local hours
+  // against UTC and silently patching the wrong ones.
+  const hasExplicitOffset = /([+-])\d{2}:?\d{2}$/.test(startTime);
+  if (constrainsHours && !hasExplicitOffset) {
     throw new Error(
-      `Weather patch "${patch.name}" carries a time-of-day window, which this ` +
-        'importer does not yet apply. Refusing rather than applying it to the whole day.',
+      `Weather patch "${patch.name}" restricts itself to the hours ` +
+        `${timeOf(filter.startTimeOfDay) ?? '00:00:00'} to ` +
+        `${timeOf(filter.endTimeOfDay) ?? '00:00:00'} each day, but its window ` +
+        `(${startTime}) carries no UTC offset, so those hours cannot be placed on a ` +
+        'clock. The project timezone is recorded as a WISE timezoneIndex, which this ' +
+        'importer cannot decode. Refusing rather than guessing a zone.',
     );
   }
 
-  const windowOffset = offsetMinutesOf(startTime);
+  /** Is this row inside the daily window? Handles a window that wraps midnight. */
+  const withinHours = (date: Date): boolean => {
+    if (!constrainsHours) return true;
+    const at = localSecondsOfDay(date, windowOffset ?? 0);
+    return fromSeconds <= toSeconds
+      ? at >= fromSeconds && at <= toSeconds
+      : at >= fromSeconds || at <= toSeconds;
+  };
   const from = new Date(startTime).getTime();
   const to = new Date(endTime).getTime();
   if (!Number.isFinite(from) || !Number.isFinite(to)) {
@@ -194,6 +260,7 @@ export function applyWeatherPatch(
   const patched = rows.map((row) => {
     const at = row.date.getTime();
     if (at < from || at > to) return { ...row };
+    if (!withinHours(row.date)) return { ...row };
 
     const next: Obj = { ...row };
     for (const change of changes) {
