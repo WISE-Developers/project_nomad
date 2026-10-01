@@ -20,15 +20,27 @@
 # change reintroduced the asset by another route — and inheriting this file as a
 # side effect nobody chose is exactly how it arrived.
 #
-# COST: this builds the library. It is the slow suite in scripts/__tests__, and
-# deliberately so; asserting a stale dist/ would be worse than not asserting.
+# COST: this builds the library, and that is why it lives HERE rather than in
+# the root scripts/__tests__ with the installer suites (#403).
+#
+# It did live there, and could never pass in CI. The `Installer suites (bash)`
+# job installs root dependencies only -- `npm ci --workspaces=false
+# --ignore-scripts` -- so vite is absent and `npm run build:lib` fails before
+# any assertion runs. It looked green to every developer, because a working
+# machine already has frontend/node_modules and usually a dist/. 22/22 locally,
+# 21/22 in CI, same commit. That single failure took `All tests` down, and with
+# it the required check that gates main.
+#
+# So it runs in the Frontend job, which does a full `npm ci` and already builds.
+# Asserting a stale dist/ would be worse than not asserting, so the build stays
+# part of the suite -- it just needs a job that can perform one.
 #
 # bash 3.x compatible (macOS default).
 
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-FRONTEND="$SCRIPT_DIR/../../frontend"
+FRONTEND="$SCRIPT_DIR/../.."
 
 passed=0
 failed=0

@@ -81,6 +81,15 @@ jobs:
         run: npx vitest run
         working-directory: frontend
 
+      # Lives here, not with the installer suites, because it builds the library
+      # (#403). The bash job installs root dependencies only, so vite is absent
+      # there and this could never pass — it failed every run and took the
+      # required `All tests` check down with it, while looking green locally
+      # where frontend/node_modules already exists.
+      - name: Library bundle emits no stylesheet
+        run: bash scripts/__tests__/lib_bundle_no_css.test.sh
+        working-directory: frontend
+
   scripts:
     name: Installer suites (bash)
     runs-on: ubuntu-latest
@@ -96,6 +105,11 @@ jobs:
       #
       # That suite fails loudly rather than skipping when protobufjs is absent, so
       # if this step is ever removed the failure says why instead of going quiet.
+      #
+      # A suite that needs to BUILD a workspace does not belong in this job — it
+      # cannot pass here, and it will look green on any developer machine that
+      # already has that workspace installed. lib_bundle_no_css.test.sh was
+      # exactly that and now runs in the Frontend job (#403).
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
