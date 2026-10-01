@@ -17,27 +17,7 @@
  * constant that could drift from the schema it claims to mirror.
  */
 
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-import protobuf from 'protobufjs';
-import descriptor from 'protobufjs/ext/descriptor/index.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// src/application/prometheus and dist/application/prometheus sit at the same
-// depth under backend/, so one path serves test and built runtime alike.
-const DESCRIPTOR_PATH = path.resolve(
-  __dirname,
-  '..',
-  '..',
-  '..',
-  '..',
-  'vendor',
-  'wise-protos',
-  'fgmj_descriptor_set.pb',
-);
+import { loadFgmjSchema } from './fgmjSchema.js';
 
 /** Which of the two same-named `Operation` enums applies to a field. */
 export enum GridType {
@@ -50,24 +30,7 @@ export enum GridType {
 type OperationTable = Readonly<Record<number, string>>;
 
 function loadOperationTables(): Record<GridType, OperationTable> {
-  if (!fs.existsSync(DESCRIPTOR_PATH)) {
-    throw new Error(
-      `fgmj descriptor set not found at ${DESCRIPTOR_PATH}. ` +
-        'The Prometheus importer cannot decode weather patches without it.',
-    );
-  }
-
-  // `fromDescriptor` is added to Root by requiring the descriptor extension,
-  // and protobufjs declares no types for it. Narrow cast rather than a module
-  // augmentation: see the note in types/protobufjs-descriptor.d.ts about an
-  // ambient `declare module 'protobufjs'` erasing the real Root.
-  const RootWithDescriptor = protobuf.Root as unknown as {
-    fromDescriptor(descriptorSet: object): protobuf.Root;
-  };
-
-  const root = RootWithDescriptor.fromDescriptor(
-    descriptor.FileDescriptorSet.decode(fs.readFileSync(DESCRIPTOR_PATH)),
-  );
+  const { root } = loadFgmjSchema();
 
   const tables = {} as Record<GridType, OperationTable>;
   for (const gridType of [GridType.One, GridType.Two]) {
