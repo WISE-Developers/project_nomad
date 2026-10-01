@@ -165,6 +165,81 @@ function pointInPolygon(x: number, y: number, polygon: number[][]): boolean {
   return inside;
 }
 
+/** One polygon's own rings — exterior first, holes after, in COORDINATE
+ * SPACE (already transformed), never parsed from WKT text. */
+interface PolygonMember {
+  exterior: number[][];
+  holes: number[][][];
+  envelope: { minX: number; minY: number; maxX: number; maxY: number };
+}
+
+/**
+ * Minimal surface of gdal-async's Geometry this module depends on, named
+ * explicitly so the structural walk below is typed rather than `any`-typed
+ * end to end.
+ */
+interface GdalRingLike {
+  points: { toArray(): { x: number; y: number }[] };
+}
+interface GdalPolygonLike {
+  name: string;
+  rings: { count(): number; get(i: number): GdalRingLike };
+  getEnvelope(): { minX: number; minY: number; maxX: number; maxY: number };
+}
+interface GdalMultiPolygonLike {
+  name: string;
+  children: { count(): number; get(i: number): GdalPolygonLike };
+}
+
+function ringToPoints(ring: GdalRingLike): number[][] {
+  return ring.points.toArray().map((p) => [p.x, p.y]);
+}
+
+function singlePolygonMember(polygon: GdalPolygonLike): PolygonMember {
+  const ringCount = polygon.rings.count();
+  if (ringCount === 0) {
+    throw new Error('Polygon geometry has no rings — cannot determine what to burn.');
+  }
+  const exterior = ringToPoints(polygon.rings.get(0));
+  const holes: number[][][] = [];
+  for (let i = 1; i < ringCount; i++) {
+    holes.push(ringToPoints(polygon.rings.get(i)));
+  }
+  return { exterior, holes, envelope: polygon.getEnvelope() };
+}
+
+/**
+ * Walks a GDAL Polygon or MultiPolygon STRUCTURALLY — via `.rings` and, for
+ * a MultiPolygon, `.children` — into one PolygonMember per member, each
+ * with its own exterior ring and hole rings kept separate (refs #406).
+ *
+ * This replaces extracting coordinates by regex-matching the geometry's own
+ * WKT text. That regex, `/POLYGON\s*\(\((.+)\)\)/i`, matches a
+ * MultiPolygon's WKT too — "MULTIPOLYGON" contains the substring "POLYGON"
+ * — and its greedy capture runs to the LAST `))`, merging every member's
+ * (and, for an ordinary polygon, every hole's) points into one flat list.
+ * Walking the geometry's own structure cannot make that mistake: a
+ * MultiPolygon's members and a polygon's holes are never ambiguous here.
+ */
+function polygonMembersOf(geometry: GdalPolygonLike | GdalMultiPolygonLike): PolygonMember[] {
+  if (geometry.name === 'MULTIPOLYGON') {
+    const multi = geometry as GdalMultiPolygonLike;
+    const count = multi.children.count();
+    const members: PolygonMember[] = [];
+    for (let i = 0; i < count; i++) {
+      members.push(singlePolygonMember(multi.children.get(i)));
+    }
+    return members;
+  }
+  return [singlePolygonMember(geometry as GdalPolygonLike)];
+}
+
+/** Inside the member's exterior ring and outside every one of its holes. */
+function isInsideMember(x: number, y: number, member: PolygonMember): boolean {
+  if (!pointInPolygon(x, y, member.exterior)) return false;
+  return !member.holes.some((hole) => pointInPolygon(x, y, hole));
+}
+
 /**
  * Rasterizes a polygon geometry to a GeoTIFF.
  *
@@ -341,43 +416,48 @@ export async function rasterizePerimeter(
         burnedCells++;
       }
     } else {
-      // Polygon rasterization: burn cells inside the polygon
-      const coordMatch = transformedWkt.match(/POLYGON\s*\(\((.+)\)\)/i);
-      if (!coordMatch) {
-        outDs.close();
-        return Result.fail(new ValidationError('Failed to extract transformed polygon coordinates'));
-      }
+      // Polygon/MultiPolygon rasterization: burn cells inside each member's
+      // exterior ring, excluding its own hole rings — walking the GDAL
+      // geometry's `.rings`/`.children` structurally (see polygonMembersOf).
+      // No WKT text parsing, and no silent fallback: if the geometry cannot
+      // be walked this way, singlePolygonMember throws and the catch below
+      // turns it into a failed Result rather than a wrong burn.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const members = polygonMembersOf(gdalGeom as any);
 
-      const polygonCoords = coordMatch[1].split(',').map(coordStr => {
-        const [x, y] = coordStr.trim().split(/\s+/).map(Number);
-        return [x, y];
-      });
+      const burnedKeys = new Set<string>();
 
-      const polyMinX = envelope.minX;
-      const polyMaxX = envelope.maxX;
-      const polyMinY = envelope.minY;
-      const polyMaxY = envelope.maxY;
+      for (const member of members) {
+        const polyMinX = member.envelope.minX;
+        const polyMaxX = member.envelope.maxX;
+        const polyMinY = member.envelope.minY;
+        const polyMaxY = member.envelope.maxY;
 
-      const startCol = Math.max(0, Math.floor((polyMinX - minX) / pixelWidth) - 1);
-      const endCol = Math.min(width - 1, Math.ceil((polyMaxX - minX) / pixelWidth) + 1);
-      const startRow = Math.max(0, Math.floor((maxY - polyMaxY) / pixelHeight) - 1);
-      const endRow = Math.min(height - 1, Math.ceil((maxY - polyMinY) / pixelHeight) + 1);
+        const startCol = Math.max(0, Math.floor((polyMinX - minX) / pixelWidth) - 1);
+        const endCol = Math.min(width - 1, Math.ceil((polyMaxX - minX) / pixelWidth) + 1);
+        const startRow = Math.max(0, Math.floor((maxY - polyMaxY) / pixelHeight) - 1);
+        const endRow = Math.min(height - 1, Math.ceil((maxY - polyMinY) / pixelHeight) + 1);
 
-      console.log(`[PerimeterRasterizer] Polygon pixel extent: rows ${startRow}-${endRow}, cols ${startCol}-${endCol}`);
+        console.log(`[PerimeterRasterizer] Member pixel extent: rows ${startRow}-${endRow}, cols ${startCol}-${endCol}`);
 
-      const rowWidth = endCol - startCol + 1;
-      for (let row = startRow; row <= endRow; row++) {
-        const rowData = new Uint8Array(rowWidth);
-        for (let col = startCol; col <= endCol; col++) {
-          const cellX = minX + (col + 0.5) * pixelWidth;
-          const cellY = maxY - (row + 0.5) * pixelHeight;
-          if (pointInPolygon(cellX, cellY, polygonCoords)) {
-            rowData[col - startCol] = burnValue;
-            burnedCells++;
+        for (let row = startRow; row <= endRow; row++) {
+          for (let col = startCol; col <= endCol; col++) {
+            const cellX = minX + (col + 0.5) * pixelWidth;
+            const cellY = maxY - (row + 0.5) * pixelHeight;
+            if (isInsideMember(cellX, cellY, member)) {
+              burnedKeys.add(`${col},${row}`);
+            }
           }
         }
-        band.pixels.write(startCol, row, rowWidth, 1, rowData);
       }
+
+      // Written once per unique cell — members are not expected to
+      // overlap, but a shared cell must still count once, not twice.
+      for (const key of burnedKeys) {
+        const [col, row] = key.split(',').map(Number);
+        band.pixels.write(col, row, 1, 1, new Uint8Array([burnValue]));
+      }
+      burnedCells = burnedKeys.size;
     }
 
     // Flush and close
