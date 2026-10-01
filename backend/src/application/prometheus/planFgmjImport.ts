@@ -48,6 +48,8 @@ export interface ScenarioImportPlan {
   appliedPatches: string[];
   /** Fuel patches the file asked for and this importer did not apply. */
   skippedFuelPatches: string[];
+  /** WindNinja wind fields the file asked for and Nomad cannot apply. */
+  skippedWindPatches: string[];
   /** Weather patches bounded by a polygon, awaiting an operator decision. */
   polygonPatches: string[];
   /**
@@ -106,12 +108,36 @@ export function planFgmjImport(filePath: string): ScenarioImportPlan[] {
     const divergences: string[] = [];
     const appliedPatches: string[] = [];
     const skippedFuelPatches: string[] = [];
+    const skippedWindPatches: string[] = [];
     const polygonPatches: string[] = [];
     const polygonPatchFilters: ResolvedFilter[] = [];
     let weather = rows;
 
     for (const patch of scenario.weatherFilters) {
       // Fuels come from Nomad, as for any other run. Notify and skip.
+      // WindNinja wind fields. Nomad has no way to apply one, so the
+      // scenario imports without it rather than the whole file being refused.
+      //
+      // This divergence carries more weight than most. WindNinja exists
+      // because terrain steers wind, and wind direction decides where a fire
+      // goes — so the imported run is not the original run, it is a comparable
+      // run with simpler wind.
+      if (patch.kind === 'wind') {
+        skippedWindPatches.push(patch.name);
+        divergences.push(
+          `Wind field "${patch.name}" was NOT applied — it is a WindNinja grid, ` +
+            'and Nomad cannot apply one. The imported model uses its own wind where ' +
+            'the original used a terrain-steered WindNinja field, so the fire may ' +
+            'run in a different direction.',
+        );
+        warnings.push(
+          `Scenario "${scenario.name}" uses WindNinja wind field "${patch.name}", ` +
+            'which was NOT applied. Wind direction drives where a fire spreads, so ' +
+            'compare this run against the original with that in mind.',
+        );
+        continue;
+      }
+
       if (patch.kind === 'fuel') {
         skippedFuelPatches.push(patch.name);
         divergences.push(
@@ -186,6 +212,7 @@ export function planFgmjImport(filePath: string): ScenarioImportPlan[] {
       startingCodes,
       appliedPatches,
       skippedFuelPatches,
+      skippedWindPatches,
       polygonPatches,
       polygonPatchFilters,
       ...(latLonPoint ? { latitude: latLonPoint.lat, longitude: latLonPoint.lon } : {}),

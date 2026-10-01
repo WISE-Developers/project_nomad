@@ -22,7 +22,7 @@ import { nameOf, timeOf } from './fgmjValues.js';
 type Obj = Record<string, unknown>;
 
 /** polyWeather is a weather patch; polyReplace and replace are fuel patches. */
-export type FilterKind = 'weather' | 'fuel';
+export type FilterKind = 'weather' | 'fuel' | 'wind';
 
 /** A filter a scenario names, unwrapped from its oneof and tagged with its kind. */
 export type ResolvedFilter = Record<string, unknown> & {
@@ -76,6 +76,10 @@ const FILTER_KINDS: Record<string, FilterKind> = {
   polyWeather: 'weather',
   polyReplace: 'fuel',
   replace: 'fuel',
+  // A WindNinja-generated wind field. Recognised so the file imports, then
+  // skipped with a notice — Nomad cannot apply one yet (Franco, 2026-10-01:
+  // "skip and notify wind ninja, we are not ready for that yet").
+  wind: 'wind',
 };
 
 function unwrapFilter(entry: Obj): ResolvedFilter | undefined {

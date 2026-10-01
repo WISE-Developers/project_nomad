@@ -119,6 +119,52 @@ const COLUMNS = {
   precip: ['precip', 'prec', 'apcp', 'precipitation'],
 } as const;
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const SLASH_DATE = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+
+/**
+ * Normalise an external weather file's date column to `YYYY-MM-DD`.
+ *
+ * WISE writes slash dates DAY FIRST. Settled by Franco, 2026-10-01: a file
+ * whose first field runs 1, 2, 3 with the second fixed at 6 is either days 1-3
+ * of June or months 1-3 of the 6th, and "logic would dictate we dont fight
+ * fire in january".
+ *
+ * The convention is applied, never re-inferred per file — and never flipped
+ * when a value looks wrong. A second field above 12 cannot be a month, which
+ * would mean the file is not day-first after all; reading it the wrong way
+ * puts the fire in the wrong month on the wrong fuels, so that refuses.
+ */
+export function isoDateOf(raw: string): string {
+  const value = raw.trim();
+  if (ISO_DATE.test(value)) return value;
+
+  const slash = SLASH_DATE.exec(value);
+  if (!slash) {
+    throw new Error(
+      `Unrecognised date "${raw}". Expected YYYY-MM-DD or DD/MM/YYYY.`,
+    );
+  }
+
+  const [, dayPart, monthPart, year] = slash;
+  const day = Number(dayPart);
+  const month = Number(monthPart);
+
+  if (month < 1 || month > 12) {
+    throw new Error(
+      `Date "${raw}" has ${month} in the month position. WISE slash dates are ` +
+        'day first, so this file does not follow that convention and reading it ' +
+        'as day first would put the fire in the wrong month. Refusing rather ' +
+        'than switching convention.',
+    );
+  }
+  if (day < 1 || day > 31) {
+    throw new Error(`Date "${raw}" has ${day} in the day position.`);
+  }
+
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 function columnIndex(header: string[], aliases: readonly string[]): number {
   return header.findIndex((h) => aliases.includes(h));
 }
@@ -193,7 +239,14 @@ function readExternalStream(
       return value;
     };
 
-    const date = parts[index.date];
+    // isoDateOf knows the date is wrong but not where it came from, and a
+    // refusal an operator cannot locate is most of the way to useless.
+    let date: string;
+    try {
+      date = isoDateOf(parts[index.date]);
+    } catch (e) {
+      throw new Error(`${resolved} row ${row + 2}: ${(e as Error).message}`);
+    }
     const hour = index.hour === -1 ? undefined : parts[index.hour];
     // Date and hour are separate columns, so they are joined rather than parsed
     // apart. Reading the date alone would put every hour at midnight.
