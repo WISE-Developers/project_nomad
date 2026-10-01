@@ -194,4 +194,28 @@ describe('applyWeatherPatch', () => {
       expect(warnings).toEqual([]);
     });
   });
+
+  describe('an omitted operation is Equal, not a missing field', () => {
+    it('sets the value when the patch declares no operation', () => {
+      // proto3 drops zero-valued fields and Equal is 0, so a patch that really
+      // said "Equal" arrives with no operation at all. sage1's precipitation
+      // and sage3's windDirection are both written that way in the file.
+      const patch = worstPatch();
+      const filter = patch.filter as Record<string, unknown>;
+      delete (filter.temperature as Record<string, unknown>).operation;
+
+      const { rows } = applyWeatherPatch([rowInWindow()], patch);
+
+      // Equal sets rather than adjusts: 5, not 17.09 + 5.
+      expect(rows[0].temp).toBeCloseTo(5, 6);
+    });
+
+    it('still refuses an operation it cannot name', () => {
+      const patch = worstPatch();
+      const filter = patch.filter as Record<string, unknown>;
+      (filter.temperature as Record<string, unknown>).operation = 'Frobnicate';
+
+      expect(() => applyWeatherPatch([rowInWindow()], patch)).toThrow(/Frobnicate/);
+    });
+  });
 });

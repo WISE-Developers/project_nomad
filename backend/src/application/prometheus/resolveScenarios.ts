@@ -21,6 +21,17 @@ import { nameOf, timeOf } from './fgmjValues.js';
 
 type Obj = Record<string, unknown>;
 
+/** polyWeather is a weather patch; polyReplace and replace are fuel patches. */
+export type FilterKind = 'weather' | 'fuel';
+
+/** A filter a scenario names, unwrapped from its oneof and tagged with its kind. */
+export type ResolvedFilter = Record<string, unknown> & {
+  name: string;
+  kind: FilterKind;
+  /** True when the patch covers the whole landscape rather than a polygon. */
+  landscape: boolean;
+};
+
 export interface ResolvedScenario {
   name: string;
   ignitionNames: string[];
@@ -30,8 +41,12 @@ export interface ResolvedScenario {
   streamName: string;
   stream: Obj;
   weatherFilterNames: string[];
-  /** The unwrapped filter objects, each carrying its own `name`. */
-  weatherFilters: (Obj & { name: string })[];
+  /**
+   * Every filter this scenario names, in order, tagged with its kind. Named
+   * `weatherFilters` historically; it carries fuel patches too, which the
+   * planner notifies about and skips.
+   */
+  weatherFilters: ResolvedFilter[];
   /** ISO 8601 with the offset the file carried, not normalised to UTC. */
   startTime: string;
   endTime: string;
@@ -43,18 +58,45 @@ function asArray(value: unknown): Obj[] {
 }
 
 /**
- * Filters arrive wrapped in the schema's `oneof` — `{ polyWeather: {...} }` for
- * a weather patch, a different key for other filter types — so the name lives
- * one level down under a key that varies by kind.
+ * Filters arrive wrapped in the schema's `oneof` — `{ polyWeather: {...} }` —
+ * so the name lives one level down under a key that varies by kind.
+ *
+ * The oneof key says what kind of filter this is, and the kinds are handled
+ * very differently:
+ *
+ *   polyWeather   a weather patch — applied to the stream
+ *   polyReplace   a fuel patch over a polygon — notified and skipped
+ *   replace       a fuel patch over the landscape — notified and skipped
+ *
+ * Fuels come from Nomad, so fuel patches are never applied. Treating one as a
+ * weather patch is not a near miss: it has no time window, no variables, and
+ * nothing to arithmetic.
  */
-function unwrapFilter(entry: Obj): (Obj & { name: string }) | undefined {
-  for (const value of Object.values(entry)) {
+const FILTER_KINDS: Record<string, FilterKind> = {
+  polyWeather: 'weather',
+  polyReplace: 'fuel',
+  replace: 'fuel',
+};
+
+function unwrapFilter(entry: Obj): ResolvedFilter | undefined {
+  for (const [key, value] of Object.entries(entry)) {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       const inner = value as Obj;
       const name = nameOf(inner);
+      if (name === undefined) continue;
+
+      const kind = FILTER_KINDS[key];
+      if (!kind) {
+        throw new Error(
+          `Filter "${name}" is of unknown kind "${key}". This importer handles ` +
+            `${Object.keys(FILTER_KINDS).join(', ')}. Refusing rather than ignoring it.`,
+        );
+      }
+
       // Normalise the name onto the returned object so callers get one shape,
-      // whether the schema wrapped it or not.
-      if (name !== undefined) return { ...inner, name } as Obj & { name: string };
+      // whether the schema wrapped it or not. `landscape` distinguishes a patch
+      // covering the whole landscape from one bounded by a polygon.
+      return { ...inner, name, kind, landscape: inner.landscape === true };
     }
   }
   return undefined;
@@ -91,7 +133,7 @@ export function resolveScenarios(project: FgmjProject): ResolvedScenario[] {
     }
   }
 
-  const filtersByName = new Map<string, Obj & { name: string }>();
+  const filtersByName = new Map<string, ResolvedFilter>();
   for (const filter of project.weatherFilters) {
     const inner = unwrapFilter(filter);
     if (inner) filtersByName.set(inner.name, inner);

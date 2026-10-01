@@ -164,7 +164,13 @@ export function applyWeatherPatch(
     const declared = filter[variable.field];
     if (!declared || typeof declared !== 'object') return [];
 
-    const raw = (declared as Obj).operation;
+    // An absent operation means Equal, not a missing field. proto3 omits
+    // zero-valued fields and Equal is 0 — in BOTH Operation enums, so this is
+    // unambiguous. The real files write "Equal" explicitly (sage1's
+    // precipitation, sage3's windDirection) and the decoder drops it, exactly
+    // as it drops a precipitation of zero. decodeOperation stays strict about
+    // genuinely unknown values; the proto3 default is resolved here instead.
+    const raw = (declared as Obj).operation ?? 0;
     const operation = decodeOperation(raw as number | string, variable.gridType);
 
     const magnitude = numberOf((declared as Obj).value);
