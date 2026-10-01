@@ -146,7 +146,7 @@ jobs:
           echo "All installer scripts parse"
 
   lint:
-    name: Lint (ratchet)
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -159,21 +159,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Deliberately a RATCHET rather than a plain blocking lint run.
+      # Plain and blocking, as of #386 taking the count to 0.
       #
-      # Lint had never executed here (#386) — ESLint 9 needs flat config and
-      # none existed, and the workspace scripts used `src/**/*.ts`, which the
-      # shell expands without globstar, so even once it ran it covered 6 of 275
-      # files. Fixing both left a backlog of 108 findings.
+      # This was a ratchet for as long as there was a backlog to drain: lint had
+      # never actually executed here, and the workspace globs covered 6 of 275
+      # files, so switching it on revealed 108 findings at once. A blocking job
+      # then would have sat permanently red and taught everyone to ignore it.
+      # The ceiling fell 108 -> 94 -> 92 -> 0, so the ratchet and its baseline
+      # are gone and any new finding fails the build.
       #
-      # A blocking job would fail on every branch from day one, CI would sit
-      # permanently red, and people would learn to ignore it — which is the
-      # same "a check that looks like coverage and isn't" failure that produced
-      # the situation. So: the count may fall or hold, never grow. When
-      # .lint-baseline reaches 0, delete the script and make this a plain
-      # `npm run lint`.
-      - name: Lint ratchet
-        run: bash scripts/lint-ratchet.sh
+      # The workspace lint scripts pass --max-warnings 0 deliberately. Several
+      # rules are configured as warnings -- react-refresh/only-export-components
+      # most of all -- and eslint exits 0 on warnings. Without that flag this
+      # job would be WEAKER than the ratchet it replaced, because the ratchet
+      # counted warnings and a bare `eslint src` does not. Verified: a single
+      # react-refresh warning exits 0 plain, 1 with the flag.
+      #
+      # The job id stays `lint` because all-tests lists it in `needs`.
+      - name: Lint
+        run: npm run lint
 
   # Single required check to point branch protection at, so adding or renaming
   # a job later does not silently leave the gate unprotected.
