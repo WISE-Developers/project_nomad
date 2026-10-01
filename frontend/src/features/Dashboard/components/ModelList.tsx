@@ -8,7 +8,7 @@
 
 import React, { useCallback, useState, useRef } from 'react';
 import { useModels } from '../hooks/useModels.js';
-import { useModelSelection } from '../context/DashboardContext.js';
+import { useModelSelection } from '../context/useDashboard.js';
 import { ModelCard } from './ModelCard.js';
 import { isProgressStatus } from './importStatus.js';
 import { buildRerunRequest } from './rerunRequest.js';

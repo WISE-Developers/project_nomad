@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { useWizard } from '../context/WizardContext';
+import { useWizard } from '../context/useWizard';
 import type { ValidationError } from '../types';
 
 /**

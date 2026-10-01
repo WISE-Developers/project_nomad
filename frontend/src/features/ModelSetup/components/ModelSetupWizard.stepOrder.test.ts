@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { MODEL_SETUP_STEPS } from '../types/index.js';
-import { getStepComponent } from './ModelSetupWizard.js';
+import { getStepComponent } from './stepComponents.js';
 import { SpatialInputStep } from '../steps/SpatialInputStep.js';
 import { WeatherStep } from '../steps/WeatherStep.js';
 import { TemporalStep } from '../steps/TemporalStep.js';

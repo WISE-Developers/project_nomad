@@ -6,7 +6,7 @@
  */
 
 import React, { useCallback, useState, useEffect } from 'react';
-import { useWizard } from '../context/WizardContext';
+import { useWizard } from '../context/useWizard';
 import type { WizardNavigationProps } from '../types';
 
 // Breakpoints

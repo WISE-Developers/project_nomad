@@ -62,8 +62,14 @@ export interface ACNContext {
   user: UserIdentity;
 }
 
-// Extend Express Request type
+// Extend Express Request type.
+//
+// `namespace` is not a style choice here: augmenting Express's Request is only
+// possible by merging into the global Express namespace it declares. There is
+// no module-syntax equivalent, so no-namespace cannot be satisfied without
+// giving up the augmentation entirely. Accepted deliberately (#386).
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       acn?: ACNContext;

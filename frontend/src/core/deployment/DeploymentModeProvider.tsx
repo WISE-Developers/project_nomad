@@ -1,21 +1,17 @@
 /**
- * Deployment Mode Context
+ * Deployment Mode Provider
  *
- * React context for deployment mode awareness in frontend.
- * Fetches the deployment mode from the backend health endpoint on initialization.
+ * Fetches the deployment mode from the backend health endpoint on mount and
+ * publishes it through DeploymentModeContext.
  */
 
-import { createContext, useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 
-export type DeploymentMode = 'SAN' | 'ACN';
-
-export interface DeploymentModeState {
-  mode: DeploymentMode;
-  isLoading: boolean;
-  error: string | null;
-}
-
-export const DeploymentModeContext = createContext<DeploymentModeState | null>(null);
+import {
+  DeploymentModeContext,
+  type DeploymentMode,
+  type DeploymentModeState,
+} from './DeploymentModeContext';
 
 interface DeploymentModeProviderProps {
   children: ReactNode;

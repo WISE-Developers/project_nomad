@@ -8,7 +8,7 @@
 import { useCallback } from 'react';
 import { formatCaptureTimestamp } from '../utils/captureTimestamp';
 import { useMap } from '../context/MapContext';
-import { useLayers } from '../context/LayerContext';
+import { useLayers } from '../context/useLayers';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { PROBABILITY_LEGEND } from '../symbology/palettes';

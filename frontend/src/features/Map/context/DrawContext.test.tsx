@@ -7,7 +7,8 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { DrawProvider, useDraw } from './DrawContext';
+import { DrawProvider } from './DrawProvider';
+import { useDraw } from './DrawContext';
 import type { DrawnFeature } from '../types/geometry';
 import type { ReactNode } from 'react';
 

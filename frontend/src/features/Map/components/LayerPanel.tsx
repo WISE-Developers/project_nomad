@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useLayers } from '../context/LayerContext';
+import { useLayers } from '../context/useLayers';
 import { useMap } from '../context/MapContext';
 import { LayerItem } from './LayerItem';
 import { useCFSLayers } from '../hooks/useCFSLayers';

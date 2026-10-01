@@ -5,7 +5,7 @@
  * (features/Wizard/types/index.ts:155): "Callback on step change", called with
  * (fromIndex, toIndex, data).
  *
- * WizardContext.tsx:75 declares its previous-index tracker as a PLAIN OBJECT
+ * WizardProvider.tsx declares its previous-index tracker as a PLAIN OBJECT
  * LITERAL, not a ref:
  *
  *     const prevStepIndexRef = { current: currentStepIndex };
@@ -22,8 +22,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { WizardProvider } from '../WizardContext.js';
-import { useWizardNavigation } from '../WizardContext.js';
+import { WizardProvider } from '../WizardProvider.js';
+import { useWizardNavigation } from '../useWizard.js';
 import type { WizardConfig, WizardStep } from '../../types/index.js';
 
 const STEPS: WizardStep[] = [

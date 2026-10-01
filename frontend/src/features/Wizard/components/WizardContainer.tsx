@@ -5,7 +5,8 @@
  */
 
 import React from 'react';
-import { WizardProvider, useWizard } from '../context/WizardContext';
+import { WizardProvider } from '../context/WizardProvider';
+import { useWizard } from '../context/useWizard';
 import type { WizardContainerProps, WizardContextValue } from '../types';
 
 /**

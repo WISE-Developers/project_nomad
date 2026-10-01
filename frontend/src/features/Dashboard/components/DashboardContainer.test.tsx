@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DashboardContainer } from './DashboardContainer.js';
-import { OpenNomadProvider } from '../../../openNomad/context/OpenNomadContext.js';
+import { OpenNomadProvider } from '../../../openNomad/context/OpenNomadProvider.js';
 import { createMockOpenNomadAPI } from '../../../test/mocks/openNomad.js';
 import type { IOpenNomadAPI } from '../../../openNomad/api.js';
 

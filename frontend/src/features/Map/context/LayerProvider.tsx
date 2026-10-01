@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import { useMap } from './MapContext';
 import { useOpenNomad } from '../../../openNomad/context';
@@ -10,27 +10,7 @@ import type {
   LayerState,
   LayerGroup,
 } from '../types/layer';
-
-/**
- * Layer context value
- */
-interface LayerContextValue {
-  state: LayerState;
-  addGeoJSONLayer: (config: Omit<GeoJSONLayerConfig, 'type'>) => void;
-  addRasterLayer: (config: Omit<RasterLayerConfig, 'type'>) => void;
-  removeLayer: (layerId: string) => void;
-  updateLayer: (layerId: string, updates: Partial<LayerConfig>) => void;
-  setOpacity: (layerId: string, opacity: number) => void;
-  toggleVisibility: (layerId: string) => void;
-  reorderLayer: (layerId: string, newIndex: number) => void;
-  addGroup: (group: LayerGroup) => void;
-  removeGroup: (groupId: string) => void;
-  toggleGroupExpanded: (groupId: string) => void;
-  selectLayer: (layerId: string | null) => void;
-  clearLayers: () => void;
-}
-
-const LayerContext = createContext<LayerContextValue | null>(null);
+import { LayerContext } from './LayerContext';
 
 /** Local storage key for layer persistence */
 const LAYERS_STORAGE_KEY = 'nomad-layers';
@@ -823,15 +803,4 @@ export function LayerProvider({ children }: { children: ReactNode }) {
       {children}
     </LayerContext.Provider>
   );
-}
-
-/**
- * Hook to access layer context
- */
-export function useLayers() {
-  const context = useContext(LayerContext);
-  if (!context) {
-    throw new Error('useLayers must be used within a LayerProvider');
-  }
-  return context;
 }
