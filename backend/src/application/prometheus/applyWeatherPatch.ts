@@ -19,6 +19,7 @@
 
 import { decodeOperation, GridType } from './weatherPatchOperations.js';
 import type { WeatherHourlyData } from '../../infrastructure/firestarr/types.js';
+import { numberOf, timeOf } from './fgmjValues.js';
 
 type Obj = Record<string, unknown>;
 
@@ -50,26 +51,6 @@ const VARIABLES = [
   // windDirection is the OTHER Operation enum — see weatherPatchOperations.
   { field: 'windDirection', column: 'wd', gridType: GridType.Two, scale: 1 },
 ] as const;
-
-/**
- * Unwrap a number that the schema may have nested.
- *
- * Values arrive as `{value: {value: 5, hex: "0x1.4p+2"}}` — a Math.Double
- * inside the variable message — so the number can sit one or two levels down.
- */
-function numberOf(value: unknown, depth = 0): number | undefined {
-  if (typeof value === 'number') return value;
-  if (value && typeof value === 'object' && depth < 4) {
-    return numberOf((value as Obj).value, depth + 1);
-  }
-  return undefined;
-}
-
-function timeOf(value: unknown): string | undefined {
-  if (!value || typeof value !== 'object') return undefined;
-  const t = (value as Obj).time;
-  return typeof t === 'string' ? t : undefined;
-}
 
 /** Minutes east of UTC carried by an ISO string, or undefined if it has none. */
 function offsetMinutesOf(iso: string): number | undefined {

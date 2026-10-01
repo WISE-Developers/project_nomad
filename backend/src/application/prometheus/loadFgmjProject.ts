@@ -146,10 +146,14 @@ export function loadFgmjProject(filePath: string): FgmjProject {
     throw new Error(`${filePath} does not satisfy the fgmj schema — ${invalid}`);
   }
 
-  const decoded = schema.Message.toObject(message, { defaults: false }) as Record<
-    string,
-    unknown
-  >;
+  // `enums: String` because the file itself writes enum NAMES — "POLYGON_OUT",
+  // "Minus" — and protobufjs would otherwise hand back the numbers. Names are
+  // what the rest of this folder reads, and they survive the two same-named
+  // Operation enums being numbered differently.
+  const decoded = schema.Message.toObject(message, {
+    defaults: false,
+    enums: String,
+  }) as Record<string, unknown>;
   const project = (decoded.project ?? {}) as Record<string, unknown>;
 
   const scenarioContainer = (project.scenarios ?? {}) as Record<string, unknown>;

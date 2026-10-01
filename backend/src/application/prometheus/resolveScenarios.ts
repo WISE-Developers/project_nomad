@@ -17,6 +17,7 @@
  */
 
 import type { FgmjProject } from './loadFgmjProject.js';
+import { nameOf, timeOf } from './fgmjValues.js';
 
 type Obj = Record<string, unknown>;
 
@@ -42,25 +43,6 @@ function asArray(value: unknown): Obj[] {
 }
 
 /**
- * Read a `name`, which the schema declares inconsistently.
- *
- * Some names are plain strings (a station, a scenario entry) and some are
- * `google.protobuf.StringValue`, which decodes to `{ value: "..." }` — a
- * weather stream's name is one of those. Both shapes mean the same thing, and
- * a resolver that handled only the first silently failed to find every stream
- * in the corpus.
- */
-function nameOf(entry: Obj): string | undefined {
-  const raw = entry.name;
-  if (typeof raw === 'string') return raw;
-  if (raw && typeof raw === 'object') {
-    const wrapped = (raw as Obj).value;
-    if (typeof wrapped === 'string') return wrapped;
-  }
-  return undefined;
-}
-
-/**
  * Filters arrive wrapped in the schema's `oneof` — `{ polyWeather: {...} }` for
  * a weather patch, a different key for other filter types — so the name lives
  * one level down under a key that varies by kind.
@@ -76,13 +58,6 @@ function unwrapFilter(entry: Obj): (Obj & { name: string }) | undefined {
     }
   }
   return undefined;
-}
-
-/** `{ time: "2025-06-26T13:00:00-06:00", timezone: "MDT", ... }` */
-function timeOf(value: unknown): string | undefined {
-  if (!value || typeof value !== 'object') return undefined;
-  const t = (value as Obj).time;
-  return typeof t === 'string' ? t : undefined;
 }
 
 function must<T>(found: T | undefined, what: string, name: string, scenario: string): T {
