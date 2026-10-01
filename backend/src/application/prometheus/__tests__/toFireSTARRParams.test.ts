@@ -91,3 +91,56 @@ describe('toFireSTARRParams — refusals', () => {
     expect(() => toFireSTARRParams(blocked!)).toThrow(/not runnable|blocker/i);
   });
 });
+
+describe('toFireSTARRParams — polygon and line ignitions also become the perimeter', () => {
+  /**
+   * The engine does this for a wizard-built run (FireSTARREngine.buildParams:
+   * `perimeter: (type === Polygon || type === LineString) ? ignition : undefined`),
+   * where it is rasterized to a TIF. An imported run that skipped it would start
+   * the fire from a bare centroid and lose the shape the .fgmj recorded — the
+   * same class of bug as producing a lat/lon point for a 381-vertex perimeter.
+   *
+   * Driven through the real path: the plan's own ignition rings, so
+   * toIgnitionGeometries builds the geometry exactly as it would in production.
+   */
+  const reshape = (polyType: string, points: { lon: number; lat: number }[]) => {
+    const plan = lwf184();
+    const [ignition] = plan.ignitions;
+    return {
+      ...plan,
+      ignitions: [{
+        ...ignition,
+        polyType,
+        rings: [{ isHole: false, points: points.map((p) => ({ x: p.lon, y: p.lat })) }],
+        latLonRings: [{ isHole: false, points }],
+      }],
+    };
+  };
+
+  const SQUARE = [
+    { lon: -112.23, lat: 55.67 },
+    { lon: -112.22, lat: 55.67 },
+    { lon: -112.22, lat: 55.68 },
+    { lon: -112.23, lat: 55.68 },
+  ];
+
+  it('mirrors a polygon ignition into perimeter', () => {
+    const { params } = toFireSTARRParams(reshape('POLYGON_OUT', SQUARE));
+    expect(params.ignitionGeometry!.type).toBe(GeometryType.Polygon);
+    expect(params.perimeter).toBeDefined();
+    expect(params.perimeter).toBe(params.ignitionGeometry);
+  });
+
+  it('mirrors a line ignition into perimeter', () => {
+    const { params } = toFireSTARRParams(reshape('LINE', SQUARE.slice(0, 2)));
+    expect(params.ignitionGeometry!.type).toBe(GeometryType.LineString);
+    expect(params.perimeter).toBeDefined();
+    expect(params.perimeter).toBe(params.ignitionGeometry);
+  });
+
+  it('leaves perimeter unset for a point ignition', () => {
+    const { params } = assemble(lwf184());
+    expect(params.ignitionGeometry!.type).toBe(GeometryType.Point);
+    expect(params.perimeter).toBeUndefined();
+  });
+});

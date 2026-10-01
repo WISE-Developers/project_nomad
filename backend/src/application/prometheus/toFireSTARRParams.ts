@@ -16,7 +16,7 @@
  * original run; notices here describe choices this ASSEMBLY made.
  */
 
-import { SpatialGeometry } from '../../domain/entities/index.js';
+import { GeometryType, SpatialGeometry } from '../../domain/entities/index.js';
 import { formatLocalTime } from '../../infrastructure/firestarr/timezoneUtils.js';
 import type { FireSTARRParams } from '../../infrastructure/firestarr/types.js';
 import type { ScenarioImportPlan } from './planFgmjImport.js';
@@ -33,6 +33,14 @@ export interface FireSTARRAssembly {
 }
 
 const HOURS_PER_DAY = 24;
+
+/**
+ * Shapes that are their own perimeter. A point has no extent to rasterize.
+ */
+const PERIMETER_SHAPES = new Set<GeometryType>([
+  GeometryType.Polygon,
+  GeometryType.LineString,
+]);
 
 /**
  * One output per day of the window, which is what the engine does for a
@@ -125,6 +133,13 @@ export function toFireSTARRParams(plan: ScenarioImportPlan): FireSTARRAssembly {
     previousDC: plan.startingCodes.dc,
     previousPrecip: plan.startingCodes.precipitation,
     ignitionGeometry: ignition.geometry as SpatialGeometry,
+    // Same rule the engine applies to a wizard-built run (buildParams): a
+    // polygon or line ignition is also the perimeter, which FireSTARR
+    // rasterizes. Skipping it would start the fire from a bare centroid and
+    // throw away the shape the .fgmj recorded.
+    perimeter: PERIMETER_SHAPES.has(ignition.geometry.type)
+      ? (ignition.geometry as SpatialGeometry)
+      : undefined,
     outputDateOffsets: outputOffsetsFor(plan.durationHours),
   };
 
