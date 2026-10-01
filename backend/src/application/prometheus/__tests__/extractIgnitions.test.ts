@@ -42,9 +42,9 @@ describe('extractIgnitions', () => {
 
       expect(ignitions).toHaveLength(1);
       expect(ignitions[0].polyType).toBe('POLYGON_OUT');
-      expect(ignitions[0].points.length).toBeGreaterThan(0);
-      expect(ignitions[0].points[0].x).toBeCloseTo(-1114437.3566378944, 6);
-      expect(ignitions[0].points[0].y).toBeCloseTo(2423419.0519584483, 6);
+      expect(ignitions[0].rings[0].points.length).toBeGreaterThan(0);
+      expect(ignitions[0].rings[0].points[0].x).toBeCloseTo(-1114437.3566378944, 6);
+      expect(ignitions[0].rings[0].points[0].y).toBeCloseTo(2423419.0519584483, 6);
     });
 
     it('extracts both ignitions when a scenario has two', () => {
@@ -82,7 +82,7 @@ describe('extractIgnitions', () => {
         // Anything here would be a guess, and a guess is the failure mode.
         expect(ignition.crs).toBeUndefined();
         // Nor may it hand back lat/lon it could not have computed.
-        expect(ignition.latLonPoints).toBeUndefined();
+        expect(ignition.latLonRings).toBeUndefined();
       }
     });
 

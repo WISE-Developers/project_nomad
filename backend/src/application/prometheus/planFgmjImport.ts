@@ -171,7 +171,9 @@ export function planFgmjImport(filePath: string): ScenarioImportPlan[] {
     // Lat/lon is offered only when the file already carried it. A projected
     // scenario gets nothing here rather than a converted guess.
     const latLonPoint =
-      !projected && ignitions[0]?.latLonPoints?.[0] ? ignitions[0].latLonPoints[0] : undefined;
+      !projected && ignitions[0]?.latLonRings?.[0]?.points?.[0]
+        ? ignitions[0].latLonRings[0].points[0]
+        : undefined;
 
     const plan: ScenarioImportPlan = {
       scenarioName: scenario.name,

@@ -102,11 +102,17 @@ export async function resolveProjection(
   const ignitions = plan.ignitions.map((ignition) => {
     if (!ignition.requiresCrs) return ignition;
 
-    const latLonPoints = ignition.points.map((point) => {
-      const projected = transform.transformPoint(point.x, point.y);
-      // x is longitude and y is latitude, because the target above says so.
-      return { lon: projected.x, lat: projected.y };
-    });
+    // Every ring, holes included. A reprojection that did only the exterior
+    // would leave the island in a different coordinate system from the fire
+    // around it.
+    const latLonRings = ignition.rings.map((ring) => ({
+      isHole: ring.isHole,
+      points: ring.points.map((point) => {
+        const projected = transform.transformPoint(point.x, point.y);
+        // x is longitude and y is latitude, because the target above says so.
+        return { lon: projected.x, lat: projected.y };
+      }),
+    }));
 
     return {
       ...ignition,
@@ -115,7 +121,7 @@ export async function resolveProjection(
       // Recorded so the answer is traceable to what the operator gave, rather
       // than appearing as though the file had carried it all along.
       crs,
-      latLonPoints,
+      latLonRings,
     };
   });
 
@@ -125,7 +131,7 @@ export async function resolveProjection(
   const blockers = plan.blockers.filter((_, i) => i !== crsIndex);
   const blockerDetail = plan.blockerDetail.filter((_, i) => i !== crsIndex);
 
-  const first = ignitions[0]?.latLonPoints?.[0];
+  const first = ignitions[0]?.latLonRings?.[0]?.points?.[0];
 
   return {
     ...plan,

@@ -81,9 +81,9 @@ describe('resolveProjection', () => {
     it('reprojects every point, not only the first', async () => {
       const [best] = planFgmjImport(fixture(THREE));
       const resolved = await resolveProjection(best, ALBERS);
-      const points = resolved.ignitions[0].latLonPoints!;
+      const points = resolved.ignitions[0].latLonRings![0].points;
 
-      expect(points.length).toBe(resolved.ignitions[0].points.length);
+      expect(points.length).toBe(resolved.ignitions[0].rings[0].points.length);
       for (const p of points) {
         expect(Math.abs(p.lat)).toBeLessThanOrEqual(90);
         expect(Math.abs(p.lon)).toBeLessThanOrEqual(180);
@@ -95,7 +95,7 @@ describe('resolveProjection', () => {
       const resolved = await resolveProjection(best, ALBERS);
 
       // -1144969.05, 2425832.17 -> the second ignition, west of the first.
-      const second = resolved.ignitions[1].latLonPoints![0];
+      const second = resolved.ignitions[1].latLonRings![0].points[0];
       expect(second.lon).toBeCloseTo(-117.3165, 3);
       expect(second.lat).toBeCloseTo(60.2069, 3);
     });
