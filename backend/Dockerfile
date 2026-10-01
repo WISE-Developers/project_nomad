@@ -181,6 +181,12 @@ WORKDIR /app
 # process.versions.tz reports the override, and tzdataCurrency.test.ts
 # asserts it.
 COPY vendor/icu-tzdata/2026c /opt/icu-tzdata
+
+# The .fgmj importer reads the protobuf descriptor set from disk, at a path
+# resolved four levels up from the compiled module — /app/backend/dist/
+# application/prometheus -> /app/vendor/wise-protos (refs #294). Without this
+# the importer throws on its first call in a built image.
+COPY vendor/wise-protos ./vendor/wise-protos
 ENV ICU_TIMEZONE_FILES_DIR=/opt/icu-tzdata
 
 # Preserve workspace-relative paths so the backend can find frontend/dist
