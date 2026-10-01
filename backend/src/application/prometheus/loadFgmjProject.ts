@@ -44,6 +44,14 @@ export interface FgmjProject {
   weatherFilters: Record<string, unknown>[];
   /** The whole decoded project, for anything not yet surfaced above. */
   raw: Record<string, unknown>;
+  /**
+   * The directory the .fgmj was read from.
+   *
+   * A WISE job references its weather as a path relative to itself —
+   * "Inputs/spotwx_forecast.txt" — so resolving it needs to know where the job
+   * file lives. Carried here rather than re-derived, so there is one answer.
+   */
+  baseDir: string;
 }
 
 interface ProtoTypeLike {
@@ -180,5 +188,6 @@ export function loadFgmjProject(filePath: string): FgmjProject {
     stations: asArray(stationContainer.stations),
     weatherFilters: asArray(gridContainer.filters),
     raw: project,
+    baseDir: path.dirname(path.resolve(filePath)),
   };
 }

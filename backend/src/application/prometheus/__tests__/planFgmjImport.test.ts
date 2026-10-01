@@ -62,7 +62,7 @@ describe('planFgmjImport', () => {
   describe('the scenario’s own patches are applied to its own weather', () => {
     const rawRows = () => {
       const [best] = resolveScenarios(loadFgmjProject(fixture(THREE)));
-      return extractWeatherStream(best).rows;
+      return extractWeatherStream(best, TEST_DATA).rows;
     };
 
     it('raises RH by five points inside the BEST patch window', () => {

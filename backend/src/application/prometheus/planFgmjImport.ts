@@ -97,7 +97,7 @@ export function planFgmjImport(filePath: string): ScenarioImportPlan[] {
   const project = loadFgmjProject(filePath);
 
   return resolveScenarios(project).map((scenario) => {
-    const { rows, startingCodes } = extractWeatherStream(scenario);
+    const { rows, startingCodes } = extractWeatherStream(scenario, project.baseDir);
     const ignitions = extractIgnitions(scenario);
 
     // Only the filters this scenario names, in the order it names them. The

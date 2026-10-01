@@ -7,6 +7,13 @@
  *
  * with temp, rh, ws, wd and precip on each hour.
  *
+ * The weather is in ONE of two places. A Prometheus job carries it inline as
+ * daily blocks of hours; a WISE job carries
+ * `dataImportedFromFile: true` with a `filename` relative to the job file, and
+ * no daily blocks at all. Running the importer over the 65 real .fgmj on disk
+ * found the second form in 41 of them — two thirds of the corpus — so reading
+ * only the inline shape refused most real files.
+ *
  * THREE THINGS THAT ARE QUIET WHEN WRONG:
  *
  * RH here is already a PERCENTAGE — 91.0, 88.0. A weather patch stores RH as a
@@ -25,7 +32,10 @@
  * UTC would shift every observation by six hours.
  */
 
+import fs from 'fs';
+import path from 'path';
 import { numberOf, timeOf, type FgmjObject } from './fgmjValues.js';
+import { timezoneOf } from './importTimezone.js';
 import type { ResolvedScenario } from './resolveScenarios.js';
 
 /** An hourly observation, before any fire-weather index has been computed. */
@@ -90,17 +100,164 @@ function observationOf(hour: FgmjObject, field: string, where: string): number {
   return value ?? 0;
 }
 
-export function extractWeatherStream(scenario: ResolvedScenario): ExtractedWeatherStream {
+
+/**
+ * Column aliases for a SpotWX forecast export.
+ *
+ * Real header: `HOURLY,HOUR,TEMP,RH,WD,WS,PRECIP` — the DATE is called HOURLY
+ * and the hour is a SEPARATE column. Neither of Nomad's existing parsers
+ * matches that: the raw parser needs an exact `date`, and the SpotWX parser's
+ * aliases are datetime/date/time/valid. Hence reading it here.
+ */
+const COLUMNS = {
+  date: ['hourly', 'date', 'datetime', 'time', 'valid'],
+  hour: ['hour'],
+  temp: ['temp', 'tmp', 'temperature'],
+  rh: ['rh', 'humidity', 'relh'],
+  ws: ['ws', 'wind', 'wspd', 'windspd'],
+  wd: ['wd', 'wdir', 'winddir'],
+  precip: ['precip', 'prec', 'apcp', 'precipitation'],
+} as const;
+
+function columnIndex(header: string[], aliases: readonly string[]): number {
+  return header.findIndex((h) => aliases.includes(h));
+}
+
+/**
+ * Read a weather stream out of the file the job points at.
+ *
+ * The path is relative to the .fgmj, so it is resolved against the job's own
+ * directory. A missing file names the path it looked for: 7 of the 60 such
+ * references in the corpus do not resolve, and "could not find X" is fixable
+ * where "no weather" is not.
+ */
+function readExternalStream(
+  condition: FgmjObject,
+  scenario: ResolvedScenario,
+  baseDir: string,
+): WeatherObservation[] {
+  const filename = condition.filename;
+  if (typeof filename !== 'string' || filename.length === 0) {
+    throw new Error(
+      `Weather stream "${scenario.streamName}" in scenario "${scenario.name}" has no ` +
+        'daily blocks and names no file either, so it carries no weather at all.',
+    );
+  }
+
+  const resolved = path.resolve(baseDir, filename);
+  if (!fs.existsSync(resolved)) {
+    throw new Error(
+      `Weather stream "${scenario.streamName}" points at "${filename}", which is not ` +
+        `beside the job: looked for ${resolved}. A WISE job stores its weather in a ` +
+        'sibling file, and the import cannot proceed without it.',
+    );
+  }
+
+  const lines = fs
+    .readFileSync(resolved, 'utf8')
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  if (lines.length < 2) {
+    throw new Error(`${resolved} has a header but no weather rows.`);
+  }
+
+  const header = lines[0].split(',').map((h) => h.trim().toLowerCase());
+  const index = Object.fromEntries(
+    Object.entries(COLUMNS).map(([field, aliases]) => [field, columnIndex(header, aliases)]),
+  ) as Record<keyof typeof COLUMNS, number>;
+
+  for (const [field, idx] of Object.entries(index)) {
+    if (field === 'hour') continue; // optional: a date column may carry the time
+    if (idx === -1) {
+      throw new Error(
+        `${resolved} has no ${field} column. Found: ${header.join(', ')}. ` +
+          `Expected one of: ${COLUMNS[field as keyof typeof COLUMNS].join(', ')}.`,
+      );
+    }
+  }
+
+  // The file's timestamps carry no offset; the scenario declares the project's.
+  const offset = timezoneOf(scenario.startTime);
+
+  return lines.slice(1).map((line, row) => {
+    const parts = line.split(',').map((p) => p.trim());
+    const at = (idx: number): number => {
+      const value = Number(parts[idx]);
+      if (!Number.isFinite(value)) {
+        throw new Error(
+          `${resolved} row ${row + 2} has an unreadable value "${parts[idx]}".`,
+        );
+      }
+      return value;
+    };
+
+    const date = parts[index.date];
+    const hour = index.hour === -1 ? undefined : parts[index.hour];
+    // Date and hour are separate columns, so they are joined rather than parsed
+    // apart. Reading the date alone would put every hour at midnight.
+    const stamp = hour === undefined
+      ? `${date}${offset}`
+      : `${date}T${hour.padStart(2, '0')}:00:00${offset}`;
+    const when = new Date(stamp); // new-date-allowed: offset appended explicitly above
+    if (!Number.isFinite(when.getTime())) {
+      throw new Error(`${resolved} row ${row + 2} has an unreadable time "${stamp}".`);
+    }
+
+    return {
+      date: when,
+      temp: at(index.temp),
+      rh: at(index.rh),
+      ws: at(index.ws),
+      wd: at(index.wd),
+      precip: at(index.precip),
+    };
+  });
+}
+
+/**
+ * The codes the stream starts from. Identical for both storage forms: a WISE
+ * job keeps its weather in a sibling file but its STARTING CODES in the job.
+ */
+function startingCodesOf(condition: FgmjObject, scenario: ResolvedScenario): StartingCodes {
+  const codes = (condition.startingCodes ?? {}) as FgmjObject;
+  const ffmc = numberOf(codes.ffmc);
+  const dmc = numberOf(codes.dmc);
+  const dc = numberOf(codes.dc);
+  if (ffmc === undefined || dmc === undefined || dc === undefined) {
+    throw new Error(
+      `Weather stream "${scenario.streamName}" is missing a starting code ` +
+        '(ffmc, dmc or dc). These seed the whole run and cannot be defaulted.',
+    );
+  }
+  return {
+    ffmc,
+    dmc,
+    dc,
+    ...(numberOf(codes.bui) !== undefined ? { bui: numberOf(codes.bui) } : {}),
+    ...(numberOf(codes.precipitation) !== undefined
+      ? { precipitation: numberOf(codes.precipitation) }
+      : {}),
+  };
+}
+
+export function extractWeatherStream(
+  scenario: ResolvedScenario,
+  baseDir: string,
+): ExtractedWeatherStream {
   const condition = ((scenario.stream as FgmjObject).condition ?? {}) as FgmjObject;
 
   const days = asArray(
     (condition.dailyConditions as FgmjObject | undefined)?.dailyConditions,
   );
+
+  // A WISE job has no daily blocks; its weather is a sibling file.
   if (days.length === 0) {
-    throw new Error(
-      `Weather stream "${scenario.streamName}" in scenario "${scenario.name}" has no ` +
-        'daily blocks, so it carries no weather at all.',
-    );
+    return {
+      rows: readExternalStream(condition, scenario, baseDir),
+      startingCodes: startingCodesOf(condition, scenario),
+    };
   }
 
   // The stream's start is a naked local time. The scenario declares the offset
@@ -157,27 +314,5 @@ export function extractWeatherStream(scenario: ResolvedScenario): ExtractedWeath
     );
   }
 
-  const codes = (condition.startingCodes ?? {}) as FgmjObject;
-  const ffmc = numberOf(codes.ffmc);
-  const dmc = numberOf(codes.dmc);
-  const dc = numberOf(codes.dc);
-  if (ffmc === undefined || dmc === undefined || dc === undefined) {
-    throw new Error(
-      `Weather stream "${scenario.streamName}" is missing a starting code ` +
-        '(ffmc, dmc or dc). These seed the whole run and cannot be defaulted.',
-    );
-  }
-
-  return {
-    rows,
-    startingCodes: {
-      ffmc,
-      dmc,
-      dc,
-      ...(numberOf(codes.bui) !== undefined ? { bui: numberOf(codes.bui) } : {}),
-      ...(numberOf(codes.precipitation) !== undefined
-        ? { precipitation: numberOf(codes.precipitation) }
-        : {}),
-    },
-  };
+  return { rows, startingCodes: startingCodesOf(condition, scenario) };
 }
