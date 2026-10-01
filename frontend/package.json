@@ -1,6 +1,6 @@
 {
   "name": "@nomad/frontend",
-  "version": "0.20.11",
+  "version": "0.20.12",
   "description": "Project Nomad - Fire Modeling GUI",
   "private": false,
   "type": "module",
