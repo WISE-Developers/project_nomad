@@ -20,6 +20,7 @@ import { resolveScenarios } from './resolveScenarios.js';
 import { extractWeatherStream, type WeatherObservation, type StartingCodes } from './extractWeatherStream.js';
 import { applyWeatherPatch } from './applyWeatherPatch.js';
 import { extractIgnitions, type ExtractedIgnition } from './extractIgnitions.js';
+import type { ResolvedFilter } from './resolveScenarios.js';
 import type { WeatherHourlyData } from '../../infrastructure/firestarr/types.js';
 
 /** Why a scenario cannot be run as imported. */
@@ -42,6 +43,12 @@ export interface ScenarioImportPlan {
   skippedFuelPatches: string[];
   /** Weather patches bounded by a polygon, awaiting an operator decision. */
   polygonPatches: string[];
+  /**
+   * The same patches as objects, so a decision can actually apply one. Carried
+   * rather than re-resolved: the decision step should act on exactly the patch
+   * the operator was shown, not on a second reading of the file.
+   */
+  polygonPatchFilters: ResolvedFilter[];
 
   /**
    * Set only once the coordinates are known to be lat/lon. Never derived from a
@@ -55,6 +62,14 @@ export interface ScenarioImportPlan {
   blockerDetail: string[];
   /** Notices that do not block — clamped humidity, and such. */
   warnings: string[];
+  /**
+   * Ways the imported model DIFFERS from the run the .fgmj described.
+   *
+   * #294 exists so old incidents can be re-run and compared, so a divergence
+   * that disappears once its blocker clears would undermine the comparison the
+   * import was for. These travel with the plan instead.
+   */
+  divergences: string[];
   runnable: boolean;
 }
 
@@ -63,11 +78,11 @@ export interface ScenarioImportPlan {
  * columns without the fire-weather indices, which patches never touch. This
  * keeps the patch code working on one row type rather than two.
  */
-function asPatchable(rows: WeatherObservation[]): WeatherHourlyData[] {
+export function asPatchable(rows: WeatherObservation[]): WeatherHourlyData[] {
   return rows as unknown as WeatherHourlyData[];
 }
 
-function asObservations(rows: WeatherHourlyData[]): WeatherObservation[] {
+export function asObservations(rows: WeatherHourlyData[]): WeatherObservation[] {
   return rows as unknown as WeatherObservation[];
 }
 
@@ -81,15 +96,22 @@ export function planFgmjImport(filePath: string): ScenarioImportPlan[] {
     // Only the filters this scenario names, in the order it names them. The
     // file may declare others; applying those would be wrong.
     const warnings: string[] = [];
+    const divergences: string[] = [];
     const appliedPatches: string[] = [];
     const skippedFuelPatches: string[] = [];
     const polygonPatches: string[] = [];
+    const polygonPatchFilters: ResolvedFilter[] = [];
     let weather = rows;
 
     for (const patch of scenario.weatherFilters) {
       // Fuels come from Nomad, as for any other run. Notify and skip.
       if (patch.kind === 'fuel') {
         skippedFuelPatches.push(patch.name);
+        divergences.push(
+          `Fuel patch "${patch.name}" was NOT applied — fuels come from Nomad, and ` +
+            'there is no way to apply a fuel patch to a Nomad run. The imported model ' +
+            'uses Nomad\u2019s fuel grid where the original used the author\u2019s patch.',
+        );
         warnings.push(
           `Scenario "${scenario.name}" uses fuel patch "${patch.name}", which was NOT ` +
             'applied. Fuels come from Nomad, so the imported run will use Nomad’s ' +
@@ -104,6 +126,7 @@ export function planFgmjImport(filePath: string): ScenarioImportPlan[] {
       // or ignore, so this records the decision rather than silently choosing.
       if (!patch.landscape) {
         polygonPatches.push(patch.name);
+        polygonPatchFilters.push(patch);
         continue;
       }
 
@@ -154,10 +177,12 @@ export function planFgmjImport(filePath: string): ScenarioImportPlan[] {
       appliedPatches,
       skippedFuelPatches,
       polygonPatches,
+      polygonPatchFilters,
       ...(latLonPoint ? { latitude: latLonPoint.lat, longitude: latLonPoint.lon } : {}),
       blockers,
       blockerDetail,
       warnings,
+      divergences,
       runnable: blockers.length === 0,
     };
   });
