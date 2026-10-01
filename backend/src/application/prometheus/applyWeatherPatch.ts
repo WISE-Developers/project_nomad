@@ -22,6 +22,24 @@ import type { WeatherHourlyData } from '../../infrastructure/firestarr/types.js'
 
 type Obj = Record<string, unknown>;
 
+/**
+ * What applying a patch produced: the new stream, and anything the operator
+ * needs told about it.
+ *
+ * Warnings are returned rather than logged. The import policy has several
+ * notify-and-proceed cases — fuel patches, burning conditions, and this — and
+ * the operator has to see them at the end of an import, not in a server log.
+ * It also keeps this layer free of a logging dependency.
+ */
+export interface PatchResult {
+  rows: WeatherHourlyData[];
+  warnings: string[];
+}
+
+/** Relative humidity is a percentage of a whole; outside 0-100 it is not one. */
+const RH_MIN = 0;
+const RH_MAX = 100;
+
 /** The five patchable variables, and where each lands on a weather row. */
 const VARIABLES = [
   { field: 'temperature', column: 'temp', gridType: GridType.One, scale: 1 },
@@ -51,6 +69,33 @@ function timeOf(value: unknown): string | undefined {
   if (!value || typeof value !== 'object') return undefined;
   const t = (value as Obj).time;
   return typeof t === 'string' ? t : undefined;
+}
+
+/** Minutes east of UTC carried by an ISO string, or undefined if it has none. */
+function offsetMinutesOf(iso: string): number | undefined {
+  if (/(Z|z)$/.test(iso)) return 0;
+  const m = /([+-])(\d{2}):?(\d{2})$/.exec(iso);
+  if (!m) return undefined;
+  const sign = m[1] === '-' ? -1 : 1;
+  return sign * (Number(m[2]) * 60 + Number(m[3]));
+}
+
+/**
+ * Render an instant in the offset the patch was written in.
+ *
+ * `toISOString()` would report it in UTC, so a row the operator knows as 18:00
+ * on the 26th in MDT comes back as the 27th — a different calendar day, in a
+ * message whose whole purpose is to point at a specific row. Same class of
+ * error as #402, and worth avoiding in the text as much as in the arithmetic.
+ */
+function formatInOffset(date: Date, offsetMinutes: number | undefined): string {
+  if (offsetMinutes === undefined) return date.toISOString();
+  const shifted = new Date(date.getTime() + offsetMinutes * 60_000);
+  const sign = offsetMinutes < 0 ? '-' : '+';
+  const abs = Math.abs(offsetMinutes);
+  const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+  const mm = String(abs % 60).padStart(2, '0');
+  return `${shifted.toISOString().slice(0, 19)}${sign}${hh}:${mm}`;
 }
 
 function applyOperation(
@@ -99,7 +144,7 @@ function applyOperation(
 export function applyWeatherPatch(
   rows: WeatherHourlyData[],
   patch: Obj & { name: string },
-): WeatherHourlyData[] {
+): PatchResult {
   const filter = (patch.filter ?? {}) as Obj;
 
   const startTime = timeOf(filter.startTime);
@@ -123,6 +168,7 @@ export function applyWeatherPatch(
     );
   }
 
+  const windowOffset = offsetMinutesOf(startTime);
   const from = new Date(startTime).getTime();
   const to = new Date(endTime).getTime();
   if (!Number.isFinite(from) || !Number.isFinite(to)) {
@@ -153,10 +199,12 @@ export function applyWeatherPatch(
   if (changes.length === 0) {
     // A legal shape: a patch with a window and geometry but no weather
     // operation. Nothing to apply.
-    return rows.map((row) => ({ ...row }));
+    return { rows: rows.map((row) => ({ ...row })), warnings: [] };
   }
 
-  return rows.map((row) => {
+  const warnings: string[] = [];
+
+  const patched = rows.map((row) => {
     const at = row.date.getTime();
     if (at < from || at > to) return { ...row };
 
@@ -164,14 +212,32 @@ export function applyWeatherPatch(
     for (const change of changes) {
       const current = next[change.column];
       if (typeof current !== 'number') continue;
-      next[change.column] = applyOperation(
+      const applied = applyOperation(
         current,
         change.operation,
         change.operand,
         change.field,
         patch.name,
       );
+
+      // Clamp RH, and say so. A patch can legitimately push it past either end
+      // — five points onto a row already at 98 — and 103 is not a humidity.
+      // Clamping silently would be the silent default the import policy
+      // forbids, so the operator is told which row and by how much.
+      if (change.column === 'rh' && (applied < RH_MIN || applied > RH_MAX)) {
+        const clamped = Math.min(RH_MAX, Math.max(RH_MIN, applied));
+        warnings.push(
+          `Weather patch "${patch.name}" put RH at ${applied} for ` +
+            `${formatInOffset(row.date, windowOffset)}; clamped to ${clamped}.`,
+        );
+        next[change.column] = clamped;
+        continue;
+      }
+
+      next[change.column] = applied;
     }
     return next as unknown as WeatherHourlyData;
   });
+
+  return { rows: patched, warnings };
 }

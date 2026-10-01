@@ -65,7 +65,7 @@ function rowOutsideWindow(): WeatherHourlyData {
 describe('applyWeatherPatch', () => {
   describe('RH is a fraction in the file and a percentage in the CSV', () => {
     it('reads rh 0.05 Minus as five percentage points, not 0.05', () => {
-      const [patched] = applyWeatherPatch([rowInWindow()], worstPatch());
+      const { rows: [patched] } = applyWeatherPatch([rowInWindow()], worstPatch());
 
       expect(patched.rh).toBeCloseTo(51, 6);
       // the bug this test exists to catch
@@ -73,7 +73,7 @@ describe('applyWeatherPatch', () => {
     });
 
     it('reads rh 0.05 Plus as five percentage points upward', () => {
-      const [patched] = applyWeatherPatch([rowInWindow()], bestPatch());
+      const { rows: [patched] } = applyWeatherPatch([rowInWindow()], bestPatch());
 
       expect(patched.rh).toBeCloseTo(61, 6);
       expect(patched.rh).not.toBeCloseTo(56.05, 6);
@@ -82,8 +82,8 @@ describe('applyWeatherPatch', () => {
 
   describe('every other variable is already in the CSV’s units', () => {
     it('applies temperature directly, without the ×100', () => {
-      const [worse] = applyWeatherPatch([rowInWindow()], worstPatch());
-      const [better] = applyWeatherPatch([rowInWindow()], bestPatch());
+      const { rows: [worse] } = applyWeatherPatch([rowInWindow()], worstPatch());
+      const { rows: [better] } = applyWeatherPatch([rowInWindow()], bestPatch());
 
       expect(worse.temp).toBeCloseTo(22.09, 6); // Plus 5
       expect(better.temp).toBeCloseTo(12.09, 6); // Minus 5
@@ -91,7 +91,7 @@ describe('applyWeatherPatch', () => {
 
     it('leaves variables the patch does not mention alone', () => {
       const original = rowInWindow();
-      const [patched] = applyWeatherPatch([original], worstPatch());
+      const { rows: [patched] } = applyWeatherPatch([original], worstPatch());
 
       expect(patched.ws).toBe(original.ws);
       expect(patched.wd).toBe(original.wd);
@@ -102,8 +102,8 @@ describe('applyWeatherPatch', () => {
   describe('the BEST and WORST patches are exact inverses', () => {
     it('moves temperature and humidity in opposite directions', () => {
       const base = rowInWindow();
-      const [worse] = applyWeatherPatch([base], worstPatch());
-      const [better] = applyWeatherPatch([base], bestPatch());
+      const { rows: [worse] } = applyWeatherPatch([base], worstPatch());
+      const { rows: [better] } = applyWeatherPatch([base], bestPatch());
 
       expect(worse.temp - base.temp).toBeCloseTo(-(better.temp - base.temp), 6);
       expect(worse.rh - base.rh).toBeCloseTo(-(better.rh - base.rh), 6);
@@ -116,7 +116,7 @@ describe('applyWeatherPatch', () => {
   describe('the patch applies only within its own window', () => {
     it('leaves rows outside the window untouched', () => {
       const outside = rowOutsideWindow();
-      const [patched] = applyWeatherPatch([outside], worstPatch());
+      const { rows: [patched] } = applyWeatherPatch([outside], worstPatch());
 
       expect(patched.temp).toBe(outside.temp);
       expect(patched.rh).toBe(outside.rh);
@@ -125,7 +125,7 @@ describe('applyWeatherPatch', () => {
     it('patches only the rows inside, in a mixed stream', () => {
       const inside = rowInWindow();
       const outside = rowOutsideWindow();
-      const [a, b] = applyWeatherPatch([inside, outside], worstPatch());
+      const { rows: [a, b] } = applyWeatherPatch([inside, outside], worstPatch());
 
       expect(a.rh).toBeCloseTo(51, 6);
       expect(b.rh).toBe(outside.rh);
@@ -140,6 +140,58 @@ describe('applyWeatherPatch', () => {
 
       expect(original.rh).toBe(before.rh);
       expect(original.temp).toBe(before.temp);
+    });
+  });
+
+  describe('RH is clamped to 0-100, and says so', () => {
+    it('clamps an overshoot at 100 rather than emitting 103', () => {
+      // BEST adds five percentage points; 98 + 5 is not a humidity.
+      const { rows, warnings } = applyWeatherPatch([rowInWindow({ rh: 98 })], bestPatch());
+
+      expect(rows[0].rh).toBe(100);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toMatch(/wthrptch10/);
+      expect(warnings[0]).toMatch(/103/);
+      expect(warnings[0]).toMatch(/100/);
+    });
+
+    it('clamps an undershoot at 0', () => {
+      // WORST subtracts five; 3 - 5 is not a humidity either.
+      const { rows, warnings } = applyWeatherPatch([rowInWindow({ rh: 3 })], worstPatch());
+
+      expect(rows[0].rh).toBe(0);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toMatch(/wthrptch11/);
+    });
+
+    it('says nothing when every value stays in range', () => {
+      const { warnings } = applyWeatherPatch([rowInWindow()], worstPatch());
+
+      expect(warnings).toEqual([]);
+    });
+
+    it('warns once per affected row, naming the row time', () => {
+      const rows = [
+        rowInWindow({ rh: 99 }),
+        rowInWindow({ rh: 50 }),
+        rowInWindow({ rh: 97 }),
+      ];
+      const result = applyWeatherPatch(rows, bestPatch());
+
+      expect(result.rows.map((r) => r.rh)).toEqual([100, 55, 100]);
+      expect(result.warnings).toHaveLength(2);
+      expect(result.warnings[0]).toMatch(/2025-06-26/);
+    });
+
+    it('does not clamp a row the patch never touched', () => {
+      const { rows, warnings } = applyWeatherPatch(
+        [{ ...rowOutsideWindow(), rh: 103 }],
+        bestPatch(),
+      );
+
+      // Out of range, but not ours to change: the patch does not reach it.
+      expect(rows[0].rh).toBe(103);
+      expect(warnings).toEqual([]);
     });
   });
 });
