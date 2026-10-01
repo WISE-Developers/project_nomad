@@ -23,6 +23,7 @@ export {
   type PointCoordinates,
   type LineStringCoordinates,
   type PolygonCoordinates,
+  type MultiPolygonCoordinates,
   type Coordinates,
   type BoundingBox,
   type SpatialGeometryProps,
