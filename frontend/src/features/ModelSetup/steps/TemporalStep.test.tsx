@@ -14,6 +14,7 @@ import { WizardProvider } from '../../Wizard/index.js';
 import type { WizardConfig } from '../../Wizard/index.js';
 import type { ModelSetupData } from '../types/index.js';
 import { DEFAULT_MODEL_SETUP_DATA, MODEL_SETUP_STEPS } from '../types/index.js';
+import { getTodayDate } from '../utils/dateHelpers.js';
 
 function createWizardWrapper(initialData: ModelSetupData = DEFAULT_MODEL_SETUP_DATA) {
   const config: WizardConfig<ModelSetupData> = {
@@ -69,8 +70,11 @@ describe('TemporalStep default start date', () => {
     );
 
     const dateInput = screen.getByLabelText('Start date') as HTMLInputElement;
-    const today = new Date().toISOString().slice(0, 10);
-    expect(dateInput.value).toBe(today);
+    // getTodayDate is the helper the component itself uses, and it resolves in
+    // the local zone. The previous `new Date().toISOString().slice(0, 10)` read
+    // the UTC date instead, so this case failed from 18:00 MDT until local
+    // midnight every day while the component was behaving correctly (#402).
+    expect(dateInput.value).toBe(getTodayDate());
   });
 
   it('clamps an existing startDate into the new weather range when it falls outside', () => {
