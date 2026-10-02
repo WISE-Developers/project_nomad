@@ -221,10 +221,22 @@ export async function deleteModel(modelId: string): Promise<DeleteModelResponse>
 export interface RunModelRequest {
   name: string;
   engineType: 'firestarr' | 'wise';
-  ignition: {
+  /**
+   * A single ignition. Kept for existing callers, including the openNomad
+   * embedding contract.
+   */
+  ignition?: {
     type: 'point' | 'polygon' | 'linestring';
     coordinates: [number, number] | [number, number][] | [number, number][][];
   };
+  /**
+   * Several ignitions, merged server-side into one multi-part geometry
+   * (refs #294). Additive, so `ignition` keeps working.
+   */
+  ignitions?: Array<{
+    type: 'point' | 'polygon' | 'linestring';
+    coordinates: [number, number] | [number, number][] | [number, number][][];
+  }>;
   timeRange: {
     start: string;
     end: string;
@@ -255,6 +267,14 @@ export interface RunModelResponse {
   modelId: string;
   jobId: string;
   message: string;
+  /**
+   * What the backend did to the requested ignitions — a point turned into a
+   * nominal circle, a line widened into a corridor (refs #294).
+   *
+   * Empty for a single ignition. These must be shown: a point quietly becoming
+   * a 100 m circle is exactly the silence this issue has been removing.
+   */
+  ignitionNotices?: string[];
 }
 
 /**
