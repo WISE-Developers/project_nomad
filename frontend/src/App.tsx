@@ -16,6 +16,8 @@ import {
 } from './features/Map';
 import type { OutputItem } from './features/ModelReview/types';
 import { ModelSetupWizard } from './features/ModelSetup';
+import { ImportJobPanel } from './features/ModelSetup/import/ImportJobPanel';
+import type { ImportPrefill } from './features/ModelSetup/import/fromImportPlan';
 import type { ModelSetupData } from './features/ModelSetup';
 import { ModelReviewPanel } from './features/ModelReview';
 import {
@@ -114,6 +116,10 @@ const headerContainerStyle: React.CSSProperties = {
 function AppContent() {
   const api = useOpenNomad();
   const [showWizard, setShowWizard] = useState(false);
+  // Prefill for an imported Prometheus/WISE job (refs #294). Undefined for a
+  // model started from scratch, so the wizard keeps its own defaults.
+  const [wizardInitialData, setWizardInitialData] = useState<Partial<ModelSetupData> | undefined>();
+  const [showImportJob, setShowImportJob] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [reviewModelId, setReviewModelId] = useState<string | null>(null);
@@ -141,6 +147,25 @@ function AppContent() {
   });
 
   const handleNewModel = useCallback(() => {
+    // A model built from scratch carries no prefill.
+    setWizardInitialData(undefined);
+    setShowWizard(true);
+    setSubmitError(null);
+  }, []);
+
+  const handleImportJob = useCallback(() => {
+    setShowImportJob(true);
+    setSubmitError(null);
+  }, []);
+
+  /**
+   * The operator chose a scenario from an imported job, so open the wizard on
+   * it. They still review every step and submit the run themselves — the
+   * import prefills, it does not launch.
+   */
+  const handleImportedScenario = useCallback((prefill: ImportPrefill) => {
+    setWizardInitialData(prefill.initialData);
+    setShowImportJob(false);
     setShowWizard(true);
     setSubmitError(null);
   }, []);
@@ -555,6 +580,13 @@ function AppContent() {
             <i className="fa-solid fa-fire" style={{ marginRight: '8px' }} />New Fire Model
           </button>
           <button
+            style={headerButtonStyle}
+            onClick={handleImportJob}
+            title="Import a Prometheus or WISE job and set it up as a model"
+          >
+            <i className="fa-solid fa-file-import" style={{ marginRight: '8px' }} />Import Model
+          </button>
+          <button
             style={{ ...headerButtonStyle, backgroundColor: '#3b82f6' }}
             onClick={() => setShowDashboard(!showDashboard)}
           >
@@ -596,12 +628,20 @@ function AppContent() {
         />
       )}
 
+      {showImportJob && (
+        <ImportJobPanel
+          onSetUp={handleImportedScenario}
+          onCancel={() => setShowImportJob(false)}
+        />
+      )}
+
       {/* Model Setup Wizard */}
       {showWizard && (
         <>
           <ModelSetupWizard
             onComplete={handleWizardComplete}
             onCancel={handleWizardCancel}
+            initialData={wizardInitialData}
           />
 
           {/* Submission overlay */}
