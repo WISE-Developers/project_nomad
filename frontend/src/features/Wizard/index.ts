@@ -12,13 +12,13 @@ export { WizardStepContent } from './components/WizardStepContent';
 export { ValidationErrors, FieldError } from './components/ValidationErrors';
 
 // Context
+export { WizardProvider } from './context/WizardProvider';
 export {
-  WizardProvider,
   useWizard,
   useWizardValidation,
   useWizardNavigation,
   useWizardData,
-} from './context/WizardContext';
+} from './context/useWizard';
 
 // Hooks
 export { useWizardState } from './hooks/useWizardState';

@@ -68,6 +68,9 @@ export {
 // Context and Provider
 export {
   NomadProvider,
+  type NomadProviderProps,
+} from './NomadProvider.js';
+export {
   useNomadCustomization,
   useNomadCustomizationOptional,
   useNomadTheme,
@@ -75,7 +78,8 @@ export {
   useNomadFeatures,
   useIsFeatureEnabled,
   useActionsForPlacement,
-  type NomadProviderProps,
+} from './useNomadCustomization.js';
+export {
   type NomadCustomizationContextValue,
   type ThemeStyleAccessor,
 } from './NomadCustomizationContext.js';

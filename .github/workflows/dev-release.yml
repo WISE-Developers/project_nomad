@@ -10,7 +10,20 @@ permissions:
 jobs:
   dev-prerelease:
     runs-on: ubuntu-latest
-    if: github.actor != 'github-actions[bot]'
+    # Loop guard. This job pushes a bump commit to dev with a PAT, and a PAT
+    # push DOES re-trigger workflows, so without a guard it would run forever.
+    #
+    # The guard is on the commit MESSAGE, not on github.actor. The old actor
+    # check was unsound: these commits are *authored* as github-actions[bot]
+    # because of the git config below, but github.actor on a PAT-triggered push
+    # is the token owner, not the bot. Author and actor are different things.
+    #
+    # The marker is deliberately NOT `[skip ci]`. GitHub acts on that natively
+    # and suppresses every workflow for the commit, which left dev's head with
+    # zero check runs and blocked required checks on dev -> main PRs (#333).
+    # `[release-bot]` means nothing to GitHub, so CI still runs. Same pattern
+    # stable-release.yml already uses.
+    if: "!contains(github.event.head_commit.message, '[release-bot]')"
 
     steps:
       - name: Checkout
@@ -43,7 +56,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add frontend/package.json
-          git commit -m "chore: dev v${{ steps.version.outputs.current }} [skip ci]"
+          git commit -m "chore: dev v${{ steps.version.outputs.current }} [release-bot]"
           git push
 
       - name: Install dependencies

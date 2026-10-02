@@ -8,9 +8,15 @@
 import { Request, Response, NextFunction } from 'express';
 
 /**
- * Extend Express Request to include user
+ * Extend Express Request to include user.
+ *
+ * `namespace` is not a style choice here: augmenting Express's Request is only
+ * possible by merging into the global Express namespace it declares. There is
+ * no module-syntax equivalent, so no-namespace cannot be satisfied without
+ * giving up the augmentation entirely. Accepted deliberately (#386).
  */
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       /** Display identity. In oauth mode this is `name || email`. */

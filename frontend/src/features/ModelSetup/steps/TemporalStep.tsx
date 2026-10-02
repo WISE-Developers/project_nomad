@@ -246,7 +246,12 @@ export function TemporalStep() {
   // last visited this step (refs #244).
   useEffect(() => {
     if (!data.temporal || !data.temporal.startDate) {
-      const defaultStartDate = computeDefaultStartDate(data.weather) ?? getTodayDate();
+      // `temporal` already holds this value: in exactly this branch the memo
+      // above returned defaultTemporal, whose startDate is the same
+      // computeDefaultStartDate(...) ?? getTodayDate(). Recomputing it here
+      // duplicated the expression across two sites that had to be kept in step
+      // by hand, and only this one was observable to any test (#404).
+      const defaultStartDate = temporal.startDate;
       setField('temporal', {
         ...temporal,
         startDate: defaultStartDate,
@@ -422,10 +427,11 @@ export function TemporalStep() {
             operator's device is a guess, and the operator is frequently not
             in the same zone as the fire. Say so, and make confirming it a
             deliberate act rather than a silent default. */}
-        {temporal.timezoneSource === 'chosen' ? (
+        {temporal.timezoneSource === 'chosen' || temporal.timezoneSource === 'imported' ? (
           <div style={{ fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <i className="fa-solid fa-globe" style={{ fontSize: '11px' }} />
             Timezone: {temporal.timezone}
+            {temporal.timezoneSource === 'imported' && ' — from the imported job'}
           </div>
         ) : (
           <div

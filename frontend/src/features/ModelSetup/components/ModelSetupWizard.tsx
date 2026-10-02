@@ -24,31 +24,8 @@ import { useWeatherPreflightGate } from '../hooks/useWeatherPreflightGate';
 import { StartingCodesModal } from './StartingCodesModal';
 import { PreflightErrorModal } from './PreflightErrorModal';
 import { DrawingToolbar } from '../../Map';
-import { SpatialInputStep } from '../steps/SpatialInputStep';
-import { TemporalStep } from '../steps/TemporalStep';
-import { ModelSelectionStep } from '../steps/ModelSelectionStep';
-import { WeatherStep } from '../steps/WeatherStep';
-import { ReviewStep } from '../steps/ReviewStep';
-import type { ModelSetupData, ModelSetupStepId } from '../types';
-import { MODEL_SETUP_STEPS } from '../types';
-
-const STEP_COMPONENTS_BY_ID: Record<ModelSetupStepId, React.ComponentType> = {
-  spatial: SpatialInputStep,
-  weather: WeatherStep,
-  temporal: TemporalStep,
-  model: ModelSelectionStep,
-  review: ReviewStep,
-};
-
-/**
- * Returns the step component for a given wizard step index, derived from
- * MODEL_SETUP_STEPS order. Returns null if the index is out of range.
- */
-export function getStepComponent(index: number): React.ComponentType | null {
-  const step = MODEL_SETUP_STEPS[index];
-  if (!step) return null;
-  return STEP_COMPONENTS_BY_ID[step.id] ?? null;
-}
+import { getStepComponent } from './stepComponents';
+import type { ModelSetupData } from '../types';
 
 export interface ModelSetupWizardProps {
   /** Called when model setup completes */
@@ -57,6 +34,16 @@ export interface ModelSetupWizardProps {
   onCancel?: () => void;
   /** Optional draft ID to resume */
   draftId?: string;
+  /**
+   * Partial data to open the wizard pre-filled, merged over the defaults by
+   * useModelSetup.
+   *
+   * Added for the .fgmj import (refs #294): an imported scenario prefills the
+   * form so the operator reviews and completes it, rather than a run starting
+   * from a file nobody looked at. useModelSetup already accepted and merged
+   * this; the wizard simply never exposed it.
+   */
+  initialData?: Partial<ModelSetupData>;
   /**
    * Reserved space at the top of the viewport (e.g. an embedding host's
    * header). The wizard will not initialize, drag, or resize above this y.
@@ -218,7 +205,7 @@ function StepRouter() {
 /**
  * Model Setup Wizard component
  */
-export function ModelSetupWizard({ onComplete, onCancel, draftId, topGutter = 0 }: ModelSetupWizardProps) {
+export function ModelSetupWizard({ onComplete, onCancel, draftId, initialData, topGutter = 0 }: ModelSetupWizardProps) {
   const { windowSize, isMobile, isTablet } = useResponsive();
   const styles = getStyles(isMobile, isTablet);
 
@@ -293,6 +280,7 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId, topGutter = 0 
     onComplete: handleComplete,
     onCancel: handleCancel,
     draftId,
+    initialData,
   });
 
   // Mobile: Full-screen overlay

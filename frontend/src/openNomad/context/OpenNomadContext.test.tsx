@@ -10,7 +10,8 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { OpenNomadProvider, useOpenNomad, useOpenNomadOptional } from './OpenNomadContext.js';
+import { OpenNomadProvider } from './OpenNomadProvider.js';
+import { useOpenNomad, useOpenNomadOptional } from './useOpenNomad.js';
 import { createMockOpenNomadAPI, mockUser } from '../../test/mocks/openNomad.js';
 import type { IOpenNomadAPI } from '../api.js';
 

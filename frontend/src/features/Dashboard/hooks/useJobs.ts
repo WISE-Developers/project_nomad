@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useOpenNomad } from '../../../openNomad/index.js';
-import { useDashboard } from '../context/DashboardContext.js';
+import { useDashboard } from '../context/useDashboard.js';
 import type { Job, JobStatusDetail, Unsubscribe } from '../../../openNomad/api.js';
 
 // =============================================================================
@@ -211,8 +211,17 @@ export function useJobs(options: UseJobsOptions = {}): UseJobsReturn {
   useEffect(() => {
     return () => {
       mountedRef.current = false;
-      // Clean up all subscriptions
+      // Clean up all subscriptions.
+      //
+      // The rule warns that `subscriptionsRef.current` may have changed by the
+      // time this cleanup runs. It cannot have: the ref holds one Map created
+      // once by useRef, and `.current` is never reassigned anywhere in this
+      // file — every mutation goes through .set/.delete/.clear on that same
+      // Map. So cleanup unsubscribes exactly the subscriptions that were
+      // registered. Copying it to a local would read as guarding against a
+      // reassignment that does not happen. Verified for #393 group C.
       subscriptionsRef.current.forEach((unsubscribe) => unsubscribe());
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- ref holds one Map, never reassigned; see above
       subscriptionsRef.current.clear();
     };
   }, []);

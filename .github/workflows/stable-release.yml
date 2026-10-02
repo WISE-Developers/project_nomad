@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     if: >
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]'))
+      (github.event_name == 'push' && !contains(github.event.head_commit.message, '[release-bot]'))
 
     steps:
       - name: Checkout with full history
@@ -69,7 +69,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add frontend/package.json CHANGES.md
-          git commit -m "chore: release v${{ steps.newversion.outputs.version }} [skip ci]"
+          git commit -m "chore: release v${{ steps.newversion.outputs.version }} [release-bot]"
           git push
 
       - name: Create git tag
@@ -101,5 +101,5 @@ jobs:
           # to reset any more - dev carries real versions.
           git fetch origin dev
           git checkout dev
-          git merge main -m "chore: sync v${{ steps.newversion.outputs.version }} from main [skip ci]"
+          git merge main -m "chore: sync v${{ steps.newversion.outputs.version }} from main [release-bot]"
           git push origin dev

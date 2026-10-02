@@ -18,9 +18,12 @@ export { RasterLegend } from './components/RasterLegend';
 export { MapCapture } from './components/MapCapture';
 
 // Context
-export { MapProvider, useMap } from './context/MapContext';
-export { DrawProvider, useDraw } from './context/DrawContext';
-export { LayerProvider, useLayers } from './context/LayerContext';
+export { MapProvider } from './context/MapProvider';
+export { useMap } from './context/MapContext';
+export { DrawProvider } from './context/DrawProvider';
+export { useDraw } from './context/DrawContext';
+export { LayerProvider } from './context/LayerProvider';
+export { useLayers } from './context/useLayers';
 
 // Hooks
 export { useMeasurement } from './hooks/useMeasurement';

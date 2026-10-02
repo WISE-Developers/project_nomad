@@ -22,12 +22,12 @@ function parseCoords(coordStr: string): Position[] {
     .filter((c) => Number.isFinite(c[0]) && Number.isFinite(c[1]));
 }
 
-function collect<T>(node: unknown, tag: string, acc: T[], visit: (n: any) => T | undefined): void {
+function collect<T>(node: unknown, tag: string, acc: T[], visit: (n: unknown) => T | undefined): void {
   if (node === null || typeof node !== 'object') return;
   const obj = node as Record<string, unknown>;
   if (Array.isArray(obj[tag])) {
     for (const child of obj[tag] as unknown[]) {
-      const result = visit(child as any);
+      const result = visit(child);
       if (result !== undefined) acc.push(result);
     }
   }
@@ -54,7 +54,8 @@ export function parsePerimeterKML(input: string): PerimeterFeatureCollection {
   const features: Feature[] = [];
 
   let pointIdx = 0;
-  collect<Feature | undefined>(doc, 'Point', features as never[], (point) => {
+  collect<Feature | undefined>(doc, 'Point', features as never[], (node) => {
+    const point = node as { coordinates?: unknown };
     const coordStr = String(point?.coordinates ?? '');
     const coords = parseCoords(coordStr);
     if (coords.length === 0) return undefined;
@@ -68,7 +69,8 @@ export function parsePerimeterKML(input: string): PerimeterFeatureCollection {
   });
 
   let lineIdx = 0;
-  collect<Feature | undefined>(doc, 'LineString', features as never[], (line) => {
+  collect<Feature | undefined>(doc, 'LineString', features as never[], (node) => {
+    const line = node as { coordinates?: unknown };
     const coordStr = String(line?.coordinates ?? '');
     const coords = parseCoords(coordStr);
     if (coords.length < 2) return undefined;
@@ -82,7 +84,8 @@ export function parsePerimeterKML(input: string): PerimeterFeatureCollection {
   });
 
   let polyIdx = 0;
-  collect<Feature | undefined>(doc, 'Polygon', features as never[], (poly) => {
+  collect<Feature | undefined>(doc, 'Polygon', features as never[], (node) => {
+    const poly = node as { outerBoundaryIs?: { LinearRing?: { coordinates?: unknown } } };
     const outer = poly?.outerBoundaryIs;
     const ring = outer?.LinearRing;
     const coordStr = String(ring?.coordinates ?? '');

@@ -1,9 +1,8 @@
 import { useEffect, useRef, ReactNode } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import '../maplibreWorker';
-import 'maplibre-gl/dist/maplibre-gl.css';
 import { useMapInternal } from '../context/MapContext';
-import { DrawProvider } from '../context/DrawContext';
+import { DrawProvider } from '../context/DrawProvider';
 import { MapOptions, DEFAULT_MAP_OPTIONS, BASEMAP_STYLES, BasemapStyle } from '../types';
 
 /** Local storage key for persisting basemap selection (shared with BasemapSwitcher) */

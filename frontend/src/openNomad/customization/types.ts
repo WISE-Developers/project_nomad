@@ -457,9 +457,9 @@ export type DeepPartial<T> = {
 
 /**
  * Props that can be passed directly to NomadDashboard.
- * Same as NomadConfig but flattened for convenience.
+ *
+ * Identical to NomadConfig; the separate name exists so component prop
+ * definitions read clearly. An alias rather than an empty extending
+ * interface — it carries the same meaning without claiming to add fields.
  */
-export interface NomadCustomizationProps extends NomadConfig {
-  // All properties inherited from NomadConfig
-  // This type exists for clarity in component prop definitions
-}
+export type NomadCustomizationProps = NomadConfig;

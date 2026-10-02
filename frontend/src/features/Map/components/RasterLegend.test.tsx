@@ -10,7 +10,8 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { RasterLegend, parseRampStops } from './RasterLegend.js';
+import { RasterLegend } from './RasterLegend.js';
+import { parseRampStops } from './parseRampStops.js';
 import { ARRIVAL_RAMP_PRESETS } from '../utils/arrivalTimeSymbolization.js';
 
 // =============================================================================
@@ -19,7 +20,7 @@ import { ARRIVAL_RAMP_PRESETS } from '../utils/arrivalTimeSymbolization.js';
 
 const mockUseLayers = vi.fn();
 
-vi.mock('../context/LayerContext.js', () => ({
+vi.mock('../context/useLayers.js', () => ({
   useLayers: () => mockUseLayers(),
 }));
 

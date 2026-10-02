@@ -1,6 +1,6 @@
 {
   "name": "@nomad/frontend",
-  "version": "0.20.0",
+  "version": "0.20.16",
   "description": "Project Nomad - Fire Modeling GUI",
   "private": false,
   "type": "module",
@@ -22,7 +22,7 @@
     "build": "tsc -b && vite build",
     "build:lib": "vite build --config vite.lib.config.ts",
     "preview": "vite preview",
-    "lint": "eslint src",
+    "lint": "eslint src --max-warnings 0",
     "test": "vitest",
     "test:watch": "vitest watch",
     "test:e2e": "playwright test",

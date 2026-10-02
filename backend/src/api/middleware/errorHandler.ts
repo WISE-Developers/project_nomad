@@ -52,7 +52,6 @@ export const errorHandler: ErrorRequestHandler = (
   err: Error,
   req: Request,
   res: Response,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next: NextFunction
 ): void => {
   const correlationId = (req.headers['x-correlation-id'] as string) || randomUUID();

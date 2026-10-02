@@ -11,6 +11,20 @@ import type { ModelSetupData, SpatialData, BoundingBox } from '../types';
 import type { DrawnFeature, DrawingMode } from '../../Map/types/geometry';
 
 /**
+ * Stable fallbacks for embedded mode (no DrawProvider) — issue #393.
+ *
+ * Written inline as `?? (() => {})` / `?? []` these were rebuilt on every
+ * render, so every hook depending on them was rebuilt too and the
+ * memoisation did nothing. Module constants are stable for the process,
+ * which is all the deps arrays need.
+ *
+ * EMPTY_FEATURES is shared and must never be mutated. Nothing here does —
+ * geometry updates always construct a new array.
+ */
+const NOOP = () => {};
+const EMPTY_FEATURES: DrawnFeature[] = [];
+
+/**
  * Calculate bounding box from features
  */
 function calculateBounds(features: DrawnFeature[]): BoundingBox | undefined {
@@ -95,10 +109,10 @@ export function useGeometrySync(options: UseGeometrySyncOptions = {}): UseGeomet
 
   // Extract draw context values (use no-ops for embedded mode)
   const isReady = drawCtx?.isReady ?? false;
-  const deleteAll = drawCtx?.deleteAll ?? (() => {});
-  const drawFeatures = drawCtx?.state.features ?? [];
+  const deleteAll = drawCtx?.deleteAll ?? NOOP;
+  const drawFeatures = drawCtx?.state.features ?? EMPTY_FEATURES;
 
-  const features = data.geometry?.features ?? [];
+  const features = data.geometry?.features ?? EMPTY_FEATURES;
 
   /**
    * Update geometry in wizard data

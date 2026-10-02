@@ -19,6 +19,23 @@ import { ValidationError } from '../../domain/errors/index.js';
 const FIRESTARR_GRID_HALF_SIZE = 200000; // 200km
 
 /**
+ * Geometry types the rasterizer (and its callers) can turn into a perimeter
+ * raster. Single source of truth for the type gate — FireSTARRInputGenerator
+ * and FireSTARREngine's perimeter rule both check against this instead of
+ * repeating the Polygon/LineString/MultiPolygon list themselves (refs #294).
+ */
+export const PERIMETER_GEOMETRY_TYPES: readonly GeometryType[] = [
+  GeometryType.Polygon,
+  GeometryType.LineString,
+  GeometryType.MultiPolygon,
+];
+
+/** Whether a geometry type can be rasterized as a FireSTARR perimeter. */
+export function isSupportedPerimeterGeometry(type: GeometryType): boolean {
+  return PERIMETER_GEOMETRY_TYPES.includes(type);
+}
+
+/**
  * Options for perimeter rasterization.
  */
 export interface RasterizeOptions {
@@ -50,9 +67,9 @@ export interface RasterizeResult {
 
 /**
  * Converts geometry coordinates to WKT format.
- * Supports Polygon and LineString geometries.
+ * Supports Polygon, LineString, and MultiPolygon geometries.
  */
-function geometryToWKT(geometry: SpatialGeometry): string {
+export function geometryToWKT(geometry: SpatialGeometry): string {
   if (geometry.type === GeometryType.Polygon) {
     const coords = geometry.coordinates as number[][][];
     const rings = coords.map((ring) =>
@@ -61,13 +78,27 @@ function geometryToWKT(geometry: SpatialGeometry): string {
     return `POLYGON((${rings.join('), (')}))`;
   }
 
+  if (geometry.type === GeometryType.MultiPolygon) {
+    // One parenthesized group per MEMBER, each wrapped exactly the way a
+    // standalone polygon is (exterior ring then holes). GDAL's fromWKT
+    // accepts this directly — no new parsing needed upstream.
+    const members = geometry.coordinates as number[][][][];
+    const memberGroups = members.map((rings) => {
+      const ringStrings = rings.map((ring) =>
+        ring.map(([x, y]) => `${x} ${y}`).join(', ')
+      );
+      return `((${ringStrings.join('), (')}))`;
+    });
+    return `MULTIPOLYGON(${memberGroups.join(', ')})`;
+  }
+
   if (geometry.type === GeometryType.LineString) {
     const coords = geometry.coordinates as number[][];
     const points = coords.map(([x, y]) => `${x} ${y}`).join(', ');
     return `LINESTRING(${points})`;
   }
 
-  throw new Error(`Expected Polygon or LineString geometry, got ${geometry.type}`);
+  throw new Error(`Expected Polygon, LineString, or MultiPolygon geometry, got ${geometry.type}`);
 }
 
 /**
@@ -134,6 +165,81 @@ function pointInPolygon(x: number, y: number, polygon: number[][]): boolean {
   return inside;
 }
 
+/** One polygon's own rings — exterior first, holes after, in COORDINATE
+ * SPACE (already transformed), never parsed from WKT text. */
+interface PolygonMember {
+  exterior: number[][];
+  holes: number[][][];
+  envelope: { minX: number; minY: number; maxX: number; maxY: number };
+}
+
+/**
+ * Minimal surface of gdal-async's Geometry this module depends on, named
+ * explicitly so the structural walk below is typed rather than `any`-typed
+ * end to end.
+ */
+interface GdalRingLike {
+  points: { toArray(): { x: number; y: number }[] };
+}
+interface GdalPolygonLike {
+  name: string;
+  rings: { count(): number; get(i: number): GdalRingLike };
+  getEnvelope(): { minX: number; minY: number; maxX: number; maxY: number };
+}
+interface GdalMultiPolygonLike {
+  name: string;
+  children: { count(): number; get(i: number): GdalPolygonLike };
+}
+
+function ringToPoints(ring: GdalRingLike): number[][] {
+  return ring.points.toArray().map((p) => [p.x, p.y]);
+}
+
+function singlePolygonMember(polygon: GdalPolygonLike): PolygonMember {
+  const ringCount = polygon.rings.count();
+  if (ringCount === 0) {
+    throw new Error('Polygon geometry has no rings — cannot determine what to burn.');
+  }
+  const exterior = ringToPoints(polygon.rings.get(0));
+  const holes: number[][][] = [];
+  for (let i = 1; i < ringCount; i++) {
+    holes.push(ringToPoints(polygon.rings.get(i)));
+  }
+  return { exterior, holes, envelope: polygon.getEnvelope() };
+}
+
+/**
+ * Walks a GDAL Polygon or MultiPolygon STRUCTURALLY — via `.rings` and, for
+ * a MultiPolygon, `.children` — into one PolygonMember per member, each
+ * with its own exterior ring and hole rings kept separate (refs #406).
+ *
+ * This replaces extracting coordinates by regex-matching the geometry's own
+ * WKT text. That regex, `/POLYGON\s*\(\((.+)\)\)/i`, matches a
+ * MultiPolygon's WKT too — "MULTIPOLYGON" contains the substring "POLYGON"
+ * — and its greedy capture runs to the LAST `))`, merging every member's
+ * (and, for an ordinary polygon, every hole's) points into one flat list.
+ * Walking the geometry's own structure cannot make that mistake: a
+ * MultiPolygon's members and a polygon's holes are never ambiguous here.
+ */
+function polygonMembersOf(geometry: GdalPolygonLike | GdalMultiPolygonLike): PolygonMember[] {
+  if (geometry.name === 'MULTIPOLYGON') {
+    const multi = geometry as GdalMultiPolygonLike;
+    const count = multi.children.count();
+    const members: PolygonMember[] = [];
+    for (let i = 0; i < count; i++) {
+      members.push(singlePolygonMember(multi.children.get(i)));
+    }
+    return members;
+  }
+  return [singlePolygonMember(geometry as GdalPolygonLike)];
+}
+
+/** Inside the member's exterior ring and outside every one of its holes. */
+function isInsideMember(x: number, y: number, member: PolygonMember): boolean {
+  if (!pointInPolygon(x, y, member.exterior)) return false;
+  return !member.holes.some((hole) => pointInPolygon(x, y, hole));
+}
+
 /**
  * Rasterizes a polygon geometry to a GeoTIFF.
  *
@@ -151,13 +257,14 @@ export async function rasterizePerimeter(
   const { geometry, templatePath, outputPath, burnValue = 1 } = options;
 
   // Validate geometry type
-  if (geometry.type !== GeometryType.Polygon && geometry.type !== GeometryType.LineString) {
+  if (!isSupportedPerimeterGeometry(geometry.type)) {
     return Result.fail(
-      new ValidationError(`Perimeter must be a polygon or linestring, got ${geometry.type}`)
+      new ValidationError(`Perimeter must be a polygon, linestring, or multipolygon, got ${geometry.type}`)
     );
   }
 
   const isLineString = geometry.type === GeometryType.LineString;
+  const shapeLabel = isLineString ? 'LineString' : geometry.type === GeometryType.MultiPolygon ? 'MultiPolygon' : 'Polygon';
 
   try {
     // Dynamic import of gdal-async for coordinate transformation
@@ -218,7 +325,7 @@ export async function rasterizePerimeter(
     const centerX = utmCentroid.x as number;
     const centerY = utmCentroid.y as number;
 
-    console.log(`[PerimeterRasterizer] ${isLineString ? 'LineString' : 'Polygon'} centroid (UTM): ${centerX.toFixed(1)}, ${centerY.toFixed(1)}`);
+    console.log(`[PerimeterRasterizer] ${shapeLabel} centroid (UTM): ${centerX.toFixed(1)}, ${centerY.toFixed(1)}`);
 
     // Transform UTM centroid back to WGS84 for use as ignition point
     // This ensures the ignition point matches the perimeter raster center
@@ -226,8 +333,8 @@ export async function rasterizePerimeter(
     const wgs84Centroid = inverseTransform.transformPoint(centerX, centerY);
     const centroidLongitude = wgs84Centroid.x;
     const centroidLatitude = wgs84Centroid.y;
-    console.log(`[PerimeterRasterizer] ${isLineString ? 'LineString' : 'Polygon'} centroid (WGS84): ${centroidLongitude.toFixed(6)}, ${centroidLatitude.toFixed(6)}`);
-    console.log(`[PerimeterRasterizer] ${isLineString ? 'LineString' : 'Polygon'} envelope: [${envelope.minX.toFixed(1)}, ${envelope.minY.toFixed(1)}, ${envelope.maxX.toFixed(1)}, ${envelope.maxY.toFixed(1)}]`);
+    console.log(`[PerimeterRasterizer] ${shapeLabel} centroid (WGS84): ${centroidLongitude.toFixed(6)}, ${centroidLatitude.toFixed(6)}`);
+    console.log(`[PerimeterRasterizer] ${shapeLabel} envelope: [${envelope.minX.toFixed(1)}, ${envelope.minY.toFixed(1)}, ${envelope.maxX.toFixed(1)}, ${envelope.maxY.toFixed(1)}]`);
 
     // Calculate local extent: 200km buffer around polygon centroid, snapped to pixel boundaries
     let minX = centerX - FIRESTARR_GRID_HALF_SIZE;
@@ -309,43 +416,48 @@ export async function rasterizePerimeter(
         burnedCells++;
       }
     } else {
-      // Polygon rasterization: burn cells inside the polygon
-      const coordMatch = transformedWkt.match(/POLYGON\s*\(\((.+)\)\)/i);
-      if (!coordMatch) {
-        outDs.close();
-        return Result.fail(new ValidationError('Failed to extract transformed polygon coordinates'));
-      }
+      // Polygon/MultiPolygon rasterization: burn cells inside each member's
+      // exterior ring, excluding its own hole rings — walking the GDAL
+      // geometry's `.rings`/`.children` structurally (see polygonMembersOf).
+      // No WKT text parsing, and no silent fallback: if the geometry cannot
+      // be walked this way, singlePolygonMember throws and the catch below
+      // turns it into a failed Result rather than a wrong burn.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const members = polygonMembersOf(gdalGeom as any);
 
-      const polygonCoords = coordMatch[1].split(',').map(coordStr => {
-        const [x, y] = coordStr.trim().split(/\s+/).map(Number);
-        return [x, y];
-      });
+      const burnedKeys = new Set<string>();
 
-      const polyMinX = envelope.minX;
-      const polyMaxX = envelope.maxX;
-      const polyMinY = envelope.minY;
-      const polyMaxY = envelope.maxY;
+      for (const member of members) {
+        const polyMinX = member.envelope.minX;
+        const polyMaxX = member.envelope.maxX;
+        const polyMinY = member.envelope.minY;
+        const polyMaxY = member.envelope.maxY;
 
-      const startCol = Math.max(0, Math.floor((polyMinX - minX) / pixelWidth) - 1);
-      const endCol = Math.min(width - 1, Math.ceil((polyMaxX - minX) / pixelWidth) + 1);
-      const startRow = Math.max(0, Math.floor((maxY - polyMaxY) / pixelHeight) - 1);
-      const endRow = Math.min(height - 1, Math.ceil((maxY - polyMinY) / pixelHeight) + 1);
+        const startCol = Math.max(0, Math.floor((polyMinX - minX) / pixelWidth) - 1);
+        const endCol = Math.min(width - 1, Math.ceil((polyMaxX - minX) / pixelWidth) + 1);
+        const startRow = Math.max(0, Math.floor((maxY - polyMaxY) / pixelHeight) - 1);
+        const endRow = Math.min(height - 1, Math.ceil((maxY - polyMinY) / pixelHeight) + 1);
 
-      console.log(`[PerimeterRasterizer] Polygon pixel extent: rows ${startRow}-${endRow}, cols ${startCol}-${endCol}`);
+        console.log(`[PerimeterRasterizer] Member pixel extent: rows ${startRow}-${endRow}, cols ${startCol}-${endCol}`);
 
-      const rowWidth = endCol - startCol + 1;
-      for (let row = startRow; row <= endRow; row++) {
-        const rowData = new Uint8Array(rowWidth);
-        for (let col = startCol; col <= endCol; col++) {
-          const cellX = minX + (col + 0.5) * pixelWidth;
-          const cellY = maxY - (row + 0.5) * pixelHeight;
-          if (pointInPolygon(cellX, cellY, polygonCoords)) {
-            rowData[col - startCol] = burnValue;
-            burnedCells++;
+        for (let row = startRow; row <= endRow; row++) {
+          for (let col = startCol; col <= endCol; col++) {
+            const cellX = minX + (col + 0.5) * pixelWidth;
+            const cellY = maxY - (row + 0.5) * pixelHeight;
+            if (isInsideMember(cellX, cellY, member)) {
+              burnedKeys.add(`${col},${row}`);
+            }
           }
         }
-        band.pixels.write(startCol, row, rowWidth, 1, rowData);
       }
+
+      // Written once per unique cell — members are not expected to
+      // overlap, but a shared cell must still count once, not twice.
+      for (const key of burnedKeys) {
+        const [col, row] = key.split(',').map(Number);
+        band.pixels.write(col, row, 1, 1, new Uint8Array([burnValue]));
+      }
+      burnedCells = burnedKeys.size;
     }
 
     // Flush and close

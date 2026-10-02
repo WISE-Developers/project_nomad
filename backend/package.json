@@ -8,7 +8,7 @@
     "dev": "cross-env NODE_ENV=development tsx watch src/index.ts",
     "build": "tsc && npm run copy:assets",
     "start": "node dist/index.js",
-    "lint": "eslint src",
+    "lint": "eslint src --max-warnings 0",
     "test": "vitest",
     "test:watch": "vitest watch",
     "copy:assets": "node -e \"const fs=require('fs'),path=require('path');const src='src/services/splash/assets';const dest='dist/services/splash/assets';fs.mkdirSync(dest,{recursive:true});for(const f of fs.readdirSync(src))fs.copyFileSync(path.join(src,f),path.join(dest,f));\""
@@ -34,6 +34,7 @@
     "luxon": "^3.7.2",
     "multer": "^2.4.0",
     "pngjs": "^7.0.0",
+    "protobufjs": "^8.8.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^13.0.0",

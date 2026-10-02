@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useWizard } from '../context/WizardContext';
+import { useWizard } from '../context/useWizard';
 import { ValidationErrors } from './ValidationErrors';
 
 // Breakpoints

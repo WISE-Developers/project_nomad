@@ -8,7 +8,6 @@
 
 export {
   OpenNomadProvider,
-  useOpenNomad,
-  useOpenNomadOptional,
   type OpenNomadProviderProps,
-} from './OpenNomadContext.js';
+} from './OpenNomadProvider.js';
+export { useOpenNomad, useOpenNomadOptional } from './useOpenNomad.js';

@@ -7,7 +7,15 @@
 import React, { useCallback } from 'react';
 import { useWizardData } from '../../Wizard';
 import { ModelSummary } from '../components/ModelSummary';
-import type { ModelSetupData } from '../types';
+import type { ModelSetupData, ExecutionPreferences } from '../types';
+
+// Shared fallback for `data.execution` when unset. Module-level so it has a
+// stable identity across renders (refs #393) — must never be mutated.
+const DEFAULT_EXECUTION: ExecutionPreferences = {
+  notifyEmail: false,
+  notifyPush: false,
+  notes: '',
+};
 
 const containerStyle: React.CSSProperties = {
   display: 'flex',
@@ -102,11 +110,7 @@ const warningStyle: React.CSSProperties = {
 export function ReviewStep() {
   const { data, setField } = useWizardData<ModelSetupData>();
 
-  const execution = data.execution ?? {
-    notifyEmail: false,
-    notifyPush: false,
-    notes: '',
-  };
+  const execution = data.execution ?? DEFAULT_EXECUTION;
 
   // Handle notification toggles
   const handleNotifyEmailChange = useCallback(

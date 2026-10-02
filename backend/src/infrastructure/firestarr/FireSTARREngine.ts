@@ -34,6 +34,7 @@ import {
 } from './timezoneUtils.js';
 import { getFireSTARRExecutor, isBinaryMode } from '../execution/index.js';
 import { FireSTARRInputGenerator, createFireSTARRInputGenerator } from './FireSTARRInputGenerator.js';
+import { isSupportedPerimeterGeometry } from './PerimeterRasterizer.js';
 import { FireSTARROutputParser, getFireSTARROutputParser } from './FireSTARROutputParser.js';
 import { getWeatherService } from '../weather/index.js';
 import type { WeatherDataPoint } from '../weather/types.js';
@@ -657,7 +658,7 @@ export class FireSTARREngine implements IFireModelingEngine, IWorkspaceAwareEngi
       previousDC: firstPoint.dc,
       previousPrecip: firstPoint.precipitation,
       outputDateOffsets,
-      perimeter: (ignition.type === GeometryType.Polygon || ignition.type === GeometryType.LineString) ? ignition : undefined,
+      perimeter: isSupportedPerimeterGeometry(ignition.type) ? ignition : undefined,
       ignitionGeometry: ignition, // Save original ignition geometry for export
     };
   }

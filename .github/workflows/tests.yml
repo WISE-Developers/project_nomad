@@ -20,9 +20,18 @@ on:
   workflow_dispatch:
 
 concurrency:
-  # Keyed on the source branch so a push and its pull_request share a group and
-  # the superseded run is cancelled instead of running twice.
-  group: tests-${{ github.head_ref || github.ref }}
+  # Keyed on the SHORT branch name so a push and its pull_request land in the
+  # same group and the superseded run is cancelled instead of running twice.
+  #
+  # This was `github.head_ref || github.ref`, which never matched between the
+  # two events: head_ref is only set on pull_request and is bare (`dev`), while
+  # github.ref is set on push and is fully qualified (`refs/heads/dev`). Two
+  # different group names, so cancel-in-progress had nothing to cancel and every
+  # suite ran twice — which also left release PRs reporting UNSTABLE rather than
+  # CLEAN while the duplicates were still in flight. (#399)
+  #
+  # github.ref_name is the short form on both events, so the pair now matches.
+  group: tests-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -72,11 +81,40 @@ jobs:
         run: npx vitest run
         working-directory: frontend
 
+      # Lives here, not with the installer suites, because it builds the library
+      # (#403). The bash job installs root dependencies only, so vite is absent
+      # there and this could never pass — it failed every run and took the
+      # required `All tests` check down with it, while looking green locally
+      # where frontend/node_modules already exists.
+      - name: Library bundle emits no stylesheet
+        run: bash scripts/__tests__/lib_bundle_no_css.test.sh
+        working-directory: frontend
+
   scripts:
     name: Installer suites (bash)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
+      # Root-only dependencies, for the suites that need one.
+      #
+      # fgmj_decode.test.sh needs protobufjs to decode .fgmj fixtures against the
+      # vendored WISE schema (#294). --workspaces=false keeps this to the two root
+      # devDependencies instead of installing backend and frontend, which is what
+      # this job was deliberately avoiding.
+      #
+      # That suite fails loudly rather than skipping when protobufjs is absent, so
+      # if this step is ever removed the failure says why instead of going quiet.
+      #
+      # A suite that needs to BUILD a workspace does not belong in this job — it
+      # cannot pass here, and it will look green on any developer machine that
+      # already has that workspace installed. lib_bundle_no_css.test.sh was
+      # exactly that and now runs in the Frontend job (#403).
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Install root dependencies only
+        run: npm ci --workspaces=false --ignore-scripts
 
       # These suites had no runner at all - not an npm script, not a workflow.
       # They are plain bash 3.x-compatible and self-contained, each exiting
@@ -122,7 +160,7 @@ jobs:
           echo "All installer scripts parse"
 
   lint:
-    name: Lint (ratchet)
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -135,21 +173,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Deliberately a RATCHET rather than a plain blocking lint run.
+      # Plain and blocking, as of #386 taking the count to 0.
       #
-      # Lint had never executed here (#386) — ESLint 9 needs flat config and
-      # none existed, and the workspace scripts used `src/**/*.ts`, which the
-      # shell expands without globstar, so even once it ran it covered 6 of 275
-      # files. Fixing both left a backlog of 108 findings.
+      # This was a ratchet for as long as there was a backlog to drain: lint had
+      # never actually executed here, and the workspace globs covered 6 of 275
+      # files, so switching it on revealed 108 findings at once. A blocking job
+      # then would have sat permanently red and taught everyone to ignore it.
+      # The ceiling fell 108 -> 94 -> 92 -> 0, so the ratchet and its baseline
+      # are gone and any new finding fails the build.
       #
-      # A blocking job would fail on every branch from day one, CI would sit
-      # permanently red, and people would learn to ignore it — which is the
-      # same "a check that looks like coverage and isn't" failure that produced
-      # the situation. So: the count may fall or hold, never grow. When
-      # .lint-baseline reaches 0, delete the script and make this a plain
-      # `npm run lint`.
-      - name: Lint ratchet
-        run: bash scripts/lint-ratchet.sh
+      # The workspace lint scripts pass --max-warnings 0 deliberately. Several
+      # rules are configured as warnings -- react-refresh/only-export-components
+      # most of all -- and eslint exits 0 on warnings. Without that flag this
+      # job would be WEAKER than the ratchet it replaced, because the ratchet
+      # counted warnings and a bare `eslint src` does not. Verified: a single
+      # react-refresh warning exits 0 plain, 1 with the flag.
+      #
+      # The job id stays `lint` because all-tests lists it in `needs`.
+      - name: Lint
+        run: npm run lint
 
   # Single required check to point branch protection at, so adding or renaming
   # a job later does not silently leave the gate unprotected.
