@@ -157,6 +157,32 @@ repair_ownership() {
     print_success "Ownership repaired ($drift path(s))"
 }
 
+# Wait for the backend to answer, rather than asking once and giving up.
+#
+# This used to be `sleep 10` plus a single curl. Every healthy deploy of the
+# CIFFC demo ended on "Could not read /api/v1/info" because the backend was
+# still running migrations and answered about twenty seconds in. A warning that
+# fires on every successful deploy trains whoever is deploying to ignore it,
+# and makes a real failure indistinguishable from a slow boot.
+#
+# Bounded on purpose: it must still FAIL for a backend that never comes up,
+# otherwise the check is decorative. Prints the matched version and returns 0,
+# or prints nothing and returns 1.
+await_version() {
+    local port="${1:-3001}" budget="${2:-90}"
+    local waited=0 reported=""
+    while [ "$waited" -lt "$budget" ]; do
+        reported="$(curl -fsS "localhost:${port}/api/v1/info" 2>/dev/null | grep -oE '"version":"[^"]+"' || true)"
+        if [ -n "$reported" ]; then
+            printf '%s' "$reported"
+            return 0
+        fi
+        sleep 3
+        waited=$((waited + 3))
+    done
+    return 1
+}
+
 main() {
     refuse_root || exit 1
 
@@ -212,13 +238,11 @@ main() {
     print_info "Recreating $SERVICE only"
     docker compose up -d "$SERVICE"
 
-    sleep 10
     local reported
-    reported="$(curl -fsS "localhost:${NOMAD_FRONTEND_HOST_PORT:-3001}/api/v1/info" 2>/dev/null | grep -oE '"version":"[^"]+"' || true)"
-    if [ -n "$reported" ]; then
+    if reported="$(await_version "${NOMAD_FRONTEND_HOST_PORT:-3001}" 90)"; then
         print_success "Deployed: $reported"
     else
-        print_warning "Could not read /api/v1/info — check 'docker logs $SERVICE'"
+        print_warning "No answer from /api/v1/info after 90s — check 'docker logs $SERVICE'"
     fi
 }
 
