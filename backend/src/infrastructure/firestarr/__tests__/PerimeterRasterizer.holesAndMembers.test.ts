@@ -19,7 +19,7 @@
  *   footprint, not flattened into one shape.
  */
 
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeAll, afterAll } from 'vitest';
 import { join } from 'path';
 import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
@@ -30,12 +30,71 @@ import {
 } from '../../../domain/entities/index.js';
 import { rasterizePerimeter, isGDALAvailable } from '../PerimeterRasterizer.js';
 
-// A real fuel-grid tile, used only as a CRS/resolution template — never
-// written to. UTM zone 10N, 100m pixels.
-const FUEL_TEMPLATE = join(
-  '/Volumes/KINGSTON/localcode/sage_workspace/projects/project_nomad',
-  'firestarr_data/FireSTARR_Dataset_2025_V1.0/10N_50651/10N_50651.tif',
-);
+/**
+ * The CRS/resolution template, SYNTHESIZED rather than read off disk.
+ *
+ * This used to be an absolute path to a real fuel tile under
+ * `firestarr_data/`, on the volume the author happened to be working from.
+ * `firestarr_data/` is gitignored, so that file exists on exactly one machine:
+ * every `rasterizePerimeter` call returned `success: false` in CI and the three
+ * cell-count assertions below failed as `expected false to be true`. Green
+ * locally, red in CI, for a test whose whole job is guarding a production
+ * defect (#406, the silently-burned island).
+ *
+ * Deliberately NOT solved by skipping when the tile is absent. That would make
+ * the suite pass in CI by testing nothing, which is how a regression in #406
+ * would reach production unnoticed.
+ *
+ * The burned-cell counts are purely geometric -- 77 is a 7x11 pixel footprint,
+ * since 0.01 deg of longitude at 50 deg N is ~716 m and 0.01 deg of latitude is
+ * ~1113 m, against 100 m pixels. Nothing reads the template's PIXEL VALUES, only
+ * its CRS, pixel size and grid phase. So a synthesized raster carrying the real
+ * tile's projection (NAD83 / UTM 10N), its 100 m pixels and an origin on the same
+ * 100 m grid is equivalent for this purpose -- which the unchanged pinned counts
+ * of 77 and 65 demonstrate.
+ */
+const TEMPLATE_EPSG = 26910; // NAD83 / UTM zone 10N, as the real tiles use
+const TEMPLATE_PIXEL_M = 100;
+/**
+ * Origin on the same 100 m grid as the real tile (300000, 9400000), so pixel
+ * boundaries fall in the same places and the pinned counts are unaffected.
+ * The window covers every geometry in this file: eastings ~500000-516500 and
+ * northings ~5538000-5561500 for lon -123.0..-122.77, lat 50.0..50.21.
+ */
+const TEMPLATE_ORIGIN_X = 490000;
+const TEMPLATE_ORIGIN_Y = 5575000;
+const TEMPLATE_WIDTH_PX = 400;
+const TEMPLATE_HEIGHT_PX = 500;
+
+let templateDir: string;
+let FUEL_TEMPLATE: string;
+
+/** Writes a minimal single-band GeoTIFF to stand in for a fuel tile. */
+async function createTemplate(targetPath: string): Promise<void> {
+  const gdal = await import('gdal-async');
+  const dataset = gdal.drivers
+    .get('GTiff')
+    .create(targetPath, TEMPLATE_WIDTH_PX, TEMPLATE_HEIGHT_PX, 1, gdal.GDT_Byte);
+  try {
+    dataset.srs = gdal.SpatialReference.fromEPSG(TEMPLATE_EPSG);
+    dataset.geoTransform = [
+      TEMPLATE_ORIGIN_X,
+      TEMPLATE_PIXEL_M,
+      0,
+      TEMPLATE_ORIGIN_Y,
+      0,
+      -TEMPLATE_PIXEL_M,
+    ];
+    const band = dataset.bands.get(1);
+    band.noDataValue = 0;
+    // Uniform "fuel present". Values are not read by the burn path, but an
+    // all-nodata grid would be a misleading fixture to leave behind.
+    band.fill(1);
+    dataset.flush();
+  } finally {
+    dataset.close();
+  }
+}
 
 function square(lon: number, lat: number, sizeDeg: number): Position[] {
   return [
@@ -56,6 +115,16 @@ const HOLE_SIZE_DEG = BOX_SIZE_DEG / 3;
 describe('rasterizePerimeter — structural burning (refs #406)', () => {
   let tempDir: string;
   let gdalAvailable: boolean;
+
+  beforeAll(async () => {
+    templateDir = await mkdtemp(join(tmpdir(), 'perimeter-template-'));
+    FUEL_TEMPLATE = join(templateDir, 'template.tif');
+    await createTemplate(FUEL_TEMPLATE);
+  });
+
+  afterAll(async () => {
+    if (templateDir) await rm(templateDir, { recursive: true, force: true });
+  });
 
   afterEach(async () => {
     if (tempDir) await rm(tempDir, { recursive: true, force: true });
