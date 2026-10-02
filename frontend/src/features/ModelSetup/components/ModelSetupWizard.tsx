@@ -35,6 +35,16 @@ export interface ModelSetupWizardProps {
   /** Optional draft ID to resume */
   draftId?: string;
   /**
+   * Partial data to open the wizard pre-filled, merged over the defaults by
+   * useModelSetup.
+   *
+   * Added for the .fgmj import (refs #294): an imported scenario prefills the
+   * form so the operator reviews and completes it, rather than a run starting
+   * from a file nobody looked at. useModelSetup already accepted and merged
+   * this; the wizard simply never exposed it.
+   */
+  initialData?: Partial<ModelSetupData>;
+  /**
    * Reserved space at the top of the viewport (e.g. an embedding host's
    * header). The wizard will not initialize, drag, or resize above this y.
    * Defaults to 0 for standalone Nomad.
@@ -195,7 +205,7 @@ function StepRouter() {
 /**
  * Model Setup Wizard component
  */
-export function ModelSetupWizard({ onComplete, onCancel, draftId, topGutter = 0 }: ModelSetupWizardProps) {
+export function ModelSetupWizard({ onComplete, onCancel, draftId, initialData, topGutter = 0 }: ModelSetupWizardProps) {
   const { windowSize, isMobile, isTablet } = useResponsive();
   const styles = getStyles(isMobile, isTablet);
 
@@ -270,6 +280,7 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId, topGutter = 0 
     onComplete: handleComplete,
     onCancel: handleCancel,
     draftId,
+    initialData,
   });
 
   // Mobile: Full-screen overlay

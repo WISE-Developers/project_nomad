@@ -1,0 +1,38 @@
+{
+  "scenarioName": "2021_AB_LWF-184-2021 3 Day Scenario",
+  "startTime": "2021-09-02T13:00:00-06:00",
+  "endTime": "2021-09-05T13:00:00-06:00",
+  "durationHours": 72,
+  "timezone": "-06:00",
+  "latitude": 55.678433,
+  "longitude": -112.2258,
+  "startingCodes": {
+    "ffmc": 37,
+    "dmc": 2,
+    "dc": 297,
+    "precipitation": 0.32000000000000006
+  },
+  "ignitions": [
+    {
+      "name": "ign5",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -112.2258,
+          55.678433
+        ]
+      }
+    }
+  ],
+  "rawWeatherContent": "Date,PREC,TEMP,RH,WS,WD\n2021-09-02 00:00,0,10.9,98,16,320\n2021-09-02 01:00,0.1,10.5,98,17,320\n2021-09-02 02:00,0.1,10.2,98,17,320",
+  "weatherRowCount": 241,
+  "appliedPatches": [],
+  "skippedFuelPatches": [],
+  "skippedWindPatches": [],
+  "polygonPatches": [],
+  "blockers": [],
+  "blockerDetail": [],
+  "warnings": [],
+  "divergences": [],
+  "runnable": true
+}
