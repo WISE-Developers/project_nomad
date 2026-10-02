@@ -60,10 +60,20 @@ describe('resolveZonedInstant', () => {
     expect(instant.toISOString()).toBe('2026-03-08T09:00:00.000Z');
   });
 
-  it('resolves a time on the day the clocks go back', () => {
-    // 2026-11-01, fall-back. 12:00 local is MST (UTC-7) by midday.
+  it('resolves a time on the day Alberta stops observing DST for good', () => {
+    // 2026-11-01 is NOT an ordinary fall-back. Alberta and the NWT stop
+    // observing DST permanently at 02:00 that day and are UTC-06 year round
+    // from then on (IANA tzdata 2026c for Edmonton, 2026d for Inuvik). So
+    // midday is UTC-06, not the UTC-07 the old first-Sunday rule would give.
+    //
+    // This assertion previously read 19:00Z, which is the OLD rule. It passed
+    // on any developer machine whose Node bundled pre-2026c tzdata and failed
+    // in CI, whose Node carries the change -- CI was correct. Fixed alongside
+    // ICU_TIMEZONE_FILES_DIR in vitest.config.ts so the suite now exercises
+    // the same tzdata the container ships. See
+    // backend/src/infrastructure/firestarr/__tests__/tzdataCurrency.test.ts.
     const instant = resolveZonedInstant('2026-11-01', '12:00', 'America/Edmonton');
-    expect(instant.toISOString()).toBe('2026-11-01T19:00:00.000Z');
+    expect(instant.toISOString()).toBe('2026-11-01T18:00:00.000Z');
   });
 
   it('accepts a time with seconds', () => {
