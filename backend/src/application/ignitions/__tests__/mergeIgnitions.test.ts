@@ -19,14 +19,16 @@ import { fileURLToPath } from 'url';
 import {
   GeometryType,
   SpatialGeometry,
+  type MultiPolygonCoordinates,
   type Position,
 } from '../../../domain/entities/index.js';
-import { planFgmjImport } from '../planFgmjImport.js';
-import { resolveProjection } from '../resolveProjection.js';
-import { toIgnitionGeometries, type IgnitionGeometry } from '../toIgnitionGeometry.js';
+import { planFgmjImport } from '../../prometheus/planFgmjImport.js';
+import { resolveProjection } from '../../prometheus/resolveProjection.js';
+import { toIgnitionGeometries, type IgnitionGeometry } from '../../prometheus/toIgnitionGeometry.js';
 import {
   mergeIgnitions,
   NOMINAL_POINT_IGNITION_DIAMETER_M,
+  type NamedIgnition,
 } from '../mergeIgnitions.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -74,18 +76,147 @@ describe('mergeIgnitions — refusals', () => {
     expect(() => mergeIgnitions([makePoint('only', 0, 0)])).toThrow(/more than one/i);
   });
 
-  it('refuses a LINE among multiple ignitions, naming it and why', () => {
-    const line: IgnitionGeometry = {
-      name: 'flank',
+  it('refuses a LINE whose points are all in one place — no direction to widen', () => {
+    const degenerate: NamedIgnition = {
+      name: 'stationary',
       geometry: new SpatialGeometry({
         type: GeometryType.LineString,
-        coordinates: [[0, 0], [1, 1]],
+        coordinates: [[-117, 60], [-117, 60]],
       }),
     };
-    const poly = makePolygon('perimeter', SQUARE_A);
+    expect(() => mergeIgnitions([makePolygon('perimeter', SQUARE_A), degenerate]))
+      .toThrow(/same place|no direction/i);
+  });
+});
 
-    expect(() => mergeIgnitions([poly, line])).toThrow(/"flank"/);
-    expect(() => mergeIgnitions([poly, line])).toThrow(/buffer width/i);
+describe('mergeIgnitions — a LINE among multiple becomes a nominal corridor', () => {
+  /**
+   * Franco, 2026-10-02, on why lines were being refused: "i think firestar
+   * will take whatever multigeometry we provide and rasterize it anyway, why
+   * single out lines - lets accomodate them too."
+   *
+   * He was right, and the refusal was inconsistent. It rested on a VECTOR
+   * constraint — a WKT MULTIPOLYGON cannot hold a LINESTRING — not on anything
+   * FireSTARR requires; FireSTARR only ever sees a rasterized perimeter. And
+   * "a line has no width" is the same objection as "a point has no extent",
+   * which was already answered with a nominal one-pixel circle.
+   *
+   * So a line is widened into a corridor of the same nominal cell size, one
+   * quad MEMBER per segment.
+   */
+  const LINE_AT_60N: Position[] = [
+    [-117.0, 60.0],
+    [-116.9, 60.0],
+    [-116.9, 60.1],
+  ];
+
+  const lineIgnition = (name: string, coordinates: Position[]): NamedIgnition => ({
+    name,
+    geometry: new SpatialGeometry({ type: GeometryType.LineString, coordinates }),
+  });
+
+  it('merges rather than refusing, with one member per segment', () => {
+    const { geometry } = mergeIgnitions([
+      makePolygon('perimeter', SQUARE_A),
+      lineIgnition('flank', LINE_AT_60N),
+    ]);
+    expect(geometry.type).toBe(GeometryType.MultiPolygon);
+    const members = geometry.coordinates as MultiPolygonCoordinates;
+    // One polygon member, plus one quad per line segment (2 segments).
+    expect(members).toHaveLength(3);
+  });
+
+  it('makes every corridor quad its own member, never a ring of another', () => {
+    // A ring would be read as a HOLE and would stop that fire burning — the
+    // trap this whole module exists to avoid.
+    const { geometry } = mergeIgnitions([
+      makePolygon('perimeter', SQUARE_A),
+      lineIgnition('flank', LINE_AT_60N),
+    ]);
+    const members = geometry.coordinates as MultiPolygonCoordinates;
+    for (const member of members) {
+      expect(member).toHaveLength(1);
+    }
+  });
+
+  it('widens the corridor to the nominal width in METRES, not in degrees', () => {
+    // At 60N a longitude degree is about half a latitude degree, so an
+    // equal-degree offset would make an east-west segment's corridor half as
+    // wide as a north-south one.
+    const { geometry } = mergeIgnitions([
+      makePolygon('perimeter', SQUARE_A),
+      lineIgnition('flank', [[-117.0, 60.0], [-116.9, 60.0]]),
+    ]);
+    const [, quad] = geometry.coordinates as MultiPolygonCoordinates;
+    const ring = quad[0];
+
+    // This segment runs east-west, so its corridor width is a latitude span.
+    const lats = ring.map((p) => p[1]);
+    const M_PER_DEG_LAT = (Math.PI / 180) * 6371008.8;
+    const widthM = (Math.max(...lats) - Math.min(...lats)) * M_PER_DEG_LAT;
+    expect(widthM).toBeGreaterThan(95);
+    expect(widthM).toBeLessThan(105);
+  });
+
+  it('widens a NORTH-SOUTH segment correctly too — the case that needs cos(latitude)', () => {
+    /**
+     * Added because a mutation removing the cos(latitude) correction survived.
+     * An EAST-WEST segment's corridor width is a LATITUDE span, and latitude
+     * offsets never touch the longitude conversion — so the earlier test was
+     * blind to it. A north-south segment's width is a LONGITUDE span, and at
+     * 60N dropping the correction makes it half as wide as asked.
+     */
+    const { geometry } = mergeIgnitions([
+      makePolygon('perimeter', SQUARE_A),
+      lineIgnition('flank', [[-117.0, 60.0], [-117.0, 60.1]]),
+    ]);
+    const [, quad] = geometry.coordinates as MultiPolygonCoordinates;
+    const ring = quad[0];
+
+    const lons = ring.map((p) => p[0]);
+    const M_PER_DEG_LAT = (Math.PI / 180) * 6371008.8;
+    const midLat = 60.05;
+    const mPerDegLon = M_PER_DEG_LAT * Math.cos((midLat * Math.PI) / 180);
+    const widthM = (Math.max(...lons) - Math.min(...lons)) * mPerDegLon;
+
+    expect(widthM).toBeGreaterThan(95);
+    expect(widthM).toBeLessThan(105);
+  });
+
+  it('is the same nominal size as the point circle', () => {
+    const { geometry } = mergeIgnitions([
+      makePolygon('perimeter', SQUARE_A),
+      lineIgnition('flank', [[-117.0, 60.0], [-116.9, 60.0]]),
+    ]);
+    const [, quad] = geometry.coordinates as MultiPolygonCoordinates;
+    const lats = quad[0].map((p) => p[1]);
+    const M_PER_DEG_LAT = (Math.PI / 180) * 6371008.8;
+    const widthM = (Math.max(...lats) - Math.min(...lats)) * M_PER_DEG_LAT;
+    expect(widthM).toBeCloseTo(NOMINAL_POINT_IGNITION_DIAMETER_M, 0);
+  });
+
+  it('closes every corridor ring', () => {
+    const { geometry } = mergeIgnitions([
+      makePolygon('perimeter', SQUARE_A),
+      lineIgnition('flank', LINE_AT_60N),
+    ]);
+    for (const member of geometry.coordinates as MultiPolygonCoordinates) {
+      const ring = member[0];
+      expect(ring[0]).toEqual(ring[ring.length - 1]);
+    }
+  });
+
+  it('names the line, the widening, the nominal size and the segment count', () => {
+    const { notices } = mergeIgnitions([
+      makePolygon('perimeter', SQUARE_A),
+      lineIgnition('flank', LINE_AT_60N),
+    ]);
+    const notice = notices.find((n) => n.includes('"flank"'));
+    expect(notice).toBeDefined();
+    expect(notice).toMatch(/LINE/);
+    expect(notice).toMatch(/corridor/i);
+    expect(notice).toContain('100 m');
+    expect(notice).toMatch(/2 segments/);
   });
 });
 

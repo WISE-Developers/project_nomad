@@ -33,7 +33,7 @@ import type { ExecutionOptions } from '../interfaces/IFireModelingEngine.js';
 import type { ScenarioImportPlan } from './planFgmjImport.js';
 import { toIgnitionGeometries } from './toIgnitionGeometry.js';
 import { toWeatherConfig } from './toWeatherConfig.js';
-import { mergeIgnitions } from './mergeIgnitions.js';
+import { mergeIgnitions } from '../ignitions/mergeIgnitions.js';
 
 export interface ImportedExecution {
   readonly options: ExecutionOptions;
