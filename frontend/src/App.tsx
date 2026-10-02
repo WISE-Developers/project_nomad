@@ -16,6 +16,9 @@ import {
 } from './features/Map';
 import type { OutputItem } from './features/ModelReview/types';
 import { ModelSetupWizard } from './features/ModelSetup';
+import { ImportJobPanel } from './features/ModelSetup/import/ImportJobPanel';
+import { toRequestedIgnitions } from './features/ModelSetup/utils/toRequestedIgnitions';
+import type { ImportPrefill } from './features/ModelSetup/import/fromImportPlan';
 import type { ModelSetupData } from './features/ModelSetup';
 import { ModelReviewPanel } from './features/ModelReview';
 import {
@@ -114,13 +117,22 @@ const headerContainerStyle: React.CSSProperties = {
 function AppContent() {
   const api = useOpenNomad();
   const [showWizard, setShowWizard] = useState(false);
+  // Prefill for an imported Prometheus/WISE job (refs #294). Undefined for a
+  // model started from scratch, so the wizard keeps its own defaults.
+  const [wizardInitialData, setWizardInitialData] = useState<Partial<ModelSetupData> | undefined>();
+  const [showImportJob, setShowImportJob] = useState(false);
+  /**
+   * What the backend did to the submitted ignitions (refs #294). Empty for a
+   * single ignition, which is the common case.
+   */
+  const [ignitionNotices, setIgnitionNotices] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [reviewModelId, setReviewModelId] = useState<string | null>(null);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
-  const { deleteAll } = useDraw();
+  const { deleteAll, addFeatures } = useDraw();
   const { map, isLoaded } = useMap();
   const { addGeoJSONLayer, addRasterLayer } = useLayers();
   const layerCounter = useRef(0);
@@ -141,9 +153,46 @@ function AppContent() {
   });
 
   const handleNewModel = useCallback(() => {
+    // A model built from scratch carries no prefill.
+    setWizardInitialData(undefined);
+    setIgnitionNotices([]);
     setShowWizard(true);
     setSubmitError(null);
   }, []);
+
+  const handleImportJob = useCallback(() => {
+    setShowImportJob(true);
+    setSubmitError(null);
+  }, []);
+
+  /**
+   * The operator chose a scenario from an imported job, so open the wizard on
+   * it. They still review every step and submit the run themselves — the
+   * import prefills, it does not launch.
+   */
+  const handleImportedScenario = useCallback((prefill: ImportPrefill) => {
+    // The imported ignition must go onto the MAP, not only into wizard data.
+    //
+    // The map is the source of truth for drawn geometry: useGeometrySync has an
+    // effect that pushes DrawContext features into wizard data as soon as the
+    // draw context is ready, so prefilled features alone are overwritten with
+    // an empty array the moment the wizard mounts. Found by running it — the
+    // Location step refused to advance with "Please select a fire location"
+    // while the prefill looked correct in every unit test.
+    //
+    // Putting them on the map also makes the import reviewable, which is the
+    // point of prefilling a wizard: the operator can see the ignition and move
+    // it before running.
+    deleteAll();
+    const features = prefill.initialData.geometry?.features ?? [];
+    if (features.length > 0) addFeatures(features);
+
+    setWizardInitialData(prefill.initialData);
+    setIgnitionNotices([]);
+    setShowImportJob(false);
+    setShowWizard(true);
+    setSubmitError(null);
+  }, [deleteAll, addFeatures]);
 
   const handleWizardComplete = useCallback(async (data: ModelSetupData) => {
     console.log('Model setup complete:', data);
@@ -159,38 +208,16 @@ function AppContent() {
       // submitting the model is the actual work, and it must not wait on them.
       void requestPermission();
 
-      // Extract coordinates from geometry
-      let coordinates: [number, number] | [number, number][] | [number, number][][] = [0, 0];
-      let ignitionType: 'point' | 'polygon' | 'linestring' = 'point';
-
-      if (data.geometry.features.length > 0) {
-        const feature = data.geometry.features[0];
-        const geomType = feature.geometry.type;
-        console.log('[App] Ignition geometry type:', geomType, 'Feature:', feature);
-
-        if (geomType === 'Point') {
-          coordinates = feature.geometry.coordinates as [number, number];
-          ignitionType = 'point';
-        } else if (geomType === 'Polygon') {
-          // Ensure polygon rings are closed (GeoJSON spec: first === last coordinate)
-          const rawRings = feature.geometry.coordinates as [number, number][][];
-          coordinates = rawRings.map((ring) => {
-            const first = ring[0];
-            const last = ring[ring.length - 1];
-            if (first[0] !== last[0] || first[1] !== last[1]) {
-              return [...ring, first];
-            }
-            return ring;
-          });
-          ignitionType = 'polygon';
-          console.log('[App] Using polygon ignition with coordinates:', coordinates);
-        } else if (geomType === 'LineString') {
-          // LineString sent as native linestring type for fire line ignition
-          coordinates = feature.geometry.coordinates as [number, number][];
-          ignitionType = 'linestring';
-          console.log('[App] Using line ignition with coordinates:', coordinates);
-        }
+      // Every drawn or imported feature, not just the first. The submit path
+      // used to read features[0], so a drawing with two shapes silently lost
+      // one. The backend merges more than one and tells us what it did.
+      const requestedIgnitions = toRequestedIgnitions(data.geometry.features);
+      if (requestedIgnitions.length === 0) {
+        throw new Error(
+          'No ignition was drawn or imported. FireSTARR needs somewhere to start the fire.',
+        );
       }
+      console.log('[App] Requested ignitions:', requestedIgnitions);
 
       // Build time range
       // Resolved in the model's own timezone, never the browser's (#355).
@@ -275,10 +302,9 @@ function AppContent() {
       const result = await runModel({
         name: `${engineName} - ${data.temporal.startDate}`,
         engineType: data.model.engine,
-        ignition: {
-          type: ignitionType,
-          coordinates,
-        },
+        // Additive: the single `ignition` field still exists for other
+        // callers, including the openNomad embedding contract.
+        ignitions: requestedIgnitions,
         timeRange: {
           start: startDateTime.toISOString(),
           end: endDateTime.toISOString(),
@@ -292,6 +318,11 @@ function AppContent() {
       });
 
       console.log('Model created and execution started:', result);
+
+      // What the backend did to the ignitions — a point turned into a nominal
+      // circle, a line widened into a corridor. Shown rather than logged: a
+      // silent conversion is the thing #294 has been removing throughout.
+      setIgnitionNotices(result.ignitionNotices ?? []);
 
       // Start watching job status
       watchJob(result.jobId);
@@ -555,6 +586,13 @@ function AppContent() {
             <i className="fa-solid fa-fire" style={{ marginRight: '8px' }} />New Fire Model
           </button>
           <button
+            style={headerButtonStyle}
+            onClick={handleImportJob}
+            title="Import a Prometheus or WISE job and set it up as a model"
+          >
+            <i className="fa-solid fa-file-import" style={{ marginRight: '8px' }} />Import Model
+          </button>
+          <button
             style={{ ...headerButtonStyle, backgroundColor: '#3b82f6' }}
             onClick={() => setShowDashboard(!showDashboard)}
           >
@@ -596,12 +634,66 @@ function AppContent() {
         />
       )}
 
+      {ignitionNotices.length > 0 && (
+        <div
+          role="status"
+          style={{
+            position: 'fixed',
+            bottom: '16px',
+            left: '16px',
+            maxWidth: '420px',
+            zIndex: 1000,
+            background: '#1f2937',
+            color: '#f9fafb',
+            border: '1px solid #f59e0b',
+            borderRadius: '8px',
+            padding: '12px 14px',
+            fontSize: '13px',
+            lineHeight: 1.45,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+          }}
+        >
+          <strong style={{ display: 'block', marginBottom: '6px' }}>
+            What was done to your ignitions
+          </strong>
+          <ul style={{ margin: 0, paddingLeft: '18px' }}>
+            {ignitionNotices.map((notice, i) => (
+              <li key={i} style={{ marginBottom: '4px' }}>{notice}</li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={() => setIgnitionNotices([])}
+            style={{
+              marginTop: '8px',
+              background: 'transparent',
+              color: '#f9fafb',
+              border: '1px solid #4b5563',
+              borderRadius: '6px',
+              padding: '4px 10px',
+              cursor: 'pointer',
+              fontSize: '12px',
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {showImportJob && (
+        <ImportJobPanel
+          onSetUp={handleImportedScenario}
+          onCancel={() => setShowImportJob(false)}
+        />
+      )}
+
       {/* Model Setup Wizard */}
       {showWizard && (
         <>
           <ModelSetupWizard
             onComplete={handleWizardComplete}
             onCancel={handleWizardCancel}
+            initialData={wizardInitialData}
           />
 
           {/* Submission overlay */}

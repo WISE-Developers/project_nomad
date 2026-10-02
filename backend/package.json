@@ -34,6 +34,7 @@
     "luxon": "^3.7.2",
     "multer": "^2.4.0",
     "pngjs": "^7.0.0",
+    "protobufjs": "^8.8.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^13.0.0",

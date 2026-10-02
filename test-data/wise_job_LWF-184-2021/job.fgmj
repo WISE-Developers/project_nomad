@@ -1,0 +1,4795 @@
+{
+  "settings": {
+    "logfile": {
+      "filename": "logfile.log",
+      "verbosity": "WARN"
+    },
+    "signals": {
+      "startFilename": "start.txt",
+      "completeFilename": "complete.txt"
+    },
+    "hardware": {
+      "cores": 1,
+      "processes": 4
+    },
+    "mqtt": {
+      "hostname": "emqx.vm.sparcsonline.com",
+      "port": 1883,
+      "username": "psaasuser",
+      "password": "psaaspass",
+      "topic": "psaasdip",
+      "debug": false,
+      "qos": 1,
+      "verbosity": "INFO"
+    }
+  },
+  "project": {
+    "version": 1,
+    "comments": "",
+    "fuels": {
+      "version": 1,
+      "data": [{
+        "index": 1,
+        "exportIndex": 1,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Spruce-Lichen Woodland",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "C1"
+            }
+          }
+        }
+      }, {
+        "index": 2,
+        "exportIndex": 2,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Spruce",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "C2"
+            }
+          }
+        }
+      }, {
+        "index": 3,
+        "exportIndex": 3,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Mature Jack or Lodgepole Pine",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "C3"
+            }
+          }
+        }
+      }, {
+        "index": 4,
+        "exportIndex": 4,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Immature Jack or Lodgepole Pine",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "C4"
+            }
+          }
+        }
+      }, {
+        "index": 5,
+        "exportIndex": 5,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Red and White Pine",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "C5"
+            }
+          }
+        }
+      }, {
+        "index": 6,
+        "exportIndex": 6,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Conifer Plantation",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "C6"
+            }
+          }
+        }
+      }, {
+        "index": 7,
+        "exportIndex": 7,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Ponderosa Pine - Douglas-Fir",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "C7"
+            }
+          }
+        }
+      }, {
+        "index": 11,
+        "exportIndex": 11,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Leafless Aspen",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "D1"
+            }
+          }
+        }
+      }, {
+        "index": 12,
+        "exportIndex": 12,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Green Aspen (with BUI Thresholding)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "D2"
+            }
+          }
+        }
+      }, {
+        "index": 13,
+        "exportIndex": 13,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Aspen",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "D1D2"
+            }
+          }
+        }
+      }, {
+        "index": 19,
+        "exportIndex": 19,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (25% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 25.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 21,
+        "exportIndex": 21,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Jack or Lodgepole Pine Slash",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "S1"
+            }
+          }
+        }
+      }, {
+        "index": 22,
+        "exportIndex": 22,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "White Spruce - Balsam Slash",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "S2"
+            }
+          }
+        }
+      }, {
+        "index": 23,
+        "exportIndex": 23,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Coastal Cedar - Hemlock - Douglas-Fir Slash",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "S3"
+            }
+          }
+        }
+      }, {
+        "index": 31,
+        "exportIndex": 31,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Matted Grass",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "O1A"
+            }
+          }
+        }
+      }, {
+        "index": 32,
+        "exportIndex": 32,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Standing Grass",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "O1B"
+            }
+          }
+        }
+      }, {
+        "index": 33,
+        "exportIndex": 33,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Grass",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "O1AB"
+            }
+          }
+        }
+      }, {
+        "index": 100,
+        "exportIndex": 100,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Not Available",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "Non"
+            }
+          }
+        }
+      }, {
+        "index": 101,
+        "exportIndex": 101,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Non-fuel",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "Non"
+            }
+          }
+        }
+      }, {
+        "index": 102,
+        "exportIndex": 102,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Water",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "Non"
+            }
+          }
+        }
+      }, {
+        "index": 103,
+        "exportIndex": 103,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Unknown",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "Non"
+            }
+          }
+        }
+      }, {
+        "index": 104,
+        "exportIndex": 104,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Unclassified",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "Non"
+            }
+          }
+        }
+      }, {
+        "index": 105,
+        "exportIndex": 105,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Vegetated Non-Fuel",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "Non"
+            }
+          }
+        }
+      }, {
+        "index": 106,
+        "exportIndex": 106,
+        "fuelIndex": 10
+      }, {
+        "index": 405,
+        "exportIndex": 405,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (05% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 5.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 410,
+        "exportIndex": 410,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (10% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 10.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 415,
+        "exportIndex": 415,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (15% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 15.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 420,
+        "exportIndex": 420,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (20% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 20.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 425,
+        "exportIndex": 425,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (25% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 25.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 430,
+        "exportIndex": 430,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (30% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 30.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 435,
+        "exportIndex": 435,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (35% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 35.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 440,
+        "exportIndex": 440,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (40% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 40.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 445,
+        "exportIndex": 445,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (45% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 45.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 450,
+        "exportIndex": 450,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (50% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 50.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 455,
+        "exportIndex": 455,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (55% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 55.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 460,
+        "exportIndex": 460,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (60% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 60.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 465,
+        "exportIndex": 465,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (65% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 65.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 470,
+        "exportIndex": 470,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (70% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 70.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 475,
+        "exportIndex": 475,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (75% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 75.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 480,
+        "exportIndex": 480,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (80% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 80.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 485,
+        "exportIndex": 485,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (85% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 85.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 490,
+        "exportIndex": 490,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (90% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 90.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 495,
+        "exportIndex": 495,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Leafless (95% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 95.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 505,
+        "exportIndex": 505,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (05% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 5.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 510,
+        "exportIndex": 510,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (10% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 10.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 515,
+        "exportIndex": 515,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (15% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 15.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 520,
+        "exportIndex": 520,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (20% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 20.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 525,
+        "exportIndex": 525,
+        "fuelIndex": 10
+      }, {
+        "index": 530,
+        "exportIndex": 530,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (30% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 30.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 535,
+        "exportIndex": 535,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (35% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 35.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 540,
+        "exportIndex": 540,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (40% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 40.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 545,
+        "exportIndex": 545,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (45% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 45.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 550,
+        "exportIndex": 550,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (50% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 50.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 555,
+        "exportIndex": 555,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (55% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 55.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 560,
+        "exportIndex": 560,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (60% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 60.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 565,
+        "exportIndex": 565,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (65% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 65.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 570,
+        "exportIndex": 570,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (70% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 70.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 575,
+        "exportIndex": 575,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (75% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 75.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 580,
+        "exportIndex": 580,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (80% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 80.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 585,
+        "exportIndex": 585,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (85% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 85.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 590,
+        "exportIndex": 590,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (90% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 90.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 595,
+        "exportIndex": 595,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood - Green (95% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M2",
+                    "pc": {
+                      "value": 95.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 605,
+        "exportIndex": 605,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (05% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 5.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 610,
+        "exportIndex": 610,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (10% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 10.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 615,
+        "exportIndex": 615,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (15% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 15.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 620,
+        "exportIndex": 620,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (20% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 20.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 625,
+        "exportIndex": 625,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (25% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 25.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 630,
+        "exportIndex": 630,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (30% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 30.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 635,
+        "exportIndex": 635,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (35% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 35.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 640,
+        "exportIndex": 640,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (40% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 40.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 645,
+        "exportIndex": 645,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (45% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 45.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 650,
+        "exportIndex": 650,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (50% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 50.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 655,
+        "exportIndex": 655,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (55% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 55.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 660,
+        "exportIndex": 660,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (60% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 60.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 665,
+        "exportIndex": 665,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (65% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 65.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 670,
+        "exportIndex": 670,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (70% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 70.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 675,
+        "exportIndex": 675,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (75% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 75.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 680,
+        "exportIndex": 680,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (80% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 80.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 685,
+        "exportIndex": 685,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (85% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 85.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 690,
+        "exportIndex": 690,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (90% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 90.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 695,
+        "exportIndex": 695,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Boreal Mixedwood (95% Conifer)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M1M2",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixed": {
+                  "version": 1,
+                  "default": {
+                    "default": "M1",
+                    "pc": {
+                      "value": 95.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 705,
+        "exportIndex": 705,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (05% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 5.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 710,
+        "exportIndex": 710,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (10% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 10.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 715,
+        "exportIndex": 715,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (15% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 15.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 720,
+        "exportIndex": 720,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (20% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 20.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 725,
+        "exportIndex": 725,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (25% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 25.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 730,
+        "exportIndex": 730,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (30% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 30.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 735,
+        "exportIndex": 735,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (35% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 35.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 740,
+        "exportIndex": 740,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (40% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 40.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 745,
+        "exportIndex": 745,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (45% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 45.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 750,
+        "exportIndex": 750,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (50% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 50.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 755,
+        "exportIndex": 755,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (55% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 55.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 760,
+        "exportIndex": 760,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (60% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 60.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 765,
+        "exportIndex": 765,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (65% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 65.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 770,
+        "exportIndex": 770,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (70% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 70.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 775,
+        "exportIndex": 775,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (75% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 75.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 780,
+        "exportIndex": 780,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (80% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 80.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 785,
+        "exportIndex": 785,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (85% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 85.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 790,
+        "exportIndex": 790,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (90% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 90.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 795,
+        "exportIndex": 795,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Leafless (95% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 95.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 805,
+        "exportIndex": 805,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (05% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 5.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 810,
+        "exportIndex": 810,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (10% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 10.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 815,
+        "exportIndex": 815,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (15% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 15.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 820,
+        "exportIndex": 820,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (20% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 20.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 825,
+        "exportIndex": 825,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (25% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 25.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 830,
+        "exportIndex": 830,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (30% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 30.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 835,
+        "exportIndex": 835,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (35% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 35.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 840,
+        "exportIndex": 840,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (40% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 40.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 845,
+        "exportIndex": 845,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (45% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 45.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 850,
+        "exportIndex": 850,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (50% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 50.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 855,
+        "exportIndex": 855,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (55% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 55.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 860,
+        "exportIndex": 860,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (60% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 60.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 865,
+        "exportIndex": 865,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (65% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 65.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 870,
+        "exportIndex": 870,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (70% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 70.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 875,
+        "exportIndex": 875,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (75% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 75.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 880,
+        "exportIndex": 880,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (80% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 80.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 885,
+        "exportIndex": 885,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (85% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 85.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 890,
+        "exportIndex": 890,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (90% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 90.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 895,
+        "exportIndex": 895,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood - Green (95% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M4",
+                    "pdf": {
+                      "value": 95.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 900,
+        "exportIndex": 900,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (05% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 5.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 905,
+        "exportIndex": 905,
+        "fuelIndex": 117
+      }, {
+        "index": 910,
+        "exportIndex": 910,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (10% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 10.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 915,
+        "exportIndex": 915,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (15% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 15.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 920,
+        "exportIndex": 920,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (20% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 20.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 925,
+        "exportIndex": 925,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (25% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 25.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 930,
+        "exportIndex": 930,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (30% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 30.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 935,
+        "exportIndex": 935,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (35% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 35.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 940,
+        "exportIndex": 940,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (40% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 40.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 945,
+        "exportIndex": 945,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (45% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 45.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 950,
+        "exportIndex": 950,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (50% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 50.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 955,
+        "exportIndex": 955,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (55% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 55.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 960,
+        "exportIndex": 960,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (60% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 60.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 965,
+        "exportIndex": 965,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (65% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 65.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 970,
+        "exportIndex": 970,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (70% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 70.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 975,
+        "exportIndex": 975,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (75% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 75.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 980,
+        "exportIndex": 980,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (80% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 80.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 985,
+        "exportIndex": 985,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (85% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 85.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 990,
+        "exportIndex": 990,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (90% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 90.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }, {
+        "index": 995,
+        "exportIndex": 995,
+        "fuelData": {
+          "version": 1,
+          "data": {
+            "name": "Dead Balsam Fir Mixedwood (95% Dead Fir)",
+            "fuel": {
+              "version": 1,
+              "loadWarning": "",
+              "fuelTypeModified": false,
+              "defaultFuelType": "M3M4",
+              "spread": {
+                "version": 1,
+                "commonField": "0",
+                "mixedDead": {
+                  "version": 1,
+                  "default": {
+                    "default": "M3",
+                    "pdf": {
+                      "value": 95.0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }]
+    },
+    "grid": {
+      "version": 1,
+      "fuelMap": {
+        "filename": "Inputs/fuels.tif"
+      },
+      "elevation": {
+        "filename": "Inputs/elevation.tif"
+      },
+      "projection": {
+        "filename": "Inputs/dataset.prj"
+      }
+    },
+    "fuelCollection": {
+      "version": 1,
+      "importedLut": true,
+      "lutFilename": "Inputs/dataset.lut",
+      "fuels": [{
+        "version": 1,
+        "color": 7602129,
+        "name": "Spruce-Lichen Woodland",
+        "comments": "",
+        "default": "C-1"
+      }, {
+        "version": 1,
+        "color": 3368482,
+        "name": "Boreal Spruce",
+        "comments": "",
+        "default": "C-2"
+      }, {
+        "version": 1,
+        "color": 9815939,
+        "name": "Mature Jack or Lodgepole Pine",
+        "comments": "",
+        "default": "C-3"
+      }, {
+        "version": 1,
+        "color": 43120,
+        "name": "Immature Jack or Lodgepole Pine",
+        "comments": "",
+        "default": "C-4"
+      }, {
+        "version": 1,
+        "color": 15120607,
+        "name": "Red and White Pine",
+        "comments": "",
+        "default": "C-5"
+      }, {
+        "version": 1,
+        "color": 15558316,
+        "name": "Conifer Plantation",
+        "comments": "",
+        "default": "C-6"
+      }, {
+        "version": 1,
+        "color": 15862896,
+        "name": "Ponderosa Pine - Douglas-Fir",
+        "comments": "",
+        "default": "C-7"
+      }, {
+        "version": 1,
+        "color": 9944516,
+        "name": "Leafless Aspen",
+        "comments": "",
+        "default": "D-1"
+      }, {
+        "version": 1,
+        "color": 4485257,
+        "name": "Green Aspen (with BUI Thresholding)",
+        "comments": "",
+        "default": "D-2"
+      }, {
+        "version": 1,
+        "color": 9944516,
+        "name": "Aspen",
+        "comments": "",
+        "default": "D-1/D-2"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (25% Conifer)",
+        "comments": "",
+        "default": "M-2 (25 PC)"
+      }, {
+        "version": 1,
+        "color": 12173051,
+        "name": "Jack or Lodgepole Pine Slash",
+        "comments": "",
+        "default": "S-1"
+      }, {
+        "version": 1,
+        "color": 10578167,
+        "name": "White Spruce - Balsam Slash",
+        "comments": "",
+        "default": "S-2"
+      }, {
+        "version": 1,
+        "color": 8257966,
+        "name": "Coastal Cedar - Hemlock - Douglas-Fir Slash",
+        "comments": "",
+        "default": "S-3"
+      }, {
+        "version": 1,
+        "color": 12517375,
+        "name": "Matted Grass",
+        "comments": "",
+        "default": "O-1a"
+      }, {
+        "version": 1,
+        "color": 59110,
+        "name": "Standing Grass",
+        "comments": "",
+        "default": "O-1b"
+      }, {
+        "version": 1,
+        "color": 12517375,
+        "name": "Grass",
+        "comments": "",
+        "default": "O-1a/O-1b"
+      }, {
+        "version": 1,
+        "color": 16777215,
+        "name": "Not Available",
+        "comments": "",
+        "default": "Non-fuel"
+      }, {
+        "version": 1,
+        "color": 8553090,
+        "name": "Non-fuel",
+        "comments": "",
+        "default": "Non-fuel"
+      }, {
+        "version": 1,
+        "color": 16768883,
+        "name": "Water",
+        "comments": "",
+        "default": "Non-fuel"
+      }, {
+        "version": 1,
+        "color": 0,
+        "name": "Unknown",
+        "comments": "",
+        "default": "Non-fuel"
+      }, {
+        "version": 1,
+        "color": 10921638,
+        "name": "Unclassified",
+        "comments": "",
+        "default": "Non-fuel"
+      }, {
+        "version": 1,
+        "color": 13421772,
+        "name": "Vegetated Non-Fuel",
+        "comments": "",
+        "default": "Non-fuel"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (25% Conifer)",
+        "comments": "",
+        "default": "M-2 (25 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (05% Conifer)",
+        "comments": "",
+        "default": "M-1 (05 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (10% Conifer)",
+        "comments": "",
+        "default": "M-1 (10 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (15% Conifer)",
+        "comments": "",
+        "default": "M-1 (15 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (20% Conifer)",
+        "comments": "",
+        "default": "M-1 (20 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (25% Conifer)",
+        "comments": "",
+        "default": "M-1 (25 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (30% Conifer)",
+        "comments": "",
+        "default": "M-1 (30 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (35% Conifer)",
+        "comments": "",
+        "default": "M-1 (35 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (40% Conifer)",
+        "comments": "",
+        "default": "M-1 (40 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (45% Conifer)",
+        "comments": "",
+        "default": "M-1 (45 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (50% Conifer)",
+        "comments": "",
+        "default": "M-1 (50 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (55% Conifer)",
+        "comments": "",
+        "default": "M-1 (55 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (60% Conifer)",
+        "comments": "",
+        "default": "M-1 (60 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (65% Conifer)",
+        "comments": "",
+        "default": "M-1 (65 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (70% Conifer)",
+        "comments": "",
+        "default": "M-1 (70 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (75% Conifer)",
+        "comments": "",
+        "default": "M-1 (75 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (80% Conifer)",
+        "comments": "",
+        "default": "M-1 (80 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (85% Conifer)",
+        "comments": "",
+        "default": "M-1 (85 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (90% Conifer)",
+        "comments": "",
+        "default": "M-1 (90 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood - Leafless (95% Conifer)",
+        "comments": "",
+        "default": "M-1 (95 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (05% Conifer)",
+        "comments": "",
+        "default": "M-2 (05 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (10% Conifer)",
+        "comments": "",
+        "default": "M-2 (10 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (15% Conifer)",
+        "comments": "",
+        "default": "M-2 (15 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (20% Conifer)",
+        "comments": "",
+        "default": "M-2 (20 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (25% Conifer)",
+        "comments": "",
+        "default": "M-2 (25 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (30% Conifer)",
+        "comments": "",
+        "default": "M-2 (30 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (35% Conifer)",
+        "comments": "",
+        "default": "M-2 (35 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (40% Conifer)",
+        "comments": "",
+        "default": "M-2 (40 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (45% Conifer)",
+        "comments": "",
+        "default": "M-2 (45 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (50% Conifer)",
+        "comments": "",
+        "default": "M-2 (50 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (55% Conifer)",
+        "comments": "",
+        "default": "M-2 (55 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (60% Conifer)",
+        "comments": "",
+        "default": "M-2 (60 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (65% Conifer)",
+        "comments": "",
+        "default": "M-2 (65 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (70% Conifer)",
+        "comments": "",
+        "default": "M-2 (70 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (75% Conifer)",
+        "comments": "",
+        "default": "M-2 (75 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (80% Conifer)",
+        "comments": "",
+        "default": "M-2 (80 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (85% Conifer)",
+        "comments": "",
+        "default": "M-2 (85 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (90% Conifer)",
+        "comments": "",
+        "default": "M-2 (90 PC)"
+      }, {
+        "version": 1,
+        "color": 43775,
+        "name": "Boreal Mixedwood - Green (95% Conifer)",
+        "comments": "",
+        "default": "M-2 (95 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (05% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (05 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (10% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (10 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (15% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (15 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (20% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (20 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (25% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (25 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (30% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (30 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (35% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (35 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (40% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (40 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (45% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (45 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (50% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (50 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (55% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (55 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (60% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (60 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (65% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (65 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (70% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (70 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (75% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (75 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (80% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (80 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (85% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (85 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (90% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (90 PC)"
+      }, {
+        "version": 1,
+        "color": 8377343,
+        "name": "Boreal Mixedwood (95% Conifer)",
+        "comments": "",
+        "default": "M-1/M-2 (95 PC)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (05% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (05 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (10% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (10 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (15% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (15 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (20% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (20 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (25% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (25 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (30% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (30 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (35% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (35 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (40% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (40 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (45% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (45 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (50% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (50 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (55% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (55 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (60% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (60 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (65% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (65 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (70% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (70 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (75% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (75 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (80% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (80 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (85% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (85 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (90% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (90 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood - Leafless (95% Dead Fir)",
+        "comments": "",
+        "default": "M-3 (95 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (05% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (05 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (10% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (10 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (15% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (15 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (20% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (20 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (25% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (25 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (30% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (30 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (35% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (35 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (40% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (40 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (45% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (45 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (50% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (50 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (55% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (55 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (60% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (60 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (65% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (65 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (70% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (70 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (75% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (75 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (80% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (80 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (85% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (85 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (90% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (90 PDF)"
+      }, {
+        "version": 1,
+        "color": 170,
+        "name": "Dead Balsam Fir Mixedwood - Green (95% Dead Fir)",
+        "comments": "",
+        "default": "M-4 (95 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (05% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (05 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (05% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (05 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (10% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (10 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (15% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (15 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (20% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (20 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (25% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (25 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (30% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (30 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (35% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (35 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (40% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (40 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (45% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (45 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (50% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (50 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (55% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (55 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (60% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (60 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (65% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (65 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (70% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (70 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (75% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (75 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (80% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (80 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (85% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (85 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (90% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (90 PDF)"
+      }, {
+        "version": 1,
+        "color": 99,
+        "name": "Dead Balsam Fir Mixedwood (95% Dead Fir)",
+        "comments": "",
+        "default": "M-3/M-4 (95 PDF)"
+      }]
+    },
+    "ignitions": {
+      "version": 1,
+      "ignitions": [{
+        "version": 1,
+        "name": "ign5",
+        "comments": "",
+        "color": 255,
+        "fillColor": 0,
+        "size": 3,
+        "imported": true,
+        "symbol": 0,
+        "ignition": {
+          "version": 1,
+          "startTime": {
+            "time": "2021-09-02T13:00:00-06:00",
+            "timezone": "MDT",
+            "timezoneId": 131084
+          },
+          "ignitions": {
+            "ignitions": [{
+              "polyType": "POINT",
+              "polygon": {
+                "units": "LAT_LON",
+                "polygon": {
+                  "version": 1,
+                  "points": [{
+                    "x": {
+                      "value": -112.2258
+                    },
+                    "y": {
+                      "value": 55.678433
+                    }
+                  }]
+                }
+              },
+              "attributes": []
+            }]
+          },
+          "fileAttributes": []
+        }
+      }]
+    },
+    "stations": {
+      "version": 1,
+      "stations": [{
+        "version": 1,
+        "name": "wthrstn5",
+        "comments": "",
+        "station": {
+          "version": 1,
+          "location": {
+            "units": "LAT_LON",
+            "point": {
+              "x": {
+                "value": -112.2258
+              },
+              "y": {
+                "value": 55.678433
+              }
+            }
+          },
+          "elevation": {
+            "value": 673.0
+          },
+          "skipStream": true,
+          "streams": [{
+            "version": 1,
+            "name": "wthrstrm5",
+            "comments": "",
+            "condition": {
+              "version": 1,
+              "dataImportedFromFile": true,
+              "filename": "Inputs/spotwx_forecast.txt",
+              "startTime": {
+                "time": "2021-09-02T00:00:00-06:00",
+                "timezone": "MDT",
+                "timezoneId": 131084
+              },
+              "hffmcTime": {
+                "time": "17:00:00"
+              },
+              "hffmc": {
+                "value": 94.0
+              },
+              "hffmcMethod": "LAWSON",
+              "startingCodes": {
+                "ffmc": {
+                  "value": 37.0
+                },
+                "dmc": {
+                  "value": 2.0
+                },
+                "dc": {
+                  "value": 297.0
+                },
+                "precipitation": {
+                  "value": 0.32000000000000006
+                }
+              }
+            }
+          }]
+        }
+      }]
+    },
+    "grids": {
+      "version": 1,
+      "filters": []
+    },
+    "vectors": {
+      "version": 1,
+      "vectors": []
+    },
+    "scenarios": {
+      "version": 1,
+      "scenarios": [{
+        "version": 1,
+        "name": "2021_AB_LWF-184-2021 3 Day Scenario",
+        "comments": "This is the Three Day Scenario",
+        "scenario": {
+          "version": 3,
+          "startTime": {
+            "time": "2021-09-02T13:00:00-06:00",
+            "timezone": "MDT",
+            "timezoneId": 131084
+          },
+          "endTime": {
+            "time": "2021-09-05T13:00:00-06:00",
+            "timezone": "MDT",
+            "timezoneId": 131084
+          },
+          "displayInterval": {
+            "time": "12:00:00"
+          },
+          "fbpOptions": {
+            "terrainEffect": true,
+            "windEffect": true
+          },
+          "fgmOptions": {
+            "maxAccelTimestep": {
+              "time": "00:02:00"
+            },
+            "distRes": {
+              "value": 1.0
+            },
+            "perimRes": {
+              "value": 1.0
+            },
+            "minSpreadRos": {
+              "value": 0.001
+            },
+            "stopAtGridEnd": false,
+            "breaching": true,
+            "dynamicSpatialThreshold": true,
+            "spotting": true,
+            "purgeNonDisplayable": false,
+            "growthPercentileApplied": false,
+            "growthPercentile": {
+              "value": 50.0
+            },
+            "enableFalseOrigin": true,
+            "enableFalseScaling": true
+          },
+          "fmcOptions": {
+            "nodataElev": {
+              "value": 0.0
+            },
+            "terrain": true,
+            "accurateLocation": true
+          },
+          "fwiOptions": {
+            "fwiSpacialInterp": true,
+            "fwiFromSpacialWeather": true,
+            "historyOnEffectedFwi": true,
+            "burningConditionsOn": true,
+            "fwiTemporalInterp": false
+          },
+          "percentiles": []
+        },
+        "temporalConditions": {
+          "version": 1,
+          "daily": [{
+            "version": 1,
+            "localStartTime": {
+              "time": "2021-09-02T00:00:00"
+            },
+            "startTime": {
+              "time": "00:00:00"
+            },
+            "endTime": {
+              "time": "23:59:59"
+            },
+            "minRh": {
+              "value": 0.95
+            },
+            "maxWs": {
+              "value": 0.0
+            },
+            "minFwi": {
+              "value": 19.0
+            },
+            "minIsi": {
+              "value": 0.0
+            }
+          }, {
+            "version": 1,
+            "localStartTime": {
+              "time": "2021-09-03T00:00:00"
+            },
+            "startTime": {
+              "time": "00:00:00"
+            },
+            "endTime": {
+              "time": "23:59:59"
+            },
+            "minRh": {
+              "value": 0.95
+            },
+            "maxWs": {
+              "value": 0.0
+            },
+            "minFwi": {
+              "value": 19.0
+            },
+            "minIsi": {
+              "value": 0.0
+            }
+          }, {
+            "version": 1,
+            "localStartTime": {
+              "time": "2021-09-04T00:00:00"
+            },
+            "startTime": {
+              "time": "00:00:00"
+            },
+            "endTime": {
+              "time": "23:59:59"
+            },
+            "minRh": {
+              "value": 0.95
+            },
+            "maxWs": {
+              "value": 0.0
+            },
+            "minFwi": {
+              "value": 19.0
+            },
+            "minIsi": {
+              "value": 0.0
+            }
+          }, {
+            "version": 1,
+            "localStartTime": {
+              "time": "2021-09-05T00:00:00"
+            },
+            "startTime": {
+              "time": "00:00:00"
+            },
+            "endTime": {
+              "time": "23:59:59"
+            },
+            "minRh": {
+              "value": 0.95
+            },
+            "maxWs": {
+              "value": 0.0
+            },
+            "minFwi": {
+              "value": 19.0
+            },
+            "minIsi": {
+              "value": 0.0
+            }
+          }],
+          "seasonal": []
+        },
+        "fireIndex": [{
+          "name": "ign5"
+        }],
+        "weatherIndex": [{
+          "stationIndex": {
+            "name": "wthrstn5"
+          },
+          "streamIndex": {
+            "name": "wthrstrm5"
+          }
+        }],
+        "filterIndex": [],
+        "vectorIndex": [],
+        "threadCount": 2,
+        "assetIndex": []
+      }]
+    },
+    "elevationName": "elevation",
+    "gridName": "fuels",
+    "projectionName": "dataset",
+    "outputs": {
+      "summaries": [{
+        "version": 1,
+        "scenarioName": "2021_AB_LWF-184-2021 3 Day Scenario",
+        "filename": "Outputs/threeDaySummary.txt",
+        "streamOutput": true
+      }],
+      "vectors": [{
+        "version": 1,
+        "scenarioName": "2021_AB_LWF-184-2021 3 Day Scenario",
+        "filename": "Outputs/dipModelScenario.kml",
+        "metadata": {
+          "version": 1,
+          "applicationVersion": true,
+          "scenarioName": true,
+          "jobName": true,
+          "ignitionName": true,
+          "simulationDate": true,
+          "fireSize": true,
+          "perimeterTotal": true,
+          "perimeterActive": true,
+          "areaUnits": "KILOMETRES_SQUARE",
+          "perimeterUnits": "METRES",
+          "wxValues": false,
+          "fwiValues": false
+        },
+        "perimeterTime": {
+          "startTime": {
+            "time": "2021-09-02T13:00:00-06:00",
+            "timezone": "MDT",
+            "timezoneId": 131084
+          },
+          "endTime": {
+            "time": "2021-09-05T13:00:00-06:00",
+            "timezone": "MDT",
+            "timezoneId": 131084
+          }
+        },
+        "multiplePerimeters": true,
+        "removeIslands": true,
+        "mergeContacting": true,
+        "activePerimeters": false,
+        "streamOutput": true,
+        "subScenarioName": [],
+        "perimeterTimeOverride": []
+      }],
+      "grids": [],
+      "stats": [{
+        "version": 1,
+        "scenarioName": "2021_AB_LWF-184-2021 3 Day Scenario",
+        "streamName": "undefined",
+        "filename": "Outputs/dipModelScenarioStats.csv",
+        "columns": [],
+        "streamOutput": false,
+        "fileType": "AUTO",
+        "globalColumns": ["DATE_TIME", "ELAPSED_TIME", "TIME_STEP_DURATION", "TEMPERATURE"]
+      }],
+      "assetStats": []
+    },
+    "projectStartTime": {
+      "time": "2021-09-02T04:00:58-06:00",
+      "timezone": "MDT",
+      "timezoneId": 131084
+    },
+    "loadBalancing": "NONE",
+    "assets": {
+      "version": 1,
+      "assets": []
+    },
+    "timeZoneSettings": {
+      "version": 1,
+      "timezoneIndex": 131084
+    },
+    "targets": {
+      "version": 1,
+      "targets": []
+    }
+  },
+  "name": "job_20210902100058304",
+  "inputFiles": [],
+  "outputLocation": []
+}

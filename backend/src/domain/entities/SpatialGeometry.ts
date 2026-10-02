@@ -7,6 +7,7 @@ export enum GeometryType {
   Point = 'Point',
   LineString = 'LineString',
   Polygon = 'Polygon',
+  MultiPolygon = 'MultiPolygon',
 }
 
 /**
@@ -16,11 +17,20 @@ export type Position = [number, number] | [number, number, number]; // [lon, lat
 export type PointCoordinates = Position;
 export type LineStringCoordinates = Position[];
 export type PolygonCoordinates = Position[][]; // Array of rings, first is exterior, rest are holes
+// Array of MEMBERS, each a separate polygon's own ring list (exterior first,
+// holes after). Rings within one member are exterior-then-holes; separate
+// fires are separate members — never flatten a member into a ring of
+// another, or it becomes a hole and silently stops that fire burning.
+export type MultiPolygonCoordinates = PolygonCoordinates[];
 
 /**
  * Union type for all coordinate formats
  */
-export type Coordinates = PointCoordinates | LineStringCoordinates | PolygonCoordinates;
+export type Coordinates =
+  | PointCoordinates
+  | LineStringCoordinates
+  | PolygonCoordinates
+  | MultiPolygonCoordinates;
 
 /**
  * Bounding box representation [minLon, minLat, maxLon, maxLat]
@@ -125,6 +135,9 @@ export class SpatialGeometry {
     if (this.type === GeometryType.Polygon) {
       return this.getPolygonCentroid();
     }
+    if (this.type === GeometryType.MultiPolygon) {
+      return this.getMultiPolygonCentroid();
+    }
 
     // For points and lines, use simple average
     const positions = this.getAllPositions();
@@ -140,8 +153,60 @@ export class SpatialGeometry {
    */
   private getPolygonCentroid(): Position {
     const rings = this.coordinates as PolygonCoordinates;
-    const ring = rings[0]; // Use exterior ring only
+    const { cx, cy, signedArea } = SpatialGeometry.ringCentroidAndArea(rings[0]);
 
+    // Handle degenerate case (zero area)
+    if (Math.abs(signedArea) < 1e-10) {
+      const ring = rings[0];
+      const sumLon = ring.reduce((sum, pos) => sum + pos[0], 0);
+      const sumLat = ring.reduce((sum, pos) => sum + pos[1], 0);
+      return [sumLon / ring.length, sumLat / ring.length];
+    }
+
+    return [cx, cy];
+  }
+
+  /**
+   * Area-weighted centroid across every MEMBER of a MultiPolygon — not an
+   * average of member centroids, which would pull the result toward a tiny
+   * member exactly as much as toward a large one. Each member's exterior
+   * ring is used, matching getPolygonCentroid's own convention.
+   *
+   * Degenerate case: if every member has ~zero area (or there is only one
+   * member and it is degenerate), fall back to a simple average of all
+   * vertices across all members — the same fallback getPolygonCentroid uses
+   * for a single polygon.
+   */
+  private getMultiPolygonCentroid(): Position {
+    const members = this.coordinates as MultiPolygonCoordinates;
+
+    let totalArea = 0;
+    let weightedCx = 0;
+    let weightedCy = 0;
+
+    for (const member of members) {
+      const { cx, cy, signedArea } = SpatialGeometry.ringCentroidAndArea(member[0]);
+      const area = Math.abs(signedArea);
+      totalArea += area;
+      weightedCx += cx * area;
+      weightedCy += cy * area;
+    }
+
+    if (totalArea < 1e-10) {
+      const allPositions = members.flatMap((member) => member[0]);
+      const sumLon = allPositions.reduce((sum, pos) => sum + pos[0], 0);
+      const sumLat = allPositions.reduce((sum, pos) => sum + pos[1], 0);
+      return [sumLon / allPositions.length, sumLat / allPositions.length];
+    }
+
+    return [weightedCx / totalArea, weightedCy / totalArea];
+  }
+
+  /**
+   * Shared signed-area centroid formula for a single ring.
+   * Reference: https://en.wikipedia.org/wiki/Centroid#Of_a_polygon
+   */
+  private static ringCentroidAndArea(ring: Position[]): { cx: number; cy: number; signedArea: number } {
     let signedArea = 0;
     let cx = 0;
     let cy = 0;
@@ -162,18 +227,11 @@ export class SpatialGeometry {
 
     signedArea *= 0.5;
 
-    // Handle degenerate case (zero area)
     if (Math.abs(signedArea) < 1e-10) {
-      // Fall back to simple average
-      const sumLon = ring.reduce((sum, pos) => sum + pos[0], 0);
-      const sumLat = ring.reduce((sum, pos) => sum + pos[1], 0);
-      return [sumLon / ring.length, sumLat / ring.length];
+      return { cx: 0, cy: 0, signedArea };
     }
 
-    cx /= (6 * signedArea);
-    cy /= (6 * signedArea);
-
-    return [cx, cy];
+    return { cx: cx / (6 * signedArea), cy: cy / (6 * signedArea), signedArea };
   }
 
   /**
@@ -208,6 +266,13 @@ export class SpatialGeometry {
   }
 
   /**
+   * Check if this is a MultiPolygon geometry
+   */
+  isMultiPolygon(): boolean {
+    return this.type === GeometryType.MultiPolygon;
+  }
+
+  /**
    * Extracts all positions from the geometry regardless of type
    */
   private getAllPositions(): Position[] {
@@ -219,6 +284,9 @@ export class SpatialGeometry {
       case GeometryType.Polygon:
         // Flatten all rings
         return (this.coordinates as PolygonCoordinates).flat();
+      case GeometryType.MultiPolygon:
+        // Flatten every ring of every member
+        return (this.coordinates as MultiPolygonCoordinates).flatMap((member) => member.flat());
     }
   }
 
@@ -235,6 +303,9 @@ export class SpatialGeometry {
         break;
       case GeometryType.Polygon:
         this.validatePolygon(coordinates as PolygonCoordinates);
+        break;
+      case GeometryType.MultiPolygon:
+        this.validateMultiPolygon(coordinates as MultiPolygonCoordinates);
         break;
     }
   }
@@ -276,16 +347,25 @@ export class SpatialGeometry {
     });
   }
 
-  private validatePolygon(coords: PolygonCoordinates): void {
+  private validatePolygon(coords: PolygonCoordinates, memberIndex?: number): void {
+    // When validating a MultiPolygon member, name it in every message so a
+    // failure says which polygon and which ring, not just "ring 0".
+    const label = memberIndex !== undefined ? `member ${memberIndex}, ring` : 'Ring';
+
     if (!Array.isArray(coords) || coords.length < 1) {
       throw new ValidationError('Invalid geometry', [
-        { field: 'coordinates', message: 'Polygon requires at least one ring' },
+        {
+          field: 'coordinates',
+          message: memberIndex !== undefined
+            ? `Member ${memberIndex} requires at least one ring`
+            : 'Polygon requires at least one ring',
+        },
       ]);
     }
     coords.forEach((ring, ringIndex) => {
       if (!Array.isArray(ring) || ring.length < 4) {
         throw new ValidationError('Invalid geometry', [
-          { field: 'coordinates', message: `Ring ${ringIndex} requires at least 4 positions` },
+          { field: 'coordinates', message: `${label} ${ringIndex} requires at least 4 positions` },
         ]);
       }
       ring.forEach((pos, posIndex) => {
@@ -294,7 +374,7 @@ export class SpatialGeometry {
         } catch (e) {
           if (e instanceof ValidationError) throw e;
           throw new ValidationError('Invalid geometry', [
-            { field: 'coordinates', message: `Invalid position at ring ${ringIndex}, index ${posIndex}: ${(e as Error).message}` },
+            { field: 'coordinates', message: `Invalid position at ${label.toLowerCase()} ${ringIndex}, index ${posIndex}: ${(e as Error).message}` },
           ]);
         }
       });
@@ -303,9 +383,20 @@ export class SpatialGeometry {
       const last = ring[ring.length - 1];
       if (first[0] !== last[0] || first[1] !== last[1]) {
         throw new ValidationError('Invalid geometry', [
-          { field: 'coordinates', message: `Ring ${ringIndex} must be closed (first and last position must match)` },
+          { field: 'coordinates', message: `${label} ${ringIndex} must be closed (first and last position must match)` },
         ]);
       }
+    });
+  }
+
+  private validateMultiPolygon(members: MultiPolygonCoordinates): void {
+    if (!Array.isArray(members) || members.length < 1) {
+      throw new ValidationError('Invalid geometry', [
+        { field: 'coordinates', message: 'MultiPolygon requires at least one member polygon' },
+      ]);
+    }
+    members.forEach((member, memberIndex) => {
+      this.validatePolygon(member, memberIndex);
     });
   }
 }

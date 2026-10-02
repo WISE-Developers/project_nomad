@@ -115,7 +115,16 @@ export interface TemporalData {
    * operator working an incident in another zone must not inherit their own
    * silently.
    */
-  timezoneSource?: 'inferred' | 'chosen';
+  /**
+   * Where the zone came from.
+   *
+   * 'inferred' — read off the operator's device, which is a guess (#368).
+   * 'chosen'   — the operator picked or confirmed it.
+   * 'imported' — recorded in an imported job file (#294). Not a device guess,
+   *              and not something this operator chose, so it is neither of
+   *              the other two.
+   */
+  timezoneSource?: 'inferred' | 'chosen' | 'imported';
   /** Whether the start date is in the future (forecast mode) */
   isForecast: boolean;
 }

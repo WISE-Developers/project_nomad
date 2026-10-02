@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as fs from 'fs';
 import { asyncHandler, resolveUserId, resolveUserIdCandidates } from '../../middleware/index.js';
+import { resolveRequestedIgnitions } from '../../../application/ignitions/resolveRequestedIgnitions.js';
 import { logger } from '../../../infrastructure/logging/index.js';
 import {
   FireModel,
@@ -41,10 +42,26 @@ const router = Router();
 interface RunModelRequestBody {
   name: string;
   engineType: EngineType;
-  ignition: {
+  /**
+   * A single ignition. Kept for every existing caller, including the
+   * openNomad embedding contract.
+   */
+  ignition?: {
     type: 'point' | 'polygon' | 'linestring';
-    coordinates: [number, number] | [number, number][];
+    // Rings for a polygon — the previous type omitted this case even though
+    // the frontend has always sent it for polygons.
+    coordinates: [number, number] | [number, number][] | [number, number][][];
   };
+  /**
+   * Several ignitions, merged into one multi-part geometry (refs #294).
+   *
+   * Additive: `ignition` still works. The wizard sends this so a drawing with
+   * more than one shape no longer loses all but the first.
+   */
+  ignitions?: Array<{
+    type: string;
+    coordinates: unknown;
+  }>;
   timeRange: {
     start: string;
     end: string;
@@ -118,9 +135,17 @@ router.post(
     if (!body.engineType || !Object.values(EngineType).includes(body.engineType)) {
       throw ValidationError.invalidEnum('engineType', Object.values(EngineType), body.engineType);
     }
-    if (!body.ignition?.type || !body.ignition?.coordinates) {
+    const requestedIgnitions = body.ignitions?.length
+      ? body.ignitions
+      : body.ignition
+        ? [body.ignition]
+        : [];
+    if (requestedIgnitions.length === 0) {
       throw new ValidationError('Ignition geometry required', [
-        { field: 'ignition', message: 'Must provide ignition type and coordinates' },
+        {
+          field: 'ignition',
+          message: 'Must provide ignition type and coordinates, or an ignitions array',
+        },
       ]);
     }
     if (!body.timeRange?.start || !body.timeRange?.end) {
@@ -157,16 +182,15 @@ router.post(
       ]);
     }
 
-    // Validate geometry and time range BEFORE creating DB records (prevents orphaned rows)
-    const geometryType = body.ignition.type === 'point'
-      ? GeometryType.Point
-      : body.ignition.type === 'linestring'
-        ? GeometryType.LineString
-        : GeometryType.Polygon;
-    const ignitionGeometry = new SpatialGeometry({
-      type: geometryType,
-      coordinates: body.ignition.coordinates,
-    });
+    // Validate geometry and time range BEFORE creating DB records (prevents orphaned rows).
+    //
+    // resolveRequestedIgnitions replaces a ternary that had no else branch, so
+    // an unknown type silently became Polygon. It also merges more than one
+    // ignition through the same code the .fgmj import uses, and reports what
+    // it did to each — a point becoming a nominal circle, a line becoming a
+    // corridor — which the response carries back.
+    const { geometry: ignitionGeometry, notices: ignitionNotices } =
+      resolveRequestedIgnitions(requestedIgnitions);
     const timeRange = new TimeRange(
       parseIsoToDate(body.timeRange.start, 'POST /models body.timeRange.start'),
       parseIsoToDate(body.timeRange.end, 'POST /models body.timeRange.end'),
@@ -179,12 +203,13 @@ router.post(
     // on the CIFFC demo died that way on 2026-08-19. Failing here means a 400
     // naming the problem while the user can still fix it, and no orphaned model,
     // job or sim directory to clean up.
-    const ignitionLatitude = Array.isArray(body.ignition.coordinates[0])
-      ? (body.ignition.coordinates as [number, number][])[0][1]
-      : (body.ignition.coordinates as [number, number])[1];
-    const ignitionLongitude = Array.isArray(body.ignition.coordinates[0])
-      ? (body.ignition.coordinates as [number, number][])[0][0]
-      : (body.ignition.coordinates as [number, number])[0];
+    // From the geometry's own centroid rather than its first coordinate.
+    // Identical for a point, and for anything else it now matches what the
+    // ENGINE uses — buildParams takes getCentroid() for every non-Point type,
+    // so this pre-check and the actual run were previously looking at
+    // different places. A MultiPolygon has no sensible "first coordinate" at
+    // all.
+    const [ignitionLongitude, ignitionLatitude] = ignitionGeometry.getCentroid();
 
     await assertWeatherMeetsEngineContract(
       body.weather,
@@ -206,8 +231,13 @@ router.post(
       outputMode: derivedOutputMode,
     });
 
-    logger.model(`Creating ignition geometry: type=${body.ignition.type} -> ${geometryType}`, modelId);
-    logger.model(`Ignition geometry created: ${ignitionGeometry.type}, coords length: ${Array.isArray(body.ignition.coordinates[0]) ? body.ignition.coordinates.length : 1}`, modelId);
+    logger.model(
+      `Creating ignition geometry from ${requestedIgnitions.length} requested ` +
+        `(${requestedIgnitions.map((i) => i.type).join(', ')}) -> ${ignitionGeometry.type}`,
+      modelId,
+    );
+    logger.model(`Ignition geometry created: ${ignitionGeometry.type}`, modelId);
+    for (const notice of ignitionNotices) logger.model(`Ignition notice: ${notice}`, modelId);
 
     const modelRepo = getModelRepository();
     await modelRepo.save(model);
@@ -285,6 +315,9 @@ router.post(
       modelId,
       jobId,
       message: 'Model created and execution started',
+      // What was done to the requested ignitions, so the operator is told
+      // rather than finding out from the output. Empty for a single ignition.
+      ignitionNotices,
     });
   })
 );

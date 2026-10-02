@@ -99,7 +99,12 @@ export const temporalValidator: StepValidator<ModelSetupData> = (data): Validati
       message: 'Please select the timezone the fire is in',
       type: 'error',
     });
-  } else if (data.temporal.timezoneSource !== 'chosen') {
+  } else if (
+    data.temporal.timezoneSource !== 'chosen' &&
+    data.temporal.timezoneSource !== 'imported'
+  ) {
+    // 'imported' is recorded data from the job file, not a device guess, so it
+    // does not need the #368 confirmation.
     errors.push({
       field: 'timezone',
       message:
