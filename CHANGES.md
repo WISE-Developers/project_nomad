@@ -4,10 +4,133 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.20.0
+## v0.21.0
+
+### 2026-10-02
+
+- [`30873d5`](https://github.com/WISE-Developers/project_nomad/commit/30873d5662dab1ab69539fa5eaa52750d143989d) Merge pull request #409 from WISE-Developers/dev — *Franco Nogarin, 12:12*
+- [`99760a8`](https://github.com/WISE-Developers/project_nomad/commit/99760a823333db34342c4e46d2defd10105a9221) chore: dev v0.20.16 [release-bot] — *github-actions[bot], 18:04*
+- [`0def348`](https://github.com/WISE-Developers/project_nomad/commit/0def3481bfd2935d62f07fa6272c289ffba6f1d6) Make the #406 rasterizer test hermetic instead of USB-path dependent — *Franco Nogarin, 12:03*
+- [`4298dce`](https://github.com/WISE-Developers/project_nomad/commit/4298dceb0298a8921d512122ecb6f678eee7e0bc) chore: dev v0.20.15 [release-bot] — *github-actions[bot], 17:57*
+- [`fa32b72`](https://github.com/WISE-Developers/project_nomad/commit/fa32b7285863ba1ec5294e05a7084dcefd3ece08) Merge #294: Prometheus/WISE .fgmj importer, and fix the red frontend tzdata assertion — *Franco Nogarin, 11:51*
+- [`6fa65f5`](https://github.com/WISE-Developers/project_nomad/commit/6fa65f54fb578a50ed5950e514b20dcd99877227) Fix red dev CI: frontend tests now use the shipped tzdata, and correct the Alberta DST assertion — *Franco Nogarin, 11:50*
+- [`114ce5d`](https://github.com/WISE-Developers/project_nomad/commit/114ce5da7cc61b8483079e84b737a53124cbefb0) fix(#294): the Import Model panel was invisible — style it as a modal — *Franco Nogarin, 10:37*
+- [`9501cd4`](https://github.com/WISE-Developers/project_nomad/commit/9501cd41e282956c36bd8c164edd5dbb9e79758f) test: cap vitest workers at 4 to stop the intermittent timeout failures — *Franco Nogarin, 07:43*
+- [`ba9e731`](https://github.com/WISE-Developers/project_nomad/commit/ba9e731b883b129c1510f17669c9b0ce657dbb6f) fix(#294): show the imported weather file in the weather step — *Franco Nogarin, 06:47*
+- [`5aff1d7`](https://github.com/WISE-Developers/project_nomad/commit/5aff1d7c0adeb012197ad3e9d0cc3a67aa57d595) fix(#294): put an imported ignition on the map, and stop lying about its timezone — *Franco Nogarin, 06:41*
+- [`0043582`](https://github.com/WISE-Developers/project_nomad/commit/0043582eb7c33b992e676c6465b704351d85dc80) feat(#294): send every ignition, merge server-side, and say what was done — *Franco Nogarin, 06:22*
+- [`f3a1388`](https://github.com/WISE-Developers/project_nomad/commit/f3a1388bb15d8f0380ce55a95740f3905bf9050f) refactor(#294): move mergeIgnitions somewhere neutral, and accommodate LINE ignitions — *Franco Nogarin, 05:45*
+
+### 2026-10-01
+
+- [`17d3270`](https://github.com/WISE-Developers/project_nomad/commit/17d3270d14e0a1a60fd71a63f28ec5207bc25644) feat(#294): Import Model button -- pick a scenario and see what will differ — *Franco Nogarin, 19:52*
+- [`8c45f83`](https://github.com/WISE-Developers/project_nomad/commit/8c45f83830bcf69c5890ae5be1b89f7249f67385) feat(#294): accept an uploaded Prometheus/WISE job and return its plans — *Franco Nogarin, 18:32*
+- [`71ad50a`](https://github.com/WISE-Developers/project_nomad/commit/71ad50ae5fc828dc66d435565a8516fd942369d4) feat(#294): prefill the Model Setup wizard from an imported scenario — *Franco Nogarin, 18:26*
+- [`79e081c`](https://github.com/WISE-Developers/project_nomad/commit/79e081c11a31e03ee0624382d12f713a590a8273) feat(#294): read WISE slash dates day-first, and skip WindNinja wind fields — *Franco Nogarin, 17:28*
+- [`418525c`](https://github.com/WISE-Developers/project_nomad/commit/418525cff8f2b33b76f43875350e3bad92d92783) fix(#294): make the importer work in a built image — *Franco Nogarin, 17:13*
+- [`20cc8d4`](https://github.com/WISE-Developers/project_nomad/commit/20cc8d4574bdd9eb1659b956b66c5b2b91af7e7e) fix(#406): burn perimeters by walking GDAL geometry, not its WKT text — *Franco Nogarin, 16:55*
+- [`2f792d0`](https://github.com/WISE-Developers/project_nomad/commit/2f792d0942101350bb7fa4a9d84b15840e03bb64) fix(#294): route imported weather through CFFDRS, and wire in the ignition merge — *Franco Nogarin, 16:42*
+- [`1764ef9`](https://github.com/WISE-Developers/project_nomad/commit/1764ef95c465d1d39a2e28c8d95d4f1847063087) feat(#294): merge multiple ignitions into one MultiPolygon — *Franco Nogarin, 16:41*
+- [`d956f36`](https://github.com/WISE-Developers/project_nomad/commit/d956f366012581e43ae1bb450ee5746b7875c3ea) feat(#294): let a MultiPolygon reach the rasterizer — *Franco Nogarin, 16:30*
+- [`dfbfe1f`](https://github.com/WISE-Developers/project_nomad/commit/dfbfe1f7b580b5d95aff1c61a452cd4684efeefb) feat(#294): add GeometryType.MultiPolygon to SpatialGeometry — *Franco Nogarin, 16:20*
+- [`07e2b29`](https://github.com/WISE-Developers/project_nomad/commit/07e2b29648bad9d17daf1cfdfb62110561b85ea5) feat(#294): hand imported scenarios to the engine the way creating a model does — *Franco Nogarin, 16:13*
+- [`ae1b483`](https://github.com/WISE-Developers/project_nomad/commit/ae1b483c12dffb92d4ccd93991f84909438b5962) feat(#294): mirror polygon and line ignitions into the perimeter — *Franco Nogarin, 15:54*
+- [`4b4cb15`](https://github.com/WISE-Developers/project_nomad/commit/4b4cb15a1659dbaaff2fd479278b1e3fe7048c5d) feat(#294): assemble a runnable FireSTARRParams from an import plan — *Franco Nogarin, 15:51*
+- [`4f82970`](https://github.com/WISE-Developers/project_nomad/commit/4f8297098f9520378dfb471ef5f0c8734749375d) test: add NWT Hay River test fire weather years and archived ignition — *Franco Nogarin, 15:43*
+- [`8a6fd74`](https://github.com/WISE-Developers/project_nomad/commit/8a6fd74992205767cab736c2ef517f01103dfd76) feat(#294): apply the patch time-of-day window — corpus 23 -> 38 — *Franco Nogarin, 14:54*
+- [`3606a06`](https://github.com/WISE-Developers/project_nomad/commit/3606a062585c15fb4c4696b9751a77c6641ceaec) feat(#294): read weather from the file a WISE job points at — corpus 4 -> 23 — *Franco Nogarin, 12:45*
+- [`095ac75`](https://github.com/WISE-Developers/project_nomad/commit/095ac75990f00cb3dab756f80db64af130087b1c) feat(#294): burn imported ignitions as real geometry, holes included — *Franco Nogarin, 12:13*
+- [`2ef5218`](https://github.com/WISE-Developers/project_nomad/commit/2ef52189838be250845544cf9533f311d9df4783) feat(#294): hand the weather to Nomad with the file's starting codes, and compute nothing — *Franco Nogarin, 10:43*
+- [`4d0e372`](https://github.com/WISE-Developers/project_nomad/commit/4d0e3729646c1a45675476e1b0155812e9373a62) feat(#294): take the run's timezone from the file's offset instead of guessing a zone — *Franco Nogarin, 10:26*
+- [`9c79fc5`](https://github.com/WISE-Developers/project_nomad/commit/9c79fc508eb7447104b108569b9d9f6fa092f28b) feat(#294): refuse an import whose weather FireSTARR cannot read — *Franco Nogarin, 09:38*
+- [`179636f`](https://github.com/WISE-Developers/project_nomad/commit/179636fbcab50b8a24d221d57edfc2bdf670d098) feat(#294): let the operator decide a polygon patch, and record that it diverges — *Franco Nogarin, 09:12*
+- [`4f75a02`](https://github.com/WISE-Developers/project_nomad/commit/4f75a022f0a1aaad6324cf46abdf4dac5a150e03) feat(#294): reproject ignitions once the operator supplies a CRS — *Franco Nogarin, 08:32*
+- [`8f8a53c`](https://github.com/WISE-Developers/project_nomad/commit/8f8a53c238255899202f2dd6aa2f07049580916b) chore: dev v0.20.14 [release-bot] — *github-actions[bot], 14:24*
+- [`cfb18b0`](https://github.com/WISE-Developers/project_nomad/commit/cfb18b03c77eb15ba44527cc81d9f7106e3efe9e) Merge test/perimeter-reprojection-coverage: cover the untested shapefile reprojection path — *Franco Nogarin, 08:24*
+- [`875c78e`](https://github.com/WISE-Developers/project_nomad/commit/875c78eb94fca6f9ef8f168505954203f48aadbd) test: cover shapefile reprojection, which had none and sits on an axis-order trap — *Franco Nogarin, 08:24*
+- [`3a12fa0`](https://github.com/WISE-Developers/project_nomad/commit/3a12fa090223e837f57abbb75329984caf82d08d) feat(#294): compose the pieces into a per-scenario import plan — *Franco Nogarin, 07:38*
+- [`def20a7`](https://github.com/WISE-Developers/project_nomad/commit/def20a764e9e848e2e0e4031dd998139a73576f8) feat(#294): read the weather stream into hourly observations, in the project's timezone — *Franco Nogarin, 07:29*
+- [`347ebbe`](https://github.com/WISE-Developers/project_nomad/commit/347ebbe67dc065fa191cc51a9052544c68b5c9b8) feat(#294): extract ignition geometry, and detect projection without ever guessing a CRS — *Franco Nogarin, 07:11*
+- [`d2f8bf3`](https://github.com/WISE-Developers/project_nomad/commit/d2f8bf331a3d0e6b9251bf661720f95f142a48fa) feat(#294): clamp patched RH to 0-100 and tell the operator which rows moved — *Franco Nogarin, 06:56*
+- [`0f1837d`](https://github.com/WISE-Developers/project_nomad/commit/0f1837d0157dc43c1f4df52fba6eb02078b2c336) feat(#294): apply weather patches to a stream, with the RH fraction-to-percent conversion — *Franco Nogarin, 06:48*
+- [`7e13759`](https://github.com/WISE-Developers/project_nomad/commit/7e13759b4ae6a5fdf366d094930e7df453449b33) feat(#294): resolve each scenario's references and its own time window — *Franco Nogarin, 06:40*
+- [`e0b1534`](https://github.com/WISE-Developers/project_nomad/commit/e0b1534aafeac142548d7b41716939cb0df6ff4a) feat(#294): load and decode .fgmj projects against the vendored schema — *Franco Nogarin, 06:32*
+- [`d509d7b`](https://github.com/WISE-Developers/project_nomad/commit/d509d7bb6feea8c799a1f6f30d6aaca8daf38172) feat(#294): decode weather-patch operations from the schema, not a copied table — *Franco Nogarin, 06:10*
+- [`65df0e2`](https://github.com/WISE-Developers/project_nomad/commit/65df0e2bf6f1476e83638668c7ecbd8a89911302) chore: dev v0.20.13 [release-bot] — *github-actions[bot], 11:45*
+- [`2e5dc66`](https://github.com/WISE-Developers/project_nomad/commit/2e5dc669b64a8b93ffe9614045c0bd4d43f96f2e) Merge fix/404-temporal-single-default: compute the default start date once — *Franco Nogarin, 05:45*
+- [`ef6262a`](https://github.com/WISE-Developers/project_nomad/commit/ef6262af0fbb7ab77aedf13ce8e90a93bb20b775) fix(#404): compute the default start date once, not twice — *Franco Nogarin, 05:45*
+- [`11f0f39`](https://github.com/WISE-Developers/project_nomad/commit/11f0f397a3d5d0e9da1d24fe1168f3e3d3f03e4e) chore: dev v0.20.12 [release-bot] — *github-actions[bot], 10:55*
+- [`71c9261`](https://github.com/WISE-Developers/project_nomad/commit/71c9261465a62fe027fa82b86e937f2c3dc9a6dd) Merge fix/403-lib-bundle-suite-job: the library-bundle suite runs where a build is possible — *Franco Nogarin, 04:55*
+- [`21b5d7d`](https://github.com/WISE-Developers/project_nomad/commit/21b5d7d907701ecf6e194826ceb18e52fa39f9de) fix(#403): run the library-bundle suite in the Frontend job, where a build is possible — *Franco Nogarin, 04:55*
+- [`07ab263`](https://github.com/WISE-Developers/project_nomad/commit/07ab26373bbb2b9af0b5c6bc719539ef2dfe67a4) chore: dev v0.20.11 [release-bot] — *github-actions[bot], 00:35*
+
+### 2026-09-30
+
+- [`9eb6407`](https://github.com/WISE-Developers/project_nomad/commit/9eb64078ffa5168f008ab910cf74754c7f297b86) Merge chore/386-lint-triage: lint findings 92 -> 0, ratchet retired — *Franco Nogarin, 18:34*
+- [`d36b0bf`](https://github.com/WISE-Developers/project_nomad/commit/d36b0bf71edeb3f87b9a8e5e457ecf3f79083ae3) Merge fix/402-temporal-local-date: test compared a local date to a UTC date — *Franco Nogarin, 18:34*
+- [`5122e42`](https://github.com/WISE-Developers/project_nomad/commit/5122e428fec7e67a82e32f2d24de015a2a01e80e) fix(#402): TemporalStep test compared a local date to a UTC date — *Franco Nogarin, 18:34*
+- [`fa984cd`](https://github.com/WISE-Developers/project_nomad/commit/fa984cd17b621721446e6d8e818de3d0672618bb) chore(#386): retire the lint ratchet, make the CI lint job plain and blocking — *Franco Nogarin, 18:17*
+- [`a6f3e49`](https://github.com/WISE-Developers/project_nomad/commit/a6f3e49ca9a29d33438c76be859e9656c3fd9bf1) chore(#386): lower the lint ratchet ceiling to 0 — *Franco Nogarin, 10:40*
+- [`3208cc7`](https://github.com/WISE-Developers/project_nomad/commit/3208cc70ceb9bffec319e66f977a08c4536ba434) chore(#386): move DrawProvider out of DrawContext -- lint findings now 0 — *Franco Nogarin, 10:37*
+- [`48287e1`](https://github.com/WISE-Developers/project_nomad/commit/48287e1b7b3cb7eb7261be6211e8e44331511770) chore(#386): move MapProvider out of MapContext, keeping the module path intact — *Franco Nogarin, 10:36*
+- [`30990f5`](https://github.com/WISE-Developers/project_nomad/commit/30990f5e12387dc2da7fa5df927979f52b919392) chore(#386): replace two empty extending interfaces with type aliases — *Franco Nogarin, 10:34*
+- [`954f872`](https://github.com/WISE-Developers/project_nomad/commit/954f872dc985e632da0a9763453c1f7b82647dc1) chore(#386): split NomadCustomizationContext into NomadProvider + NomadCustomizationContext + useNomadCustomization — *Franco Nogarin, 10:31*
+- [`5cf5b33`](https://github.com/WISE-Developers/project_nomad/commit/5cf5b33e9a097bac157aaec11dae21e561671fe6) chore(#386): split DashboardContext into DashboardProvider + DashboardContext + useDashboard — *Franco Nogarin, 10:29*
+- [`9995e8f`](https://github.com/WISE-Developers/project_nomad/commit/9995e8f1b973ca9f21e0e19edc2957efbc6f4a3a) chore(#386): split WizardContext into WizardProvider + WizardContext + useWizard — *Franco Nogarin, 10:26*
+- [`abcfcdc`](https://github.com/WISE-Developers/project_nomad/commit/abcfcdc0bf680d8cb772243671230a3fd9115cbb) chore(#386): split OpenNomadContext into OpenNomadProvider + OpenNomadContext + useOpenNomad — *Franco Nogarin, 10:24*
+- [`a8ca329`](https://github.com/WISE-Developers/project_nomad/commit/a8ca3296f3c6051c18c8a07297e347595c3668f5) chore(#386): split LayerContext into LayerProvider + LayerContext + useLayers — *Franco Nogarin, 10:19*
+- [`1a43843`](https://github.com/WISE-Developers/project_nomad/commit/1a438435d4a81f7fddbb672db7fa4d3b59d3c035) chore(#386): split getStepComponent out of ModelSetupWizard.tsx — *Franco Nogarin, 10:16*
+- [`7388227`](https://github.com/WISE-Developers/project_nomad/commit/7388227a7f46a286d0198f64fcc7a53c7cfc7d63) chore(#386): clear the 5 backend style findings, and repair a test that guarded nothing — *Franco Nogarin, 10:16*
+- [`15d550a`](https://github.com/WISE-Developers/project_nomad/commit/15d550a118cc133e9872839d2755a4e0fca87a27) chore(#386): split parseRampStops out of RasterLegend.tsx — *Franco Nogarin, 10:15*
+- [`6a13c5b`](https://github.com/WISE-Developers/project_nomad/commit/6a13c5bb7c15bf475f5ed9c2fbff1022cf2ebf4f) chore(#386): split DeploymentModeContext so the provider file exports only a component — *Franco Nogarin, 09:32*
+- [`f3eb5fe`](https://github.com/WISE-Developers/project_nomad/commit/f3eb5fe2b04dcb1f93ebd1752b7a21afa1da01e5) chore(#386): honour the _ unused convention in eslint, clear 56 findings — *Franco Nogarin, 09:30*
+- [`cb0866e`](https://github.com/WISE-Developers/project_nomad/commit/cb0866e83904493e0506e551141b737cd813aa26) chore: dev v0.20.10 [release-bot] — *github-actions[bot], 14:59*
+- [`43d6cac`](https://github.com/WISE-Developers/project_nomad/commit/43d6cacae60a0f5287ef2184c609624d2723ed32) Merge test/294-polygon-winddirection: polygon, wind-direction and Divide fixtures — *Franco Nogarin, 08:59*
+- [`22d1a4e`](https://github.com/WISE-Developers/project_nomad/commit/22d1a4ed2581cc158cd46b4fa456523fb9e54eaf) test: add an fgmj covering Divide and a compass-sourced wind direction — *Franco Nogarin, 08:57*
+- [`d49575d`](https://github.com/WISE-Developers/project_nomad/commit/d49575d4ff1e62db0ba4232c16d2ace4624f603e) test: add an fgmj with a polygon weather patch and a wind-direction operation — *Franco Nogarin, 08:50*
+- [`9250e63`](https://github.com/WISE-Developers/project_nomad/commit/9250e6349de90c7bb9d1cf0d789e891c845880f7) chore: dev v0.20.9 [release-bot] — *github-actions[bot], 14:28*
+- [`3485b65`](https://github.com/WISE-Developers/project_nomad/commit/3485b655b3c16e90bcc7edaadcc1b05614010f6d) Merge test/294-prometheus-fixture: fgmj fixtures, vendored WISE schema, decode groundwork — *Franco Nogarin, 08:28*
+- [`c7abcae`](https://github.com/WISE-Developers/project_nomad/commit/c7abcae547d46168e83c61b2c317656f0b521457) test: prove the vendored WISE schema decodes our fgmj fixtures — *Franco Nogarin, 07:57*
+- [`e834ad7`](https://github.com/WISE-Developers/project_nomad/commit/e834ad7ac74a619c7620eda86c720c099f2a3740) chore: vendor the WISE fgmj protobuf descriptor set for #294 — *Franco Nogarin, 07:46*
+- [`6ee8c7f`](https://github.com/WISE-Developers/project_nomad/commit/6ee8c7f557298925ec352982f8a6ab0816b4c183) test: add a Prometheus fgmj exercising patches, multi-ignition and projected coords — *Franco Nogarin, 07:32*
+- [`681f30f`](https://github.com/WISE-Developers/project_nomad/commit/681f30f9794ca2b5a35d4230e69bb3ba6274c0c2) test: add a real Prometheus fgmj export as the #294 primary fixture — *Franco Nogarin, 07:06*
+
+### 2026-09-29
+
+- [`49b9443`](https://github.com/WISE-Developers/project_nomad/commit/49b944322ca6afd8d86f33a39eaf3fcea5bdfa87) chore: dev v0.20.8 [release-bot] — *github-actions[bot], 16:07*
+- [`f884219`](https://github.com/WISE-Developers/project_nomad/commit/f884219de039fb2563ba7d4c4cf935fdf6c78352) Merge fix/400-installer-csf-warn: installer warns when CSF is present — *Franco Nogarin, 10:06*
+- [`fea834e`](https://github.com/WISE-Developers/project_nomad/commit/fea834e4e2ebcf0a5452491c686fd7067ba2b4db) Merge fix/387-no-lib-stylesheet: library emits no stylesheet — *Franco Nogarin, 10:06*
+- [`1cdfffc`](https://github.com/WISE-Developers/project_nomad/commit/1cdfffc279a375e697b62f3486333eef854aef72) feat: warn at install time when CSF is present, which breaks Docker networking — *Franco Nogarin, 10:04*
+- [`3c29e8c`](https://github.com/WISE-Developers/project_nomad/commit/3c29e8c61b7a51570798b20f6557c1ef0d55fa14) fix: stop the library bundle emitting 83 kB of unusable maplibre CSS — *Franco Nogarin, 10:03*
+- [`c601652`](https://github.com/WISE-Developers/project_nomad/commit/c6016520aff0f644c94b424332feced5fc560005) chore: dev v0.20.7 [release-bot] — *github-actions[bot], 14:06*
+- [`142eb98`](https://github.com/WISE-Developers/project_nomad/commit/142eb98ba9424368669ddea618cb6ff22d2b3560) Merge test/395-wizard-step-harness: first tests for SpatialInputStep — *Franco Nogarin, 08:06*
+- [`2a403a6`](https://github.com/WISE-Developers/project_nomad/commit/2a403a665ea54b5ef7b231759e28864d566cd5bb) test: add a reusable wizard-step render harness, and first tests for SpatialInputStep — *Franco Nogarin, 08:06*
+- [`6cdb20f`](https://github.com/WISE-Developers/project_nomad/commit/6cdb20f82f3198ee436130ab3487b2472f701b1d) chore: dev v0.20.6 [release-bot] — *github-actions[bot], 12:59*
+- [`cd79708`](https://github.com/WISE-Developers/project_nomad/commit/cd79708f17112b20e72efa05b6169409218ba030) Merge fix/389-prod-tree-devoptional: omit optional deps from the production tree — *Franco Nogarin, 06:59*
+- [`d8e05ae`](https://github.com/WISE-Developers/project_nomad/commit/d8e05ae55d80c0c3ac4510fb016767705cd93772) fix: omit optional deps from the production tree, and guard it by lockfile — *Franco Nogarin, 06:41*
 
 ### 2026-09-28
 
+- [`a6921de`](https://github.com/WISE-Developers/project_nomad/commit/a6921de4d4505a9ff50bf799e9183b2670aab0ed) chore: dev v0.20.5 [release-bot] — *github-actions[bot], 18:14*
+- [`ae1a984`](https://github.com/WISE-Developers/project_nomad/commit/ae1a984e999ff3de5a25f4c9f13e0af162771eb1) Merge origin/dev (release-bot bump) into #399 fix — *Franco Nogarin, 12:14*
+- [`82afe0e`](https://github.com/WISE-Developers/project_nomad/commit/82afe0e4e9438d820558ed5cba22cb02502921a6) Merge fix/399-concurrency-group: dedupe test runs between push and pull_request — *Franco Nogarin, 12:14*
+- [`c2d44e2`](https://github.com/WISE-Developers/project_nomad/commit/c2d44e22b89e227413f474cbf552d152734fb464) fix: make the tests concurrency group match between push and pull_request — *Franco Nogarin, 12:14*
+- [`f182389`](https://github.com/WISE-Developers/project_nomad/commit/f1823896f35218cf63c2928262bdda543d80e655) chore: dev v0.20.4 [release-bot] — *github-actions[bot], 16:28*
+- [`368b9fc`](https://github.com/WISE-Developers/project_nomad/commit/368b9fc65ae45c2df81842d2916bc0db2209fcba) Merge docs/333-skip-ci-footgun: document the skip-CI marker hazard — *Franco Nogarin, 10:28*
+- [`508d5b0`](https://github.com/WISE-Developers/project_nomad/commit/508d5b09c5bf535fd7a5fd4c0ad2dea5f8b5b9b9) docs: warn against GitHub's skip-CI marker in commit messages — *Franco Nogarin, 10:28*
+- [`09b5191`](https://github.com/WISE-Developers/project_nomad/commit/09b51918f27f3921c7d14e890713de4ebeb77681) chore: dev v0.20.3 [release-bot] — *github-actions[bot], 15:19*
+- [`86e5da4`](https://github.com/WISE-Developers/project_nomad/commit/86e5da48a168e1e7014d80a28d6fa5b4cf2e9a1f) chore: trigger CI on dev after the release-marker fix — *Franco Nogarin, 09:19*
+- [`4fffa1b`](https://github.com/WISE-Developers/project_nomad/commit/4fffa1b2d9da9b8edb7fe65fcc5d0edde0960e1d) Merge fix/333-release-marker: release bumps no longer suppress CI — *Franco Nogarin, 09:14*
+- [`d6740b5`](https://github.com/WISE-Developers/project_nomad/commit/d6740b55e215e42d75149583632a58ba90de5a59) fix: stop release bumps suppressing CI, so required checks work on dev->main — *Franco Nogarin, 09:14*
+- [`06fed02`](https://github.com/WISE-Developers/project_nomad/commit/06fed0232581fe494cadb60f1b51b28763922619) chore: dev v0.20.2 [skip ci] — *github-actions[bot], 14:28*
+- [`5922d94`](https://github.com/WISE-Developers/project_nomad/commit/5922d9497acf4a096ef6ac8aa773d2d35a55ae5f) Merge origin/dev (v0.20.1 dev tag) into #393 group C work — *Franco Nogarin, 08:27*
+- [`77e9bc6`](https://github.com/WISE-Developers/project_nomad/commit/77e9bc670a072ee75b76e044a72a5a0a5c0af662) Merge fix/393-group-c: WizardContext's prevStepIndexRef was never a ref — *Franco Nogarin, 08:25*
+- [`7bd125f`](https://github.com/WISE-Developers/project_nomad/commit/7bd125f2957be0f9ebb7abc88741f3bd9303477c) fix: make WizardContext's prevStepIndexRef an actual ref, so onStepChange fires — *Franco Nogarin, 08:23*
+- [`cb313f7`](https://github.com/WISE-Developers/project_nomad/commit/cb313f79248c9f105c954cc3ae7a52b31c1f580e) chore: dev v0.20.1 [skip ci] — *github-actions[bot], 14:19*
+- [`816d853`](https://github.com/WISE-Developers/project_nomad/commit/816d8537e567f844e85793a4309452ebfe156be0) Merge fix/393-group-b-unstable-refs: clear all 14 unstable-reference findings — *Franco Nogarin, 08:18*
+- [`2693eb3`](https://github.com/WISE-Developers/project_nomad/commit/2693eb34b9d68afd95be8c6dbf95518e114eef1b) fix: hoist wizard-step fallback literals to module constants — *Franco Nogarin, 08:17*
+- [`0e8e6cd`](https://github.com/WISE-Developers/project_nomad/commit/0e8e6cd9187f4ed647204efecd5c404b04eff7ef) fix: stop useGeometrySync rebuilding its embedded-mode fallbacks every render — *Franco Nogarin, 08:12*
+- [`374485d`](https://github.com/WISE-Developers/project_nomad/commit/374485df363aed8973076e606b07bb8076ab7fb3) chore: release v0.20.0 [skip ci] — *github-actions[bot], 13:52*
 - [`2eeabe6`](https://github.com/WISE-Developers/project_nomad/commit/2eeabe60dcd3c1e79851bb847296c1bf2370ef64) Merge pull request #394 from WISE-Developers/dev — *Franco Nogarin, 07:51*
 - [`7a5550f`](https://github.com/WISE-Developers/project_nomad/commit/7a5550f4b4bf84a7f6617f479b742782ac9ea330) chore: dev v0.19.8 [skip ci] — *github-actions[bot], 13:51*
 - [`27ce217`](https://github.com/WISE-Developers/project_nomad/commit/27ce217d40d3e500ac01728121526ccf48e43f37) Merge pull request #391 from Jah-yee/fix/ignition-typo — *Franco Nogarin, 07:51*
