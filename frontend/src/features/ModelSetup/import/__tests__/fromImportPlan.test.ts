@@ -136,28 +136,114 @@ describe('prefillFromImportPlan — what the operator must be told', () => {
   });
 });
 
-describe('prefillFromImportPlan — multiple ignitions', () => {
+describe('prefillFromImportPlan — refuses a geometry the form cannot draw', () => {
   /**
-   * The wizard cannot represent these yet. SpatialData.features is an array,
-   * but the submit path reads features[0] only (App.tsx:167) and
-   * RunModelRequest.ignition takes ONE geometry whose type cannot be
-   * MultiPolygon. Prefilling two features would silently drop one — the
-   * failure this whole issue has been guarding against.
+   * Repurposed from the old "refuses rather than dropping the second ignition".
    *
-   * So it is reported as unsupported rather than quietly losing an ignition.
+   * That test guarded a real constraint — the submit path read features[0] and
+   * the run request could not carry a MultiPolygon — and both were fixed in the
+   * #294 merge, so refusing on COUNT is now wrong. What stays worth guarding is
+   * refusing on TYPE: a geometry the setup form genuinely cannot draw must be
+   * reported, never silently dropped. That was the real defect underneath.
+   *
+   * DRAWING_MODES covers Point, LineString and Polygon. Anything else — a
+   * GeometryCollection, a MultiPolygon arriving unmerged — has no drawing mode,
+   * and a feature that cannot be drawn cannot be edited, confirmed, or seen.
+   *
+   * The second case below is the hole that supporting multiple ignitions opens:
+   * the check reads `const [first] = plan.ignitions` and inspects only that one.
+   * While the importer refused every multi-ignition plan outright, looking at the
+   * first was sufficient. It is not any more — an undrawable SECOND ignition now
+   * reaches the map unexamined.
    */
-  it('refuses rather than dropping the second ignition', () => {
-    const two: ImportedScenarioPlan = {
+  it('reports an undrawable geometry rather than dropping it', () => {
+    const undrawable: ImportedScenarioPlan = {
+      ...plan,
+      ignitions: [
+        {
+          name: 'collection',
+          geometry: { type: 'GeometryCollection', coordinates: [] },
+        },
+      ],
+    } as unknown as ImportedScenarioPlan;
+    const { unsupported } = prefillFromImportPlan(undrawable);
+    expect(unsupported.some((u) => /cannot draw or carry/.test(u))).toBe(true);
+    expect(unsupported.some((u) => /collection/.test(u))).toBe(true);
+  });
+
+  it('checks EVERY ignition, not just the first', () => {
+    const secondUndrawable: ImportedScenarioPlan = {
       ...plan,
       ignitions: [
         plan.ignitions[0],
-        { name: 'second', geometry: { type: 'Point', coordinates: [-112.0, 55.5] } },
+        {
+          name: 'bad-second',
+          geometry: { type: 'GeometryCollection', coordinates: [] },
+        },
       ],
-    };
-    const { unsupported } = prefillFromImportPlan(two);
-    expect(unsupported).toHaveLength(1);
-    expect(unsupported[0]).toMatch(/2 ignitions/);
-    expect(unsupported[0]).toMatch(/drop/i);
+    } as unknown as ImportedScenarioPlan;
+    const { unsupported } = prefillFromImportPlan(secondUndrawable);
+    // Deliberately matched on ONE string carrying BOTH the name and the type
+    // wording. A bare /bad-second/ passes vacuously today: the count refusal
+    // interpolates every ignition name, so it matches that message instead of
+    // the type check and stays green with the type guard deleted.
+    expect(
+      unsupported.some((u) => /bad-second/.test(u) && /cannot draw or carry/.test(u)),
+    ).toBe(true);
+  });
+});
+
+describe('prefillFromImportPlan — multiple ignitions reach the map (refs #294)', () => {
+  /**
+   * The refusal above was correct when it was written and is not any more.
+   *
+   * Its stated reasons were that the submit path read `features[0]` only and
+   * that the run request could not carry a MultiPolygon. Both were fixed in
+   * the #294 merge: App.tsx now sends EVERY drawn feature, GeometryType
+   * .MultiPolygon goes through SpatialGeometry, WKT, the rasterizer type gates
+   * and buildParams, and the backend merges N ignitions via mergeIgnitions and
+   * returns ignitionNotices.
+   *
+   * The proof that the wizard can carry this is that HAND-DRAWN multi-ignition
+   * already runs end to end and is validated. The wizard holds several features
+   * perfectly well; only the import prefill truncates, at `.slice(0, 1)`.
+   *
+   * Note what is NOT being asserted: a single DrawnFeature holding a
+   * MultiPolygon. DrawnFeature is a union of Feature<Point> | Feature<LineString>
+   * | Feature<Polygon> — a feature of a union is not a union of features — so a
+   * multi-part geometry still cannot be one drawn feature. It does not need to
+   * be. N features go to the map and the existing merge makes them one ignition,
+   * which is exactly what the hand-drawn path does.
+   */
+  const twoIgnitions: ImportedScenarioPlan = {
+    ...plan,
+    ignitions: [
+      plan.ignitions[0],
+      { name: 'second', geometry: { type: 'Point', coordinates: [-112.0, 55.5] } },
+    ],
+  } as ImportedScenarioPlan;
+
+  it('prefills BOTH ignitions as drawn features rather than keeping only the first', () => {
+    const { initialData } = prefillFromImportPlan(twoIgnitions);
+    const features = initialData.geometry?.features ?? [];
+    expect(features).toHaveLength(2);
+  });
+
+  it('does not report the ignition count as unsupported', () => {
+    const { unsupported } = prefillFromImportPlan(twoIgnitions);
+    expect(unsupported.filter((u) => /\d+ ignitions/.test(u))).toHaveLength(0);
+  });
+
+  it('keeps each ignition distinguishable by its own name', () => {
+    // Merging happens in the backend, deliberately. If the prefill collapsed
+    // them here the operator would lose the ability to see, on the map, what
+    // the file actually declared before anything was merged.
+    const { initialData } = prefillFromImportPlan(twoIgnitions);
+    const names = (initialData.geometry?.features ?? []).map(
+      (f) => (f.properties as { name?: string } | undefined)?.name,
+    );
+    expect(names).toContain('second');
+    expect(new Set(names).size).toBe(2);
   });
 });
 

@@ -171,34 +171,44 @@ export function prefillFromImportPlan(plan: ImportedScenarioPlan): ImportPrefill
     );
   }
 
-  if (plan.ignitions.length > 1) {
-    // SpatialData.features is an array, but the submit path reads features[0]
-    // only and the run request takes ONE ignition geometry, which cannot be a
-    // MultiPolygon. Prefilling both would silently drop one.
-    unsupported.push(
-      `Scenario "${plan.scenarioName}" has ${plan.ignitions.length} ignitions ` +
-        `(${plan.ignitions.map((i) => i.name).join(', ')}). The wizard carries one ` +
-        'ignition, so prefilling it would drop the rest. The importer can merge them ' +
-        'into a single multi-part ignition, but nothing in the setup form or the run ' +
-        'request can express that yet.',
-    );
+  // Every ignition is prefilled, not just the first.
+  //
+  // This used to refuse any plan with more than one, because the submit path
+  // read `features[0]` and the run request could not carry a MultiPolygon.
+  // Both were fixed in the #294 merge: App.tsx sends EVERY drawn feature, and
+  // the backend merges N ignitions through mergeIgnitions. Hand-drawn
+  // multi-ignition already runs end to end, which is the proof the wizard
+  // carries several features perfectly well.
+  //
+  // They are deliberately NOT merged here. Merging is the backend's job, and
+  // collapsing them client-side would take away the operator's chance to see,
+  // on the map, what the file actually declared before anything combined them.
+  const features: DrawnFeature[] = plan.ignitions.flatMap((ignition) => {
+    const feature = toDrawnFeature(ignition.name, ignition.geometry);
+    return feature ? [feature] : [];
+  });
+
+  // Checked across EVERY ignition, not just the first.
+  //
+  // While multi-ignition plans were refused outright, inspecting `ignitions[0]`
+  // was sufficient — nothing got past the refusal. Supporting several opens the
+  // hole: an undrawable SECOND ignition would otherwise reach the map
+  // unexamined, which is the silent drop this guard exists to prevent.
+  for (const ignition of plan.ignitions) {
+    if (!DRAWING_MODES[ignition.geometry.type]) {
+      unsupported.push(
+        `Ignition "${ignition.name}" is a ${ignition.geometry.type}, which the setup form ` +
+          'cannot draw or carry.',
+      );
+    }
   }
 
-  const features: DrawnFeature[] = plan.ignitions
-    .slice(0, 1)
-    .flatMap((ignition) => {
-      const feature = toDrawnFeature(ignition.name, ignition.geometry);
-      return feature ? [feature] : [];
-    });
-
-  const [first] = plan.ignitions;
-  const mode: DrawingMode = first ? (DRAWING_MODES[first.geometry.type] ?? 'none') : 'none';
-  if (first && !DRAWING_MODES[first.geometry.type]) {
-    unsupported.push(
-      `Ignition "${first.name}" is a ${first.geometry.type}, which the setup form ` +
-        'cannot draw or carry.',
-    );
-  }
+  // The drawing mode follows the first DRAWABLE ignition. A mixed plan is
+  // already reported above, so this only decides which tool the map opens with.
+  const firstDrawable = plan.ignitions.find((i) => DRAWING_MODES[i.geometry.type]);
+  const mode: DrawingMode = firstDrawable
+    ? (DRAWING_MODES[firstDrawable.geometry.type] ?? 'none')
+    : 'none';
 
   const { date, time } = localWallClock(plan.startTime);
 
