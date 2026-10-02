@@ -160,3 +160,45 @@ describe('prefillFromImportPlan — multiple ignitions', () => {
     expect(unsupported[0]).toMatch(/drop/i);
   });
 });
+
+describe('prefillFromImportPlan — the weather step must see the attached file', () => {
+  /**
+   * RawWeatherUpload decides whether a file is attached with
+   * `const hasFile = !!fileName && !!parsed` — it needs BOTH. The prefill set
+   * only the name, so step 2 showed an empty "Click or drag file to upload"
+   * dropzone for weather that was already there, while Review listed the
+   * filename and the validator was satisfied. Found by walking the wizard in a
+   * browser.
+   *
+   * Parsed with the same shared parseCSV + buildParsedWeatherCSV the real
+   * upload path uses, so an imported file is summarised identically to an
+   * uploaded one rather than by a second implementation.
+   */
+  it('parses the observations so the dropzone shows them', () => {
+    const { initialData } = prefillFromImportPlan(plan);
+    const parsed = initialData.weather?.rawWeatherParsed;
+    expect(parsed).toBeDefined();
+    expect(parsed!.headers).toEqual(['Date', 'PREC', 'TEMP', 'RH', 'WS', 'WD']);
+    // The fixture is trimmed to a header plus 3 rows.
+    expect(parsed!.rowCount).toBe(3);
+  });
+
+  it('reports no FWI columns, which is the whole point of raw weather', () => {
+    // If this ever said true, the operator would be told the file already
+    // carries indices and CFFDRS would be skipped.
+    const { initialData } = prefillFromImportPlan(plan);
+    expect(initialData.weather?.rawWeatherParsed?.hasFWIColumns).toBe(false);
+  });
+
+  it('sets both halves of what the uploader checks', () => {
+    const { initialData } = prefillFromImportPlan(plan);
+    expect(initialData.weather?.rawWeatherFileName).toBeTruthy();
+    expect(initialData.weather?.rawWeatherParsed).toBeTruthy();
+  });
+
+  it('attaches nothing when the plan carried no weather content', () => {
+    const { initialData } = prefillFromImportPlan({ ...plan, rawWeatherContent: undefined });
+    expect(initialData.weather?.rawWeatherFileName).toBeUndefined();
+    expect(initialData.weather?.rawWeatherParsed).toBeUndefined();
+  });
+});

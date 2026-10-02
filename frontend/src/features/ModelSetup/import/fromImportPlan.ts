@@ -19,7 +19,8 @@
 
 import type { Point, LineString, Polygon } from 'geojson';
 import type { DrawingMode, DrawnFeature } from '../../Map/types/geometry';
-import type { BoundingBox, ModelSetupData } from '../types';
+import type { BoundingBox, ModelSetupData, ParsedWeatherCSV } from '../types';
+import { buildParsedWeatherCSV, parseCSV } from '../utils/weatherValidation';
 
 /** One scenario of an imported .fgmj, as the import endpoint returns it. */
 export interface ImportedScenarioPlan {
@@ -241,17 +242,26 @@ export function prefillFromImportPlan(plan: ImportedScenarioPlan): ImportPrefill
 
 /**
  * The weather step reads an uploaded file, so the imported observations are
- * presented as one. Named after the scenario so an operator reviewing the step
- * can tell where it came from.
+ * presented as one — named after the scenario, parsed the same way, so the
+ * step shows the record count and the operator can see it is already there.
  */
 function weatherFileOf(plan: ImportedScenarioPlan): {
   rawWeatherFile?: File;
   rawWeatherFileName?: string;
+  rawWeatherParsed?: ParsedWeatherCSV;
 } {
   if (!plan.rawWeatherContent) return {};
   const name = `${plan.scenarioName.replace(/[^\w.-]+/g, '_')}-weather.csv`;
+  const { headers, rows } = parseCSV(plan.rawWeatherContent);
   return {
     rawWeatherFileName: name,
     rawWeatherFile: new File([plan.rawWeatherContent], name, { type: 'text/csv' }),
+    // RawWeatherUpload decides a file is attached with
+    // `!!fileName && !!parsed` — it needs BOTH, so without this the step shows
+    // an empty dropzone for weather that is already there.
+    //
+    // Parsed with the same shared helpers the real upload path uses, so an
+    // imported file is summarised identically to an uploaded one.
+    rawWeatherParsed: buildParsedWeatherCSV(headers, rows),
   };
 }
