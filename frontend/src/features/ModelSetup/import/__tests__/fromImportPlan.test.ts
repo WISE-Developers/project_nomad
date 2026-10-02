@@ -33,7 +33,10 @@ describe('prefillFromImportPlan — temporal', () => {
   it('carries the file’s offset as the timezone, not the browser’s', () => {
     const { initialData } = prefillFromImportPlan(plan);
     expect(initialData.temporal?.timezone).toBe('-06:00');
-    expect(initialData.temporal?.timezoneSource).toBe('inferred');
+    // 'imported', not 'inferred': the file recorded it. 'inferred' made the
+    // wizard tell the operator it "was detected from this device" — false —
+    // and made them confirm recorded data. See importedTimezone.test.ts.
+    expect(initialData.temporal?.timezoneSource).toBe('imported');
   });
 
   it('carries the scenario duration and marks it as not a forecast', () => {

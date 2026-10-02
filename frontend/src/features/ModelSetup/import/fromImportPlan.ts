@@ -215,8 +215,11 @@ export function prefillFromImportPlan(plan: ImportedScenarioPlan): ImportPrefill
       durationHours: plan.durationHours,
       // The offset the file declared. Accepted by Intl, unlike "UTC-6".
       timezone: plan.timezone,
-      // Read off the file rather than picked by this operator.
-      timezoneSource: 'inferred',
+      // Recorded in the file — neither a device guess nor this operator's
+      // choice. Marking it 'inferred' made the wizard say it "was detected
+      // from this device", which is false, and made the operator confirm
+      // recorded data.
+      timezoneSource: 'imported',
       isForecast: false,
     },
     weather: {

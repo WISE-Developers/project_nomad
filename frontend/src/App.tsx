@@ -132,7 +132,7 @@ function AppContent() {
   const [showDashboard, setShowDashboard] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
-  const { deleteAll } = useDraw();
+  const { deleteAll, addFeatures } = useDraw();
   const { map, isLoaded } = useMap();
   const { addGeoJSONLayer, addRasterLayer } = useLayers();
   const layerCounter = useRef(0);
@@ -171,11 +171,28 @@ function AppContent() {
    * import prefills, it does not launch.
    */
   const handleImportedScenario = useCallback((prefill: ImportPrefill) => {
+    // The imported ignition must go onto the MAP, not only into wizard data.
+    //
+    // The map is the source of truth for drawn geometry: useGeometrySync has an
+    // effect that pushes DrawContext features into wizard data as soon as the
+    // draw context is ready, so prefilled features alone are overwritten with
+    // an empty array the moment the wizard mounts. Found by running it — the
+    // Location step refused to advance with "Please select a fire location"
+    // while the prefill looked correct in every unit test.
+    //
+    // Putting them on the map also makes the import reviewable, which is the
+    // point of prefilling a wizard: the operator can see the ignition and move
+    // it before running.
+    deleteAll();
+    const features = prefill.initialData.geometry?.features ?? [];
+    if (features.length > 0) addFeatures(features);
+
     setWizardInitialData(prefill.initialData);
+    setIgnitionNotices([]);
     setShowImportJob(false);
     setShowWizard(true);
     setSubmitError(null);
-  }, []);
+  }, [deleteAll, addFeatures]);
 
   const handleWizardComplete = useCallback(async (data: ModelSetupData) => {
     console.log('Model setup complete:', data);
