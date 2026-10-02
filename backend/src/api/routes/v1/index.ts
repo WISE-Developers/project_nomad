@@ -11,6 +11,7 @@ import authProvidersRouter from './authProviders.js';
 import exportManifestRouter from './exportManifest.js';
 import importRouter from './import.js';
 import perimetersImportRouter from './perimetersImport.js';
+import fgmjImportRouter from './fgmjImport.js';
 import splashRouter from './splash.js';
 import notificationsRouterFactory from './notifications.js';
 import fuelDatasetsRouterFactory from './fuelDatasets.js';
@@ -36,6 +37,7 @@ router.use(authProvidersRouter);  // /auth/providers
 router.use(exportManifestRouter); // /models/:id/export-manifest
 router.use(importRouter);         // /import
 router.use(perimetersImportRouter); // /perimeters/import
+router.use(fgmjImportRouter); // /import/fgmj (refs #294)
 router.use(splashRouter);           // /splash
 
 // Lazy-init: getNotificationPreferencesRepository() must NOT run at import time
