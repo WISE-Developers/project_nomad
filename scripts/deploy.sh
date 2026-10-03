@@ -169,8 +169,16 @@ repair_ownership() {
 # otherwise the check is decorative. Prints the matched version and returns 0,
 # or prints nothing and returns 1.
 await_version() {
-    local port="${1:-3001}" budget="${2:-90}"
+    local spec="${1:-3001}" budget="${2:-90}"
     local waited=0 reported=""
+
+    # NOMAD_FRONTEND_HOST_PORT is a compose BIND SPEC, not a port. On the CIFFC
+    # demo it is "127.0.0.1:53000", and interpolating that straight into a URL
+    # produced "localhost:127.0.0.1:53000/api/v1/info" -- unresolvable, so every
+    # healthy deploy warned. The backend is up in under four seconds; it was
+    # never slow, the address was wrong. Take the port after the last colon,
+    # which handles "53000", "127.0.0.1:53000" and an IPv6 host alike.
+    local port="${spec##*:}"
     while [ "$waited" -lt "$budget" ]; do
         reported="$(curl -fsS "localhost:${port}/api/v1/info" 2>/dev/null | grep -oE '"version":"[^"]+"' || true)"
         if [ -n "$reported" ]; then

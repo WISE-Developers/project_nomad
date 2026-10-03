@@ -45,6 +45,8 @@ READY_AFTER=\${READY_AFTER:-3}
 curl() {
   n=\$(( \$(wc -c < "\$COUNTER") + 1 ))
   printf 'x' >> "\$COUNTER"
+  # Record the URL asked for, so a malformed one is visible to the test.
+  for a in "\$@"; do case "\$a" in http*|localhost*) echo "\$a" > "$tmp/url";; esac; done
   if [ "\$n" -ge "\$READY_AFTER" ]; then
     echo '{"name":"Project Nomad","version":"0.21.0","environment":"production"}'
     return 0
@@ -83,6 +85,26 @@ if [ "$calls_before" -gt 1 ] && [ "$calls_before" -lt 100 ]; then
 else
   bad "expected a bounded retry count, saw $calls_before"
 fi
+
+# 4. THE REAL DEFECT. NOMAD_FRONTEND_HOST_PORT holds a compose bind spec --
+#    "127.0.0.1:53000" on the CIFFC demo -- not a bare port. Interpolating it
+#    straight into a URL produced "localhost:127.0.0.1:53000/api/v1/info", which
+#    can never resolve. That is why EVERY healthy deploy warned; the backend is
+#    up in under 4 seconds. Retrying a malformed URL just fails more slowly.
+READY_AFTER=1 bash -c '. '"$tmp"'/harness.sh; await_version "127.0.0.1:53000" 10' >/dev/null 2>&1
+asked="$(cat "$tmp/url" 2>/dev/null || echo '(none)')"
+case "$asked" in
+  *localhost:53000/api/v1/info*) ok "extracts the port from a host:port bind spec" ;;
+  *) bad "built a malformed URL from a bind spec: [$asked]" ;;
+esac
+
+# 5. A bare port must still work -- that is what a plain install has.
+READY_AFTER=1 bash -c '. '"$tmp"'/harness.sh; await_version "3001" 10' >/dev/null 2>&1
+asked="$(cat "$tmp/url" 2>/dev/null || echo '(none)')"
+case "$asked" in
+  *localhost:3001/api/v1/info*) ok "still accepts a bare port" ;;
+  *) bad "a bare port must stay supported, asked for [$asked]" ;;
+esac
 
 echo ""
 echo "passed: $pass   failed: $fail"
