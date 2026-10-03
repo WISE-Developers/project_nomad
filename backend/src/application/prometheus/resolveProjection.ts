@@ -20,6 +20,7 @@
  * plausible pair of numbers that puts the fire in the wrong hemisphere.
  */
 
+import { createRequire } from 'module';
 import type { ScenarioImportPlan } from './planFgmjImport.js';
 
 /**
@@ -80,14 +81,21 @@ function buildSourceSrs(gdal: GdalLike, crs: string): SpatialRefLike {
   }
 }
 
-export async function resolveProjection(
+/**
+ * The reprojection itself, with gdal already in hand.
+ *
+ * Split out so the operator-supplied path (async, dynamic import) and the
+ * path where the FILE stated its own CRS (sync, inside planFgmjImport) share
+ * one implementation. The axis-order care above is too easy to get subtly
+ * wrong to have two copies of it.
+ */
+export function applyProjection(
   plan: ScenarioImportPlan,
   crs: string,
-): Promise<ScenarioImportPlan> {
+  gdal: GdalLike,
+): ScenarioImportPlan {
   // Validate the CRS even when there is nothing to reproject, so a typo is
   // reported rather than silently accepted on a plan that did not need it.
-  const gdalModule = await import('gdal-async');
-  const gdal = gdalModule.default as unknown as GdalLike;
   const source = buildSourceSrs(gdal, crs);
 
   if (!plan.ignitions.some((ignition) => ignition.requiresCrs)) {
@@ -141,4 +149,31 @@ export async function resolveProjection(
     blockerDetail,
     runnable: blockers.length === 0,
   };
+}
+
+/**
+ * Operator-supplied CRS. Unchanged entry point.
+ */
+export async function resolveProjection(
+  plan: ScenarioImportPlan,
+  crs: string,
+): Promise<ScenarioImportPlan> {
+  const gdalModule = await import('gdal-async');
+  return applyProjection(plan, crs, gdalModule.default as unknown as GdalLike);
+}
+
+/**
+ * Same, for callers that are synchronous.
+ *
+ * planFgmjImport builds plans synchronously and its only caller does too, so
+ * making the whole chain async to reach gdal would ripple through three layers
+ * and every test for the sake of a module that loads fine with require().
+ */
+export function resolveProjectionSync(
+  plan: ScenarioImportPlan,
+  crs: string,
+): ScenarioImportPlan {
+  const require = createRequire(import.meta.url);
+  const gdal = require('gdal-async') as GdalLike;
+  return applyProjection(plan, crs, gdal);
 }

@@ -4,17 +4,31 @@
  * THE WORST FAILURE AVAILABLE IN THIS IMPORTER, so it is worth being explicit
  * about what this does not do.
  *
- * An .fgmj names a projection but does not carry one — `projectionName:
- * "dataset"` refers to a .prj that sat beside the author's fuel grid, which no
- * agency ships with a years-old job file. The coordinates themselves may be
- * lat/lon or projected metres depending on what that data used. FireSTARR's CLI
- * takes lat/lon, so a projected file cannot be converted without the CRS.
+ * The coordinates may be lat/lon or projected metres depending on what the
+ * author's data used. FireSTARR's CLI takes lat/lon, so a projected file
+ * cannot be converted without the CRS.
  *
  * Guessing one is the failure mode: the run completes, looks entirely
- * plausible, and places the fire hundreds of kilometres from where it was. In
- * the sample the real CRS is ESRI:102001 (Canada Albers) and reprojecting puts
- * the ignitions in the NWT — but the FILE does not say that, so this module
- * does not either.
+ * plausible, and places the fire hundreds of kilometres from where it was.
+ *
+ * CORRECTED 2026-10-03. This header used to say "an .fgmj names a projection
+ * but does not carry one", and that the file does not say its CRS. It usually
+ * does. Of 66 real .fgmj files, 5 carry a full WKT inline at
+ * grid.projection.wkt and 55 name a .prj — normally "Inputs/dataset.prj" —
+ * that is still sitting beside the job. Only 6 genuinely state nothing.
+ *
+ * Two things hid it. The projection object carries `filename: "dataset"`
+ * alongside the definition, and reading the filename answers a different
+ * question than reading the WKT. And every field in it is a protobuf
+ * StringValue, so `"wkt": "PROJCS[...]"` decodes to `{ value: "PROJCS[...]" }`
+ * and a plain-string read returns undefined — indistinguishable from absent.
+ * Hence the old note that "the sample really is ESRI:102001 (Canada Albers)
+ * ... but the FILE does not say that". It said so all along, in the object
+ * being read.
+ *
+ * projectionFromFile now answers it from the file where the file answers it.
+ * This module is unchanged in what it does: it still classifies, still never
+ * guesses, and still sets requiresCrs for coordinates it cannot place.
  *
  * Detect, then ask. Classification only; the operator supplies the CRS, and
  * reprojection happens elsewhere with that answer in hand.

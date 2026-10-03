@@ -16,6 +16,8 @@
  */
 
 import { loadFgmjProject } from './loadFgmjProject.js';
+import { projectionFromFile } from './projectionFromFile.js';
+import { resolveProjectionSync } from './resolveProjection.js';
 import { resolveScenarios } from './resolveScenarios.js';
 import { extractWeatherStream, type WeatherObservation, type StartingCodes } from './extractWeatherStream.js';
 import { applyWeatherPatch } from './applyWeatherPatch.js';
@@ -97,6 +99,11 @@ export function asObservations(rows: WeatherHourlyData[]): WeatherObservation[] 
 
 export function planFgmjImport(filePath: string): ScenarioImportPlan[] {
   const project = loadFgmjProject(filePath);
+
+  // The CRS the file states, if it states one. Inline WKT first, then the .prj
+  // it names beside itself. undefined when it genuinely says nothing, and the
+  // crs blocker then stands — see projectionFromFile.
+  const fileProjection = projectionFromFile(project);
 
   return resolveScenarios(project).map((scenario) => {
     const { rows, startingCodes } = extractWeatherStream(scenario, project.baseDir);
@@ -236,6 +243,16 @@ export function planFgmjImport(filePath: string): ScenarioImportPlan[] {
           `${contractIssues.join(' ')}`,
       ];
       plan.runnable = false;
+    }
+
+    // The file stated its own CRS, so use it rather than asking the operator
+    // for something already written down. Nothing is guessed: projectionFromFile
+    // returns undefined unless the job carries WKT inline or names a .prj that
+    // is actually there, and the crs blocker stands in that case.
+    //
+    // Last, so it sees the finished plan — including any blocker added above.
+    if (fileProjection && plan.blockers.includes('crs')) {
+      return resolveProjectionSync(plan, fileProjection.wkt);
     }
 
     return plan;

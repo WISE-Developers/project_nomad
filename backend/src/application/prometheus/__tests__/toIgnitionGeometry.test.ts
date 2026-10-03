@@ -75,6 +75,7 @@ const HOLE: Array<[number, number]> = [
   [-115.8, 60.4],
 ];
 
+import { withoutProjection } from './fixtures/withoutProjection.js';
 describe('toIgnitionGeometries', () => {
   describe('a polygon perimeter becomes a polygon', () => {
     it('produces a Polygon, not a point', async () => {
@@ -146,7 +147,9 @@ describe('toIgnitionGeometries', () => {
 
   describe('it refuses to run ahead of the CRS', () => {
     it('throws while the coordinates are still projected', () => {
-      const [best] = planFgmjImport(fixture(THREE));
+      // A plan that states no CRS, so the coordinates really are still in
+      // projected metres. SS008-25 resolves itself during planning now.
+      const [best] = withoutProjection((p) => planFgmjImport(p));
 
       expect(() => toIgnitionGeometries(best)).toThrow(/projected|CRS|lat/i);
     });

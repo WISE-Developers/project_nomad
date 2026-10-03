@@ -37,6 +37,7 @@ const THREE = 'prometheus_job_SS008-25_3scenarios.fgmj';
 const ALBERS =
   '+proj=aea +lat_0=40 +lon_0=-96 +lat_1=50 +lat_2=70 +datum=NAD83 +units=m +no_defs';
 
+import { withoutProjection } from './fixtures/withoutProjection.js';
 describe('resolveProjection', () => {
   describe('with the CRS the operator supplies', () => {
     it('reprojects the ignition to WGS84', async () => {
@@ -60,7 +61,10 @@ describe('resolveProjection', () => {
     });
 
     it('clears the crs blocker it answered', async () => {
-      const [best] = planFgmjImport(fixture(THREE));
+      // Fed from a plan with no projection of its own: SS008-25 states its CRS
+      // and is resolved during planning now, so it carries no blocker to clear.
+      // The operator path still matters for the files that state nothing.
+      const [best] = withoutProjection((p) => planFgmjImport(p));
       expect(best.blockers).toContain('crs');
 
       const resolved = await resolveProjection(best, ALBERS);
@@ -70,7 +74,9 @@ describe('resolveProjection', () => {
     });
 
     it('records the CRS it was given, so the answer is traceable', async () => {
-      const [best] = planFgmjImport(fixture(THREE));
+      // Same: the recorded CRS must be the one the OPERATOR gave, which only
+      // happens on a plan that did not already answer the question itself.
+      const [best] = withoutProjection((p) => planFgmjImport(p));
       const resolved = await resolveProjection(best, ALBERS);
 
       expect(resolved.ignitions[0].crs).toBe(ALBERS);
