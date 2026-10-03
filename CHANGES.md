@@ -4,10 +4,20 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.21.0
+## v0.22.0
+
+### 2026-10-03
+
+- [`ca399da`](https://github.com/WISE-Developers/project_nomad/commit/ca399dad955e02d20c288562c5a474e9eb77559a) Merge pull request #410 from WISE-Developers/dev — *Franco Nogarin, 06:20*
+- [`6c49c79`](https://github.com/WISE-Developers/project_nomad/commit/6c49c790f9ab5f9cb719a479f08941de7aa53d54) chore: dev v0.21.2 [release-bot] — *github-actions[bot], 12:08*
+- [`a1ab95e`](https://github.com/WISE-Developers/project_nomad/commit/a1ab95e773f5bd5f342328f92f410d7cefff16ee) Read the CRS the job file states instead of asking the operator for it — *Franco Nogarin, 06:06*
+- [`bb828d0`](https://github.com/WISE-Developers/project_nomad/commit/bb828d07916b474bbd0a0841c301c07d46ead5bd) chore: dev v0.21.1 [release-bot] — *github-actions[bot], 11:20*
 
 ### 2026-10-02
 
+- [`ef8ce2c`](https://github.com/WISE-Developers/project_nomad/commit/ef8ce2cafd7435c4e4965bfb63a6c0540a0432e6) deploy.sh: wait for the backend to answer instead of asking once — *Franco Nogarin, 16:01*
+- [`63de935`](https://github.com/WISE-Developers/project_nomad/commit/63de9357d3421cde599cbbb0cb9c65fe357a23c1) Import every ignition into the wizard, and check every one for a drawable geometry — *Franco Nogarin, 15:59*
+- [`8077c91`](https://github.com/WISE-Developers/project_nomad/commit/8077c91151a311f17a4b0da9700e5242598b7e0e) chore: release v0.21.0 [release-bot] — *github-actions[bot], 18:13*
 - [`30873d5`](https://github.com/WISE-Developers/project_nomad/commit/30873d5662dab1ab69539fa5eaa52750d143989d) Merge pull request #409 from WISE-Developers/dev — *Franco Nogarin, 12:12*
 - [`99760a8`](https://github.com/WISE-Developers/project_nomad/commit/99760a823333db34342c4e46d2defd10105a9221) chore: dev v0.20.16 [release-bot] — *github-actions[bot], 18:04*
 - [`0def348`](https://github.com/WISE-Developers/project_nomad/commit/0def3481bfd2935d62f07fa6272c289ffba6f1d6) Make the #406 rasterizer test hermetic instead of USB-path dependent — *Franco Nogarin, 12:03*
