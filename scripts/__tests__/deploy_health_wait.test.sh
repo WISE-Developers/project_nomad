@@ -106,6 +106,41 @@ case "$asked" in
   *) bad "a bare port must stay supported, asked for [$asked]" ;;
 esac
 
+# 6. THE OPERATIVE DEFECT, found on the third attempt. deploy.sh never sources
+#    .env, so NOMAD_FRONTEND_HOST_PORT was UNSET in the script and
+#    "${NOMAD_FRONTEND_HOST_PORT:-3001}" fell back to 3001 — a port that is
+#    CLOSED on the demo host, where the app is published on 53000. Every deploy
+#    since this check existed has curled a closed port.
+#
+#    The bind-spec handling above is still right, but it never saw the string:
+#    the value was not in scope at all. The port has to be READ FROM .env, where
+#    it actually lives.
+sed -n '/^frontend_host_port() {/,/^}/p' "$DEPLOY" > "$tmp/port_fn.sh"
+if [ ! -s "$tmp/port_fn.sh" ]; then
+  bad "deploy.sh has no frontend_host_port() — the port is never read from .env"
+else
+  envdir="$(mktemp -d)"
+  printf 'SOME_OTHER=1\nNOMAD_FRONTEND_HOST_PORT=127.0.0.1:53000\nTRAILING=2\n' > "$envdir/.env"
+  got="$(cd "$envdir" && bash -c '. '"$tmp"'/port_fn.sh; frontend_host_port' 2>&1)"
+  if [ "$got" = "127.0.0.1:53000" ] || [ "$got" = "53000" ]; then
+    ok "reads the published port from .env (got [$got])"
+  else
+    bad "did not read the port from .env, got [$got]"
+  fi
+
+  # And it must SAY so when .env does not define it, rather than silently
+  # defaulting to a port nothing is listening on — which is the whole bug.
+  printf 'SOME_OTHER=1\n' > "$envdir/.env"
+  out="$(cd "$envdir" && bash -c '. '"$tmp"'/port_fn.sh; frontend_host_port' 2>&1)"
+  rc=$?
+  if [ $rc -ne 0 ] || [ -z "$out" ]; then
+    ok "reports failure when .env does not define the port, instead of guessing"
+  else
+    bad "silently produced [$out] when .env defines no port — that is the original defect"
+  fi
+  rm -rf "$envdir"
+fi
+
 echo ""
 echo "passed: $pass   failed: $fail"
 [ "$fail" -eq 0 ]

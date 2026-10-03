@@ -161,6 +161,40 @@ repair_ownership() {
     print_success "Ownership repaired ($drift path(s))"
 }
 
+# The host port the app is actually published on, read from .env.
+#
+# THIS IS WHERE THE HEALTH CHECK KEPT FAILING. deploy.sh never sources .env, so
+# NOMAD_FRONTEND_HOST_PORT was UNSET in the script and
+# "${NOMAD_FRONTEND_HOST_PORT:-3001}" fell back to 3001 — a port nothing listens
+# on when the app is published on 53000, as it is on the CIFFC demo. Every
+# deploy curled a closed port and warned, on an app that was serving correctly.
+#
+# Two earlier explanations were wrong: a slow boot (the backend comes up in
+# under four seconds) and the bind spec being mis-interpolated (true in shape,
+# but the value never reached the function because it was not in scope).
+#
+# Reads the single key rather than sourcing the whole file: .env is operator
+# config, and sourcing it would execute whatever is in it.
+#
+# Prints the value and returns 0, or prints nothing and returns 1 when .env does
+# not define it. The caller must then SAY the check could not run — defaulting
+# to a guessed port is the defect this replaces.
+frontend_host_port() {
+    local env_file="${1:-.env}"
+    [ -f "$env_file" ] || return 1
+    local line
+    line="$(grep -m1 '^[[:space:]]*NOMAD_FRONTEND_HOST_PORT=' "$env_file" 2>/dev/null)" || return 1
+    [ -n "$line" ] || return 1
+    local value="${line#*=}"
+    # Strip surrounding quotes and trailing whitespace/CR, which .env files pick
+    # up from editors and from being written on other platforms.
+    value="${value%\"}"; value="${value#\"}"
+    value="${value%\'}"; value="${value#\'}"
+    value="$(printf '%s' "$value" | tr -d '\r' | sed 's/[[:space:]]*$//')"
+    [ -n "$value" ] || return 1
+    printf '%s' "$value"
+}
+
 # Wait for the backend to answer, rather than asking once and giving up.
 #
 # This used to be `sleep 10` plus a single curl. Every healthy deploy of the
@@ -287,11 +321,15 @@ main() {
     print_info "Recreating $SERVICE only"
     docker compose up -d "$SERVICE"
 
-    local reported
-    if reported="$(await_version "${NOMAD_FRONTEND_HOST_PORT:-3001}" 90)"; then
+    local reported host_port
+    if ! host_port="$(frontend_host_port)"; then
+        # Loud, not a guess. A default port is what made this check report
+        # failure on every healthy deploy for as long as it has existed.
+        print_warning "NOMAD_FRONTEND_HOST_PORT is not set in .env — cannot verify the deployed version"
+    elif reported="$(await_version "$host_port" 90)"; then
         print_success "Deployed: $reported"
     else
-        print_warning "No answer from /api/v1/info after 90s — check 'docker logs $SERVICE'"
+        print_warning "No answer from /api/v1/info on port ${host_port##*:} after 90s — check 'docker logs $SERVICE'"
     fi
 }
 
