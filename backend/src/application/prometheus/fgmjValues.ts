@@ -29,6 +29,22 @@ export function nameOf(entry: FgmjObject): string | undefined {
   return undefined;
 }
 
+/**
+ * A string, however deeply the schema nested it.
+ *
+ * The twin of numberOf. The schema wraps scalars in protobuf StringValue
+ * messages, so a field that reads `"wkt": "PROJCS[...]"` in the JSON arrives
+ * decoded as `{ value: "PROJCS[...]" }`. Reading it as a plain string yields
+ * undefined and looks exactly like a field the file never carried.
+ */
+export function textOf(value: unknown, depth = 0): string | undefined {
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object' && depth < 4) {
+    return textOf((value as FgmjObject).value, depth + 1);
+  }
+  return undefined;
+}
+
 /** A number, however deeply the schema nested it. */
 export function numberOf(value: unknown, depth = 0): number | undefined {
   if (typeof value === 'number') return value;

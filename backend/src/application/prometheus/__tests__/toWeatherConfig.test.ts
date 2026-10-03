@@ -42,10 +42,13 @@ const resolvedBest = async () => {
   return resolveProjection(best, ALBERS);
 };
 
+import { withoutProjection } from './fixtures/withoutProjection.js';
 describe('toWeatherConfig', () => {
   describe('it refuses to run ahead of the CRS', () => {
     it('throws when the plan still has no latitude', () => {
-      const [best] = planFgmjImport(fixture(THREE));
+      // No projection in the file, so nothing could compute a latitude. Against
+      // SS008-25 the plan now has one, read from the CRS the file carries.
+      const [best] = withoutProjection((p) => planFgmjImport(p));
       expect(best.latitude).toBeUndefined();
 
       // CFFDRS needs latitude for the day-length adjustment in DMC and DC.

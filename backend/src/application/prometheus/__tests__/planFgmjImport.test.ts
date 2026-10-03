@@ -19,6 +19,9 @@
 
 import { describe, it, expect } from 'vitest';
 import path from 'path';
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { planFgmjImport } from '../planFgmjImport.js';
 import { loadFgmjProject } from '../loadFgmjProject.js';
@@ -29,6 +32,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_DATA = path.resolve(__dirname, '..', '..', '..', '..', '..', 'test-data');
 const fixture = (n: string) => path.join(TEST_DATA, n);
 const THREE = 'prometheus_job_SS008-25_3scenarios.fgmj';
+
+const ESRI_ALBERS_PRJ =
+  'PROJCS["Canada_Albers_Equal_Area_Conic",GEOGCS["GCS_North_American_1983",' +
+  'DATUM["D_North_American_1983",SPHEROID["GRS_1980",6378137.0,298.257222101]],' +
+  'PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Albers"],' +
+  'PARAMETER["False_Easting",0.0],PARAMETER["False_Northing",0.0],' +
+  'PARAMETER["Central_Meridian",-96.0],PARAMETER["Standard_Parallel_1",50.0],' +
+  'PARAMETER["Standard_Parallel_2",70.0],PARAMETER["Latitude_Of_Origin",40.0],' +
+  'UNIT["Meter",1.0]]';
 
 describe('planFgmjImport', () => {
   describe('one plan per scenario', () => {
@@ -109,28 +121,214 @@ describe('planFgmjImport', () => {
     });
   });
 
-  describe('blockers are stated, not worked around', () => {
-    it('reports that a projected file needs a CRS before it can run', () => {
+  describe('a projection the FILE carries is read, not asked for (refs #294)', () => {
+    /**
+     * Franco hit this on SS008-25: "cannot be imported as it stands — crs ...
+     * the .fgmj does not record which coordinate reference system they use".
+     * The file records it exactly. Line 3779:
+     *
+     *   "projection": {
+     *     "contents": "PROJCS[\"Canada_Albers_Equal_Area_Conic\",...]",
+     *     "wkt":      "PROJCS[\"Canada_Albers_Equal_Area_Conic\",...]",
+     *     "units":    "metre",
+     *     "filename": "dataset"
+     *   }
+     *
+     * The importer read `filename` — "dataset", a reference to a .prj that sat
+     * beside the author's fuel grid — and never looked at the WKT lying in the
+     * same object. extractIgnitions' own header says "the sample really is
+     * ESRI:102001 (Canada Albers) ... but the FILE does not say that". It does.
+     *
+     * The refusal to GUESS stays right: a wrong CRS completes, looks plausible,
+     * and puts the fire hundreds of kilometres away. Reading a CRS the file
+     * states is not guessing. Of 66 real .fgmj files, 5 carry an inline
+     * projection and 61 do not, so the blocker still has work to do — see the
+     * LWF-184 case below, which must keep blocking.
+     */
+    it('does not raise the crs blocker when the file carries the projection', () => {
       const plans = planFgmjImport(fixture(THREE));
 
       for (const plan of plans) {
-        expect(plan.blockers).toContain('crs');
-        expect(plan.runnable).toBe(false);
+        expect(plan.blockers).not.toContain('crs');
+      }
+    });
+
+    it('reprojects the ignitions instead of leaving them in projected metres', () => {
+      const [best] = planFgmjImport(fixture(THREE));
+      const [ignition] = best.ignitions;
+
+      expect(ignition.requiresCrs).toBe(false);
+      expect(ignition.latLonRings).toBeDefined();
+      // Canada Albers metres for this fire reproject into the NWT. Asserted as
+      // a region rather than exact coordinates: the point is that the numbers
+      // are degrees on the right continent, not that they match to six places.
+      const first = ignition.latLonRings![0].points[0];
+      expect(first.lat).toBeGreaterThan(45);
+      expect(first.lat).toBeLessThan(75);
+      expect(first.lon).toBeGreaterThan(-141);
+      expect(first.lon).toBeLessThan(-100);
+    });
+
+    it('records where the CRS came from, so it is not mistaken for a guess', () => {
+      const [best] = planFgmjImport(fixture(THREE));
+      const [ignition] = best.ignitions;
+
+      expect(ignition.crs).toMatch(/Canada_Albers_Equal_Area_Conic/);
+    });
+
+    it('STILL blocks when the projection object carries no definition', () => {
+      // The guard against over-correcting. 61 of the 66 real .fgmj files carry
+      // no inline projection, and for those the refusal to guess is still the
+      // whole point -- a wrong CRS completes and puts the fire in the wrong
+      // place.
+      //
+      // Derived from the REAL file with wkt and contents stripped, rather than
+      // pointing at another fixture: LWF-184 was the obvious candidate and is
+      // useless here, because its ignitions are already lat/lon (-112.2258,
+      // 55.678433) so it never raises this blocker at all. A guard that cannot
+      // fail guards nothing.
+      const raw = JSON.parse(readFileSync(fixture(THREE), 'utf-8')) as {
+        project: { grid: { projection: Record<string, unknown> } };
+      };
+      delete raw.project.grid.projection.wkt;
+      delete raw.project.grid.projection.contents;
+
+      const dir = mkdtempSync(join(tmpdir(), 'fgmj-no-crs-'));
+      try {
+        const stripped = join(dir, 'stripped.fgmj');
+        writeFileSync(stripped, JSON.stringify(raw));
+        const plans = planFgmjImport(stripped);
+
+        expect(plans.length).toBeGreaterThan(0);
+        for (const plan of plans) {
+          expect(plan.blockers).toContain('crs');
+          expect(plan.ignitions[0].crs).toBeUndefined();
+        }
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('reads the .prj the projection names, when it is beside the job', () => {
+      // Franco: the older files point at `Inputs/dataset.prj`, "which is the
+      // dataset projection file, which in theory should exist alongside the
+      // jobs". It does -- 55 of the 66 real .fgmj files still have theirs. The
+      // importer takes a ZIP precisely so the Inputs/ folder comes with it, so
+      // the sidecar is normally right there.
+      //
+      // Built hermetically from the real file: inline projection stripped, the
+      // real sidecar WKT written where projection.filename points. ESRI
+      // flavour on purpose (D_North_American_1983, PROJECTION["Albers"]) --
+      // that is what the actual dataset.prj files contain, and it is not the
+      // OGC spelling the inline WKT uses.
+      const raw = JSON.parse(readFileSync(fixture(THREE), 'utf-8')) as {
+        project: { grid: { projection: Record<string, unknown> } };
+      };
+      delete raw.project.grid.projection.wkt;
+      delete raw.project.grid.projection.contents;
+      raw.project.grid.projection.filename = 'Inputs/dataset.prj';
+
+      const dir = mkdtempSync(join(tmpdir(), 'fgmj-sidecar-'));
+      try {
+        mkdirSync(join(dir, 'Inputs'), { recursive: true });
+        writeFileSync(join(dir, 'Inputs', 'dataset.prj'), ESRI_ALBERS_PRJ);
+        const jobPath = join(dir, 'job.fgmj');
+        writeFileSync(jobPath, JSON.stringify(raw));
+
+        const plans = planFgmjImport(jobPath);
+
+        expect(plans.length).toBeGreaterThan(0);
+        for (const plan of plans) {
+          expect(plan.blockers).not.toContain('crs');
+        }
+        expect(plans[0].ignitions[0].requiresCrs).toBe(false);
+        expect(plans[0].ignitions[0].latLonRings).toBeDefined();
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  describe('blockers are stated, not worked around', () => {
+  /**
+   * The real file with its projection removed — a job that genuinely states no
+   * CRS, which is what 6 of the 66 corpus files look like. Derived from the
+   * real artifact rather than hand-built, so the rest of the plan is exactly
+   * what production sees.
+   */
+  const withoutProjection = (fn: (jobPath: string) => void): void => {
+    const raw = JSON.parse(readFileSync(fixture(THREE), 'utf-8')) as {
+      project: { grid: { projection: Record<string, unknown> } };
+    };
+    delete raw.project.grid.projection.wkt;
+    delete raw.project.grid.projection.contents;
+    raw.project.grid.projection.filename = 'Inputs/dataset.prj'; // absent here
+
+    const dir = mkdtempSync(join(tmpdir(), 'fgmj-noproj-'));
+    try {
+      const jobPath = join(dir, 'job.fgmj');
+      writeFileSync(jobPath, JSON.stringify(raw));
+      fn(jobPath);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+
+    it('reports that a projected file with no recoverable CRS cannot run', () => {
+      // Repurposed. This asserted the blocker against the UNMODIFIED
+      // SS008-25, which carries its projection inline -- so it was asserting
+      // the defect Franco hit. Refusing on a file that genuinely says nothing
+      // is still right and still needs guarding; refusing on one that says so
+      // plainly was the bug.
+      const raw = JSON.parse(readFileSync(fixture(THREE), 'utf-8')) as {
+        project: { grid: { projection: Record<string, unknown> } };
+      };
+      delete raw.project.grid.projection.wkt;
+      delete raw.project.grid.projection.contents;
+      raw.project.grid.projection.filename = 'Inputs/dataset.prj'; // absent here
+
+      const dir = mkdtempSync(join(tmpdir(), 'fgmj-unresolvable-'));
+      try {
+        const jobPath = join(dir, 'job.fgmj');
+        writeFileSync(jobPath, JSON.stringify(raw));
+        const plans = planFgmjImport(jobPath);
+
+        for (const plan of plans) {
+          expect(plan.blockers).toContain('crs');
+          expect(plan.runnable).toBe(false);
+        }
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
       }
     });
 
     it('names the blocker in terms an operator can act on', () => {
-      const [best] = planFgmjImport(fixture(THREE));
+      // Repurposed: asserted against the unmodified SS008-25, which states its
+      // CRS, so it was checking the wording of a refusal that should not have
+      // happened. The wording still matters for the files that really do carry
+      // nothing — that is the only time an operator is asked.
+      withoutProjection((jobPath) => {
+        const [best] = planFgmjImport(jobPath);
 
-      expect(best.blockerDetail.join(' ')).toMatch(/projected/i);
-      expect(best.blockerDetail.join(' ')).toMatch(/CRS|coordinate reference/i);
+        expect(best.blockerDetail.join(' ')).toMatch(/projected/i);
+        expect(best.blockerDetail.join(' ')).toMatch(/CRS|coordinate reference/i);
+      });
     });
 
     it('offers no latitude or longitude it could not have computed', () => {
-      const [best] = planFgmjImport(fixture(THREE));
+      // Repurposed for the same reason, and this one is the important half:
+      // inventing coordinates is the failure this module exists to prevent. It
+      // is only a failure when the file gave nothing to compute them FROM.
+      // Against SS008-25 the plan now reports lat 60.2698 — computed from the
+      // CRS the file carries, which is precisely the value extractIgnitions'
+      // own axis-order note records by hand.
+      withoutProjection((jobPath) => {
+        const [best] = planFgmjImport(jobPath);
 
-      expect(best.latitude).toBeUndefined();
-      expect(best.longitude).toBeUndefined();
+        expect(best.latitude).toBeUndefined();
+        expect(best.longitude).toBeUndefined();
+      });
     });
   });
 
