@@ -36,12 +36,64 @@ const TOAST_WIDTH = 380;
 const NERD_WIDTH = 520;
 const TOAST_MARGIN = 20;
 
+/**
+ * Resizable from the bottom-right corner (#408).
+ *
+ * This panel is the only window onto a running model, and at a fixed size
+ * FireSTARR's NOTE: output and failure messages are cut off — the part that
+ * does not fit is usually the part that matters.
+ *
+ * Only the bottom-right corner. The panel is anchored to the bottom-right of
+ * the viewport, so a top or left handle grows it by moving the opposite edge
+ * off screen, which is worse than not resizing at all.
+ */
+const MIN_WIDTH = 320;
+const MIN_HEIGHT = 120;
+const SIZE_STORAGE_KEY = 'nomad.jobStatusToast.size';
+
+interface StoredSize {
+  width: number;
+  height: number;
+}
+
+/**
+ * localStorage is per-viewer and can hold anything — a half-written value, a
+ * different app's key, a browser that throws on access in private mode. A
+ * panel that dies here takes the only view of a running model with it, so a
+ * bad value is treated as "no preference" rather than an error.
+ */
+function readStoredSize(): StoredSize | null {
+  try {
+    const raw = localStorage.getItem(SIZE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredSize>;
+    if (typeof parsed?.width !== 'number' || typeof parsed?.height !== 'number') return null;
+    if (!Number.isFinite(parsed.width) || !Number.isFinite(parsed.height)) return null;
+    return {
+      width: Math.max(parsed.width, MIN_WIDTH),
+      height: Math.max(parsed.height, MIN_HEIGHT),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredSize(size: StoredSize): void {
+  try {
+    localStorage.setItem(SIZE_STORAGE_KEY, JSON.stringify(size));
+  } catch {
+    // Storage full or blocked. The size is still applied for this session;
+    // losing the preference is not worth interrupting a run over.
+  }
+}
+
 export function JobStatusToast({
   status,
   onDismiss,
   onViewResults,
 }: JobStatusToastProps): React.ReactElement | null {
   const [nerdMode, setNerdMode] = useState(false);
+  const [liveSize, setLiveSize] = useState<StoredSize | null>(() => readStoredSize());
   const [logLines, setLogLines] = useState<string[]>([]);
   const [logFilter, setLogFilter] = useState('');
   const logScrollRef = useRef<HTMLDivElement>(null);
@@ -129,13 +181,49 @@ export function JobStatusToast({
   return (
     <Rnd
       default={{
-        x: window.innerWidth - currentWidth - TOAST_MARGIN,
+        x: window.innerWidth - (liveSize?.width ?? currentWidth) - TOAST_MARGIN,
         y: window.innerHeight - 160,
-        width: currentWidth,
-        height: 'auto' as unknown as number,
+        width: liveSize?.width ?? currentWidth,
+        height: liveSize?.height ?? ('auto' as unknown as number),
       }}
-      size={{ width: currentWidth, height: 'auto' as unknown as number }}
-      enableResizing={false}
+      size={{
+        width: liveSize?.width ?? currentWidth,
+        height: liveSize?.height ?? ('auto' as unknown as number),
+      }}
+      minWidth={MIN_WIDTH}
+      minHeight={MIN_HEIGHT}
+      // Corner only — see MIN_WIDTH above for why the top and left edges are off.
+      enableResizing={{
+        top: false,
+        right: false,
+        bottom: false,
+        left: false,
+        topRight: false,
+        bottomRight: true,
+        bottomLeft: false,
+        topLeft: false,
+      }}
+      // Tracked DURING the drag, not only at the end.
+      //
+      // `size` is a controlled prop, so whatever it says is the size — if it
+      // only updated on resizeStop the panel would not follow the pointer and
+      // the handle would feel dead, which is exactly how it behaved when this
+      // was written stop-only. Found by dragging it, not by running the tests:
+      // every unit test passed against the stop-only version.
+      onResize={(_e, _dir, ref) => {
+        setLiveSize({
+          width: Math.max(ref.offsetWidth, MIN_WIDTH),
+          height: Math.max(ref.offsetHeight, MIN_HEIGHT),
+        });
+      }}
+      onResizeStop={(_e, _dir, ref) => {
+        const next = {
+          width: Math.max(ref.offsetWidth, MIN_WIDTH),
+          height: Math.max(ref.offsetHeight, MIN_HEIGHT),
+        };
+        setLiveSize(next);
+        writeStoredSize(next);
+      }}
       dragHandleClassName="toast-drag-handle"
       bounds="window"
       style={{ zIndex: 9999, position: 'fixed' }}
@@ -149,6 +237,14 @@ export function JobStatusToast({
           color: '#f3f4f6',
           fontFamily: 'system-ui, sans-serif',
           overflow: 'hidden',
+          // Fill the Rnd frame once a size has been chosen, so dragging the
+          // corner actually changes what you see. Without this the frame
+          // resizes and the panel does not — which looks exactly like a broken
+          // handle, and would have passed every unit test above.
+          width: '100%',
+          height: liveSize ? '100%' : 'auto',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
         {/* Header — drag handle */}
@@ -314,7 +410,12 @@ export function JobStatusToast({
               ref={logScrollRef}
               onScroll={handleLogScroll}
               style={{
-                height: '200px',
+                // Fixed until the operator resizes, then it takes the slack.
+                // The log is the reason to make this panel bigger, so it is
+                // the part that must grow.
+                ...(liveSize
+                  ? { flex: 1, minHeight: 0 }
+                  : { height: '200px' }),
                 overflowY: 'auto',
                 backgroundColor: '#0d1117',
                 fontFamily: '"Cascadia Code", "Fira Code", "JetBrains Mono", monospace',
