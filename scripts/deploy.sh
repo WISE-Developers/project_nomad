@@ -35,6 +35,10 @@ while [ $# -gt 0 ]; do
 done
 
 RED='\033[0;31m'; YELLOW='\033[1;33m'; GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
+# Absolute path to this script, resolved once. Used to re-exec the pulled
+# version of ourselves — see the re-exec block in main().
+SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+
 print_error()   { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 print_warning() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 print_info()    { echo -e "${BLUE}[INFO]${NC} $*"; }
@@ -219,6 +223,10 @@ main() {
 
     local before after
     before="$(git rev-parse --short HEAD)"
+    # Hash of this script BEFORE the pull, so we can tell whether the pull
+    # changed the thing currently executing.
+    local script_sha_before
+    script_sha_before="$(shasum "$SCRIPT_PATH" 2>/dev/null | awk '{print $1}')"
 
     if [ "$DRY_RUN" = true ]; then
         print_info "[dry-run] would: git pull --ff-only origin $BRANCH"
@@ -230,6 +238,39 @@ main() {
     git pull --ff-only origin "$BRANCH"
     after="$(git rev-parse --short HEAD)"
     print_success "Checkout $before -> $after"
+
+    # Run the version of this script we just pulled, not the one already in
+    # memory.
+    #
+    # A shell reads a script as it executes it, so everything below this line
+    # still comes from the copy that was on disk when the deploy STARTED. Any
+    # change to deploy.sh would otherwise take effect on the next deploy rather
+    # than the one delivering it — and worse, a deploy could run half of one
+    # version and half of another.
+    #
+    # The v0.23.0 deploy is the reason this exists: it shipped a fix to the
+    # health check and still printed the old failure, because the running shell
+    # was the v0.22.0 copy. It looked exactly like a fix that had not worked.
+    #
+    # Only when the script actually changed, so an ordinary deploy does not
+    # repeat its git and docker work. Guarded and EXPORTED so the re-executed
+    # copy knows not to do it again — an unguarded re-exec is a fork bomb
+    # against a production host. Arguments pass through, or --dry-run would
+    # quietly become a real deploy.
+    local script_sha_after
+    script_sha_after="$(shasum "$SCRIPT_PATH" 2>/dev/null | awk '{print $1}')"
+    if [ -z "$script_sha_before" ] || [ -z "$script_sha_after" ]; then
+        # Say so rather than skipping quietly. A self-update check that cannot
+        # run is worth one line of output; silently disabling it would leave the
+        # next person debugging the same "my fix did nothing" confusion with no
+        # hint that the mechanism was never active.
+        print_warning "Could not hash deploy.sh — self-update check skipped; a change to this script applies next deploy"
+    elif [ "${NOMAD_DEPLOY_REEXEC:-}" != "1" ] \
+       && [ "$script_sha_before" != "$script_sha_after" ]; then
+        print_info "deploy.sh changed in this pull — re-running the new version"
+        export NOMAD_DEPLOY_REEXEC=1
+        exec "$SCRIPT_PATH" "$@"
+    fi
 
     # Tag the image we are replacing so rollback is one command.
     local running version
