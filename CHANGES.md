@@ -4,10 +4,15 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.23.0
+## v0.24.0
 
 ### 2026-10-03
 
+- [`ec02ec3`](https://github.com/WISE-Developers/project_nomad/commit/ec02ec393641e1aeaade857e8e673d4d2330dad4) Merge pull request #412 from WISE-Developers/dev — *Franco Nogarin, 08:48*
+- [`1f587cc`](https://github.com/WISE-Developers/project_nomad/commit/1f587ccd93e242d24d30b21f9ca6165a2d3fd280) chore: dev v0.23.1 [release-bot] — *github-actions[bot], 14:43*
+- [`7d2a9e6`](https://github.com/WISE-Developers/project_nomad/commit/7d2a9e6f12d3492ed9c12131ba99d3e814acbf89) deploy.sh: run the version of itself it just pulled — *Franco Nogarin, 08:38*
+- [`bb88188`](https://github.com/WISE-Developers/project_nomad/commit/bb88188bf8806731d240283b18fe64ece4fe0444) Track the LWF-184 job zip as a fixture — *Franco Nogarin, 08:36*
+- [`bc3364a`](https://github.com/WISE-Developers/project_nomad/commit/bc3364a99258e67230d6a5de451782ee56c3cdf6) chore: release v0.23.0 [release-bot] — *github-actions[bot], 14:25*
 - [`efab733`](https://github.com/WISE-Developers/project_nomad/commit/efab73380d95d439ab7f854e1e68921a3eac99e1) Merge pull request #411 from WISE-Developers/dev — *Franco Nogarin, 08:24*
 - [`2adbb92`](https://github.com/WISE-Developers/project_nomad/commit/2adbb920275224fe3fee48e4d534dd649bf0568e) chore: dev v0.22.1 [release-bot] — *github-actions[bot], 13:51*
 - [`6d0e061`](https://github.com/WISE-Developers/project_nomad/commit/6d0e061ed11846ef7c1687c0d40a2c7a6ca5f97b) Make the model execution panel resizable from its bottom-right corner — *Franco Nogarin, 07:51*
