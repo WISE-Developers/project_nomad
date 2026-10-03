@@ -6,15 +6,31 @@
  * got written: `SpatialInputStep` had no tests at all, and #393's fix to it
  * landed on inspection.
  *
- * ## Why this does not provide all four
+ * ## Why this provides two and mocks two
  *
- * Two of the four contexts are private. `MapContext.tsx:5` and
- * `DrawContext.tsx:47` both do `const XContext = createContext(...)` with no
- * export, so nothing outside those modules can render their Provider with a
- * chosen value. They can only be supplied by mocking the module, and `vi.mock`
- * is hoisted per test file — a helper cannot do it on a caller's behalf.
+ * CORRECTED 2026-10-03. This note used to say that `MapContext` and
+ * `DrawContext` were private — `const XContext = createContext(...)` with no
+ * export — and that mocking the module was therefore the only way to supply
+ * them. **That is no longer true**, and the files it cited no longer exist
+ * under those names.
  *
- * So the split is:
+ * Both contexts are exported today, and the providers live in their own
+ * modules:
+ *
+ *     MapContext.ts:19    export const MapContext  = createContext(...)
+ *     DrawContext.ts:45   export const DrawContext = createContext(...)
+ *     MapProvider.tsx     export function MapProvider
+ *     DrawProvider.tsx    export function DrawProvider
+ *
+ * The change came with #386, which moved `MapProvider` out of `MapContext`.
+ * Note what is exported and what is not: these are internal to the app's own
+ * module graph. The openNomad PUBLIC surface exports `DashboardContainer`, the
+ * adapters and `OpenNomadProvider` — never the map contexts. A client embeds
+ * the dashboard and supplies an adapter; it never constructs a `DrawContext`.
+ * That boundary is deliberate and is not what this note is about.
+ *
+ * So the current split is a matter of this harness not yet having been
+ * converted, NOT a constraint of the codebase:
  *
  * - **Wizard and openNomad** — real providers, supplied here.
  * - **Draw and Map** — the test file writes a two-line `vi.mock`, using the
@@ -25,8 +41,11 @@
  * `useMapOptional` return null when no provider is present, and that IS
  * embedded mode — the branch where the host owns the map.
  *
- * If those two contexts are ever exported, this harness can provide all four
- * and the `vi.mock` block in callers goes away.
+ * The open follow-up is to render the real `MapProvider` and `DrawProvider`
+ * here and delete the `vi.mock` block from callers. Left as-is for now rather
+ * than changed without a test to prove the swap is faithful — a harness that
+ * silently stands up a different context shape than production would make every
+ * test built on it a lie.
  *
  * ## Usage
  *
