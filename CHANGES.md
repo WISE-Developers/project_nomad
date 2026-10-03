@@ -4,10 +4,15 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.22.0
+## v0.23.0
 
 ### 2026-10-03
 
+- [`efab733`](https://github.com/WISE-Developers/project_nomad/commit/efab73380d95d439ab7f854e1e68921a3eac99e1) Merge pull request #411 from WISE-Developers/dev — *Franco Nogarin, 08:24*
+- [`2adbb92`](https://github.com/WISE-Developers/project_nomad/commit/2adbb920275224fe3fee48e4d534dd649bf0568e) chore: dev v0.22.1 [release-bot] — *github-actions[bot], 13:51*
+- [`6d0e061`](https://github.com/WISE-Developers/project_nomad/commit/6d0e061ed11846ef7c1687c0d40a2c7a6ca5f97b) Make the model execution panel resizable from its bottom-right corner — *Franco Nogarin, 07:51*
+- [`44e7783`](https://github.com/WISE-Developers/project_nomad/commit/44e7783db071bb1a3395e53736b15f04bf2245ca) deploy.sh: the health check was asking the wrong address, not waiting too briefly — *Franco Nogarin, 06:34*
+- [`8f78e39`](https://github.com/WISE-Developers/project_nomad/commit/8f78e399901d601400417cc88f2725e07d2d769c) chore: release v0.22.0 [release-bot] — *github-actions[bot], 12:20*
 - [`ca399da`](https://github.com/WISE-Developers/project_nomad/commit/ca399dad955e02d20c288562c5a474e9eb77559a) Merge pull request #410 from WISE-Developers/dev — *Franco Nogarin, 06:20*
 - [`6c49c79`](https://github.com/WISE-Developers/project_nomad/commit/6c49c790f9ab5f9cb719a479f08941de7aa53d54) chore: dev v0.21.2 [release-bot] — *github-actions[bot], 12:08*
 - [`a1ab95e`](https://github.com/WISE-Developers/project_nomad/commit/a1ab95e773f5bd5f342328f92f410d7cefff16ee) Read the CRS the job file states instead of asking the operator for it — *Franco Nogarin, 06:06*
