@@ -4,10 +4,14 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.24.0
+## v0.25.0
 
 ### 2026-10-03
 
+- [`fe4d595`](https://github.com/WISE-Developers/project_nomad/commit/fe4d59571d4cacc9ed072a15b698d26b3b0f1dab) Merge pull request #413 from WISE-Developers/dev — *Franco Nogarin, 10:24*
+- [`74db030`](https://github.com/WISE-Developers/project_nomad/commit/74db0307a0ac7302ed4dbcb38891237fdc3c23a0) chore: dev v0.24.1 [release-bot] — *github-actions[bot], 15:46*
+- [`6462554`](https://github.com/WISE-Developers/project_nomad/commit/6462554eaad3a13b06c01657d7cb61c116ec1af8) deploy.sh: read the published port from .env — the health check was never seeing it — *Franco Nogarin, 08:57*
+- [`5842324`](https://github.com/WISE-Developers/project_nomad/commit/5842324e2a9b21850327f2cd8e31f19bebf23d88) chore: release v0.24.0 [release-bot] — *github-actions[bot], 14:48*
 - [`ec02ec3`](https://github.com/WISE-Developers/project_nomad/commit/ec02ec393641e1aeaade857e8e673d4d2330dad4) Merge pull request #412 from WISE-Developers/dev — *Franco Nogarin, 08:48*
 - [`1f587cc`](https://github.com/WISE-Developers/project_nomad/commit/1f587ccd93e242d24d30b21f9ca6165a2d3fd280) chore: dev v0.23.1 [release-bot] — *github-actions[bot], 14:43*
 - [`7d2a9e6`](https://github.com/WISE-Developers/project_nomad/commit/7d2a9e6f12d3492ed9c12131ba99d3e814acbf89) deploy.sh: run the version of itself it just pulled — *Franco Nogarin, 08:38*
