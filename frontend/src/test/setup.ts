@@ -9,8 +9,18 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
+/**
+ * setupFiles runs for EVERY test file, including ones that declare
+ * `@vitest-environment node` — and a node environment has no `window`, so the
+ * DOM stubs below would throw before any test in such a file could run.
+ *
+ * Guarded rather than split into two setup files: the DOM mocks are only
+ * meaningful where a DOM exists, and a node-environment test wants none of them.
+ */
+const hasDom = typeof window !== 'undefined';
+
 // Mock window.matchMedia (used by some UI components)
-Object.defineProperty(window, 'matchMedia', {
+if (hasDom) Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: vi.fn().mockImplementation((query: string) => ({
     matches: false,
@@ -39,7 +49,7 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
 }));
 
 // Mock URL.createObjectURL (required by maplibre-gl in jsdom)
-if (typeof window.URL.createObjectURL === 'undefined') {
+if (hasDom && typeof window.URL.createObjectURL === 'undefined') {
   window.URL.createObjectURL = vi.fn(() => 'blob:mock');
   window.URL.revokeObjectURL = vi.fn();
 }
