@@ -4,10 +4,18 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.25.0
+## v0.26.0
+
+### 2026-10-04
+
+- [`a4bdcde`](https://github.com/WISE-Developers/project_nomad/commit/a4bdcdefde615afdba42c3c13cd790335afcb309) Merge pull request #415 from WISE-Developers/dev — *Franco Nogarin, 10:36*
+- [`29a16fb`](https://github.com/WISE-Developers/project_nomad/commit/29a16fbe615667545261587b9400a434f2840769) chore: dev v0.25.1 [release-bot] — *github-actions[bot], 11:14*
+- [`476aded`](https://github.com/WISE-Developers/project_nomad/commit/476adeddabe8d574d103c5a63daf868e7ea9d166) Run test files serially on a developer machine, in parallel in CI — *Franco Nogarin, 05:08*
 
 ### 2026-10-03
 
+- [`b9732e8`](https://github.com/WISE-Developers/project_nomad/commit/b9732e814ca06f96edfcc743530f1bbba00f6c85) Correct the wizard-step harness note: those contexts are exported now — *Franco Nogarin, 16:26*
+- [`9bb5f56`](https://github.com/WISE-Developers/project_nomad/commit/9bb5f56392ea82f42e4b08a0913568175a2d9578) chore: release v0.25.0 [release-bot] — *github-actions[bot], 16:24*
 - [`fe4d595`](https://github.com/WISE-Developers/project_nomad/commit/fe4d59571d4cacc9ed072a15b698d26b3b0f1dab) Merge pull request #413 from WISE-Developers/dev — *Franco Nogarin, 10:24*
 - [`74db030`](https://github.com/WISE-Developers/project_nomad/commit/74db0307a0ac7302ed4dbcb38891237fdc3c23a0) chore: dev v0.24.1 [release-bot] — *github-actions[bot], 15:46*
 - [`6462554`](https://github.com/WISE-Developers/project_nomad/commit/6462554eaad3a13b06c01657d7cb61c116ec1af8) deploy.sh: read the published port from .env — the health check was never seeing it — *Franco Nogarin, 08:57*
