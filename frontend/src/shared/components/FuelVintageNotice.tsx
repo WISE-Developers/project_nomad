@@ -19,11 +19,12 @@
 
 import React from 'react';
 import { describeFuelVintage, type ResolvedFuelDataset } from '../utils/fuelVintage';
+import { deriveFuelYears } from '../utils/fuelYears';
 
 interface FuelVintageNoticeProps {
   /** Resolution from GET /api/v1/fuel-datasets?modelYear=. */
   resolved: ResolvedFuelDataset | undefined;
-  /** Optional label override, e.g. 'Fuel vintage used' in results. */
+  /** Optional label override for the vintage row, e.g. 'Fuel vintage used'. */
   label?: string;
 }
 
@@ -74,13 +75,31 @@ export const FuelVintageNotice: React.FC<FuelVintageNoticeProps> = ({
     return null;
   }
 
-  const { vintageLabel, severity, warning } = describeFuelVintage(resolved);
+  const { severity, warning } = describeFuelVintage(resolved);
+  const { modelYear, datasetYear, fuelVintage } = deriveFuelYears(resolved);
 
+  // Both numbers, each labelled. Showing one and calling it the other is the
+  // defect #431 fixed: an analyst reading "Fuel vintage: 2026" believes in fuel
+  // that cannot exist yet, and nothing on screen says which year is meant.
   return (
     <div style={containerStyle} data-testid="fuel-vintage-notice">
       <div style={valueRowStyle}>
+        <span style={labelStyle}>Model year:</span>{' '}
+        <span style={valueStyle} data-testid="model-year-value">
+          {modelYear ?? 'not recorded'}
+        </span>
+      </div>
+
+      <div style={valueRowStyle}>
         <span style={labelStyle}>{label}:</span>{' '}
-        <span style={valueStyle} data-testid="fuel-vintage-value">{vintageLabel}</span>
+        <span style={valueStyle} data-testid="fuel-vintage-value">
+          {fuelVintage ?? 'not recorded'}
+        </span>
+        {datasetYear !== undefined && (
+          // Name the dataset the vintage came from, so the -1 is visible rather
+          // than looking like an error to anyone who knows the directory names.
+          <span style={producerStyle}> (start-of-{datasetYear} fuel state)</span>
+        )}
         {resolved.dataset?.producer && (
           <span style={producerStyle}> ({resolved.dataset.producer})</span>
         )}

@@ -10,8 +10,18 @@
  * fuel is legitimate — reconstructions, what-ifs, and comparisons all do it.
  * The point is that it should never happen without the user knowing.
  *
- * Convention: vintage = RUN year (start-of-year fuel state). A run in year N
- * uses dataset N. Not off-by-one.
+ * Naming, corrected in #431. Two different years are involved and they must not
+ * be conflated:
+ *
+ *   - DATASET YEAR  - what is installed and keyed on. The index calls the 2026
+ *                     dataset "start-of-2026 fuels; input for 2026 model runs",
+ *                     so dataset year == model year. This module resolves THAT.
+ *   - FUEL VINTAGE  - the season the fuel data actually describes, which is
+ *                     datasetYear - 1. See deriveFuelYears() in ./fuelYears.
+ *
+ * This module deliberately speaks in DATASET YEARS, because resolution and the
+ * mismatch warning are about which dataset was installed and used. Anything
+ * displayed as a "vintage" must come from deriveFuelYears, not from here.
  */
 
 /** Mirrors the backend ResolvedFuelDataset (see IFuelDatasetCatalog). */
@@ -34,8 +44,8 @@ export interface ResolvedFuelDataset {
 export type FuelVintageSeverity = 'none' | 'warning';
 
 export interface FuelVintageDescription {
-  /** Vintage to display, or 'unknown' when nothing resolved. */
-  vintageLabel: string;
+  /** Dataset year to display, or 'unknown' when nothing resolved. */
+  datasetYearLabel: string;
   severity: FuelVintageSeverity;
   /** Present only when severity is 'warning'. */
   warning?: string;
@@ -48,20 +58,20 @@ export function describeFuelVintage(
 ): FuelVintageDescription {
   // No resolution yet (e.g. still loading). Nothing to say is not a warning.
   if (!resolved) {
-    return { vintageLabel: 'unknown', severity: 'none', blocking: false };
+    return { datasetYearLabel: 'unknown', severity: 'none', blocking: false };
   }
 
   const { requestedYear, vintage, matchedRequestedYear, usedFallback } = resolved;
 
   if (matchedRequestedYear && vintage !== undefined) {
-    return { vintageLabel: String(vintage), severity: 'none', blocking: false };
+    return { datasetYearLabel: String(vintage), severity: 'none', blocking: false };
   }
 
   // Fell back to default/, or default/ carries no vintage of its own.
   if (usedFallback) {
     if (vintage === undefined) {
       return {
-        vintageLabel: 'unknown',
+        datasetYearLabel: 'unknown',
         severity: 'warning',
         warning:
           `No fuel dataset is installed for ${requestedYear}. ` +
@@ -73,16 +83,17 @@ export function describeFuelVintage(
 
     // Name both years and the direction, so the user can judge whether it
     // matters for their fire rather than being told a bare mismatch.
-    const direction =
-      vintage > requestedYear
-        ? `newer fuel (${vintage}) than the modelled year (${requestedYear})`
-        : `older fuel (${vintage}) than the modelled year (${requestedYear})`;
+    // Name the dataset year AND the fuel vintage it carries. Naming only one
+    // is what #431 was about: the reader cannot tell which is meant.
+    const direction = vintage > requestedYear ? 'newer' : 'older';
 
     return {
-      vintageLabel: String(vintage),
+      datasetYearLabel: String(vintage),
       severity: 'warning',
       warning:
-        `No fuel dataset is installed for ${requestedYear}, so this run uses ${direction}. ` +
+        `No fuel dataset is installed for model year ${requestedYear}, so this run uses the ` +
+        `${vintage} dataset — ${vintage - 1}-vintage fuel — which is ${direction} than the ` +
+        `${requestedYear - 1}-vintage fuel a ${requestedYear} run would normally use. ` +
         `Fuel that has since burned, regrown, or been reclassified may differ from ${requestedYear} conditions.`,
       blocking: false,
     };
@@ -90,7 +101,7 @@ export function describeFuelVintage(
 
   // Neither the requested year nor a default dataset resolved.
   return {
-    vintageLabel: 'unknown',
+    datasetYearLabel: 'unknown',
     severity: 'warning',
     warning:
       `No fuel dataset could be resolved for ${requestedYear}. ` +

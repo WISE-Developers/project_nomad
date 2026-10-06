@@ -28,10 +28,14 @@ const fellBack: ResolvedFuelDataset = {
 };
 
 describe('FuelVintageNotice', () => {
-  it('shows the vintage when it matches the modelled year', () => {
+  it('shows the model year and the fuel vintage it implies (#431)', () => {
     render(<FuelVintageNotice resolved={exact} />);
 
-    expect(screen.getByText(/2023/)).toBeInTheDocument();
+    // The 2023 dataset is start-of-2023 fuel, i.e. the 2022 vintage. Asserting
+    // the two values separately rather than matching /2023/ anywhere on screen,
+    // which passed even when only one number was displayed.
+    expect(screen.getByTestId('model-year-value')).toHaveTextContent('2023');
+    expect(screen.getByTestId('fuel-vintage-value')).toHaveTextContent('2022');
   });
 
   it('shows no warning on an exact match', () => {
@@ -51,7 +55,8 @@ describe('FuelVintageNotice', () => {
   it('still shows the vintage alongside the warning', () => {
     render(<FuelVintageNotice resolved={fellBack} />);
 
-    expect(screen.getByTestId('fuel-vintage-value')).toHaveTextContent('2026');
+    // Fell back to the 2026 dataset, which carries 2025-vintage fuel (#431).
+    expect(screen.getByTestId('fuel-vintage-value')).toHaveTextContent('2025');
   });
 
   it('renders nothing rather than an error when resolution is unavailable', () => {

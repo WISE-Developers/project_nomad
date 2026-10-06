@@ -29,7 +29,7 @@ describe('describeFuelVintage', () => {
   it('reports an exact vintage match with no warning', () => {
     const result = describeFuelVintage(resolved({ requestedYear: 2023, vintage: 2023 }));
 
-    expect(result.vintageLabel).toBe('2023');
+    expect(result.datasetYearLabel).toBe('2023');
     expect(result.severity).toBe('none');
     expect(result.warning).toBeUndefined();
   });
@@ -59,7 +59,7 @@ describe('describeFuelVintage', () => {
     );
 
     expect(result.severity).toBe('warning');
-    expect(result.vintageLabel).toBe('unknown');
+    expect(result.datasetYearLabel).toBe('unknown');
     expect(result.blocking).toBe(false);
   });
 
@@ -90,7 +90,7 @@ describe('describeFuelVintage', () => {
     // shout about, it is simply nothing to say.
     const result = describeFuelVintage(undefined);
 
-    expect(result.vintageLabel).toBe('unknown');
+    expect(result.datasetYearLabel).toBe('unknown');
     expect(result.severity).toBe('none');
     expect(result.warning).toBeUndefined();
   });
