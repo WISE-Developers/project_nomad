@@ -13,18 +13,18 @@ import type { ResolvedFuelDataset } from '../../utils/fuelVintage';
 
 const exact: ResolvedFuelDataset = {
   requestedYear: 2023,
-  vintage: 2023,
+  datasetYear: 2023, fuelVintage: 2022,
   matchedRequestedYear: true,
   usedFallback: false,
-  dataset: { vintage: 2023, producer: 'Jordan Evens', buildDate: '2022-11-01' },
+  dataset: { datasetYear: 2023, fuelVintage: 2022, producer: 'Jordan Evens', buildDate: '2022-11-01' },
 };
 
 const fellBack: ResolvedFuelDataset = {
   requestedYear: 2019,
-  vintage: 2026,
+  datasetYear: 2026, fuelVintage: 2025,
   matchedRequestedYear: false,
   usedFallback: true,
-  dataset: { vintage: 2026, producer: 'Jordan Evens' },
+  dataset: { datasetYear: 2026, fuelVintage: 2025, producer: 'Jordan Evens' },
 };
 
 describe('FuelVintageNotice', () => {

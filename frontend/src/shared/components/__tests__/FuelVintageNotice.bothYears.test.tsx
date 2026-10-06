@@ -20,7 +20,8 @@ import type { ResolvedFuelDataset } from '../../utils/fuelVintage';
 function resolved(over: Partial<ResolvedFuelDataset> = {}): ResolvedFuelDataset {
   return {
     requestedYear: 2026,
-    vintage: 2026,
+    datasetYear: 2026,
+    fuelVintage: 2025,
     matchedRequestedYear: true,
     usedFallback: false,
     ...over,
@@ -64,7 +65,8 @@ describe('FuelVintageNotice shows model year and fuel vintage separately (#431)'
       <FuelVintageNotice
         resolved={resolved({
           requestedYear: 2023,
-          vintage: 2026,
+          datasetYear: 2026,
+          fuelVintage: 2025,
           matchedRequestedYear: false,
           usedFallback: true,
         })}
@@ -78,7 +80,7 @@ describe('FuelVintageNotice shows model year and fuel vintage separately (#431)'
   it('says the vintage is not recorded rather than inferring one', () => {
     render(
       <FuelVintageNotice
-        resolved={resolved({ vintage: undefined, matchedRequestedYear: false, usedFallback: true })}
+        resolved={resolved({ datasetYear: undefined, fuelVintage: undefined, matchedRequestedYear: false, usedFallback: true })}
       />
     );
 

@@ -27,11 +27,14 @@
 /** Mirrors the backend ResolvedFuelDataset (see IFuelDatasetCatalog). */
 export interface ResolvedFuelDataset {
   requestedYear: number;
-  vintage?: number;
+  /** Dataset year actually used (#431). */
+  datasetYear?: number;
+  /** Season the fuel describes, derived server-side. Never computed here. */
+  fuelVintage?: number;
   matchedRequestedYear: boolean;
   usedFallback: boolean;
   dataset?: {
-    vintage: number;
+    datasetYear: number;
     edition?: string;
     label?: string;
     producer?: string;
@@ -61,7 +64,7 @@ export function describeFuelVintage(
     return { datasetYearLabel: 'unknown', severity: 'none', blocking: false };
   }
 
-  const { requestedYear, vintage, matchedRequestedYear, usedFallback } = resolved;
+  const { requestedYear, datasetYear: vintage, matchedRequestedYear, usedFallback } = resolved;
 
   if (matchedRequestedYear && vintage !== undefined) {
     return { datasetYearLabel: String(vintage), severity: 'none', blocking: false };
@@ -113,7 +116,12 @@ export function describeFuelVintage(
 /** A fuel vintage as recorded by the run that used it (#331). */
 export interface RecordedFuelVintage {
   requestedYear: number;
+  /** The recorded directory, verbatim. */
   vintage: string;
+  /** That directory as a year, derived server-side (#431). */
+  datasetYear?: number;
+  /** Season the fuel describes, derived server-side (#431). */
+  fuelVintage?: number;
   matchedRequestedYear: boolean;
   usedFallback: boolean;
   gridPath?: string;
@@ -129,11 +137,16 @@ export interface RecordedFuelVintage {
  * never used.
  */
 export function recordedToResolved(record: RecordedFuelVintage): ResolvedFuelDataset {
+  // Prefer the server-derived values. The Number() parse is retained only for
+  // records served before the backend reported them, and it yields the DATASET
+  // year — never a vintage, which is not this layer's to compute (#431).
   const numeric = Number(record.vintage);
+  const datasetYear = record.datasetYear ?? (Number.isInteger(numeric) ? numeric : undefined);
 
   return {
     requestedYear: record.requestedYear,
-    vintage: Number.isInteger(numeric) ? numeric : undefined,
+    datasetYear,
+    fuelVintage: record.fuelVintage,
     matchedRequestedYear: record.matchedRequestedYear,
     usedFallback: record.usedFallback,
   };

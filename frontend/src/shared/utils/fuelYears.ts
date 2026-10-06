@@ -14,13 +14,18 @@
  * input for 2026 model runs". Nothing persisted is rewritten by this module, so
  * no completed run's record changes meaning (the failure #331 closed).
  *
- * This is the ONE place the relationship lives. Every display derives from here
- * rather than re-deriving, so the two numbers cannot drift apart again.
+ * The RULE itself lives server-side, in the backend domain layer
+ * (domain/value-objects/fuelYears.ts), and reaches the frontend as a field on
+ * the payload. This module READS it; it does not compute it.
  *
- * Derived from the dataset ACTUALLY USED, not the requested model year, because
- * fuel lookup falls back: a 2023 model can run on the 2026 dataset, which is
- * 2025-vintage fuel. Deriving from the model year would report 2022 — fuel that
- * never touched the run. The vintage must describe the fuel that ran.
+ * That split is deliberate. Pack-and-Go reporting (#426) and openNomad consumers
+ * are served by the same backend, so a rule implemented here would have to be
+ * re-implemented there — and the first copy to drift produces a confidently
+ * wrong year that no downstream reader can catch.
+ *
+ * The vintage is of the dataset ACTUALLY USED, not of the requested model year,
+ * because fuel lookup falls back: a 2023 model can run on the 2026 dataset,
+ * which is 2025-vintage fuel. The vintage must describe the fuel that ran.
  */
 
 import type { ResolvedFuelDataset } from './fuelVintage';
@@ -39,18 +44,15 @@ export function deriveFuelYears(resolved: ResolvedFuelDataset | undefined): Fuel
     return {};
   }
 
-  const { requestedYear, vintage } = resolved;
+  const { requestedYear, datasetYear, fuelVintage } = resolved;
 
-  // No dataset year recorded (e.g. default/ carries no vintage of its own).
-  // Report nothing rather than inferring one — #331's rule. An inferred vintage
-  // is the error no downstream reader can catch.
-  if (!Number.isInteger(vintage)) {
-    return { modelYear: requestedYear, datasetYear: undefined, fuelVintage: undefined };
-  }
-
+  // Nothing is inferred here. A missing vintage reports as missing — #331's
+  // rule — and a vintage the server did not supply is NOT reconstructed from
+  // the dataset year, because a second implementation of the rule is how the
+  // two numbers drift apart again.
   return {
     modelYear: requestedYear,
-    datasetYear: vintage,
-    fuelVintage: (vintage as number) - 1,
+    datasetYear: Number.isInteger(datasetYear) ? datasetYear : undefined,
+    fuelVintage: Number.isInteger(fuelVintage) ? fuelVintage : undefined,
   };
 }
