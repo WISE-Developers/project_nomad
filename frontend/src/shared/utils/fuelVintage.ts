@@ -125,6 +125,11 @@ export interface RecordedFuelVintage {
   matchedRequestedYear: boolean;
   usedFallback: boolean;
   gridPath?: string;
+  /**
+   * Who produced the fuel grids, recorded at run time (#431). Absent on every
+   * record written before #431; never reconstructed.
+   */
+  producer?: string;
   recordedAt?: string;
 }
 
@@ -149,5 +154,13 @@ export function recordedToResolved(record: RecordedFuelVintage): ResolvedFuelDat
     fuelVintage: record.fuelVintage,
     matchedRequestedYear: record.matchedRequestedYear,
     usedFallback: record.usedFallback,
+    // Only when a producer was actually recorded AND the dataset directory was
+    // a year. `dataset` requires a numeric datasetYear, so a "default" dataset
+    // cannot carry provenance in this shape — it reports no producer rather
+    // than inventing a year to hang one on. A dataset present but blank would
+    // render an empty " []" on the notice, which is worse than silence (#431).
+    ...(record.producer && datasetYear !== undefined
+      ? { dataset: { datasetYear, producer: record.producer } }
+      : {}),
   };
 }

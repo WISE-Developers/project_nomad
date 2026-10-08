@@ -38,6 +38,12 @@ export interface FuelVintageRecord {
   usedFallback: boolean;
   /** The exact grid file used, for tracing. */
   gridPath?: string;
+  /**
+   * Who produced the fuel grids, as the dataset manifest named them (#431).
+   * Absent on every record written before #431 — including runs already on
+   * disk, which can never gain one retroactively.
+   */
+  producer?: string;
   /** When the run wrote this down. */
   recordedAt?: string;
 }
@@ -73,6 +79,7 @@ export async function readFuelVintage(simDir: string): Promise<FuelVintageRecord
       matchedRequestedYear: parsed.matchedRequestedYear === true,
       usedFallback: parsed.usedFallback === true,
       gridPath: parsed.gridPath,
+      producer: typeof parsed.producer === 'string' ? parsed.producer : undefined,
       recordedAt: parsed.recordedAt,
     };
   } catch {
