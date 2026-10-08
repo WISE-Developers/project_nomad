@@ -133,7 +133,9 @@ export function ModelSummary({ data }: ModelSummaryProps) {
             <i className="fa-solid fa-tree" />
             <span>Fuel Data</span>
           </div>
-          <FuelVintageNotice resolved={fuelVintage} />
+          {/* Pass the card's own colour rather than a literal, so the notice
+              cannot drift onto a different surface if cardStyle is restyled. */}
+          <FuelVintageNotice resolved={fuelVintage} surface={cardStyle.backgroundColor} />
         </div>
       )}
 

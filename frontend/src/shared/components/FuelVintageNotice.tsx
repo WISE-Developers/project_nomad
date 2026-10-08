@@ -26,12 +26,19 @@ interface FuelVintageNoticeProps {
   resolved: ResolvedFuelDataset | undefined;
   /** Optional label override for the vintage row, e.g. 'Fuel vintage used'. */
   label?: string;
+  /**
+   * The surface this notice is placed on. The component still declares a
+   * background explicitly — inheriting is what made the warning unreadable in
+   * #319 — but it does not own the colour, because its two call sites differ:
+   * ResultsSummary sits on white, ModelSummary's card is '#f8f9fa'. Hard-coding
+   * white rendered a white block inset inside the grey card (#431).
+   */
+  surface?: string;
 }
 
-const SURFACE = '#ffffff';
+const DEFAULT_SURFACE = '#ffffff';
 
 const containerStyle: React.CSSProperties = {
-  backgroundColor: SURFACE,
   display: 'flex',
   flexDirection: 'column',
   gap: '8px',
@@ -69,6 +76,7 @@ const warningStyle: React.CSSProperties = {
 export const FuelVintageNotice: React.FC<FuelVintageNoticeProps> = ({
   resolved,
   label = 'Fuel vintage',
+  surface = DEFAULT_SURFACE,
 }) => {
   // Nothing resolved yet — render nothing rather than an empty or guessed value.
   if (!resolved) {
@@ -82,7 +90,7 @@ export const FuelVintageNotice: React.FC<FuelVintageNoticeProps> = ({
   // defect #431 fixed: an analyst reading "Fuel vintage: 2026" believes in fuel
   // that cannot exist yet, and nothing on screen says which year is meant.
   return (
-    <div style={containerStyle} data-testid="fuel-vintage-notice">
+    <div style={{ ...containerStyle, backgroundColor: surface }} data-testid="fuel-vintage-notice">
       <div style={valueRowStyle}>
         <span style={labelStyle}>Model year:</span>{' '}
         <span style={valueStyle} data-testid="model-year-value">
@@ -101,7 +109,10 @@ export const FuelVintageNotice: React.FC<FuelVintageNoticeProps> = ({
           <span style={producerStyle}> (start-of-{datasetYear} fuel state)</span>
         )}
         {resolved.dataset?.producer && (
-          <span style={producerStyle}> ({resolved.dataset.producer})</span>
+          // Square brackets, not a second parenthesis: "(start-of-2023 fuel
+          // state) (Jordan Evens)" stacked two parenthetical groups back to
+          // back and read as clutter (#431).
+          <span style={producerStyle}> [{resolved.dataset.producer}]</span>
         )}
       </div>
 
