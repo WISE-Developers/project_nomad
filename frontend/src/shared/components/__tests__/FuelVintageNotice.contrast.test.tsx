@@ -19,18 +19,18 @@ import type { ResolvedFuelDataset } from '../../utils/fuelVintage';
 
 const fellBack: ResolvedFuelDataset = {
   requestedYear: 2023,
-  vintage: 2026,
+  datasetYear: 2026, fuelVintage: 2025,
   matchedRequestedYear: false,
   usedFallback: true,
-  dataset: { vintage: 2026, producer: 'Jordan Evens' },
+  dataset: { datasetYear: 2026, fuelVintage: 2025, producer: 'Jordan Evens' },
 };
 
 const exact: ResolvedFuelDataset = {
   requestedYear: 2026,
-  vintage: 2026,
+  datasetYear: 2026, fuelVintage: 2025,
   matchedRequestedYear: true,
   usedFallback: false,
-  dataset: { vintage: 2026, producer: 'Jordan Evens' },
+  dataset: { datasetYear: 2026, fuelVintage: 2025, producer: 'Jordan Evens' },
 };
 
 /** Accepts "#rrggbb" or jsdom's "rgb(r, g, b)" -> [r,g,b] */

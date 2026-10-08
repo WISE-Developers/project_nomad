@@ -380,7 +380,21 @@ export function JobStatusToast({
 
         {/* Nerd Mode Terminal Panel */}
         {nerdMode && (
-          <div style={{ borderTop: '1px solid #374151' }}>
+          <div
+            style={{
+              borderTop: '1px solid #374151',
+              // The log below is sized as a FLEX ITEM ({ flex: 1, minHeight: 0 }),
+              // and that does nothing unless its parent is a flex container.
+              // While this wrapper was a plain block the log grew to its full
+              // content height — 33,238px during a live run — the wrapper grew
+              // with it, and the outer column clipped the overflow with no
+              // scrollbar anywhere. Only reproduces once a size is stored, which
+              // is why it shipped (#408).
+              ...(liveSize
+                ? { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' as const }
+                : {}),
+            }}
+          >
             {/* Search bar (only shown after completion) */}
             {isTerminal && (
               <div style={{ padding: '6px 8px', borderBottom: '1px solid #21262d' }}>

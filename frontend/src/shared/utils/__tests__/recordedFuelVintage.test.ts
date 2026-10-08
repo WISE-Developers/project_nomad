@@ -1,8 +1,8 @@
 /**
  * Adapting a recorded fuel vintage for display — issue #331.
  *
- * The run records the vintage DIRECTORY it used, which is either a year
- * ("2024") or "default". The display type expects a numeric vintage, so the
+ * The run records the DATASET DIRECTORY it used, which is either a year
+ * ("2024") or "default". The display type expects a numeric dataset year, so the
  * two have to be reconciled — without inventing a year for "default".
  */
 
@@ -18,7 +18,7 @@ describe('recordedToResolved', () => {
       usedFallback: false,
     });
 
-    expect(resolved.vintage).toBe(2024);
+    expect(resolved.datasetYear).toBe(2024);
     expect(resolved.matchedRequestedYear).toBe(true);
     expect(resolved.usedFallback).toBe(false);
     expect(resolved.requestedYear).toBe(2024);
@@ -32,7 +32,7 @@ describe('recordedToResolved', () => {
       usedFallback: true,
     });
 
-    expect(resolved.vintage).toBeUndefined();
+    expect(resolved.datasetYear).toBeUndefined();
     expect(resolved.usedFallback).toBe(true);
   });
 
@@ -44,7 +44,7 @@ describe('recordedToResolved', () => {
       usedFallback: true,
     });
 
-    expect(resolved.vintage).toBe(2023);
+    expect(resolved.datasetYear).toBe(2023);
     expect(resolved.matchedRequestedYear).toBe(false);
   });
 });
