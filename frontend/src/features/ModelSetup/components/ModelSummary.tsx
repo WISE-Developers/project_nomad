@@ -135,7 +135,13 @@ export function ModelSummary({ data }: ModelSummaryProps) {
           </div>
           {/* Pass the card's own colour rather than a literal, so the notice
               cannot drift onto a different surface if cardStyle is restyled. */}
-          <FuelVintageNotice resolved={fuelVintage} surface={cardStyle.backgroundColor} />
+          {/* layout="spread" so the values line up with every other row in
+              this panel (rowStyle above) instead of running inline (#431). */}
+          <FuelVintageNotice
+            resolved={fuelVintage}
+            surface={cardStyle.backgroundColor}
+            layout="spread"
+          />
         </div>
       )}
 

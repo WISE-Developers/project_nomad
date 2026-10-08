@@ -34,6 +34,20 @@ interface FuelVintageNoticeProps {
    * white rendered a white block inset inside the grey card (#431).
    */
   surface?: string;
+  /**
+   * How each row sits in the host panel (#431).
+   *
+   * 'spread' is label left, value hard right — model setup's rowStyle, where
+   * every other row lines its values up against the card edge and the notice
+   * was the only block that did not. The notice already matches that panel's
+   * 13px size and #555 label colour, so the spread was all that was missing.
+   *
+   * 'inline' is the default because the results panel has no single idiom to
+   * match: Output Configuration stacks a small label above a large value,
+   * Model Inputs puts text left and a button right. Inline reads cleanly
+   * there, and changing the default would restyle that panel on a guess.
+   */
+  layout?: 'inline' | 'spread';
 }
 
 const DEFAULT_SURFACE = '#ffffff';
@@ -77,6 +91,7 @@ export const FuelVintageNotice: React.FC<FuelVintageNoticeProps> = ({
   resolved,
   label = 'Fuel vintage',
   surface = DEFAULT_SURFACE,
+  layout = 'inline',
 }) => {
   // Nothing resolved yet — render nothing rather than an empty or guessed value.
   if (!resolved) {
@@ -86,20 +101,44 @@ export const FuelVintageNotice: React.FC<FuelVintageNoticeProps> = ({
   const { severity, warning } = describeFuelVintage(resolved);
   const { modelYear, datasetYear, fuelVintage } = deriveFuelYears(resolved);
 
+  const spread = layout === 'spread';
+  const rowStyle: React.CSSProperties = spread
+    ? { ...valueRowStyle, display: 'flex', justifyContent: 'space-between', gap: '12px' }
+    : valueRowStyle;
+
+  /**
+   * One row. The value side is wrapped as a single element so that spreading
+   * pushes the whole value — number, fuel state and producer — to the right as
+   * one unit. Left unwrapped, space-between would scatter those three apart
+   * across the row.
+   */
+  const Row = ({ rowLabel, testId, children }: {
+    rowLabel: string;
+    testId: string;
+    children: React.ReactNode;
+  }) => (
+    <div style={rowStyle} data-testid={testId}>
+      <span style={labelStyle}>{rowLabel}:</span>
+      {/* Inline mode keeps the literal space it has always had. In spread mode
+          a bare text node would become a third flex item and break the
+          alignment, so the gap does the spacing instead. */}
+      {spread ? null : ' '}
+      <span>{children}</span>
+    </div>
+  );
+
   // Both numbers, each labelled. Showing one and calling it the other is the
   // defect #431 fixed: an analyst reading "Fuel vintage: 2026" believes in fuel
   // that cannot exist yet, and nothing on screen says which year is meant.
   return (
     <div style={{ ...containerStyle, backgroundColor: surface }} data-testid="fuel-vintage-notice">
-      <div style={valueRowStyle}>
-        <span style={labelStyle}>Model year:</span>{' '}
+      <Row rowLabel="Model year" testId="model-year-row">
         <span style={valueStyle} data-testid="model-year-value">
           {modelYear ?? 'not recorded'}
         </span>
-      </div>
+      </Row>
 
-      <div style={valueRowStyle}>
-        <span style={labelStyle}>{label}:</span>{' '}
+      <Row rowLabel={label} testId="fuel-vintage-row">
         <span style={valueStyle} data-testid="fuel-vintage-value">
           {fuelVintage ?? 'not recorded'}
         </span>
@@ -114,7 +153,7 @@ export const FuelVintageNotice: React.FC<FuelVintageNoticeProps> = ({
           // back and read as clutter (#431).
           <span style={producerStyle}> [{resolved.dataset.producer}]</span>
         )}
-      </div>
+      </Row>
 
       {severity === 'warning' && warning && (
         // role="status" + aria-live="polite": advisory, announced without
