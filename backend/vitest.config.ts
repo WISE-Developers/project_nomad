@@ -57,6 +57,13 @@ export default defineConfig({
     exclude: [...configDefaults.exclude, 'dist/**'],
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    /**
+     * Slow-test watchdog (#405). A no-op unless NOMAD_TEST_WATCHDOG=1, so
+     * ordinary runs and CI are unaffected; when armed it records what is still
+     * pending at the moment a test stalls, instead of waiting out the 30s
+     * timeout to learn only the test's name.
+     */
+    setupFiles: ['./src/test/watchdogSetup.ts'],
     env: {
       ICU_TIMEZONE_FILES_DIR: process.env.ICU_TIMEZONE_FILES_DIR,
     },
