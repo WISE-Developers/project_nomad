@@ -30,7 +30,11 @@ if (enabled) {
     timer = setTimeout(() => {
       // Fires only if the test is STILL running at the threshold, which for a
       // fully mocked 404 path means it is not slow, it is stuck.
-      writePendingReport(reportPath, name, thresholdMs);
+      //
+      // `{ Timeout: 1 }` discounts THIS timer. Without it the watchdog reports
+      // its own handle: every test showed `Timeout=1` armed and none disarmed,
+      // and that phantom was written up on #405 as the only live lead.
+      writePendingReport(reportPath, name, thresholdMs, { Timeout: 1 });
     }, thresholdMs);
     timer.unref();
   });

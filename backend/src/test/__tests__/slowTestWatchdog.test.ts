@@ -97,3 +97,50 @@ describe('writePendingReport (#405)', () => {
     expect(() => writePendingReport('/nonexistent-dir/x/y.log', 'test', 1)).not.toThrow();
   });
 });
+
+/**
+ * The watchdog must not report its own timer (#405).
+ *
+ * Measured 2026-10-10: with the watchdog armed, every test in
+ * models.engineWiring.characterization.test.ts reported `Timeout=1`. With it
+ * disarmed, the same tests report `Timeouts=0`. That handle was the watchdog's
+ * own setTimeout, and it was written into the issue as "the only live lead" —
+ * a ghost the instrument created and then pointed at.
+ *
+ * This is the same failure the file header warns about, committed anyway, so
+ * it is now pinned by a test rather than by a comment.
+ */
+describe('capturePending discounts the instrument’s own resources (#405)', () => {
+  it('subtracts exactly the number of entries it is told to ignore', () => {
+    const mine = setTimeout(() => {}, 10_000);
+    try {
+      const withIt = capturePending().counts['Timeout'] ?? 0;
+      const withoutIt = capturePending({ ignore: { Timeout: 1 } }).counts['Timeout'] ?? 0;
+
+      expect(withIt).toBeGreaterThan(0);
+      expect(withoutIt).toBe(withIt - 1);
+    } finally {
+      clearTimeout(mine);
+    }
+  });
+
+  it('still reports the timers it was not told to ignore', () => {
+    const a = setTimeout(() => {}, 10_000);
+    const b = setTimeout(() => {}, 10_000);
+    try {
+      // Two of ours plus one of someone else's: ignoring one must not hide all.
+      const snapshot = capturePending({ ignore: { Timeout: 1 } });
+
+      expect(snapshot.counts['Timeout'] ?? 0).toBeGreaterThan(0);
+    } finally {
+      clearTimeout(a);
+      clearTimeout(b);
+    }
+  });
+
+  it('ignores a name that is not present without going negative', () => {
+    const snapshot = capturePending({ ignore: { NoSuchResource: 5 } });
+
+    expect(snapshot.counts['NoSuchResource']).toBeUndefined();
+  });
+});
