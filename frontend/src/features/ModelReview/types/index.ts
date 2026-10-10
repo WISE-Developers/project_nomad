@@ -98,7 +98,12 @@ export interface ModelInputs {
    */
   fuelVintage?: {
     requestedYear: number;
+    /** The recorded directory, verbatim: "2024" or "default". */
     vintage: string;
+    /** That directory as a year, when it is one (#431). */
+    datasetYear?: number;
+    /** The season the fuel describes: datasetYear - 1, derived server-side. */
+    fuelVintage?: number;
     matchedRequestedYear: boolean;
     usedFallback: boolean;
     gridPath?: string;

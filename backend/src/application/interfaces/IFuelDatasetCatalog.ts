@@ -7,14 +7,26 @@
  * silent — the user could not tell which fuel their run consumed. This port
  * exists so the resolution can be reported honestly to the UI.
  *
- * Convention: vintage = RUN year (start-of-year fuel state). A run in year N
- * uses dataset N. It is not off-by-one.
+ * Naming, corrected in #431. Two years are involved and they must not be
+ * conflated:
+ *
+ *   - datasetYear   what is installed and keyed on. The index calls the 2026
+ *                   dataset "start-of-2026 fuels; input for 2026 model runs",
+ *                   so the dataset year equals the model year it serves.
+ *   - fuelVintage   the season the fuel data describes: datasetYear - 1. See
+ *                   domain/value-objects/fuelYears.ts, which owns the rule.
+ *
+ * The field was previously called `vintage` and carried the DATASET year, so
+ * every consumer displaying it as a vintage was off by one. The on-disk names
+ * (`dataset.json`, the index, the directory names, the per-run recorded vintage)
+ * are deliberately unchanged: renaming those would break installed systems or
+ * rewrite what completed runs claim, which is the failure #331 closed.
  */
 
 /** Provenance for one installed vintage, as written by the installer. */
 export interface FuelDataset {
-  /** Run year this dataset is the fuel state for. */
-  readonly vintage: number;
+  /** Dataset year: the model year this dataset is the start-of-year state for. */
+  readonly datasetYear: number;
   /** Dataset edition, e.g. "1.0". */
   readonly edition?: string;
   /** Human-readable description of the vintage. */
@@ -38,8 +50,13 @@ export interface FuelDataset {
 export interface ResolvedFuelDataset {
   /** The year that was asked for. */
   readonly requestedYear: number;
-  /** Vintage that will actually be used; undefined when nothing resolved. */
-  readonly vintage?: number;
+  /** Dataset year that will actually be used; undefined when nothing resolved. */
+  readonly datasetYear?: number;
+  /**
+   * Vintage of the fuel data itself — datasetYear - 1, derived once in the
+   * domain. Undefined when no dataset year resolved; never inferred.
+   */
+  readonly fuelVintage?: number;
   /** True when a dataset for requestedYear is installed. */
   readonly matchedRequestedYear: boolean;
   /** True when the requested year was absent and default/ was used instead. */
@@ -49,7 +66,7 @@ export interface ResolvedFuelDataset {
 }
 
 export interface IFuelDatasetCatalog {
-  /** All installed vintages, ascending by year. */
+  /** All installed datasets, ascending by dataset year. */
   listInstalled(): Promise<FuelDataset[]>;
 
   /**

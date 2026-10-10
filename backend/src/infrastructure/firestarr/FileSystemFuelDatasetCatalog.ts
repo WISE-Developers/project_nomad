@@ -18,6 +18,7 @@ import type {
   ResolvedFuelDataset,
 } from '../../application/interfaces/IFuelDatasetCatalog.js';
 import { resolveDatasetGridRoot } from './FireSTARRInputGenerator.js';
+import { fuelVintageForDatasetYear } from '../../domain/value-objects/fuelYears.js';
 
 /** Directory name used when a dataset is installed without a vintage. */
 const DEFAULT_DIR = 'default';
@@ -68,7 +69,7 @@ export class FileSystemFuelDatasetCatalog implements IFuelDatasetCatalog {
       }
     }
 
-    return datasets.sort((a, b) => a.vintage - b.vintage);
+    return datasets.sort((a, b) => a.datasetYear - b.datasetYear);
   }
 
   async resolveForYear(modelYear: number): Promise<ResolvedFuelDataset> {
@@ -76,7 +77,8 @@ export class FileSystemFuelDatasetCatalog implements IFuelDatasetCatalog {
     if (exact) {
       return {
         requestedYear: modelYear,
-        vintage: exact.vintage,
+        datasetYear: exact.datasetYear,
+        fuelVintage: fuelVintageForDatasetYear(exact.datasetYear),
         matchedRequestedYear: true,
         usedFallback: false,
         dataset: exact,
@@ -89,7 +91,8 @@ export class FileSystemFuelDatasetCatalog implements IFuelDatasetCatalog {
       const fallback = await this.readManifest(DEFAULT_DIR);
       return {
         requestedYear: modelYear,
-        vintage: fallback?.vintage,
+        datasetYear: fallback?.datasetYear,
+        fuelVintage: fuelVintageForDatasetYear(fallback?.datasetYear),
         matchedRequestedYear: false,
         usedFallback: true,
         dataset: fallback ?? undefined,
@@ -120,13 +123,16 @@ export class FileSystemFuelDatasetCatalog implements IFuelDatasetCatalog {
 
     // Directory name wins only when the manifest omits the vintage: the
     // directory is what fuel lookup keys on.
-    const vintage = parsed.vintage ?? Number(dirName);
-    if (!Number.isFinite(vintage)) {
+    // The manifest's own field keeps the name `vintage` on disk, but it holds
+    // the DATASET year — see IFuelDatasetCatalog. Directory name wins only when
+    // the manifest omits it: the directory is what fuel lookup keys on.
+    const datasetYear = parsed.vintage ?? Number(dirName);
+    if (!Number.isFinite(datasetYear)) {
       return undefined;
     }
 
     return {
-      vintage,
+      datasetYear,
       edition: parsed.edition,
       label: parsed.label,
       producer: parsed.source?.producer,

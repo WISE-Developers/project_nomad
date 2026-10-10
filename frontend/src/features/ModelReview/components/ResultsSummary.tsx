@@ -356,17 +356,32 @@ export function ResultsSummary({
       {(
         <div style={{
           marginTop: '16px',
-          padding: '12px',
           border: '1px solid #e0e0e0',
           borderRadius: '6px',
+          overflow: 'hidden',
         }}>
-          {fuelVintage ? (
-            <FuelVintageNotice resolved={recordedToResolved(fuelVintage)} label="Fuel vintage used" />
-          ) : (
-            <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-              Fuel vintage: not recorded — this model ran before Nomad began recording it.
-            </div>
-          )}
+          {/* Titled like every other section here. Unlabelled, the two year
+              rows float in a bare box and the reader has to infer what the
+              card is for from the rows themselves (#431). */}
+          <div style={{
+            padding: '10px 12px',
+            backgroundColor: '#fafafa',
+            borderBottom: '1px solid #e0e0e0',
+            fontWeight: 500,
+            fontSize: '14px',
+            color: '#333',
+          }}>
+            Fuel Data
+          </div>
+          <div style={{ padding: '12px' }}>
+            {fuelVintage ? (
+              <FuelVintageNotice resolved={recordedToResolved(fuelVintage)} label="Fuel vintage used" />
+            ) : (
+              <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                Fuel vintage: not recorded — this model ran before Nomad began recording it.
+              </div>
+            )}
+          </div>
         </div>
       )}
 

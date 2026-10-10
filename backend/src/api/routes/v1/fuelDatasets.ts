@@ -1,13 +1,15 @@
 /**
- * GET /api/v1/fuel-datasets — installed fuel vintages (#319).
+ * GET /api/v1/fuel-datasets — installed fuel datasets (#319, #431).
  *
  * Lets the setup and results views tell the user which fuel dataset a run
  * uses. Pass ?modelYear=YYYY to also get how that year resolves, including
  * whether lookup fell back to default/ — that fallback is silent inside the
  * engine, and silence is what the user needs protecting from.
  *
- * Vintage = RUN year (start-of-year fuel state); a run in year N uses
- * dataset N. Not off-by-one.
+ * The payload names both years explicitly (#431): `datasetYear` is what is
+ * installed and keyed on, `fuelVintage` is the season the fuel describes, which
+ * is datasetYear - 1. Returning only one of them is what let consumers display
+ * a model year under the label "fuel vintage".
  */
 
 import { Router } from 'express';

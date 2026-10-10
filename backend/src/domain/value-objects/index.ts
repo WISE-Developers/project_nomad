@@ -16,3 +16,6 @@ export { FWIIndices, FireDangerRating } from './FWIIndices.js';
 
 // BoundingBox - geographic extent
 export { BoundingBox } from './BoundingBox.js';
+
+// fuelYears - fuel vintage vs dataset year (#431)
+export { fuelVintageForDatasetYear } from './fuelYears.js';

@@ -19,7 +19,7 @@ import type { ResolvedFuelDataset } from '../fuelVintage';
 
 const resolved = (over: Partial<ResolvedFuelDataset>): ResolvedFuelDataset => ({
   requestedYear: 2026,
-  vintage: 2026,
+  datasetYear: 2026, fuelVintage: 2025,
   matchedRequestedYear: true,
   usedFallback: false,
   ...over,
@@ -27,16 +27,16 @@ const resolved = (over: Partial<ResolvedFuelDataset>): ResolvedFuelDataset => ({
 
 describe('describeFuelVintage', () => {
   it('reports an exact vintage match with no warning', () => {
-    const result = describeFuelVintage(resolved({ requestedYear: 2023, vintage: 2023 }));
+    const result = describeFuelVintage(resolved({ requestedYear: 2023, datasetYear: 2023, fuelVintage: 2022 }));
 
-    expect(result.vintageLabel).toBe('2023');
+    expect(result.datasetYearLabel).toBe('2023');
     expect(result.severity).toBe('none');
     expect(result.warning).toBeUndefined();
   });
 
   it('warns when the requested year fell back to the default dataset', () => {
     const result = describeFuelVintage(
-      resolved({ requestedYear: 2023, vintage: 2026, matchedRequestedYear: false, usedFallback: true })
+      resolved({ requestedYear: 2023, datasetYear: 2026, fuelVintage: 2025, matchedRequestedYear: false, usedFallback: true })
     );
 
     expect(result.severity).toBe('warning');
@@ -46,7 +46,7 @@ describe('describeFuelVintage', () => {
 
   it('names both years so the direction of the mismatch is visible', () => {
     const result = describeFuelVintage(
-      resolved({ requestedYear: 2019, vintage: 2026, matchedRequestedYear: false, usedFallback: true })
+      resolved({ requestedYear: 2019, datasetYear: 2026, fuelVintage: 2025, matchedRequestedYear: false, usedFallback: true })
     );
 
     expect(result.warning).toContain('2019');
@@ -55,17 +55,17 @@ describe('describeFuelVintage', () => {
 
   it('warns when nothing resolved at all', () => {
     const result = describeFuelVintage(
-      resolved({ requestedYear: 2023, vintage: undefined, matchedRequestedYear: false, usedFallback: false })
+      resolved({ requestedYear: 2023, datasetYear: undefined, fuelVintage: undefined, matchedRequestedYear: false, usedFallback: false })
     );
 
     expect(result.severity).toBe('warning');
-    expect(result.vintageLabel).toBe('unknown');
+    expect(result.datasetYearLabel).toBe('unknown');
     expect(result.blocking).toBe(false);
   });
 
   it('warns in the newer-fire-on-older-fuel direction too', () => {
     const result = describeFuelVintage(
-      resolved({ requestedYear: 2026, vintage: 2023, matchedRequestedYear: false, usedFallback: true })
+      resolved({ requestedYear: 2026, datasetYear: 2023, fuelVintage: 2022, matchedRequestedYear: false, usedFallback: true })
     );
 
     expect(result.severity).toBe('warning');
@@ -76,8 +76,8 @@ describe('describeFuelVintage', () => {
   it('is never blocking, whatever the outcome', () => {
     const outcomes = [
       resolved({}),
-      resolved({ matchedRequestedYear: false, usedFallback: true, vintage: 2020 }),
-      resolved({ matchedRequestedYear: false, usedFallback: false, vintage: undefined }),
+      resolved({ matchedRequestedYear: false, usedFallback: true, datasetYear: 2020, fuelVintage: 2019 }),
+      resolved({ matchedRequestedYear: false, usedFallback: false, datasetYear: undefined, fuelVintage: undefined }),
     ];
 
     for (const outcome of outcomes) {
@@ -90,7 +90,7 @@ describe('describeFuelVintage', () => {
     // shout about, it is simply nothing to say.
     const result = describeFuelVintage(undefined);
 
-    expect(result.vintageLabel).toBe('unknown');
+    expect(result.datasetYearLabel).toBe('unknown');
     expect(result.severity).toBe('none');
     expect(result.warning).toBeUndefined();
   });

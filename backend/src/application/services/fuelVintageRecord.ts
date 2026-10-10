@@ -12,18 +12,38 @@
 
 import { readFile } from 'fs/promises';
 import { join } from 'path';
+import { fuelVintageForDatasetYear } from '../../domain/value-objects/fuelYears.js';
 
 export interface FuelVintageRecord {
   /** The year the model was run FOR. */
   requestedYear: number;
-  /** The vintage directory actually used — "2024", "default". */
+  /**
+   * The dataset directory actually used, exactly as recorded — "2024",
+   * "default". Kept verbatim: it is evidence of what happened, and rewriting it
+   * is the failure #331 closed.
+   */
   vintage: string;
+  /**
+   * The recorded directory as a year, when it is one. Undefined for "default".
+   */
+  datasetYear?: number;
+  /**
+   * The season the fuel data describes: datasetYear - 1 (#431). Undefined when
+   * the directory carries no year — never inferred.
+   */
+  fuelVintage?: number;
   /** Whether that vintage matched the requested year. */
   matchedRequestedYear: boolean;
   /** Whether a default dataset stood in for a missing year. */
   usedFallback: boolean;
   /** The exact grid file used, for tracing. */
   gridPath?: string;
+  /**
+   * Who produced the fuel grids, as the dataset manifest named them (#431).
+   * Absent on every record written before #431 — including runs already on
+   * disk, which can never gain one retroactively.
+   */
+  producer?: string;
   /** When the run wrote this down. */
   recordedAt?: string;
 }
@@ -46,12 +66,20 @@ export async function readFuelVintage(simDir: string): Promise<FuelVintageRecord
       return undefined;
     }
 
+    // "default" is a legitimate recorded value and is not a year. Number() on
+    // it gives NaN, which the domain rule rejects rather than coercing.
+    const asYear = Number(parsed.vintage);
+    const datasetYear = Number.isInteger(asYear) ? asYear : undefined;
+
     return {
       requestedYear: parsed.requestedYear,
       vintage: parsed.vintage,
+      datasetYear,
+      fuelVintage: fuelVintageForDatasetYear(datasetYear),
       matchedRequestedYear: parsed.matchedRequestedYear === true,
       usedFallback: parsed.usedFallback === true,
       gridPath: parsed.gridPath,
+      producer: typeof parsed.producer === 'string' ? parsed.producer : undefined,
       recordedAt: parsed.recordedAt,
     };
   } catch {

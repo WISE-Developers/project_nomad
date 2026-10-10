@@ -19,6 +19,8 @@ const isAbsolutePath = (p: string): boolean =>
     posix.isAbsolute(p) || win32.isAbsolute(p);
 import type { Feature, Geometry } from 'geojson';
 import { IInputGenerator, InputGenerationResult } from '../../application/interfaces/IInputGenerator.js';
+import type { IFuelDatasetCatalog } from '../../application/interfaces/IFuelDatasetCatalog.js';
+import { FileSystemFuelDatasetCatalog } from './FileSystemFuelDatasetCatalog.js';
 import { Result } from '../../application/common/index.js';
 import { DomainError, ValidationError } from '../../domain/errors/index.js';
 import { type FireModelId } from '../../domain/entities/index.js';
@@ -34,6 +36,15 @@ export interface FireSTARRInputConfig {
   readonly simsBasePath: string;
   /** Root path for fuel grids (e.g., /path/to/data/generated/grid/100m) */
   readonly gridRoot?: string;
+  /**
+   * Used only to record WHO produced the fuel a run consumed (#431).
+   *
+   * Read through the port rather than by parsing dataset.json here: the
+   * catalog's header warns that a second reader of the same manifest is how
+   * the two drift apart. Optional — provenance is a nicety and a run must
+   * never fail for want of it.
+   */
+  readonly datasetCatalog?: IFuelDatasetCatalog;
 }
 
 /**
@@ -239,12 +250,26 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
     const vintage = this.vintageFromGridPath(gridPath);
     const matchedRequestedYear = vintage === String(requestedYear);
 
+    // Who produced the fuel (#431). Looked up separately and tolerantly: the
+    // vintage record is the thing that must be written, and losing the
+    // producer is a smaller loss than losing the record.
+    let producer: string | undefined;
+    try {
+      producer = (await this.config.datasetCatalog?.resolveForYear(requestedYear))?.dataset
+        ?.producer;
+    } catch {
+      producer = undefined;
+    }
+
     const record = {
       requestedYear,
       vintage: vintage ?? null,
       matchedRequestedYear,
       usedFallback: !matchedRequestedYear,
       gridPath,
+      // Omitted entirely rather than written as null, so a reader can tell
+      // "nobody recorded this" from "recorded as nothing".
+      ...(producer ? { producer } : {}),
       recordedAt: new Date().toISOString(),
     };
 
@@ -463,9 +488,14 @@ export function resolveDatasetGridRoot(): string {
 export function createFireSTARRInputGenerator(): FireSTARRInputGenerator {
   const resolvedPath = resolveDatasetRoot();
 
+  const gridRoot = join(resolvedPath, 'generated/grid/100m');
+
   return new FireSTARRInputGenerator({
     simsBasePath: join(resolvedPath, 'sims'),
-    gridRoot: join(resolvedPath, 'generated/grid/100m'),
+    gridRoot,
+    // Same gridRoot as the fuel lookup, so the recorded producer always
+    // describes the dataset the run actually read (#431).
+    datasetCatalog: new FileSystemFuelDatasetCatalog({ gridRoot }),
   });
 }
 

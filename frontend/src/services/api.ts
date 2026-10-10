@@ -338,7 +338,8 @@ export async function getConfig(): Promise<ConfigResponse> {
 // ============================================================================
 
 export interface FuelDatasetSummary {
-  vintage: number;
+  /** Dataset year — the model year this dataset serves (#431). */
+  datasetYear: number;
   edition?: string;
   label?: string;
   producer?: string;

@@ -18,7 +18,7 @@ import type {
 } from '../../../../application/interfaces/index.js';
 
 const DATASET_2023: FuelDataset = {
-  vintage: 2023,
+  datasetYear: 2023,
   edition: '1.0',
   label: 'start-of-2023 fuels; input for 2023 model runs',
   producer: 'Jordan Evens',
@@ -27,7 +27,7 @@ const DATASET_2023: FuelDataset = {
   resolutionM: 100,
 };
 
-const DATASET_2026: FuelDataset = { ...DATASET_2023, vintage: 2026, label: 'start-of-2026 fuels' };
+const DATASET_2026: FuelDataset = { ...DATASET_2023, datasetYear: 2026, label: 'start-of-2026 fuels' };
 
 function buildApp(catalog: Partial<IFuelDatasetCatalog>) {
   const app = express();
@@ -50,7 +50,7 @@ describe('GET /api/v1/fuel-datasets', () => {
     expect(res.status).toBe(200);
     expect(res.body.datasets).toHaveLength(2);
     expect(res.body.datasets[0]).toMatchObject({
-      vintage: 2023,
+      datasetYear: 2023,
       producer: 'Jordan Evens',
       resolutionM: 100,
     });
@@ -68,7 +68,7 @@ describe('GET /api/v1/fuel-datasets', () => {
   it('resolves a model year and reports an exact match', async () => {
     const resolved: ResolvedFuelDataset = {
       requestedYear: 2023,
-      vintage: 2023,
+      datasetYear: 2023,
       matchedRequestedYear: true,
       usedFallback: false,
       dataset: DATASET_2023,
@@ -80,7 +80,7 @@ describe('GET /api/v1/fuel-datasets', () => {
     expect(res.status).toBe(200);
     expect(res.body.resolved).toMatchObject({
       requestedYear: 2023,
-      vintage: 2023,
+      datasetYear: 2023,
       matchedRequestedYear: true,
       usedFallback: false,
     });
@@ -89,7 +89,7 @@ describe('GET /api/v1/fuel-datasets', () => {
   it('surfaces a silent default/ fallback so the UI can warn about it', async () => {
     const resolved: ResolvedFuelDataset = {
       requestedYear: 2023,
-      vintage: 2026,
+      datasetYear: 2026,
       matchedRequestedYear: false,
       usedFallback: true,
       dataset: DATASET_2026,

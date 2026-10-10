@@ -52,7 +52,7 @@ describe('ResultsSummary — recorded fuel vintage (#331)', () => {
     renderWith({
       modelStartDate: '2026-06-19T18:00:00.000Z',
       fuelVintage: {
-        requestedYear: 2026, vintage: '2026',
+        requestedYear: 2026, vintage: '2026', datasetYear: 2026, fuelVintage: 2025,
         matchedRequestedYear: true, usedFallback: false,
       },
     } as ModelInputs);

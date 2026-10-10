@@ -16,7 +16,15 @@ import { mkdtemp, mkdir, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { FileSystemFuelDatasetCatalog } from '../FileSystemFuelDatasetCatalog.js';
 
-/** Matches what scripts/install-firestarr-dataset.sh installs per year. */
+/**
+ * Matches what scripts/install-firestarr-dataset.sh installs per year.
+ *
+ * The on-disk field is `vintage` and HOLDS THE DATASET YEAR. Do not rename it to
+ * match the TypeScript field (#431) — this fixture mirrors a real file format.
+ * Renaming it here would leave this test green while silently diverging from the
+ * installer, because the catalog falls back to the directory name, which is the
+ * same number.
+ */
 function datasetJson(year: number) {
   return JSON.stringify({
     vintage: year,
@@ -61,7 +69,7 @@ describe('FileSystemFuelDatasetCatalog', () => {
 
       const installed = await catalog.listInstalled();
 
-      expect(installed.map(d => d.vintage)).toEqual([2023, 2025, 2026]);
+      expect(installed.map(d => d.datasetYear)).toEqual([2023, 2025, 2026]);
     });
 
     it('carries the provenance the installer wrote', async () => {
@@ -69,7 +77,7 @@ describe('FileSystemFuelDatasetCatalog', () => {
 
       const [dataset] = await catalog.listInstalled();
 
-      expect(dataset.vintage).toBe(2025);
+      expect(dataset.datasetYear).toBe(2025);
       expect(dataset.edition).toBe('1.0');
       expect(dataset.label).toContain('start-of-2025');
       expect(dataset.producer).toBe('Jordan Evens');
@@ -85,7 +93,7 @@ describe('FileSystemFuelDatasetCatalog', () => {
 
       const installed = await catalog.listInstalled();
 
-      expect(installed.map(d => d.vintage)).toEqual([2025]);
+      expect(installed.map(d => d.datasetYear)).toEqual([2025]);
     });
   });
 
@@ -96,7 +104,7 @@ describe('FileSystemFuelDatasetCatalog', () => {
 
       const resolved = await catalog.resolveForYear(2023);
 
-      expect(resolved.vintage).toBe(2023);
+      expect(resolved.datasetYear).toBe(2023);
       expect(resolved.matchedRequestedYear).toBe(true);
       expect(resolved.usedFallback).toBe(false);
     });
@@ -119,7 +127,7 @@ describe('FileSystemFuelDatasetCatalog', () => {
 
       expect(resolved.matchedRequestedYear).toBe(false);
       expect(resolved.usedFallback).toBe(false);
-      expect(resolved.vintage).toBeUndefined();
+      expect(resolved.datasetYear).toBeUndefined();
     });
 
     it('prefers the exact year over default/ — same order as the input generator', async () => {
