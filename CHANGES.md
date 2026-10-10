@@ -4,10 +4,47 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.26.0
+## v0.27.0
+
+### 2026-10-10
+
+- [`64b7e5c`](https://github.com/WISE-Developers/project_nomad/commit/64b7e5c85b0b39520abeef3bdbf0a187ff69ea57) Merge pull request #434 from WISE-Developers/dev — *Franco Nogarin, 15:20*
+- [`256c605`](https://github.com/WISE-Developers/project_nomad/commit/256c60510326f35ba53e7e325574696d34cdcdfe) chore: dev v0.26.4 [release-bot] — *github-actions[bot], 18:44*
+- [`48fb0d0`](https://github.com/WISE-Developers/project_nomad/commit/48fb0d001107462156609397b48478172c4def33) Merge #405 watchdog self-exclusion correction — *Franco Nogarin, 05:49*
+- [`36d9775`](https://github.com/WISE-Developers/project_nomad/commit/36d9775bdbe714446f8aa67d9427380aa2932509) fix(#405): stop the watchdog reporting its own timer — *Franco Nogarin, 05:41*
+- [`66d012c`](https://github.com/WISE-Developers/project_nomad/commit/66d012c042692ec21f2a3552de5fe22bec36789b) chore: dev v0.26.3 [release-bot] — *github-actions[bot], 11:06*
+- [`e5765de`](https://github.com/WISE-Developers/project_nomad/commit/e5765de3f4723e7577228307f9a169a3eb66c3f7) Merge #405 slow-test watchdog — *Franco Nogarin, 05:04*
+
+### 2026-10-09
+
+- [`7b7e939`](https://github.com/WISE-Developers/project_nomad/commit/7b7e9395355df812d352ee7c9c9f8725a52be6f6) test(#405): add an opt-in watchdog that reports what is pending when a test stalls — *Franco Nogarin, 05:47*
+
+### 2026-10-08
+
+- [`cf642c5`](https://github.com/WISE-Developers/project_nomad/commit/cf642c5da77163fce57258f49662c104b1884d85) chore: dev v0.26.2 [release-bot] — *github-actions[bot], 18:34*
+- [`8f766f0`](https://github.com/WISE-Developers/project_nomad/commit/8f766f0f1fc9e9945b21a7d78458d2e56de5ad05) Merge #431 fuel vintage vs model year, and #433 execution log scrolling — *Franco Nogarin, 12:31*
+- [`8eb5ad5`](https://github.com/WISE-Developers/project_nomad/commit/8eb5ad5a6e086a7d32ba3d01b338201e9cec6643) fix(#431): align the notice with model setup's row idiom — *Franco Nogarin, 10:38*
+- [`4fe86b8`](https://github.com/WISE-Developers/project_nomad/commit/4fe86b8677bc4c647cfa285eb240e4d84b12e99f) feat(#431): record who produced the fuel a run used — *Franco Nogarin, 07:38*
+- [`b7c6508`](https://github.com/WISE-Developers/project_nomad/commit/b7c6508db66a7ad075dc983f12cd326259eea003) fix(#431): title the fuel vintage card on the results panel — *Franco Nogarin, 07:01*
+- [`71c2c8e`](https://github.com/WISE-Developers/project_nomad/commit/71c2c8e58a2c26c2dc511250eb9ff4d7490bac9f) fix(#408): make the execution log scrollable again after a resize — *Franco Nogarin, 06:52*
+- [`2ae61d5`](https://github.com/WISE-Developers/project_nomad/commit/2ae61d575b4aef9692e7ea1e2be35e9c557208d3) fix(#431): let the caller declare the fuel vintage notice surface — *Franco Nogarin, 06:22*
+
+### 2026-10-06
+
+- [`06fb21a`](https://github.com/WISE-Developers/project_nomad/commit/06fb21a7d60ba9350cdecf474bdcc0c868bb7980) docs(#431): write down the fuel-year vocabulary decision — *Franco Nogarin, 14:29*
+- [`6837a08`](https://github.com/WISE-Developers/project_nomad/commit/6837a082e2cf808961221ce968b1b9a967619db2) fix(#431): move the fuel-vintage rule into the domain and name both years — *Franco Nogarin, 14:28*
+- [`91dd762`](https://github.com/WISE-Developers/project_nomad/commit/91dd76287add9ccab183337a87047d4f526bdbd8) fix(#431): show model year and fuel vintage as two labelled values — *Franco Nogarin, 08:09*
+- [`5a6f71a`](https://github.com/WISE-Developers/project_nomad/commit/5a6f71a37baf94ba4913f5d640142c91df83db90) fix(#431): derive fuel vintage from the dataset used, not the model year — *Franco Nogarin, 06:50*
+
+### 2026-10-05
+
+- [`313cb77`](https://github.com/WISE-Developers/project_nomad/commit/313cb771866fc6d753b4dfd19b976f658d6895d9) chore: dev v0.26.1 [release-bot] — *github-actions[bot], 15:10*
+- [`b9ae103`](https://github.com/WISE-Developers/project_nomad/commit/b9ae103edff411027e62dc5fd9a2caef21104eae) docs: merge FireGUARD output design input note — *Franco Nogarin, 09:09*
+- [`9e282d2`](https://github.com/WISE-Developers/project_nomad/commit/9e282d2a05d4cdff4a9fe93c82de89b74411e758) docs: add FireGUARD output design input note — *Franco Nogarin, 09:09*
 
 ### 2026-10-04
 
+- [`6e798e3`](https://github.com/WISE-Developers/project_nomad/commit/6e798e3c6049eab6c0b2eee8a3009f759c53f69b) chore: release v0.26.0 [release-bot] — *github-actions[bot], 16:36*
 - [`a4bdcde`](https://github.com/WISE-Developers/project_nomad/commit/a4bdcdefde615afdba42c3c13cd790335afcb309) Merge pull request #415 from WISE-Developers/dev — *Franco Nogarin, 10:36*
 - [`29a16fb`](https://github.com/WISE-Developers/project_nomad/commit/29a16fbe615667545261587b9400a434f2840769) chore: dev v0.25.1 [release-bot] — *github-actions[bot], 11:14*
 - [`476aded`](https://github.com/WISE-Developers/project_nomad/commit/476adeddabe8d574d103c5a63daf868e7ea9d166) Run test files serially on a developer machine, in parallel in CI — *Franco Nogarin, 05:08*
