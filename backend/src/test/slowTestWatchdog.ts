@@ -36,6 +36,26 @@ export interface PendingSnapshot {
 /** Internal Node accessor; absent on some runtimes, so it is probed, not assumed. */
 type MaybeHandleLister = { _getActiveHandles?: () => unknown[] };
 
+export interface CaptureOptions {
+  /**
+   * Resources belonging to the instrument itself, subtracted from the tally:
+   * `{ Timeout: 1 }` drops one Timeout entry.
+   *
+   * Not optional hygiene. With the watchdog armed, every test in
+   * models.engineWiring.characterization.test.ts reported `Timeout=1`; with it
+   * disarmed, the same tests report none. That was the watchdog's own timer,
+   * and it went into #405 as "the only live lead" — a ghost the instrument
+   * created and then pointed at (measured 2026-10-10).
+   *
+   * Counted by NAME rather than by object identity because timers cannot be
+   * excluded by identity: `process._getActiveHandles()` does not list them at
+   * all, so `getActiveResourcesInfo()` is the only source that sees a Timeout
+   * and it reports names, not objects. Verified 2026-10-10 — the identity
+   * design was written first and did not work.
+   */
+  ignore?: Record<string, number>;
+}
+
 /**
  * Everything currently keeping the event loop alive.
  *
@@ -44,12 +64,19 @@ type MaybeHandleLister = { _getActiveHandles?: () => unknown[] };
  * gives JS constructor names (`Server`, `Socket`). A leaked supertest server
  * shows up differently in each, and seeing both is the point.
  */
-export function capturePending(): PendingSnapshot {
+export function capturePending(options: CaptureOptions = {}): PendingSnapshot {
   const resources: string[] = [];
+  const remaining = { ...(options.ignore ?? {}) };
 
   try {
     if (typeof process.getActiveResourcesInfo === 'function') {
-      resources.push(...process.getActiveResourcesInfo());
+      for (const name of process.getActiveResourcesInfo()) {
+        if ((remaining[name] ?? 0) > 0) {
+          remaining[name] -= 1;
+          continue;
+        }
+        resources.push(name);
+      }
     }
   } catch {
     // Diagnostic only — a runtime without it still gets the handle list below.
@@ -58,8 +85,12 @@ export function capturePending(): PendingSnapshot {
   try {
     const lister = process as unknown as MaybeHandleLister;
     for (const handle of lister._getActiveHandles?.() ?? []) {
-      const name = (handle as { constructor?: { name?: string } })?.constructor?.name;
-      resources.push(name ?? 'Unknown');
+      const name = (handle as { constructor?: { name?: string } })?.constructor?.name ?? 'Unknown';
+      if ((remaining[name] ?? 0) > 0) {
+        remaining[name] -= 1;
+        continue;
+      }
+      resources.push(name);
     }
   } catch {
     // Internal API; its absence is not worth failing over.
@@ -78,9 +109,14 @@ export function capturePending(): PendingSnapshot {
  * more than once keeps every entry — the defect shows a *different* test each
  * time, so the set across runs is the evidence, not any single entry.
  */
-export function writePendingReport(path: string, testName: string, afterMs: number): void {
+export function writePendingReport(
+  path: string,
+  testName: string,
+  afterMs: number,
+  ignore: Record<string, number> = {},
+): void {
   try {
-    const { counts } = capturePending();
+    const { counts } = capturePending({ ignore });
     const tally = Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .map(([name, n]) => `${name}=${n}`)
