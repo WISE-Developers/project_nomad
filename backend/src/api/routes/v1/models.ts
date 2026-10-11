@@ -26,6 +26,7 @@ import { EngineError } from '../../../domain/errors/index.js';
 import { getModelResultsService } from '../../../application/services/index.js';
 import { getJobQueue } from '../../../infrastructure/services/JobQueue.js';
 import { getModelRepository, getResultRepository } from '../../../infrastructure/database/index.js';
+import { finalizeModelExecution } from '../../../application/services/finalizeModelExecution.js';
 import type { ExecutionOptions, ModelMode } from '../../../application/interfaces/IFireModelingEngine.js';
 import type { WeatherConfig } from '../../../infrastructure/weather/types.js';
 import { parseIsoToDate } from '../../../shared/dateParsing.js';
@@ -278,25 +279,33 @@ router.post(
           await engine.initialize(model, executionOptions);
           await engine.execute(modelId);
           const status = await engine.getStatus(modelId);
-          if (status.state === 'completed') {
-            await jobQueue.complete(jobId);
-            await modelRepo.save(model.withStatus(ModelStatus.Completed));
-            // Harvest results immediately after completion
-            try {
+          // Every engine state resolves the job. This was an if/else-if with
+          // no else, so a run that stopped while still reporting a
+          // non-terminal state left the job hanging and the processing window
+          // spinning forever (#432).
+          await finalizeModelExecution(status, {
+            completeJob: async () => {
+              await jobQueue.complete(jobId);
+            },
+            failJob: async (reason) => {
+              await jobQueue.fail(jobId, reason);
+            },
+            markModelCompleted: async () => {
+              await modelRepo.save(model.withStatus(ModelStatus.Completed));
+            },
+            markModelFailed: async () => {
+              await modelRepo.save(model.withStatus(ModelStatus.Failed));
+            },
+            harvestResults: async () => {
               const results = await engine.getResults(modelId);
               const resultRepo = getResultRepository();
               for (const result of results) {
                 await resultRepo.save(result);
               }
               logger.model(`Harvested ${results.length} results`, modelId);
-            } catch (harvestError) {
-              logger.warn(`Failed to harvest results for model ${modelId}: ${harvestError}`, 'Model');
-              // Continue anyway - results can still be lazy-loaded on first read
-            }
-          } else if (status.state === 'failed') {
-            await jobQueue.fail(jobId, status.error ?? 'Execution failed');
-            await modelRepo.save(model.withStatus(ModelStatus.Failed));
-          }
+            },
+            warn: (message) => logger.warn(`${message} (model ${modelId})`, 'Model'),
+          });
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           logger.error(`Execution failed: ${message}`, 'Model', { modelId });
@@ -714,26 +723,33 @@ router.post(
 
           // Check execution status
           const status = await engine.getStatus(id as FireModelId);
-          if (status.state === 'completed') {
-            await jobQueue.complete(jobId);
-            // Update model status
-            await modelRepo.save(queuedModel.withStatus(ModelStatus.Completed));
-            // Harvest results immediately after completion
-            try {
+          // Every engine state resolves the job. This was an if/else-if with
+          // no else, so a run that stopped while still reporting a
+          // non-terminal state left the job hanging and the processing window
+          // spinning forever (#432).
+          await finalizeModelExecution(status, {
+            completeJob: async () => {
+              await jobQueue.complete(jobId);
+            },
+            failJob: async (reason) => {
+              await jobQueue.fail(jobId, reason);
+            },
+            markModelCompleted: async () => {
+              await modelRepo.save(queuedModel.withStatus(ModelStatus.Completed));
+            },
+            markModelFailed: async () => {
+              await modelRepo.save(queuedModel.withStatus(ModelStatus.Failed));
+            },
+            harvestResults: async () => {
               const results = await engine.getResults(id as FireModelId);
               const resultRepo = getResultRepository();
               for (const result of results) {
                 await resultRepo.save(result);
               }
               logger.model(`Harvested ${results.length} results`, id);
-            } catch (harvestError) {
-              logger.warn(`Failed to harvest results for model ${id}: ${harvestError}`, 'Model');
-              // Continue anyway - results can still be lazy-loaded on first read
-            }
-          } else if (status.state === 'failed') {
-            await jobQueue.fail(jobId, status.error ?? 'Execution failed');
-            await modelRepo.save(queuedModel.withStatus(ModelStatus.Failed));
-          }
+            },
+            warn: (message) => logger.warn(`${message} (model ${id})`, 'Model'),
+          });
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           logger.error(`Execution failed: ${message}`, 'Model', { modelId: id });
