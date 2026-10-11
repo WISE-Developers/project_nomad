@@ -20,6 +20,7 @@ import type { WeatherConfig } from '../../infrastructure/weather/types.js';
 import { getModelRepository, getResultRepository } from '../../infrastructure/database/index.js';
 import { getEngine } from '../../infrastructure/engines/index.js';
 import { getJobQueue } from '../../infrastructure/services/JobQueue.js';
+import { executeAndFinalizeModel } from '../../application/services/executeAndFinalizeModel.js';
 import {
   modelNotFound,
   jobNotFound,
@@ -124,21 +125,38 @@ export function registerExecutionTools(server: McpServer): void {
       // Start execution in background with lifecycle management
       jobQueue.updateStatus(job.id, JobStatus.Running).catch(() => {});
 
-      engine.execute(createFireModelId(modelId))
-        .then(async () => {
+      // The engine's reported state decides the outcome, not whether the
+      // promise resolved. This previously treated execute() resolving as
+      // success without ever calling getStatus(), so a run that finished in a
+      // failed state was reported as completed; and it harvested before
+      // completing, so a getResults() throw marked a successful simulation as
+      // failed. Both now go through the same finalizer as the HTTP routes.
+      void executeAndFinalizeModel({
+        execute: async () => {
+          await engine.execute(createFireModelId(modelId));
+        },
+        getStatus: () => engine.getStatus(createFireModelId(modelId)),
+        completeJob: async () => {
+          await jobQueue.complete(job.id);
+        },
+        failJob: async (reason) => {
+          await jobQueue.fail(job.id, reason);
+        },
+        markModelCompleted: async () => {
+          await repo.updateStatus(createFireModelId(modelId), ModelStatus.Completed);
+        },
+        markModelFailed: async () => {
+          await repo.updateStatus(createFireModelId(modelId), ModelStatus.Failed);
+        },
+        harvestResults: async () => {
           const results = await engine.getResults(createFireModelId(modelId));
           const resultRepo = getResultRepository();
           for (const result of results) {
             await resultRepo.save(result);
           }
-          await jobQueue.complete(job.id);
-          await repo.updateStatus(createFireModelId(modelId), ModelStatus.Completed);
-        })
-        .catch(async (err) => {
-          const errMsg = err instanceof Error ? err.message : String(err);
-          await jobQueue.fail(job.id, errMsg).catch(() => {});
-          await repo.updateStatus(createFireModelId(modelId), ModelStatus.Failed).catch(() => {});
-        });
+        },
+        warn: (message) => console.warn(`[MCP] ${message} (model ${modelId})`),
+      });
 
       // Update model status to queued
       await repo.updateStatus(createFireModelId(modelId), ModelStatus.Queued);
