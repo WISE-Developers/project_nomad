@@ -23,6 +23,7 @@ import { useModelSetup } from '../hooks/useModelSetup';
 import { useWeatherPreflightGate } from '../hooks/useWeatherPreflightGate';
 import { StartingCodesModal } from './StartingCodesModal';
 import { PreflightErrorModal } from './PreflightErrorModal';
+import { ExtentWarningModal } from './ExtentWarningModal.js';
 import { DrawingToolbar } from '../../Map';
 import { getStepComponent } from './stepComponents';
 import type { ModelSetupData } from '../types';
@@ -239,7 +240,8 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId, initialData, t
   // It sits here rather than in App.tsx because App.tsx is only the SAN
   // reference implementation — the wizard forwards to a host-supplied
   // onComplete, so gating here protects ACN integrators too.
-  const { guardedComplete, gate, error: preflightError } = useWeatherPreflightGate(onComplete);
+  const { guardedComplete, gate, error: preflightError, extentWarning } =
+    useWeatherPreflightGate(onComplete);
 
   const [dismissedError, setDismissedError] = useState(false);
 
@@ -260,6 +262,18 @@ export function ModelSetupWizard({ onComplete, onCancel, draftId, initialData, t
           timezone={gate.timezone}
           onConfirm={gate.confirm}
           onCancel={gate.cancel}
+        />
+      )}
+      {/*
+        #432. Advisory, not an error — a large fire is legal and will run. Shown
+        before the run starts so the operator can still split the model, which is
+        the only point at which that choice is theirs to make.
+      */}
+      {extentWarning && (
+        <ExtentWarningModal
+          message={extentWarning.message}
+          onProceed={extentWarning.proceed}
+          onCancel={extentWarning.cancel}
         />
       )}
       {preflightError && !dismissedError && (

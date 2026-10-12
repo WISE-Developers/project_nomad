@@ -71,7 +71,27 @@ describe('useWeatherPreflightGate', () => {
     expect(result.current.gate).toBeNull();
   });
 
-  it('skips the round-trip entirely for a source that cannot have the shape', async () => {
+  /**
+   * SUPERSEDED 2026-10-12, with Franco's approval, and recorded rather than
+   * quietly rewritten.
+   *
+   * This test used to assert `preflight` was NOT called for a source that
+   * cannot carry the daily-only shape — a deliberate optimisation, and correct
+   * while the only pre-run question was about an uploaded CSV.
+   *
+   * #432 moved the extent check pre-run ("yes before they hit run!"), and
+   * extent is a property of the GEOMETRY, which every run has regardless of
+   * where its weather comes from. Keeping the early return would have delivered
+   * the warning through a code path that never executes on two of the three
+   * weather sources.
+   *
+   * What survives is the real invariant: a source that cannot have the shape
+   * sends NO CSV CONTENT to inspect, and submits in one pass with no gate. The
+   * round trip itself is no longer the thing worth protecting — it buys the
+   * extent answer, and the alternative was a second copy of the 180 km
+   * threshold and the bounding-box maths in the frontend.
+   */
+  it('inspects no CSV content for a source that cannot have the shape', async () => {
     const { result } = setup();
     const data = { ...firestarrData(), weather: { source: 'spotwx' as const, spotwxFile: csvFile() } };
 
@@ -79,8 +99,12 @@ describe('useWeatherPreflightGate', () => {
       await result.current.guardedComplete(data as ModelSetupData);
     });
 
-    expect(preflight).not.toHaveBeenCalled();
+    expect(preflight).toHaveBeenCalledTimes(1);
+    const body = preflight.mock.calls[0][0];
+    expect(body.weather.source).toBe('spotwx');
+    expect(body.weather.firestarrCsvContent).toBeUndefined();
     expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(result.current.gate).toBeNull();
   });
 
   describe('when the daily-only shape is found', () => {

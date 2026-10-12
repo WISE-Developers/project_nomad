@@ -423,6 +423,26 @@ export interface PreflightRequest {
   timezone: string;
   timeRange: { start: string; end: string };
   weather: { source: 'firestarr_csv' | 'raw_weather' | 'spotwx'; firestarrCsvContent?: string };
+  /**
+   * Every drawn ignition, for the #432 extent check. ALL of them, not the
+   * first: the grid has to cover the union, and understating a span is the
+   * unsafe direction because the engine crops without saying so.
+   */
+  ignitions?: Array<{ type: string; coordinates: unknown }>;
+}
+
+/** #432 — measured before the run, so the operator still has the choice. */
+export interface PreflightExtent {
+  /** False when no geometry was supplied. NOT the same as "measured and fine". */
+  measured: boolean;
+  withinLimit: boolean;
+  nearLimit: boolean;
+  widthM: number;
+  heightM: number;
+  /** Present only on a refusal. */
+  reason?: string;
+  /** Present only on an advisory, where the run proceeds. */
+  warning?: string;
 }
 
 export interface PreflightCandidate {
@@ -444,6 +464,8 @@ export interface PreflightResponse {
   candidate: PreflightCandidate | null;
   /** How the file's daily rhythm compares with the timezone contract (#354). */
   rhythm: PreflightRhythm | null;
+  /** Optional so an older backend response still parses. */
+  extent?: PreflightExtent;
 }
 
 export async function preflightWeather(body: PreflightRequest): Promise<PreflightResponse> {
