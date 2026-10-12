@@ -140,6 +140,10 @@ function AppContent() {
   // Job notifications
   const {
     status: jobStatus,
+    // The hook has always detected a dropped stream; until now nothing read it,
+    // so the toast spun on its last known state forever. A value computed and
+    // never consumed is not a feature, it is a field on an object.
+    isConnected: jobStreamConnected,
     watchJob,
     stopWatching,
     requestPermission,
@@ -559,6 +563,7 @@ function AppContent() {
       {/* Job status toast */}
       <JobStatusToast
         status={jobStatus}
+        isConnected={jobStreamConnected}
         onDismiss={handleDismissToast}
         onViewResults={handleViewResults}
       />
