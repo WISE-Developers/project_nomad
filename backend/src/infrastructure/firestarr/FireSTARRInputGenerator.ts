@@ -20,6 +20,7 @@ const isAbsolutePath = (p: string): boolean =>
 import type { Feature, Geometry } from 'geojson';
 import { IInputGenerator, InputGenerationResult } from '../../application/interfaces/IInputGenerator.js';
 import type { IFuelDatasetCatalog } from '../../application/interfaces/IFuelDatasetCatalog.js';
+import { checkSimulationExtent } from './simulationExtent.js';
 import { FileSystemFuelDatasetCatalog } from './FileSystemFuelDatasetCatalog.js';
 import { Result } from '../../application/common/index.js';
 import { DomainError, ValidationError } from '../../domain/errors/index.js';
@@ -290,6 +291,35 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
     const workingDir = this.getWorkingDir(modelId);
 
     try {
+      // Refuse an area FireSTARR cannot represent, BEFORE anything is created
+      // or looked up (#432).
+      //
+      // The engine does not refuse it: ConstantGrid.h centres a 4096-cell
+      // window on the ignition and silently drops everything outside, so an
+      // over-size fire returns a plausible result from a truncated domain
+      // with nothing on screen to say so.
+      //
+      // Checked first on purpose. It is the cheapest check and the most
+      // fundamental, and if the fuel lookup ran first an over-size fire would
+      // be reported as a missing-fuel problem — sending the operator after
+      // the wrong thing entirely.
+      const extent = checkSimulationExtent(params.perimeter ?? params.ignitionGeometry);
+      if (!extent.withinLimit) {
+        return Result.fail(new ValidationError(extent.reason ?? 'Simulation area is too large.'));
+      }
+
+      // The warning band (#432, 180 km, approved 2026-10-12). The run proceeds;
+      // this goes into the execution log so an operator sizing a fire near the
+      // cliff can see it rather than discovering the crop in the results.
+      //
+      // Surfacing it HERE rather than only computing it is the point: a warning
+      // nobody emits is not a warning, it is a field on a struct. If this ever
+      // needs to reach the wizard before the run starts, that is a separate
+      // change at the API boundary — it is not covered by this line.
+      if (extent.nearLimit && extent.warning) {
+        console.warn(`[FireSTARRInputGenerator] ${extent.warning}`);
+      }
+
       // Create working directory with world-writable permissions
       // (chmod is needed because mkdir mode is affected by umask)
       await mkdir(workingDir, { recursive: true });

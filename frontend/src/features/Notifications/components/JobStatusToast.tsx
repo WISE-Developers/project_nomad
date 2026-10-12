@@ -14,7 +14,24 @@ interface JobStatusToastProps {
   status: JobStatus | null;
   onDismiss?: () => void;
   onViewResults?: () => void;
+  /**
+   * Whether the status stream is live. `undefined` means NOT TOLD — which is
+   * not the same as being told the stream is down, and must never be read as
+   * such. Existing callers pass only `status`, and an absent value has to stay
+   * silent rather than report a connection problem nobody observed.
+   */
+  isConnected?: boolean;
 }
+
+/**
+ * How long a dropped stream must stay dropped before the operator is told.
+ *
+ * SSE reconnects on its own, so most `onerror` events are blips of no interest.
+ * Reporting every one would train people to ignore the indicator, and an
+ * indicator that is ignored is worse than none — it is believed less while
+ * still occupying the space where real news would appear.
+ */
+const STALE_AFTER_MS = 15_000;
 
 const statusColors = {
   pending: '#6b7280',
@@ -91,17 +108,44 @@ export function JobStatusToast({
   status,
   onDismiss,
   onViewResults,
+  isConnected,
 }: JobStatusToastProps): React.ReactElement | null {
   const [nerdMode, setNerdMode] = useState(false);
   const [liveSize, setLiveSize] = useState<StoredSize | null>(() => readStoredSize());
   const [logLines, setLogLines] = useState<string[]>([]);
   const [logFilter, setLogFilter] = useState('');
+  const [streamStale, setStreamStale] = useState(false);
   const logScrollRef = useRef<HTMLDivElement>(null);
   const wasAtBottomRef = useRef(true);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   const isTerminal = status ? ['completed', 'failed', 'cancelled'].includes(status.status) : false;
   const jobId = status?.id ?? null;
+
+  /**
+   * A dropped stream must stop looking like a running job.
+   *
+   * `useJobNotifications` has always detected this — it sets isConnected false
+   * in both onerror and the error listener — but the value never reached here,
+   * so the toast kept rendering its last known state indefinitely. The spinner
+   * then reports the ABSENCE OF NEWS in the same pixels it uses to report
+   * progress, which is this project's recurring failure: the untaken path and
+   * the correct path rendered identically.
+   *
+   * A second, independent route to the stuck spinner. The finalizer fix closed
+   * the one where the engine stopped non-terminal; this one needs no engine
+   * fault at all.
+   */
+  useEffect(() => {
+    // `undefined` is "not told". Only an explicit false starts the clock.
+    if (isConnected !== false || isTerminal || !jobId) {
+      setStreamStale(false);
+      return;
+    }
+
+    const timer = setTimeout(() => setStreamStale(true), STALE_AFTER_MS);
+    return () => clearTimeout(timer);
+  }, [isConnected, isTerminal, jobId]);
 
   // Connect/disconnect log stream based on nerd mode
   useEffect(() => {
@@ -274,6 +318,31 @@ export function JobStatusToast({
                 Model Execution: {statusText[status.status]}
               </span>
             </div>
+
+            {/*
+              Says what is actually known: this browser stopped hearing from the
+              run. It deliberately does NOT say the run failed — the run
+              continues server-side whether or not anything is listening, and a
+              confident wrong answer would be worse than the spinner it
+              replaces.
+            */}
+            {streamStale && (
+              <div
+                role="status"
+                style={{
+                  marginBottom: '8px',
+                  padding: '6px 8px',
+                  borderRadius: '4px',
+                  backgroundColor: '#78350f',
+                  color: '#fde68a',
+                  fontSize: '12px',
+                  lineHeight: 1.4,
+                }}
+              >
+                Lost contact with this run. It is probably still going — Nomad is
+                no longer receiving updates. Reopen the model to check on it.
+              </div>
+            )}
 
             {status.status === 'running' && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
