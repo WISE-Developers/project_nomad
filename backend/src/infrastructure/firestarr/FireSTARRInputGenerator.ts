@@ -308,6 +308,18 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
         return Result.fail(new ValidationError(extent.reason ?? 'Simulation area is too large.'));
       }
 
+      // The warning band (#432, 180 km, approved 2026-10-12). The run proceeds;
+      // this goes into the execution log so an operator sizing a fire near the
+      // cliff can see it rather than discovering the crop in the results.
+      //
+      // Surfacing it HERE rather than only computing it is the point: a warning
+      // nobody emits is not a warning, it is a field on a struct. If this ever
+      // needs to reach the wizard before the run starts, that is a separate
+      // change at the API boundary — it is not covered by this line.
+      if (extent.nearLimit && extent.warning) {
+        console.warn(`[FireSTARRInputGenerator] ${extent.warning}`);
+      }
+
       // Create working directory with world-writable permissions
       // (chmod is needed because mkdir mode is affected by umask)
       await mkdir(workingDir, { recursive: true });
