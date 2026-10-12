@@ -4,10 +4,32 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.27.0
+## v0.28.0
+
+### 2026-10-12
+
+- [`72546ac`](https://github.com/WISE-Developers/project_nomad/commit/72546accb7cad50185c8b72f94d40dc5476a841f) Merge pull request #436 from WISE-Developers/dev — *Franco Nogarin, 14:08*
+- [`41e6bc3`](https://github.com/WISE-Developers/project_nomad/commit/41e6bc3bb0c0e099624a2bcab6702723bf3e91ae) chore: dev v0.27.6 [release-bot] — *github-actions[bot], 19:56*
+- [`f3a8961`](https://github.com/WISE-Developers/project_nomad/commit/f3a896135724bc309ec3602ec0fe7d0abb9e33f0) A dropped status stream no longer looks like a running job — *Franco Nogarin, 13:56*
+- [`7fb5698`](https://github.com/WISE-Developers/project_nomad/commit/7fb5698a5d4f34c725a449a1ae96d4c8a14b0ac4) chore: dev v0.27.5 [release-bot] — *github-actions[bot], 17:46*
+- [`ad06eae`](https://github.com/WISE-Developers/project_nomad/commit/ad06eaee2ee718341647f661f035b8082177777c) #432: the extent warning reaches the operator BEFORE they hit run — *Franco Nogarin, 11:46*
+- [`4be10cc`](https://github.com/WISE-Developers/project_nomad/commit/4be10cc285dccdcc6f3dd77993e682b939e4b8ad) chore: dev v0.27.4 [release-bot] — *github-actions[bot], 16:45*
+- [`22abef1`](https://github.com/WISE-Developers/project_nomad/commit/22abef1ecaeba7e46ae47454d3eee91064b3b600) #432: warn at 180 km, below the 409.6 km reject — *Franco Nogarin, 10:45*
+- [`8518958`](https://github.com/WISE-Developers/project_nomad/commit/8518958bf6f5d1a96947ca061d32501391d1b953) chore: dev v0.27.3 [release-bot] — *github-actions[bot], 11:50*
+- [`6d51ee8`](https://github.com/WISE-Developers/project_nomad/commit/6d51ee872519b31928a3b942ac025c7a1f33a5af) MCP/GUI execution parity, and a guard that maintains it — *Franco Nogarin, 05:49*
+
+### 2026-10-11
+
+- [`d57167a`](https://github.com/WISE-Developers/project_nomad/commit/d57167adcac5c5c25d3e915d2b0bb3307415ede2) chore: dev v0.27.2 [release-bot] — *github-actions[bot], 19:55*
+- [`3c13158`](https://github.com/WISE-Developers/project_nomad/commit/3c13158cea06d760c3a53157ba6614f52a51fd50) fix: make the MCP execution path report the outcome the engine actually had — *Franco Nogarin, 11:09*
+- [`d9236b8`](https://github.com/WISE-Developers/project_nomad/commit/d9236b8c4544a1264e88615cefe2e36fbf80cbfe) chore: dev v0.27.1 [release-bot] — *github-actions[bot], 12:41*
+- [`9e2d59b`](https://github.com/WISE-Developers/project_nomad/commit/9e2d59b47fc056605c5194ba4542f47b566c50cf) Merge #432: refuse over-size fires, and never leave a job unresolved — *Franco Nogarin, 06:40*
+- [`bc10341`](https://github.com/WISE-Developers/project_nomad/commit/bc1034161de794bb211d6a9ebd0afe8770ef64f6) fix(#432): never leave a job unresolved, so the processing window cannot spin forever — *Franco Nogarin, 06:34*
+- [`decf2bd`](https://github.com/WISE-Developers/project_nomad/commit/decf2bd5c1e00e57d95d442a2959f56a6c3f0325) feat(#432): refuse a fire larger than FireSTARR's grid, and say why — *Franco Nogarin, 05:50*
 
 ### 2026-10-10
 
+- [`b4adcb1`](https://github.com/WISE-Developers/project_nomad/commit/b4adcb122f7518652bfe450fad45df3acbb03a13) chore: release v0.27.0 [release-bot] — *github-actions[bot], 21:21*
 - [`64b7e5c`](https://github.com/WISE-Developers/project_nomad/commit/64b7e5c85b0b39520abeef3bdbf0a187ff69ea57) Merge pull request #434 from WISE-Developers/dev — *Franco Nogarin, 15:20*
 - [`256c605`](https://github.com/WISE-Developers/project_nomad/commit/256c60510326f35ba53e7e325574696d34cdcdfe) chore: dev v0.26.4 [release-bot] — *github-actions[bot], 18:44*
 - [`48fb0d0`](https://github.com/WISE-Developers/project_nomad/commit/48fb0d001107462156609397b48478172c4def33) Merge #405 watchdog self-exclusion correction — *Franco Nogarin, 05:49*
