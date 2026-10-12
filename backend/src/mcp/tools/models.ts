@@ -118,11 +118,16 @@ export function registerModelTools(server: McpServer): void {
       description: 'Set ignition point or polygon for a fire model. FireSTARR reads fuel from the raster grid at this location.',
       inputSchema: {
         modelId: z.string().describe('Model ID from create-model'),
-        type: z.enum(['point', 'polygon']).describe("Ignition geometry type: 'point' or 'polygon'"),
+        type: z
+          .enum(['point', 'polygon', 'linestring'])
+          .describe("Ignition geometry type: 'point', 'linestring' (fire front) or 'polygon'"),
         coordinates: z.union([
           z.tuple([z.number(), z.number()]),
           z.array(z.tuple([z.number(), z.number()])),
-        ]).describe("For point: [lon, lat]. For polygon: array of [lon, lat] pairs forming a closed ring."),
+        ]).describe(
+          'For point: [lon, lat]. For linestring: array of [lon, lat] pairs along the ' +
+            'fire front. For polygon: array of [lon, lat] pairs forming a closed ring.',
+        ),
       },
     },
     async ({ modelId, type, coordinates }): Promise<CallToolResult> => {
@@ -133,19 +138,42 @@ export function registerModelTools(server: McpServer): void {
       // Build and validate via SpatialGeometry (throws on invalid input)
       let geometry: SpatialGeometry;
       try {
-        if (type === 'point') {
-          const [lon, lat] = coordinates as [number, number];
-          geometry = new SpatialGeometry({
-            type: GeometryType.Point,
-            coordinates: [lon, lat],
-          });
-        } else {
-          // polygon — wrap coordinates array in a ring array
-          const ring = coordinates as [number, number][];
-          geometry = new SpatialGeometry({
-            type: GeometryType.Polygon,
-            coordinates: [ring],
-          });
+        // Exhaustive by construction. The previous form was
+        // `if (type === 'point') … else → Polygon`, so a linestring was wrapped
+        // into a polygon RING — either throwing on a ring that does not close, or
+        // worse, succeeding and running the wrong geometry. Same missing-else
+        // shape as #432. An unhandled type must refuse, not fall through.
+        switch (type) {
+          case 'point': {
+            const [lon, lat] = coordinates as [number, number];
+            geometry = new SpatialGeometry({
+              type: GeometryType.Point,
+              coordinates: [lon, lat],
+            });
+            break;
+          }
+          case 'linestring': {
+            geometry = new SpatialGeometry({
+              type: GeometryType.LineString,
+              coordinates: coordinates as [number, number][],
+            });
+            break;
+          }
+          case 'polygon': {
+            // wrap the coordinates array in a ring array
+            const ring = coordinates as [number, number][];
+            geometry = new SpatialGeometry({
+              type: GeometryType.Polygon,
+              coordinates: [ring],
+            });
+            break;
+          }
+          default:
+            return invalidParameter(
+              'type',
+              `Unsupported ignition type '${String(type)}'. Expected point, linestring or polygon.`,
+              type,
+            );
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);

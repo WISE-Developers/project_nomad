@@ -28,6 +28,7 @@ import { getJobQueue } from '../../../infrastructure/services/JobQueue.js';
 import { getModelRepository, getResultRepository } from '../../../infrastructure/database/index.js';
 import { finalizeModelExecution } from '../../../application/services/finalizeModelExecution.js';
 import type { ExecutionOptions, ModelMode } from '../../../application/interfaces/IFireModelingEngine.js';
+import { buildExecutionOptions, deriveOutputMode } from '../../../application/execution/buildExecutionOptions.js';
 import type { WeatherConfig } from '../../../infrastructure/weather/types.js';
 import { parseIsoToDate } from '../../../shared/dateParsing.js';
 import { assertWeatherMeetsEngineContract } from '../../../application/services/WeatherContractCheck.js';
@@ -173,9 +174,10 @@ router.post(
       ]);
     }
 
-    // Derive outputMode from modelMode before availability gate
-    const derivedOutputMode: 'probabilistic' | 'deterministic' =
-      modelMode === 'deterministic' ? 'deterministic' : 'probabilistic';
+    // Derive outputMode from modelMode before availability gate.
+    // Shared derivation — the same function buildExecutionOptions uses, so the
+    // model record and the execution options cannot disagree.
+    const derivedOutputMode = deriveOutputMode(modelMode);
 
     if (modelMode !== 'probabilistic' && modelMode !== 'deterministic') {
       throw new ValidationError('Model mode not available', [
@@ -255,17 +257,15 @@ router.post(
     }
     const jobId = jobResult.value.id;
 
-    // Build execution options
-    const executionOptions: ExecutionOptions = {
+    // Build execution options — single shared derivation (see buildExecutionOptions)
+    const executionOptions: ExecutionOptions = buildExecutionOptions({
       ignitionGeometry,
       timeRange,
       timezone: body.timezone,
       weatherConfig: body.weather,
-      simulationCount: body.scenarios ?? 100,
-      outputMode: derivedOutputMode,
-      confidenceInterval: 1,
-      smoothPerimeter: false,
-    };
+      modelMode,
+      scenarios: body.scenarios,
+    });
 
     // Start execution (FireSTARR)
     if (model.engineType === EngineType.FireSTARR) {
@@ -498,6 +498,14 @@ interface ExecuteRequestBody {
   timezone: string;
   weather: WeatherConfig;
   scenarios?: number;
+  /**
+   * Preferred field, matching POST /models/run and the GUI.
+   * Issue #435: this endpoint previously read only `outputMode`, so a client
+   * asking for a deterministic run via `modelMode` silently got a probabilistic
+   * one and was told it succeeded.
+   */
+  modelMode?: ModelMode;
+  /** Legacy. Still honoured; `modelMode` wins when both are present. */
   outputMode?: 'probabilistic' | 'deterministic';
 }
 
@@ -666,17 +674,25 @@ router.post(
       parseIsoToDate(body.timeRange.end, 'POST /models/:id/execute body.timeRange.end'),
     );
 
-    // Build execution options
-    const executionOptions: ExecutionOptions = {
+    /**
+     * Issue #435. `modelMode` is the field the GUI and POST /models/run use;
+     * `outputMode` is the legacy name this endpoint used to read EXCLUSIVELY,
+     * which is why a deterministic request was silently run probabilistic.
+     * Both are honoured, `modelMode` wins, and the derivation itself lives in
+     * exactly one place now.
+     */
+    const requestedModelMode: ModelMode | undefined =
+      body.modelMode ?? (body.outputMode === 'deterministic' ? 'deterministic' : undefined);
+
+    // Build execution options — single shared derivation (see buildExecutionOptions)
+    const executionOptions: ExecutionOptions = buildExecutionOptions({
       ignitionGeometry,
       timeRange,
       timezone: body.timezone,
       weatherConfig: body.weather,
-      simulationCount: body.scenarios ?? 100,
-      outputMode: body.outputMode === 'deterministic' ? 'deterministic' : 'probabilistic',
-      confidenceInterval: 1,
-      smoothPerimeter: false,
-    };
+      modelMode: requestedModelMode,
+      scenarios: body.scenarios,
+    });
 
     // Update model with execution metadata and queue it
     const updatedModel = new FireModel({
@@ -688,7 +704,9 @@ router.post(
       updatedAt: new Date(),
       userId: model.userId ?? resolveUserId(req),
       notes: model.notes,
-      outputMode: body.outputMode === 'deterministic' ? 'deterministic' : 'probabilistic',
+      // Same derivation as executionOptions above — read from it rather than
+      // repeating the ternary, which is how these two drifted apart.
+      outputMode: executionOptions.outputMode,
     });
     await modelRepo.save(updatedModel);
     const queuedModel = updatedModel;

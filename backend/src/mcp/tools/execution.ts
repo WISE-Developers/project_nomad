@@ -21,6 +21,8 @@ import { getModelRepository, getResultRepository } from '../../infrastructure/da
 import { getEngine } from '../../infrastructure/engines/index.js';
 import { getJobQueue } from '../../infrastructure/services/JobQueue.js';
 import { executeAndFinalizeModel } from '../../application/services/executeAndFinalizeModel.js';
+import { buildExecutionOptions } from '../../application/execution/buildExecutionOptions.js';
+import type { ExecutionOptions } from '../../application/interfaces/IFireModelingEngine.js';
 import {
   modelNotFound,
   jobNotFound,
@@ -42,9 +44,34 @@ export function registerExecutionTools(server: McpServer): void {
       description: 'Submit a configured fire model for execution. The model must have ignition, weather, and simulation time set. Returns a job ID for tracking progress.',
       inputSchema: {
         modelId: z.string().describe('Model ID to execute'),
+        /**
+         * Parity with the GUI and with POST /models/run. Omitted previously,
+         * so every MCP run silently took the probabilistic default (#151).
+         *
+         * `outputMode` is deliberately NOT exposed here: the GUI does not let a
+         * user set it independently either — ModelSelectionStep derives it from
+         * modelMode. Exposing it would be a knob the GUI does not have, which is
+         * divergence wearing parity's clothes.
+         */
+        modelMode: z
+          .enum(['probabilistic', 'deterministic'])
+          .optional()
+          .describe(
+            'Model mode. Defaults to probabilistic. Deterministic produces vector ' +
+              'perimeters from a single simulation; probabilistic produces rasters.',
+          ),
+        scenarios: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe(
+            'Number of simulations. Defaults to the count the GUI would send: ' +
+              '100 for probabilistic, 1 for deterministic.',
+          ),
       },
     },
-    async ({ modelId }): Promise<CallToolResult> => {
+    async ({ modelId, modelMode, scenarios }): Promise<CallToolResult> => {
       const repo = getModelRepository();
       const model = await repo.findById(createFireModelId(modelId));
       if (!model) return modelNotFound(modelId);
@@ -70,16 +97,35 @@ export function registerExecutionTools(server: McpServer): void {
       let ignitionGeometry: SpatialGeometry;
       try {
         const ignitionCfg = config!.ignition as { type: string; coordinates: unknown };
-        if (ignitionCfg.type === 'point') {
-          ignitionGeometry = new SpatialGeometry({
-            type: GeometryType.Point,
-            coordinates: ignitionCfg.coordinates as [number, number],
-          });
-        } else {
-          ignitionGeometry = new SpatialGeometry({
-            type: GeometryType.Polygon,
-            coordinates: ignitionCfg.coordinates as [number, number][][],
-          });
+        // Exhaustive by construction. The previous form was
+        // `if (type === 'point') … else → Polygon`, which SILENTLY RAN a
+        // linestring ignition as a polygon and reported success — the same
+        // missing-else shape as #432, which existed in three copies. An
+        // unrecognised type must refuse, never fall through.
+        switch (ignitionCfg.type) {
+          case 'point':
+            ignitionGeometry = new SpatialGeometry({
+              type: GeometryType.Point,
+              coordinates: ignitionCfg.coordinates as [number, number],
+            });
+            break;
+          case 'linestring':
+            ignitionGeometry = new SpatialGeometry({
+              type: GeometryType.LineString,
+              coordinates: ignitionCfg.coordinates as [number, number][],
+            });
+            break;
+          case 'polygon':
+            ignitionGeometry = new SpatialGeometry({
+              type: GeometryType.Polygon,
+              coordinates: ignitionCfg.coordinates as [number, number][][],
+            });
+            break;
+          default:
+            return engineFailed(
+              `Unsupported ignition type in config: '${ignitionCfg.type}'. ` +
+                `Expected one of: point, linestring, polygon.`,
+            );
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -98,12 +144,20 @@ export function registerExecutionTools(server: McpServer): void {
       const weatherConfig = config!.weather as WeatherConfig;
       const timezone = config!.timezone as string;
 
-      const executionOptions = {
+      // Single shared derivation — the same builder both HTTP endpoints use.
+      // This literal previously omitted simulationCount and outputMode entirely,
+      // so every MCP run silently took the probabilistic default. It was not a
+      // type error because every parity-relevant field on ExecutionOptions is
+      // optional; `ExecutionRequest` below requires each key, so a future option
+      // cannot reach the engine from one caller and not another.
+      const executionOptions: ExecutionOptions = buildExecutionOptions({
         ignitionGeometry,
         timeRange,
         timezone,
         weatherConfig,
-      };
+        modelMode,
+        scenarios,
+      });
 
       // Get the engine and initialize
       const engine = getEngine(EngineType.FireSTARR);
