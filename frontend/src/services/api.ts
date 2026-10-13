@@ -93,6 +93,19 @@ async function request<T>(
     );
   }
 
+  // A 204 has no body, and `response.json()` on an empty body throws
+  // "Unexpected end of JSON input" — which would surface as a failure for a
+  // request that actually SUCCEEDED. Every endpoint in this client used to
+  // return a body, so #315's `DELETE /adhoc-layers/:id` is the first 204 to
+  // reach here; its test caught this.
+  // Status only. An earlier version also read `content-length`, which broke
+  // three preflightWeather tests whose fetch mocks are partial Response
+  // objects with no `headers` — a fair signal that the extra check was asking
+  // more of a response than this needs. 204 is the case that actually occurs.
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   const data = await response.json();
   return data;
 }
@@ -473,4 +486,105 @@ export async function preflightWeather(body: PreflightRequest): Promise<Prefligh
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Ad-hoc WMS layers (#315)
+//
+// Papa's rulings these serve: the user must CHOOSE a layer from the server's
+// own catalogue rather than typing its name, and a PRIVATE checkbox decides
+// storage — private layers never reach these functions at all, they go to
+// `features/Map/adhoc/privateAdhocLayers`. Everything here is SHARED.
+//
+// Bare endpoints: `request<T>()` already prepends `/api/v1`. Do not confuse
+// this client with openNomad's `api.fetch()`, which is a raw passthrough and
+// wants full paths.
+// ---------------------------------------------------------------------------
+
+export interface AdhocLayerResponse {
+  id: string;
+  name: string;
+  serviceUrl: string;
+  layerName: string;
+  wmsVersion: string;
+  legendUrl: string | null;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+export interface ListAdhocLayersResponse {
+  layers: AdhocLayerResponse[];
+}
+
+export interface CreateAdhocLayerRequest {
+  name: string;
+  serviceUrl: string;
+  layerName: string;
+  wmsVersion?: string;
+  legendUrl?: string | null;
+}
+
+/** One layer as the WMS server publishes it — the chooser's options. */
+export interface WmsCatalogueLayer {
+  name: string;
+  title: string;
+  abstract?: string;
+}
+
+export interface WmsCapabilitiesResponse {
+  version: string;
+  layers: WmsCatalogueLayer[];
+}
+
+/**
+ * Every shared ad-hoc layer on this deployment.
+ *
+ * Shared means shared: this returns other users' layers too. Hiding one from
+ * your own map is local state, held in `privateAdhocLayers`.
+ */
+export async function listAdhocLayers(): Promise<ListAdhocLayersResponse> {
+  return request<ListAdhocLayersResponse>('/adhoc-layers');
+}
+
+export async function createAdhocLayer(
+  body: CreateAdhocLayerRequest
+): Promise<{ layer: AdhocLayerResponse }> {
+  return request<{ layer: AdhocLayerResponse }>('/adhoc-layers', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * Remove a shared layer for everyone.
+ *
+ * Creator-only on the server: a non-creator gets 403 `NOT_LAYER_OWNER` with a
+ * message naming the owner. That message is worth showing verbatim — it tells
+ * the user they can hide the layer instead.
+ */
+export async function deleteAdhocLayer(id: string): Promise<void> {
+  await request<void>(`/adhoc-layers/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * Read a WMS server's catalogue so the user can choose a layer.
+ *
+ * The service url is encoded as a query parameter because a WMS url carries
+ * its own query string — concatenated raw, its `?` and `&` would merge into
+ * ours and the backend would see different parameters than we sent.
+ *
+ * Refusals arrive as `ApiError` and the caller MUST keep them apart:
+ *   502 — could not read the catalogue; what the server publishes is unknown
+ *   400 — read it, and it publishes no layers (or it is not a WMS at all)
+ * Both carry the server's own wording in `.message`.
+ */
+export async function fetchWmsCapabilities(
+  serviceUrl: string,
+  version?: string
+): Promise<WmsCapabilitiesResponse> {
+  const params = new URLSearchParams({ url: serviceUrl });
+  if (version) params.set('version', version);
+  return request<WmsCapabilitiesResponse>(`/adhoc-layers/capabilities?${params.toString()}`);
 }
