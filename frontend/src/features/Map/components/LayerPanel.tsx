@@ -3,6 +3,7 @@ import { useLayers } from '../context/useLayers';
 import { useMap } from '../context/MapContext';
 import { LayerItem } from './LayerItem';
 import { useCFSLayers } from '../hooks/useCFSLayers';
+import { AdhocLayerSection } from './AdhocLayerSection.js';
 import { useCwfisM3Layers, currentSeasonTime } from '../hooks/useCwfisM3Layers';
 import { useTerrain } from '../hooks/useTerrain';
 import { BasemapStyle, BASEMAP_STYLES } from '../types';
@@ -89,6 +90,14 @@ export function LayerPanel({
   // CFS layer toggles: layerId -> { active, visible }
   const [cfsLayerState, setCfsLayerState] = useState<Record<string, { active: boolean }>>({});
   const [cfsError, setCfsError] = useState<string | null>(null);
+  // Read once: the accessor itself throws in some contexts (blocked site data).
+  const [adhocCurrentUser] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('nomad_username');
+    } catch {
+      return null;
+    }
+  });
   const [cfsDate, setCfsDate] = useState<string>(() => {
     const today = new Date();
     return today.toISOString().split('T')[0];
@@ -328,6 +337,19 @@ export function LayerPanel({
     fontSize: '14px',
   };
 
+  /**
+   * Ad-hoc WMS layers (#315).
+   *
+   * Always rendered — unlike the CFS section there is no API key to gate it,
+   * and a user with no layers still needs the way in to add one.
+   *
+   * `currentUser` decides who is offered DELETE on a shared layer. It is read
+   * from the same key `api.ts` sends as `X-Nomad-User`, so the panel and the
+   * server agree on who is asking; under NOMAD_AUTH_MODE=none it is null,
+   * nothing is attributable, and nothing shared is deletable from here.
+   */
+  const AdhocSection = <AdhocLayerSection currentUser={adhocCurrentUser} />;
+
   /** CFS Layers section - only rendered when API key is configured */
   const CFSSection = cfs.available ? (
     <div style={cfsSectionStyle}>
@@ -557,6 +579,7 @@ export function LayerPanel({
         <div style={emptyStyle}>
           No layers added yet
         </div>
+        {AdhocSection}
         {CFSSection}
         {CwfisSection}
         {MapSettingsSection}
@@ -593,6 +616,7 @@ export function LayerPanel({
           />
         ))}
       </div>
+      {AdhocSection}
       {CFSSection}
       {CwfisSection}
       {MapSettingsSection}
