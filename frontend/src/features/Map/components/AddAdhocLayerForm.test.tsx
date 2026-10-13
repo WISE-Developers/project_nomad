@@ -1,0 +1,333 @@
+/**
+ * #315c — the add-layer form.
+ *
+ * Papa's rulings, each with a test that fails if it is broken:
+ *
+ *  1. **The user CHOOSES a layer, never types its name.** A typed name fails as
+ *     a silent empty tile during an incident; a chooser cannot offer a name the
+ *     server does not publish. So there is no layer-name text field anywhere in
+ *     this form, and a test asserts its absence rather than trusting the markup.
+ *  2. **An unreadable catalogue REFUSES the url.** Add stays unavailable until a
+ *     layer has actually been chosen from a catalogue we read.
+ *  3. **A private checkbox decides storage.** Private goes to localStorage and
+ *     never reaches the server; shared goes to POST /adhoc-layers. Both paths
+ *     are asserted positively AND negatively — that the other one was not
+ *     taken — because "it saved somewhere" is not the ruling.
+ *
+ * DEFAULT: private, checked. Publishing a layer onto every operator's map is
+ * the more consequential of the two and should be the deliberate click. An
+ * accidental private layer costs one person a re-add; an accidental shared one
+ * appears on everyone's map mid-incident. Flagged to Papa as mine to flip.
+ *
+ * The two refusals are carried all the way to the screen. The backend spent
+ * real effort keeping "could not read it" apart from "read it, nothing there",
+ * and a form that renders one generic "failed to load layers" throws that away
+ * at the last step.
+ */
+import React from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { AddAdhocLayerForm } from './AddAdhocLayerForm.js';
+import { ApiError } from '../../../services/api.js';
+import * as privateStore from '../adhoc/privateAdhocLayers.js';
+
+vi.mock('../../../services/api.js', async () => {
+  const actual = await vi.importActual<typeof import('../../../services/api.js')>(
+    '../../../services/api.js',
+  );
+  return {
+    ...actual,
+    fetchWmsCapabilities: vi.fn(),
+    createAdhocLayer: vi.fn(),
+  };
+});
+
+const api = await import('../../../services/api.js');
+const fetchWmsCapabilities = vi.mocked(api.fetchWmsCapabilities);
+const createAdhocLayer = vi.mocked(api.createAdhocLayer);
+
+const SERVICE_URL = 'https://openmaps.gov.bc.ca/geo/pub/wms';
+
+const CATALOGUE = {
+  version: '1.3.0',
+  layers: [
+    { name: 'pub:WHSE_WATER.FWA_RIVERS_POLY', title: 'FWA Rivers' },
+    { name: 'pub:WHSE_BASEMAPPING.NTS_50K_GRID', title: 'NTS 50k Grid' },
+  ],
+};
+
+/** Fill the url and read the catalogue — the start of every path below. */
+async function readCatalogue(user: ReturnType<typeof userEvent.setup>, url = SERVICE_URL) {
+  await user.type(screen.getByLabelText(/service url/i), url);
+  await user.click(screen.getByRole('button', { name: /read catalogue/i }));
+}
+
+describe('AddAdhocLayerForm', () => {
+  const onAdded = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    fetchWmsCapabilities.mockResolvedValue(CATALOGUE);
+    createAdhocLayer.mockResolvedValue({
+      layer: {
+        id: 'shared-1',
+        name: 'FWA Rivers',
+        serviceUrl: SERVICE_URL,
+        layerName: 'pub:WHSE_WATER.FWA_RIVERS_POLY',
+        wmsVersion: '1.3.0',
+        legendUrl: null,
+        createdBy: 'dylan',
+        createdAt: '2026-10-13T12:00:00.000Z',
+      },
+    });
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  describe('the control: before anything is read', () => {
+    it('offers a url field and cannot add yet', () => {
+      render(<AddAdhocLayerForm onAdded={onAdded} />);
+
+      expect(screen.getByLabelText(/service url/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /add layer/i })).toBeDisabled();
+    });
+
+    it('does not ask the server for anything until told to', () => {
+      render(<AddAdhocLayerForm onAdded={onAdded} />);
+      expect(fetchWmsCapabilities).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Papa's rule: choose, never type", () => {
+    it('offers the published layers as options once the catalogue is read', async () => {
+      const user = userEvent.setup();
+      render(<AddAdhocLayerForm onAdded={onAdded} />);
+
+      await readCatalogue(user);
+
+      const chooser = await screen.findByLabelText(/layer/i);
+      expect(chooser.tagName).toBe('SELECT');
+      expect(screen.getByRole('option', { name: /FWA Rivers/ })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: /NTS 50k Grid/ })).toBeInTheDocument();
+    });
+
+    it('has NO text field for a layer name — the whole point of the chooser', async () => {
+      const user = userEvent.setup();
+      render(<AddAdhocLayerForm onAdded={onAdded} />);
+
+      await readCatalogue(user);
+      await screen.findByLabelText(/layer/i);
+
+      // Queried by LABEL, not by id: ids here are generated by useId, so an
+      // id-based assertion could never fail and would be worse than none.
+      expect(screen.queryByLabelText(/layer name/i)).toBeNull();
+
+      // And the layer the form would submit is the SELECT's value. The only
+      // other text input is the display name, which is a label for humans and
+      // never reaches a GetMap request.
+      const chooser = screen.getByLabelText(/^layer$/i);
+      expect(chooser.tagName).toBe('SELECT');
+      for (const box of screen.getAllByRole('textbox')) {
+        expect(box.tagName).not.toBe('SELECT');
+        expect(box.id).not.toBe(chooser.id);
+      }
+    });
+
+    it('sends the url to the server to be read, rather than guessing locally', async () => {
+      const user = userEvent.setup();
+      render(<AddAdhocLayerForm onAdded={onAdded} />);
+
+      await readCatalogue(user);
+
+      expect(fetchWmsCapabilities).toHaveBeenCalledWith(SERVICE_URL);
+    });
+  });
+
+  describe('an unreadable catalogue refuses the url', () => {
+    it('shows the server’s own words for 502 "could not read it"', async () => {
+      fetchWmsCapabilities.mockRejectedValue(
+        new ApiError(
+          'Could not read the WMS catalogue at openmaps.gov.bc.ca: ECONNREFUSED. No layer has been added.',
+          502,
+        ),
+      );
+      const user = userEvent.setup();
+      render(<AddAdhocLayerForm onAdded={onAdded} />);
+
+      await readCatalogue(user);
+
+      expect(await screen.findByText(/ECONNREFUSED/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /add layer/i })).toBeDisabled();
+    });
+
+    it('shows the server’s own words for 400 "read it, publishes no layers"', async () => {
+      fetchWmsCapabilities.mockRejectedValue(
+        new ApiError(
+          'The catalogue at openmaps.gov.bc.ca was read successfully and publishes no layers, so there is nothing to choose.',
+          400,
+        ),
+      );
+      const user = userEvent.setup();
+      render(<AddAdhocLayerForm onAdded={onAdded} />);
+
+      await readCatalogue(user);
+
+      expect(await screen.findByText(/publishes no layers/)).toBeInTheDocument();
+    });
+
+    it('THE PAIR: the two refusals do not read alike on screen', async () => {
+      // The last place the distinction can be lost. Each test above passes
+      // even if the form rendered one generic "could not load layers".
+      const user = userEvent.setup();
+
+      fetchWmsCapabilities.mockRejectedValue(new ApiError('Could not read the catalogue', 502));
+      const first = render(<AddAdhocLayerForm onAdded={onAdded} />);
+      await readCatalogue(user);
+      const unreachableText = (await screen.findByRole('alert')).textContent ?? '';
+      first.unmount();
+
+      fetchWmsCapabilities.mockRejectedValue(new ApiError('publishes no layers', 400));
+      render(<AddAdhocLayerForm onAdded={onAdded} />);
+      await readCatalogue(user);
+      const emptyText = (await screen.findByRole('alert')).textContent ?? '';
+
+      expect(unreachableText).not.toBe(emptyText);
+      expect(unreachableText).not.toBe('');
+      expect(emptyText).not.toBe('');
+    });
+
+    it('cannot add a layer from a catalogue that was replaced by a new url', async () => {
+      // Read one server, choose a layer, then edit the url. The chosen layer
+      // belongs to a catalogue we no longer have, so Add must close again
+      // rather than submit a layer name against the wrong service.
+      const user = userEvent.setup();
+      render(<AddAdhocLayerForm onAdded={onAdded} />);
+
+      await readCatalogue(user);
+      await user.selectOptions(
+        await screen.findByLabelText(/layer/i),
+        'pub:WHSE_WATER.FWA_RIVERS_POLY',
+      );
+      expect(screen.getByRole('button', { name: /add layer/i })).toBeEnabled();
+
+      await user.type(screen.getByLabelText(/service url/i), '/changed');
+
+      expect(screen.getByRole('button', { name: /add layer/i })).toBeDisabled();
+    });
+  });
+
+  describe("Papa's rule: the private checkbox decides storage", () => {
+    it('defaults to PRIVATE', async () => {
+      const user = userEvent.setup();
+      render(<AddAdhocLayerForm onAdded={onAdded} />);
+
+      await readCatalogue(user);
+
+      expect(screen.getByRole('checkbox', { name: /private/i })).toBeChecked();
+    });
+
+    it('private: stores locally and NEVER calls the server', async () => {
+      const user = userEvent.setup();
+      render(<AddAdhocLayerForm onAdded={onAdded} />);
+
+      await readCatalogue(user);
+      await user.selectOptions(
+        await screen.findByLabelText(/layer/i),
+        'pub:WHSE_WATER.FWA_RIVERS_POLY',
+      );
+      await user.click(screen.getByRole('button', { name: /add layer/i }));
+
+      await waitFor(() => expect(privateStore.listPrivateLayers()).toHaveLength(1));
+      expect(privateStore.listPrivateLayers()[0]).toMatchObject({
+        serviceUrl: SERVICE_URL,
+        layerName: 'pub:WHSE_WATER.FWA_RIVERS_POLY',
+        wmsVersion: '1.3.0',
+      });
+      // The negative half is the ruling: private means the server never hears of it.
+      expect(createAdhocLayer).not.toHaveBeenCalled();
+    });
+
+    it('shared: posts to the server and writes NOTHING locally', async () => {
+      const user = userEvent.setup();
+      render(<AddAdhocLayerForm onAdded={onAdded} />);
+
+      await readCatalogue(user);
+      await user.selectOptions(
+        await screen.findByLabelText(/layer/i),
+        'pub:WHSE_WATER.FWA_RIVERS_POLY',
+      );
+      await user.click(screen.getByRole('checkbox', { name: /private/i }));
+      await user.click(screen.getByRole('button', { name: /add layer/i }));
+
+      await waitFor(() => expect(createAdhocLayer).toHaveBeenCalledTimes(1));
+      expect(createAdhocLayer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          serviceUrl: SERVICE_URL,
+          layerName: 'pub:WHSE_WATER.FWA_RIVERS_POLY',
+        }),
+      );
+      expect(privateStore.listPrivateLayers()).toEqual([]);
+    });
+
+    it('hands the added layer back to the caller, with its scope', async () => {
+      const user = userEvent.setup();
+      render(<AddAdhocLayerForm onAdded={onAdded} />);
+
+      await readCatalogue(user);
+      await user.selectOptions(
+        await screen.findByLabelText(/layer/i),
+        'pub:WHSE_WATER.FWA_RIVERS_POLY',
+      );
+      await user.click(screen.getByRole('button', { name: /add layer/i }));
+
+      await waitFor(() => expect(onAdded).toHaveBeenCalledTimes(1));
+      expect(onAdded).toHaveBeenCalledWith(
+        expect.objectContaining({ layerName: 'pub:WHSE_WATER.FWA_RIVERS_POLY' }),
+        'private',
+      );
+    });
+  });
+
+  describe('when saving fails', () => {
+    it('says the layer was NOT saved when local storage refuses the write', async () => {
+      // A private layer has no row anywhere else. Reporting success here would
+      // leave the user believing in a layer that does not exist.
+      vi.spyOn(privateStore, 'addPrivateLayer').mockReturnValue(false);
+      const user = userEvent.setup();
+      render(<AddAdhocLayerForm onAdded={onAdded} />);
+
+      await readCatalogue(user);
+      await user.selectOptions(
+        await screen.findByLabelText(/layer/i),
+        'pub:WHSE_WATER.FWA_RIVERS_POLY',
+      );
+      await user.click(screen.getByRole('button', { name: /add layer/i }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/not saved|could not be saved/i);
+      expect(onAdded).not.toHaveBeenCalled();
+    });
+
+    it("shows the server's own message when a shared save is refused", async () => {
+      createAdhocLayer.mockRejectedValue(
+        new ApiError('serviceUrl is not permitted: private addresses are not permitted', 400),
+      );
+      const user = userEvent.setup();
+      render(<AddAdhocLayerForm onAdded={onAdded} />);
+
+      await readCatalogue(user);
+      await user.selectOptions(
+        await screen.findByLabelText(/layer/i),
+        'pub:WHSE_WATER.FWA_RIVERS_POLY',
+      );
+      await user.click(screen.getByRole('checkbox', { name: /private/i }));
+      await user.click(screen.getByRole('button', { name: /add layer/i }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/not permitted/i);
+      expect(onAdded).not.toHaveBeenCalled();
+    });
+  });
+});
