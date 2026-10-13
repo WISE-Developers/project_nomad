@@ -13,6 +13,7 @@ import importRouter from './import.js';
 import perimetersImportRouter from './perimetersImport.js';
 import fgmjImportRouter from './fgmjImport.js';
 import splashRouter from './splash.js';
+import adhocLayersRouter from './adhocLayers.js';
 import notificationsRouterFactory from './notifications.js';
 import fuelDatasetsRouterFactory from './fuelDatasets.js';
 import { getNotificationPreferencesRepository } from '../../../infrastructure/database/index.js';
@@ -39,6 +40,7 @@ router.use(importRouter);         // /import
 router.use(perimetersImportRouter); // /perimeters/import
 router.use(fgmjImportRouter); // /import/fgmj (refs #294)
 router.use(splashRouter);           // /splash
+router.use(adhocLayersRouter);      // /adhoc-layers (refs #315)
 
 // Lazy-init: getNotificationPreferencesRepository() must NOT run at import time
 // because dotenv hasn't loaded yet, causing wrong database path and double-init crash
