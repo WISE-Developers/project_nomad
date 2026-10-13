@@ -16,6 +16,7 @@ import * as migration004 from './004_create_settings.js';
 import * as migration005 from './005_create_notification_preferences.js';
 import * as migration006 from './006_add_notes_column.js';
 import * as migration007 from './007_add_output_mode_column.js';
+import * as migration008 from './008_create_adhoc_layers.js';
 
 /**
  * Migration definition
@@ -37,6 +38,7 @@ const migrations: Migration[] = [
   { name: '005_create_notification_preferences', ...migration005 },
   { name: '006_add_notes_column', ...migration006 },
   { name: '007_add_output_mode_column', ...migration007 },
+  { name: '008_create_adhoc_layers', ...migration008 },
 ];
 
 /**
