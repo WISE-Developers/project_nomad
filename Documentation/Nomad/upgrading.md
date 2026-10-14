@@ -7,6 +7,62 @@ required key added in one release still applies if you skip past it.
 
 ---
 
+## Rollback image tags now name the version they CONTAIN (#437)
+
+**Nothing to do. This changes what a tag means, and tags made before this
+release mean the other thing.**
+
+`scripts/deploy.sh` tags the image it is replacing so a rollback is one
+command. It used to name that tag after the version being deployed **to**, so
+the image inside was always one release older than the name:
+
+```
+rollback-0.28.0  ->  contained 0.26.0
+rollback-0.26.0  ->  contained 0.25.0
+rollback-0.25.0  ->  contained 0.24.0
+```
+
+Measured on the CIFFC demo across three generations, not inferred.
+
+**From this release, a rollback tag names the version inside it.**
+`rollback-0.28.0` contains 0.28.0. The version is read out of the outgoing
+image's own `/app/VERSION` rather than from the repository being deployed.
+
+### Why it mattered
+
+The rollback path itself always worked — this was a naming fault, not a
+functional one. But the tag is read during an outage, by whoever is on hand,
+and the old name supported two readings that disagreed:
+
+- *"`rollback-0.28.0` is what I roll back **to** when 0.28.0 goes bad"* — what
+  the script meant, and it worked.
+- *"`rollback-0.28.0` **is** 0.28.0"* — what the name said, and it was false.
+
+Anyone checking "am I running the version this tag names?" got a wrong answer,
+and the only way to see the discrepancy was to run the image and read the file.
+
+### Your existing tags are NOT renamed
+
+Retagging would invalidate any runbook or note that already cites them, so old
+tags are left exactly as they are. **Treat any `rollback-*` tag created before
+this release as containing the version below its name**, and anything created
+after as containing the version it names. To settle it for a specific image
+rather than relying on the rule, ask the image:
+
+```bash
+docker run --rm --entrypoint cat <image>:<tag> /app/VERSION
+```
+
+### If the version cannot be read
+
+An image older than `/app/VERSION`, or a docker failure, leaves the deploy
+unable to name the outgoing version. It does **not** guess, and it does not
+silently skip the tag — both of those were considered and rejected. It warns,
+and tags as `rollback-unknown-<short image id>` so the rollback target still
+exists under a name that cannot be mistaken for a version.
+
+---
+
 ## Upgrading to the release containing the usage log (#332)
 
 ### BREAKING: `NOMAD_HOME_TIMEZONE` is required
