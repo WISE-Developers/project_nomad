@@ -67,6 +67,28 @@ describe('LayerPanel section wiring (convention)', () => {
     expect(missing).toEqual([]);
   });
 
+  it('every branch that renders the settings section also renders CWFIS', () => {
+    // #440. CWFIS M3 is public and needs no API key — `useCwfisM3Layers`
+    // returns `available: true` unconditionally, which is the whole point of
+    // #299. But `CwfisSection` was rendered in only two of the three branches,
+    // and the one it was missing from is the empty state reached when CFS is
+    // UNAVAILABLE. So the branch that exists *because* there is no CFS key also
+    // dropped the section that never depended on one, and a keyless user with
+    // no layers could not reach the public layers at all until they added
+    // something unrelated first.
+    //
+    // Same invariant as the ad-hoc assertion above, same yardstick: the
+    // settings section is the one with no gate, so anything else ungated must
+    // appear wherever it does.
+    const missing = branches
+      .map((chunk, index) => ({ index, chunk }))
+      .filter(({ chunk }) => chunk.includes('{MapSettingsSection}'))
+      .filter(({ chunk }) => !chunk.includes('{CwfisSection}'))
+      .map(({ index }) => index);
+
+    expect(missing).toEqual([]);
+  });
+
   it('the ad-hoc section is not gated behind the CFS API key', () => {
     // The bug was precisely this: present only where `cfs.available` was
     // true. Ad-hoc layers need no key, and a user with no layers still needs
