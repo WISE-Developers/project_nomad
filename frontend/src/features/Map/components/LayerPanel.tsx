@@ -572,6 +572,11 @@ export function LayerPanel({
           No layers added yet
         </div>
         {AdhocSection}
+        {/* CWFIS is public and needs no API key (#440). This branch exists
+            because the CFS key is absent, which is no reason to withhold the
+            section that never depended on it — a keyless user with no layers
+            was otherwise unable to reach the M3 layers at all. */}
+        {CwfisSection}
         {MapSettingsSection}
       </div>
     );
