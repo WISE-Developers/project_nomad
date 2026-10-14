@@ -367,6 +367,33 @@ main() {
     else
         print_warning "No answer from /api/v1/info on port ${host_port##*:} after 90s — check 'docker logs $SERVICE'"
     fi
+
+    # Bill of materials for the image we just deployed (#441).
+    #
+    # LAST, deliberately. It exports the image and pulls a scanner, which takes
+    # time and bandwidth — doing it before `up -d` would delay serving for the
+    # sake of a description. The container is already live by the time this
+    # runs, and the script exits 0 on every failure path so a missing SBOM can
+    # never turn a good deploy into a failed one.
+    #
+    # Paired with the npm bill from #398, which is attached to the GitHub
+    # Release and covers the build; this one covers what is actually running,
+    # OS layer included.
+    local deployed_image sbom_script
+    sbom_script="$(dirname "$SCRIPT_PATH")/generate-image-sbom.sh"
+    deployed_image="$(docker inspect "$SERVICE" --format '{{.Config.Image}}' 2>/dev/null || true)"
+
+    if [ "$DRY_RUN" = true ]; then
+        print_info "[dry-run] would generate an image SBOM for ${deployed_image:-$SERVICE}"
+    elif [ -z "$deployed_image" ]; then
+        print_warning "Could not identify the deployed image — image SBOM skipped"
+    elif [ ! -x "$sbom_script" ]; then
+        # Said rather than skipped: an absent step that stays quiet leaves the
+        # next person believing an artifact exists.
+        print_warning "generate-image-sbom.sh is missing or not executable — image SBOM skipped"
+    else
+        "$sbom_script" "$deployed_image" "${reported:-unknown}" "sbom" || true
+    fi
 }
 
 main "$@"
