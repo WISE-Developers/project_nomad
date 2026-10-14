@@ -26,7 +26,7 @@
  * url comes from `buildWmsTileUrl`, never assembled here. A second url builder
  * is how two code paths drift apart.
  */
-import { useCallback, useEffect, useMemo, useState, type JSX } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, type JSX } from 'react';
 import {
   listAdhocLayers,
   deleteAdhocLayer,
@@ -43,6 +43,101 @@ import {
 import { buildWmsTileUrl, buildWmsLegendUrl } from '../utils/wmsUrl.js';
 import { useLayers } from '../context/useLayers';
 import { AddAdhocLayerForm, type AdhocLayerScope } from './AddAdhocLayerForm.js';
+
+/**
+ * Inline styles, because LayerPanel styles everything inline and ships no
+ * stylesheet for these class names. The first live look at this section showed
+ * it unstyled and overlapping the layer list — the classNames below are kept
+ * only as hooks for tests and future CSS, they carry no appearance.
+ *
+ * Values copied from LayerPanel's own cfsSection styles so the section sits in
+ * the panel as a peer of CFS and CWFIS rather than as something bolted on.
+ */
+const sectionStyle: React.CSSProperties = {
+  borderTop: '1px solid #eee',
+  padding: '8px',
+};
+
+const headerStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '6px',
+  padding: '6px 8px',
+};
+
+const headingStyle: React.CSSProperties = {
+  margin: 0,
+  fontWeight: 600,
+  fontSize: '12px',
+  color: '#555',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+};
+
+const smallButtonStyle: React.CSSProperties = {
+  fontSize: '11px',
+  padding: '3px 8px',
+  border: '1px solid #ddd',
+  borderRadius: '4px',
+  background: '#fff',
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+};
+
+const rowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: '6px',
+  padding: '4px 8px',
+  fontSize: '13px',
+  // EXPLICIT, not inherited. An ancestor sets `color: #eee`, so these rows
+  // rendered near-white on white — the layer name was effectively invisible in
+  // the running panel while every test passed. Matches the CWFIS labels.
+  color: '#1f2937',
+};
+
+const nameStyle: React.CSSProperties = {
+  flex: '1 1 auto',
+  minWidth: 0,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+};
+
+const scopeStyle: React.CSSProperties = {
+  fontSize: '11px',
+  color: '#777',
+  whiteSpace: 'nowrap',
+};
+
+const listStyle: React.CSSProperties = {
+  listStyle: 'none',
+  margin: 0,
+  padding: 0,
+};
+
+const errorStyle: React.CSSProperties = {
+  margin: '4px 8px',
+  fontSize: '12px',
+  color: '#b00020',
+  lineHeight: 1.35,
+};
+
+const emptyStyle: React.CSSProperties = {
+  margin: '4px 8px',
+  fontSize: '12px',
+  color: '#777',
+};
+
+const formRowStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '4px',
+  padding: '4px 8px',
+  color: '#1f2937',
+};
 
 export interface AdhocLayerSectionProps {
   /**
@@ -232,10 +327,10 @@ export function AdhocLayerSection({ currentUser }: AdhocLayerSectionProps): JSX.
     row.scope === 'private' || (currentUser !== null && row.createdBy === currentUser);
 
   return (
-    <div className="adhoc-layer-section">
-      <div className="adhoc-layer-section__header">
-        <h4>Ad-hoc layers</h4>
-        <button type="button" onClick={() => setAdding((open) => !open)}>
+    <div className="adhoc-layer-section" style={sectionStyle}>
+      <div className="adhoc-layer-section__header" style={headerStyle}>
+        <h4 style={headingStyle}>Ad-hoc layers</h4>
+        <button type="button" style={smallButtonStyle} onClick={() => setAdding((open) => !open)}>
           {adding ? 'Cancel' : 'Add WMS layer'}
         </button>
       </div>
@@ -243,32 +338,33 @@ export function AdhocLayerSection({ currentUser }: AdhocLayerSectionProps): JSX.
       {adding && <AddAdhocLayerForm onAdded={handleAdded} onCancel={() => setAdding(false)} />}
 
       {listError !== null && (
-        <p role="alert" className="adhoc-layer-section__error">
+        <p role="alert" className="adhoc-layer-section__error" style={errorStyle}>
           {`Could not read the shared layer list: ${listError}. ` +
             `Layers kept on this browser are still shown.`}
         </p>
       )}
 
       {actionError !== null && (
-        <p role="alert" className="adhoc-layer-section__error">
+        <p role="alert" className="adhoc-layer-section__error" style={errorStyle}>
           {actionError}
         </p>
       )}
 
       {visibleRows.length === 0 && listError === null && (
-        <p className="adhoc-layer-section__empty">No ad-hoc layers yet.</p>
+        <p className="adhoc-layer-section__empty" style={emptyStyle}>No ad-hoc layers yet.</p>
       )}
 
-      <ul className="adhoc-layer-section__list">
+      <ul className="adhoc-layer-section__list" style={listStyle}>
         {visibleRows.map((row) => (
-          <li key={`${row.scope}-${row.layer.id}`}>
-            <span>{row.layer.name}</span>
-            <span className="adhoc-layer-section__scope">
+          <li key={`${row.scope}-${row.layer.id}`} style={rowStyle}>
+            <span style={nameStyle}>{row.layer.name}</span>
+            <span className="adhoc-layer-section__scope" style={scopeStyle}>
               {row.scope === 'private' ? 'Private' : `Shared${row.createdBy ? ` · ${row.createdBy}` : ''}`}
             </span>
 
             <button
               type="button"
+              style={smallButtonStyle}
               aria-label={`Add ${row.layer.name} to map`}
               onClick={() => handleAddToMap(row.layer)}
             >
@@ -278,6 +374,7 @@ export function AdhocLayerSection({ currentUser }: AdhocLayerSectionProps): JSX.
             {row.scope === 'shared' && (
               <button
                 type="button"
+                style={smallButtonStyle}
                 aria-label={`Hide ${row.layer.name} from my map`}
                 onClick={() => handleHide(row.layer)}
               >
@@ -288,6 +385,7 @@ export function AdhocLayerSection({ currentUser }: AdhocLayerSectionProps): JSX.
             {canDelete(row) && (
               <button
                 type="button"
+                style={smallButtonStyle}
                 aria-label={`Delete ${row.layer.name}`}
                 onClick={() => void handleDelete(row)}
               >
@@ -299,10 +397,10 @@ export function AdhocLayerSection({ currentUser }: AdhocLayerSectionProps): JSX.
       </ul>
 
       {hiddenRows.length > 0 && (
-        <div className="adhoc-layer-section__hidden">
+        <div className="adhoc-layer-section__hidden" style={formRowStyle}>
           {/* A one-way hide is a layer the user can never get back without
               knowing about localStorage. */}
-          <button type="button" onClick={() => setShowHidden((open) => !open)}>
+          <button type="button" style={smallButtonStyle} onClick={() => setShowHidden((open) => !open)}>
             {`${hiddenRows.length} hidden`}
           </button>
 
@@ -310,7 +408,7 @@ export function AdhocLayerSection({ currentUser }: AdhocLayerSectionProps): JSX.
             <ul>
               {hiddenRows.map((row) => (
                 <li key={row.layer.id}>
-                  <span>{row.layer.name}</span>
+                  <span style={nameStyle}>{row.layer.name}</span>
                   <button
                     type="button"
                     aria-label={`Restore ${row.layer.name}`}

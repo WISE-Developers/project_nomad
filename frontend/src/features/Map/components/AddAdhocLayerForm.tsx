@@ -23,13 +23,82 @@
  * publishes no layers", and a form that renders one generic "failed to load"
  * discards that at the last step.
  */
-import { useCallback, useId, useState, type JSX } from 'react';
+import React, { useCallback, useId, useState, type JSX } from 'react';
 import {
   fetchWmsCapabilities,
   createAdhocLayer,
   type WmsCatalogueLayer,
 } from '../../../services/api.js';
 import { addPrivateLayer, type AdhocLayerDefinition } from '../adhoc/privateAdhocLayers.js';
+
+/**
+ * Inline, like the rest of LayerPanel — it ships no stylesheet for these class
+ * names, so a className alone renders unstyled. Found by looking at the running
+ * panel, not by any test.
+ */
+const formStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '6px',
+  padding: '6px 8px',
+  borderTop: '1px solid #f0f0f0',
+};
+
+const fieldStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '3px',
+  fontSize: '12px',
+  color: '#555',
+};
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  boxSizing: 'border-box',
+  fontSize: '12px',
+  padding: '4px 6px',
+  border: '1px solid #ddd',
+  borderRadius: '4px',
+};
+
+const checkboxRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: '6px',
+  fontSize: '12px',
+  color: '#333',
+};
+
+const hintStyle: React.CSSProperties = {
+  margin: '2px 0 0',
+  width: '100%',
+  fontSize: '11px',
+  color: '#777',
+  lineHeight: 1.35,
+};
+
+const actionsStyle: React.CSSProperties = {
+  display: 'flex',
+  gap: '6px',
+};
+
+const buttonStyle: React.CSSProperties = {
+  fontSize: '11px',
+  padding: '3px 8px',
+  border: '1px solid #ddd',
+  borderRadius: '4px',
+  background: '#fff',
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+};
+
+const formErrorStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: '12px',
+  color: '#b00020',
+  lineHeight: 1.35,
+};
 
 export type AdhocLayerScope = 'private' | 'shared';
 
@@ -180,28 +249,30 @@ export function AddAdhocLayerForm({ onAdded, onCancel }: AddAdhocLayerFormProps)
   }, [catalogue, chosenLayerName, displayName, isPrivate, onAdded]);
 
   return (
-    <div className="adhoc-layer-form">
-      <div className="adhoc-layer-form__row">
+    <div className="adhoc-layer-form" style={formStyle}>
+      <div className="adhoc-layer-form__row" style={fieldStyle}>
         <label htmlFor={urlFieldId}>WMS service url</label>
         <input
           id={urlFieldId}
           type="text"
           value={serviceUrl}
           placeholder="https://example.gov/geoserver/wms"
+          style={inputStyle}
           onChange={(event) => handleUrlChange(event.target.value)}
         />
-        <button type="button" onClick={handleRead} disabled={reading}>
+        <button type="button" style={buttonStyle} onClick={handleRead} disabled={reading}>
           {reading ? 'Reading…' : 'Read catalogue'}
         </button>
       </div>
 
       {catalogue !== null && (
         <>
-          <div className="adhoc-layer-form__row">
+          <div className="adhoc-layer-form__row" style={fieldStyle}>
             <label htmlFor={layerFieldId}>Layer</label>
             <select
               id={layerFieldId}
               value={chosenLayerName}
+              style={inputStyle}
               onChange={(event) => handleChooseLayer(event.target.value)}
             >
               <option value="">Choose a layer…</option>
@@ -213,7 +284,7 @@ export function AddAdhocLayerForm({ onAdded, onCancel }: AddAdhocLayerFormProps)
             </select>
           </div>
 
-          <div className="adhoc-layer-form__row">
+          <div className="adhoc-layer-form__row" style={fieldStyle}>
             {/* The DISPLAY name — never the layer name. The layer name only
                 ever comes from the chooser above. */}
             <label htmlFor={nameFieldId}>Display name</label>
@@ -221,11 +292,12 @@ export function AddAdhocLayerForm({ onAdded, onCancel }: AddAdhocLayerFormProps)
               id={nameFieldId}
               type="text"
               value={displayName}
+              style={inputStyle}
               onChange={(event) => setDisplayName(event.target.value)}
             />
           </div>
 
-          <div className="adhoc-layer-form__row">
+          <div className="adhoc-layer-form__row" style={checkboxRowStyle}>
             <input
               id={privateFieldId}
               type="checkbox"
@@ -233,7 +305,7 @@ export function AddAdhocLayerForm({ onAdded, onCancel }: AddAdhocLayerFormProps)
               onChange={(event) => setIsPrivate(event.target.checked)}
             />
             <label htmlFor={privateFieldId}>Private — only on this browser</label>
-            <p className="adhoc-layer-form__hint">
+            <p className="adhoc-layer-form__hint" style={hintStyle}>
               {isPrivate
                 ? 'Kept on this browser only. Nobody else will see it.'
                 : 'Shared with everyone on this deployment. Only you can remove it.'}
@@ -243,17 +315,17 @@ export function AddAdhocLayerForm({ onAdded, onCancel }: AddAdhocLayerFormProps)
       )}
 
       {error !== null && (
-        <p role="alert" className="adhoc-layer-form__error">
+        <p role="alert" className="adhoc-layer-form__error" style={formErrorStyle}>
           {error}
         </p>
       )}
 
-      <div className="adhoc-layer-form__actions">
-        <button type="button" onClick={handleAdd} disabled={!canAdd}>
+      <div className="adhoc-layer-form__actions" style={actionsStyle}>
+        <button type="button" style={buttonStyle} onClick={handleAdd} disabled={!canAdd}>
           {saving ? 'Adding…' : 'Add layer'}
         </button>
         {onCancel && (
-          <button type="button" onClick={onCancel}>
+          <button type="button" style={buttonStyle} onClick={onCancel}>
             Cancel
           </button>
         )}
