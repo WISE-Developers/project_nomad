@@ -253,7 +253,11 @@ export function LayerPanel({
     boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
     minWidth: isMobile ? '240px' : '280px',
     maxWidth: isMobile ? 'calc(100vw - 20px)' : '350px',
-    maxHeight: isMobile ? 'calc(100vh - 120px)' : (cfs.available ? '550px' : '400px'),
+    // 550px regardless of the CFS key since #315: the ad-hoc section is always
+    // present, so the old 400px no-CFS budget left the actual layer list
+    // squeezed to a sliver — the count said 1 and the row was invisible.
+    // Observed in the running panel; no test could see it.
+    maxHeight: isMobile ? 'calc(100vh - 120px)' : '550px',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
@@ -567,6 +571,7 @@ export function LayerPanel({
         <div style={emptyStyle}>
           No layers added yet
         </div>
+        {AdhocSection}
         {MapSettingsSection}
       </div>
     );
