@@ -79,6 +79,27 @@ print("HASFRONTEND", "@nomad/frontend" in names)
 # alone is not where every consumer looks.
 root = [p for p in pkgs if p.get("name") in ("project_nomad", "@nomad/root")]
 print("ROOTVERSION", root[0].get("versionInfo", "") if root else "")
+print("HASCOMMENT", bool(d.get("comment")))
+print("HASCREATIONCOMMENT", bool((d.get("creationInfo") or {}).get("comment")))
+print("SAYSBUILDTIME", "BUILD-TIME" in (d.get("comment") or ""))
+print("SAYSNOTIMAGE", "not an inventory of the shipped container" in (d.get("comment") or ""))
+# The ROOT identifier must not carry a stale version, and documentDescribes
+# must point at it.
+#
+# CHECKED PRECISELY, NOT BY GREP. My first version of this searched the whole
+# document for "0.5.0" and failed on three INNOCENT packages — glob@10.5.0,
+# @better-auth/utils@0.5.0, and @nomad/backend which genuinely is 0.5.0. The
+# code was right and the assertion was wrong, which is the exact blind
+# string-match hazard the generator's own comment warns about.
+root_id = root[0].get("SPDXID", "") if root else ""
+print("ROOTID", root_id)
+print("ROOTIDSTALE", "project_nomad-0.5.0" in root_id)
+print("DESCRIBESROOT", root_id in (d.get("documentDescribes") or []))
+rels = d.get("relationships", [])
+print("DANGLINGREFS", any(
+    "project_nomad-0.5.0" in (r.get("spdxElementId", "") + r.get("relatedSpdxElement", ""))
+    for r in rels))
+print("NAMESPACESTALE", "-0.5.0-" in (d.get("documentNamespace") or ""))
 PY
 report() { grep -m1 "^$1 " "$WORK/report.txt" | cut -d' ' -f2-; }
 
@@ -133,6 +154,61 @@ if grep -q -- '--package-lock-only' "$GEN"; then
 else
   bad "no --package-lock-only: this would need node_modules that CI does not install"
 fi
+
+# ---------------------------------------------------------------------------
+# 5b. THE DOCUMENT MUST SAY WHAT IT DESCRIBES.
+#
+# It lists every npm package in the lockfile, dev tooling included, and that is
+# deliberate: filtering it to match the image would mean replicating
+# `--omit=dev --omit=peer --omit=optional` (backend/Dockerfile) and keeping two
+# command lines in sync forever — in a repo already bitten by getting that set
+# wrong (#389). The full tree also covers build-chain exposure, which an
+# image-only SBOM hides precisely.
+#
+# The cost of that choice is that a scanner operator could read it as a
+# production inventory and raise findings for tooling that never ships. So the
+# scope is stated IN the document rather than only in a commit message.
+# ---------------------------------------------------------------------------
+[ "$(report HASCOMMENT)" = "True" ] \
+  && ok "carries a document-level comment" \
+  || bad "no document comment — its scope is implicit, and will be misread"
+
+[ "$(report HASCREATIONCOMMENT)" = "True" ] \
+  && ok "carries the same note in creationInfo, where some tools look instead" \
+  || bad "creationInfo has no comment"
+
+[ "$(report SAYSBUILDTIME)" = "True" ] \
+  && ok "names itself BUILD-TIME scope" \
+  || bad "the comment does not say this is a build-time bill"
+
+[ "$(report SAYSNOTIMAGE)" = "True" ] \
+  && ok "says plainly that it is not an inventory of the shipped image" \
+  || bad "does not disclaim being a production inventory — the misreading it invites"
+
+# ---------------------------------------------------------------------------
+# 5c. No stale version may survive anywhere, including inside identifiers.
+#
+# npm builds the root SPDXID from name AND version, so it read
+# `SPDXRef-Package-project_nomad-0.5.0` and documentDescribes pointed at it.
+# Stamping `name` and `versionInfo` alone left that behind — correct-looking in
+# the fields most people check, wrong in the one the document uses to say what
+# it describes.
+# ---------------------------------------------------------------------------
+[ "$(report ROOTIDSTALE)" = "False" ] \
+  && ok "the root SPDX identifier carries no stale version" \
+  || bad "root SPDXID still embeds the stale root version: $(report ROOTID)"
+
+[ "$(report DESCRIBESROOT)" = "True" ] \
+  && ok "documentDescribes points at the renamed root id" \
+  || bad "documentDescribes does not reference the root package — a dangling id"
+
+[ "$(report DANGLINGREFS)" = "False" ] \
+  && ok "no relationship references the old stale-versioned id" \
+  || bad "a relationship still points at the pre-rename id"
+
+[ "$(report NAMESPACESTALE)" = "False" ] \
+  && ok "documentNamespace carries the release version, not the stale one" \
+  || bad "documentNamespace still embeds the stale root version"
 
 # ---------------------------------------------------------------------------
 # 6. Every release workflow must attach an SBOM, and must pass it a version
