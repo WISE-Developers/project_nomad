@@ -179,6 +179,25 @@ repair_ownership() {
 # Prints the value and returns 0, or prints nothing and returns 1 when .env does
 # not define it. The caller must then SAY the check could not run — defaulting
 # to a guessed port is the defect this replaces.
+outgoing_image_version() {
+    # The version an image CONTAINS, read from /app/VERSION inside it (#437).
+    #
+    # --entrypoint cat runs no part of the application: the container starts,
+    # cats one file and exits. That is deliberate on a production host — the
+    # outgoing image is a known-good build, but starting it for real alongside
+    # its replacement is not something a deploy should do.
+    #
+    # Returns non-zero and prints NOTHING when the version cannot be read, so a
+    # caller cannot mistake an error for a version. An image predating
+    # /app/VERSION answers with an empty file rather than an error, which is
+    # equally not a version and is treated the same way.
+    local image="$1" raw
+    raw="$(docker run --rm --entrypoint cat "$image" /app/VERSION 2>/dev/null || true)"
+    raw="$(printf '%s' "$raw" | tr -d '\r\n' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    [ -n "$raw" ] || return 1
+    printf '%s\n' "$raw"
+}
+
 frontend_host_port() {
     local env_file="${1:-.env}"
     [ -f "$env_file" ] || return 1
@@ -307,12 +326,29 @@ main() {
     fi
 
     # Tag the image we are replacing so rollback is one command.
-    local running version
+    #
+    # The tag names the version the OUTGOING image contains, read out of the
+    # image itself — not the version being deployed to. See #437: this used the
+    # incoming version from the freshly pulled frontend/package.json, so every
+    # rollback-X on the demo held X-1. The rollback path worked; the name lied,
+    # and it is read in an outage by whoever is on hand.
+    local running outgoing rollback_tag
     running="$(docker inspect "$SERVICE" --format '{{.Image}}' 2>/dev/null || true)"
-    version="$(grep -m1 '"version"' frontend/package.json | sed 's/.*: *"\([^"]*\)".*/\1/')"
     if [ -n "$running" ]; then
-        docker tag "$running" "$(docker inspect "$SERVICE" --format '{{.Config.Image}}'):rollback-$version" 2>/dev/null \
-          && print_success "Previous image tagged rollback-$version"
+        if outgoing="$(outgoing_image_version "$running")"; then
+            rollback_tag="$(docker inspect "$SERVICE" --format '{{.Config.Image}}'):rollback-$outgoing"
+            docker tag "$running" "$rollback_tag" 2>/dev/null \
+              && print_success "Previous image tagged rollback-$outgoing (the version it contains)"
+        else
+            # Loud, and still tagged. Guessing the name would rebuild #437; but
+            # dropping the tag in silence costs the rollback itself, which is
+            # worse. The image id makes the name unique and obviously not a
+            # version, so nobody reads it as one.
+            rollback_tag="$(docker inspect "$SERVICE" --format '{{.Config.Image}}'):rollback-unknown-$(printf '%s' "${running#sha256:}" | cut -c1-12)"
+            print_warning "Could not read /app/VERSION from the outgoing image — tagging $rollback_tag rather than guessing a version"
+            docker tag "$running" "$rollback_tag" 2>/dev/null \
+              && print_success "Previous image tagged ${rollback_tag##*:}"
+        fi
     fi
 
     print_info "Building $SERVICE (current container keeps serving)"
