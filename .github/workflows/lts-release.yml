@@ -40,7 +40,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add frontend/package.json
+          # All three package.json files, not just the frontend (#442).
+          # bump-version.sh writes all three; staging only one committed a
+          # partial bump and left root/backend drifting again — which is the
+          # exact state #442 fixed, reintroduced one layer up.
+          git add package.json backend/package.json frontend/package.json
           git commit -m "chore: bump to v${{ steps.newversion.outputs.version }}-lts [release-bot]"
           git pull --rebase origin lts
           git push
@@ -65,9 +69,9 @@ jobs:
         # describes whatever it last indexed, which is not the same thing.
         #
         # The version is passed in because `npm sbom` names the document after
-        # the ROOT package.json, which bump-version.sh does not bump; left
-        # alone the document would misname itself, and consumers read that
-        # field rather than the filename.
+        # the ROOT package.json. Since #442 that file IS bumped, so this is now
+        # belt-and-braces rather than load-bearing — but it stays: the document
+        # must name the release even if the two ever diverge again.
         run: |
           chmod +x .github/scripts/generate-sbom.sh
           .github/scripts/generate-sbom.sh "${{ steps.newversion.outputs.version }}" "nomad-sbom-${{ steps.newversion.outputs.version }}.spdx.json"

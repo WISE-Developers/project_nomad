@@ -130,6 +130,44 @@ else
   ok "does not invent a package.json that is absent"
 fi
 
+# ---------------------------------------------------------------------------
+# 5. THE RELEASE WORKFLOWS MUST COMMIT WHAT THE SCRIPT WRITES.
+#
+# This caught a real break, and the break was mine. Fixing bump-version.sh to
+# write all three files was only half the job: every release workflow staged
+# `git add frontend/package.json` alone, so the other two were modified in the
+# runner and then thrown away. Two bot bumps later, root and backend were
+# drifting again — the exact condition #442 fixed, reintroduced one layer up,
+# and it turned dev red.
+#
+# A script that writes three files and a workflow that commits one is not a
+# contradiction either of them can see on its own. So the assertion is here.
+# ---------------------------------------------------------------------------
+for wf in dev-release lts-release stable-release; do
+  f="$REPO/.github/workflows/$wf.yml"
+  if [ ! -f "$f" ]; then
+    bad "$wf.yml is missing"
+    continue
+  fi
+
+  add_line="$(grep -E '^\s*git add .*package\.json' "$f" | head -1)"
+  if [ -z "$add_line" ]; then
+    bad "$wf stages no package.json at all"
+    continue
+  fi
+
+  missing=""
+  case "$add_line" in *" package.json"*) ;; *) missing="root " ;; esac
+  case "$add_line" in *"backend/package.json"*) ;; *) missing="${missing}backend " ;; esac
+  case "$add_line" in *"frontend/package.json"*) ;; *) missing="${missing}frontend " ;; esac
+
+  if [ -z "$missing" ]; then
+    ok "$wf stages all three package.json files"
+  else
+    bad "$wf stages a PARTIAL bump — missing: $missing"
+  fi
+done
+
 echo ""
 echo "passed: $pass   failed: $fail"
 [ "$fail" -eq 0 ]
