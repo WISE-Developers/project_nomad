@@ -1,0 +1,297 @@
+/**
+ * #315d — the ad-hoc layers section of the layer panel.
+ *
+ * This is where the feature finally touches the map, and where Papa's last two
+ * rulings live:
+ *
+ *  - **Every user can HIDE a shared layer from their own map.**
+ *  - **Only its creator can DELETE it for everyone**, and a non-creator's
+ *    refusal arrives as 403 `NOT_LAYER_OWNER` naming the owner.
+ *
+ * The distinction is the whole design: *"it disappeared and I do not know
+ * why"* is worse during an incident than *"it is wrong and I have hidden it."*
+ * So hiding writes only to this browser and a test asserts the shared row is
+ * untouched, while delete is offered **only** to the creator.
+ *
+ * WMS IS NOT A NEW LAYER KIND. It goes onto the map through the same
+ * `addRasterLayer` every raster uses, as a `RasterLayerConfig` with
+ * `legendType: 'wms'` — the path CWFIS M3 already takes (#299). A test asserts
+ * the tile url is built by `buildWmsTileUrl` rather than hand-assembled here,
+ * because a second url builder is how the two drift apart.
+ *
+ * ON THE LIST BEING UNREADABLE: "no shared layers exist" and "I could not ask
+ * the server" are different facts and must not render alike — the same pair
+ * the backend and the client each keep apart. This is the third and last place
+ * it can be collapsed.
+ */
+import React from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { AdhocLayerSection } from './AdhocLayerSection.js';
+import { ApiError } from '../../../services/api.js';
+import * as privateStore from '../adhoc/privateAdhocLayers.js';
+
+const addRasterLayer = vi.fn();
+const removeLayer = vi.fn();
+
+vi.mock('../context/useLayers', () => ({
+  useLayers: () => ({ addRasterLayer, removeLayer }),
+}));
+
+vi.mock('../../../services/api.js', async () => {
+  const actual = await vi.importActual<typeof import('../../../services/api.js')>(
+    '../../../services/api.js',
+  );
+  return {
+    ...actual,
+    listAdhocLayers: vi.fn(),
+    deleteAdhocLayer: vi.fn(),
+    fetchWmsCapabilities: vi.fn(),
+    createAdhocLayer: vi.fn(),
+  };
+});
+
+const api = await import('../../../services/api.js');
+const listAdhocLayers = vi.mocked(api.listAdhocLayers);
+const deleteAdhocLayer = vi.mocked(api.deleteAdhocLayer);
+
+const SERVICE_URL = 'https://openmaps.gov.bc.ca/geo/pub/wms';
+
+/** Added by dylan — the signed-in user in most tests below. */
+const MINE = {
+  id: 'shared-mine',
+  name: 'BC Hydrography',
+  serviceUrl: SERVICE_URL,
+  layerName: 'pub:WHSE_WATER.FWA_RIVERS_POLY',
+  wmsVersion: '1.3.0',
+  legendUrl: null,
+  createdBy: 'dylan',
+  createdAt: '2026-10-13T12:00:00.000Z',
+};
+
+/** Added by someone else. Hideable, never deletable by dylan. */
+const THEIRS = {
+  ...MINE,
+  id: 'shared-theirs',
+  name: 'Fire Perimeters 2026',
+  layerName: 'pub:PERIMETERS',
+  createdBy: 'brett',
+};
+
+describe('AdhocLayerSection', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    listAdhocLayers.mockResolvedValue({ layers: [] });
+    deleteAdhocLayer.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  describe('the control: an empty section', () => {
+    it('says there are no ad-hoc layers, having actually asked', async () => {
+      render(<AdhocLayerSection currentUser="dylan" />);
+
+      await waitFor(() => expect(listAdhocLayers).toHaveBeenCalledTimes(1));
+      expect(await screen.findByText(/no .*layers/i)).toBeInTheDocument();
+    });
+
+    it('offers a way to add one', () => {
+      render(<AdhocLayerSection currentUser="dylan" />);
+      expect(screen.getByRole('button', { name: /add .*layer/i })).toBeInTheDocument();
+    });
+  });
+
+  describe('listing what exists', () => {
+    it('shows shared layers from the server and private ones from this browser', async () => {
+      listAdhocLayers.mockResolvedValue({ layers: [THEIRS] });
+      privateStore.addPrivateLayer({
+        id: 'adhoc-private-1',
+        name: 'My Scratch Layer',
+        serviceUrl: SERVICE_URL,
+        layerName: 'pub:SCRATCH',
+        wmsVersion: '1.3.0',
+      });
+
+      render(<AdhocLayerSection currentUser="dylan" />);
+
+      expect(await screen.findByText('Fire Perimeters 2026')).toBeInTheDocument();
+      expect(await screen.findByText('My Scratch Layer')).toBeInTheDocument();
+    });
+
+    it('still shows private layers when the SERVER cannot be reached', async () => {
+      // A private layer does not depend on the server, so losing the server
+      // must not hide it. Degrading to nothing would be a lie about this
+      // user's own data.
+      listAdhocLayers.mockRejectedValue(new ApiError('Service Unavailable', 503));
+      privateStore.addPrivateLayer({
+        id: 'adhoc-private-1',
+        name: 'My Scratch Layer',
+        serviceUrl: SERVICE_URL,
+        layerName: 'pub:SCRATCH',
+        wmsVersion: '1.3.0',
+      });
+
+      render(<AdhocLayerSection currentUser="dylan" />);
+
+      expect(await screen.findByText('My Scratch Layer')).toBeInTheDocument();
+    });
+
+    it('distinguishes "could not ask the server" from "there are none"', async () => {
+      listAdhocLayers.mockRejectedValue(new ApiError('Service Unavailable', 503));
+
+      render(<AdhocLayerSection currentUser="dylan" />);
+
+      // The third and last place this pair can collapse.
+      const notice = await screen.findByRole('alert');
+      expect(notice.textContent ?? '').toMatch(/could not|unavailable/i);
+      expect(screen.queryByText(/^no shared layers$/i)).toBeNull();
+    });
+  });
+
+  describe('putting a layer on the map', () => {
+    it('adds it as a raster with a WMS legend, through the shared path', async () => {
+      listAdhocLayers.mockResolvedValue({ layers: [MINE] });
+      const user = userEvent.setup();
+      render(<AdhocLayerSection currentUser="dylan" />);
+
+      await user.click(await screen.findByRole('button', { name: /add BC Hydrography to map/i }));
+
+      expect(addRasterLayer).toHaveBeenCalledTimes(1);
+      const config = addRasterLayer.mock.calls[0][0];
+      expect(config).toMatchObject({
+        id: 'shared-mine',
+        name: 'BC Hydrography',
+        legendType: 'wms',
+        visible: true,
+      });
+      // Built by buildWmsTileUrl, not hand-assembled: a second url builder is
+      // how two code paths drift apart.
+      expect(String(config.url)).toContain('request=GetMap');
+      expect(String(config.url)).toContain('bbox=');
+
+      // THE LAYER NAME IS LITERAL, COLON AND ALL — do not "fix" this to
+      // encodeURIComponent. My first version of this test asserted the encoded
+      // form and was WRONG: `buildWmsTileUrl` appends `layers=` literally on
+      // purpose, because percent-encoding a namespaced name has broken real
+      // endpoints before (the same reason useCwfisM3Layers keeps it literal).
+      // The code was right and the test was wrong.
+      expect(String(config.url)).toContain(`layers=${MINE.layerName}`);
+      expect(String(config.url)).not.toContain(encodeURIComponent(MINE.layerName));
+    });
+  });
+
+  describe("Papa's rule: hide for me, delete only if it is mine", () => {
+    it('lets any user hide a shared layer, writing only to this browser', async () => {
+      listAdhocLayers.mockResolvedValue({ layers: [THEIRS] });
+      const user = userEvent.setup();
+      render(<AdhocLayerSection currentUser="dylan" />);
+
+      await user.click(await screen.findByRole('button', { name: /hide Fire Perimeters/i }));
+
+      await waitFor(() => expect(privateStore.isSharedLayerHidden('shared-theirs')).toBe(true));
+      // Hiding is not deleting. The shared row must be untouched.
+      expect(deleteAdhocLayer).not.toHaveBeenCalled();
+    });
+
+    it('removes a hidden layer from the map too', async () => {
+      listAdhocLayers.mockResolvedValue({ layers: [THEIRS] });
+      const user = userEvent.setup();
+      render(<AdhocLayerSection currentUser="dylan" />);
+
+      await user.click(await screen.findByRole('button', { name: /add Fire Perimeters 2026 to map/i }));
+      await user.click(screen.getByRole('button', { name: /hide Fire Perimeters/i }));
+
+      await waitFor(() => expect(removeLayer).toHaveBeenCalledWith('shared-theirs'));
+    });
+
+    it('does not offer delete on a layer someone else created', async () => {
+      listAdhocLayers.mockResolvedValue({ layers: [THEIRS] });
+      render(<AdhocLayerSection currentUser="dylan" />);
+
+      await screen.findByText('Fire Perimeters 2026');
+      // Offering a button that can only 403 teaches users to distrust the UI.
+      expect(screen.queryByRole('button', { name: /delete Fire Perimeters/i })).toBeNull();
+      expect(screen.getByRole('button', { name: /hide Fire Perimeters/i })).toBeInTheDocument();
+    });
+
+    it('offers delete on my own layer, and deletes it', async () => {
+      listAdhocLayers.mockResolvedValue({ layers: [MINE] });
+      const user = userEvent.setup();
+      render(<AdhocLayerSection currentUser="dylan" />);
+
+      await user.click(await screen.findByRole('button', { name: /delete BC Hydrography/i }));
+
+      await waitFor(() => expect(deleteAdhocLayer).toHaveBeenCalledWith('shared-mine'));
+      expect(removeLayer).toHaveBeenCalledWith('shared-mine');
+    });
+
+    it("shows the server's own 403 text if a delete is refused anyway", async () => {
+      // The UI hides the button, but the server is the authority — an id can
+      // be stale, or ownership can change under us. The message names the
+      // owner and says hiding is available instead; that is worth showing
+      // rather than replacing with "delete failed".
+      listAdhocLayers.mockResolvedValue({ layers: [MINE] });
+      deleteAdhocLayer.mockRejectedValue(
+        new ApiError(
+          'This layer was added by brett and only they can remove it. You can hide it from your own map instead.',
+          403,
+        ),
+      );
+      const user = userEvent.setup();
+      render(<AdhocLayerSection currentUser="dylan" />);
+
+      await user.click(await screen.findByRole('button', { name: /delete BC Hydrography/i }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/added by brett/i);
+    });
+
+    it('deletes a PRIVATE layer locally without calling the server', async () => {
+      privateStore.addPrivateLayer({
+        id: 'adhoc-private-1',
+        name: 'My Scratch Layer',
+        serviceUrl: SERVICE_URL,
+        layerName: 'pub:SCRATCH',
+        wmsVersion: '1.3.0',
+      });
+      const user = userEvent.setup();
+      render(<AdhocLayerSection currentUser="dylan" />);
+
+      await user.click(await screen.findByRole('button', { name: /delete My Scratch Layer/i }));
+
+      await waitFor(() => expect(privateStore.listPrivateLayers()).toEqual([]));
+      expect(deleteAdhocLayer).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('a hidden layer stays hidden', () => {
+    it('does not list a shared layer this user has already hidden', async () => {
+      privateStore.hideSharedLayer('shared-theirs');
+      listAdhocLayers.mockResolvedValue({ layers: [MINE, THEIRS] });
+
+      render(<AdhocLayerSection currentUser="dylan" />);
+
+      expect(await screen.findByText('BC Hydrography')).toBeInTheDocument();
+      expect(screen.queryByText('Fire Perimeters 2026')).toBeNull();
+    });
+
+    it('offers a way back — hidden layers can be restored', async () => {
+      privateStore.hideSharedLayer('shared-theirs');
+      listAdhocLayers.mockResolvedValue({ layers: [THEIRS] });
+      const user = userEvent.setup();
+      render(<AdhocLayerSection currentUser="dylan" />);
+
+      // A one-way hide is a layer the user can never get back without knowing
+      // about localStorage, so the count of hidden layers is surfaced.
+      await user.click(await screen.findByRole('button', { name: /hidden/i }));
+
+      expect(await screen.findByText('Fire Perimeters 2026')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /restore Fire Perimeters/i }));
+
+      await waitFor(() => expect(privateStore.isSharedLayerHidden('shared-theirs')).toBe(false));
+    });
+  });
+});

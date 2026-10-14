@@ -3,6 +3,7 @@ import { useLayers } from '../context/useLayers';
 import { useMap } from '../context/MapContext';
 import { LayerItem } from './LayerItem';
 import { useCFSLayers } from '../hooks/useCFSLayers';
+import { AdhocLayerSection } from './AdhocLayerSection.js';
 import { useCwfisM3Layers, currentSeasonTime } from '../hooks/useCwfisM3Layers';
 import { useTerrain } from '../hooks/useTerrain';
 import { BasemapStyle, BASEMAP_STYLES } from '../types';
@@ -89,6 +90,14 @@ export function LayerPanel({
   // CFS layer toggles: layerId -> { active, visible }
   const [cfsLayerState, setCfsLayerState] = useState<Record<string, { active: boolean }>>({});
   const [cfsError, setCfsError] = useState<string | null>(null);
+  // Read once: the accessor itself throws in some contexts (blocked site data).
+  const [adhocCurrentUser] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('nomad_username');
+    } catch {
+      return null;
+    }
+  });
   const [cfsDate, setCfsDate] = useState<string>(() => {
     const today = new Date();
     return today.toISOString().split('T')[0];
@@ -244,7 +253,11 @@ export function LayerPanel({
     boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
     minWidth: isMobile ? '240px' : '280px',
     maxWidth: isMobile ? 'calc(100vw - 20px)' : '350px',
-    maxHeight: isMobile ? 'calc(100vh - 120px)' : (cfs.available ? '550px' : '400px'),
+    // 550px regardless of the CFS key since #315: the ad-hoc section is always
+    // present, so the old 400px no-CFS budget left the actual layer list
+    // squeezed to a sliver — the count said 1 and the row was invisible.
+    // Observed in the running panel; no test could see it.
+    maxHeight: isMobile ? 'calc(100vh - 120px)' : '550px',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
@@ -327,6 +340,19 @@ export function LayerPanel({
     color: '#666',
     fontSize: '14px',
   };
+
+  /**
+   * Ad-hoc WMS layers (#315).
+   *
+   * Always rendered — unlike the CFS section there is no API key to gate it,
+   * and a user with no layers still needs the way in to add one.
+   *
+   * `currentUser` decides who is offered DELETE on a shared layer. It is read
+   * from the same key `api.ts` sends as `X-Nomad-User`, so the panel and the
+   * server agree on who is asking; under NOMAD_AUTH_MODE=none it is null,
+   * nothing is attributable, and nothing shared is deletable from here.
+   */
+  const AdhocSection = <AdhocLayerSection currentUser={adhocCurrentUser} />;
 
   /** CFS Layers section - only rendered when API key is configured */
   const CFSSection = cfs.available ? (
@@ -545,6 +571,7 @@ export function LayerPanel({
         <div style={emptyStyle}>
           No layers added yet
         </div>
+        {AdhocSection}
         {MapSettingsSection}
       </div>
     );
@@ -557,6 +584,7 @@ export function LayerPanel({
         <div style={emptyStyle}>
           No layers added yet
         </div>
+        {AdhocSection}
         {CFSSection}
         {CwfisSection}
         {MapSettingsSection}
@@ -593,6 +621,7 @@ export function LayerPanel({
           />
         ))}
       </div>
+      {AdhocSection}
       {CFSSection}
       {CwfisSection}
       {MapSettingsSection}
