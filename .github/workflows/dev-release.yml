@@ -71,6 +71,20 @@ jobs:
         working-directory: frontend
         run: mv nomad-frontend-*.tgz "nomad-frontend-${{ steps.version.outputs.tag }}.tgz"
 
+      - name: Generate SBOM
+        # Software bill of materials for the release (#398). Derived from
+        # package-lock.json at THIS commit by `npm sbom`, so it describes the
+        # tree that was actually tagged — GitHub's dependency-graph export
+        # describes whatever it last indexed, which is not the same thing.
+        #
+        # The version is passed in because `npm sbom` names the document after
+        # the ROOT package.json, which bump-version.sh does not bump; left
+        # alone the document would misname itself, and consumers read that
+        # field rather than the filename.
+        run: |
+          chmod +x .github/scripts/generate-sbom.sh
+          .github/scripts/generate-sbom.sh "${{ steps.version.outputs.current }}" "nomad-sbom-${{ steps.version.outputs.current }}.spdx.json"
+
       - name: Create pre-release
         uses: softprops/action-gh-release@v3
         with:
@@ -78,7 +92,9 @@ jobs:
           name: "${{ steps.version.outputs.tag }} (unstable)"
           prerelease: true
           generate_release_notes: true
-          files: frontend/nomad-frontend-*.tgz
+          files: |
+            frontend/nomad-frontend-*.tgz
+            nomad-sbom-*.spdx.json
           body: |
             **Unstable pre-release** — not for production use.
 
