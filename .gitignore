@@ -52,3 +52,9 @@ frontend/.playwright-mcp/
 
 # Runtime data (SQLite, simulation outputs)
 backend/data/
+
+# Image SBOMs generated on the server by deploy.sh (#441). They describe a
+# specific deployed image and belong beside it, not in the repository — and an
+# untracked pile of them on a production checkout is noise in every future
+# `git status` an operator runs mid-incident.
+sbom/
