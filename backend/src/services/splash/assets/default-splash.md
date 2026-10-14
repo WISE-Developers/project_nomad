@@ -4,7 +4,7 @@ title: Welcome to
 
 ![Nomad](/nomad-logo.png)
 
-## What's new in v0.28.0
+## What's new
 
 Before a run starts
 - A fire too large for FireSTARR's grid is now refused before the run begins, with an explanation of why. A merely large one warns you and carries on, saying where the limit sits. Until now the engine quietly cropped the simulation and told you nothing about what it had left out
