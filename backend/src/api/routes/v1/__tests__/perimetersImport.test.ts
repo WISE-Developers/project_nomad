@@ -44,7 +44,9 @@ describe('POST /api/v1/perimeters/import — GeoJSON', () => {
       .post('/api/v1/perimeters/import')
       .attach('file', Buffer.from(VALID_GEOJSON), 'ignition.geojson');
 
-    expect(res.status).toBe(201);
+    // The body says WHY on failure; a bare status assertion discards it and
+    // leaves an intermittent 400 to be diagnosed by guesswork (#439).
+    expect(res.status, `body: ${JSON.stringify(res.body)}`).toBe(201);
     expect(res.body.type).toBe('FeatureCollection');
     expect(res.body.features).toHaveLength(1);
     expect(res.body.features[0].geometry.type).toBe('Polygon');
@@ -106,7 +108,9 @@ describe('POST /api/v1/perimeters/import — KML', () => {
       .post('/api/v1/perimeters/import')
       .attach('file', Buffer.from(VALID_KML), 'ignition.kml');
 
-    expect(res.status).toBe(201);
+    // The body says WHY on failure; a bare status assertion discards it and
+    // leaves an intermittent 400 to be diagnosed by guesswork (#439).
+    expect(res.status, `body: ${JSON.stringify(res.body)}`).toBe(201);
     expect(res.body.type).toBe('FeatureCollection');
     expect(res.body.features).toHaveLength(1);
     expect(res.body.features[0].geometry.type).toBe('Polygon');
@@ -141,7 +145,9 @@ describe('POST /api/v1/perimeters/import — Shapefile (#269)', () => {
       .post('/api/v1/perimeters/import')
       .attach('file', zipBuf, 'perimeter.zip');
 
-    expect(res.status).toBe(201);
+    // The body says WHY on failure; a bare status assertion discards it and
+    // leaves an intermittent 400 to be diagnosed by guesswork (#439).
+    expect(res.status, `body: ${JSON.stringify(res.body)}`).toBe(201);
     expect(res.body.type).toBe('FeatureCollection');
     expect(res.body.features).toHaveLength(1);
     expect(res.body.features[0].geometry.type).toBe('Polygon');
