@@ -68,4 +68,37 @@ for TARGET in "package.json" "backend/package.json" "$PACKAGE_FILE"; do
     "
 done
 
+
+# The ROOT LOCKFILE moves with the root package.json, or the pair lies (#442).
+#
+# #442 bumped the three package.json files and left package-lock.json at 0.5.0.
+# Before it, root and lock agreed because NEITHER moved; afterwards they
+# disagreed on every release. `npm ci` tolerates it — measured, exit 0, deps
+# untouched — which is why CI stayed green and nothing announced the drift.
+#
+# It still has to be fixed, because build-offline-bundle.sh stages
+# package.json AND package-lock.json together into the agency bundle: the
+# artifact handed to an agency carries two machine-readable manifests naming
+# two different versions of the same package, and a machine-readable
+# contradiction gets believed.
+#
+# Written with node rather than `npm install --package-lock-only`, deliberately:
+# only the two version fields change, no registry is contacted, and the
+# dependency tree cannot be resolved out from under a release. npm records the
+# root version in BOTH `.version` and `.packages[""].version`.
+#
+# Absent lockfile is skipped, same rule as a missing sibling above.
+LOCK_FILE="package-lock.json"
+if [[ -f "$LOCK_FILE" ]]; then
+    node -e "
+      const fs = require('fs');
+      const lock = JSON.parse(fs.readFileSync('${LOCK_FILE}', 'utf8'));
+      lock.version = '${NEW_VERSION}';
+      if (lock.packages && lock.packages['']) {
+        lock.packages[''].version = '${NEW_VERSION}';
+      }
+      fs.writeFileSync('${LOCK_FILE}', JSON.stringify(lock, null, 2) + '\n');
+    "
+fi
+
 echo "$NEW_VERSION"
