@@ -4,10 +4,105 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.28.0
+## v0.29.0
+
+### 2026-10-15
+
+- [`ae2cace`](https://github.com/WISE-Developers/project_nomad/commit/ae2cace2c469c38a123bd22906de7b48814c5696) Merge pull request #445 from WISE-Developers/dev — *Franco Nogarin, 17:25*
+- [`deb2407`](https://github.com/WISE-Developers/project_nomad/commit/deb240710bf35f77a0acd98ec7a221a2c9ad4201) chore: dev v0.28.13 [release-bot] — *github-actions[bot], 23:21*
+- [`bf355b0`](https://github.com/WISE-Developers/project_nomad/commit/bf355b019def524aec78aefce1c94ebd3702ec92) Merge origin/main into dev — the rebase-merge of #443 left a stale merge base — *Franco Nogarin, 17:20*
+- [`37047dd`](https://github.com/WISE-Developers/project_nomad/commit/37047dd438715ff848918bd38c15c0a028e50705) chore: dev v0.28.12 [release-bot] — *github-actions[bot], 20:57*
+- [`ba1beb9`](https://github.com/WISE-Developers/project_nomad/commit/ba1beb905c03ac9271af8d72156b92008472ecb6) Release workflows must stage the lockfile too (#442 follow-up) — *Franco Nogarin, 14:57*
+- [`c76f2c1`](https://github.com/WISE-Developers/project_nomad/commit/c76f2c1d946239ff4d213086526c8b73a75c14e0) chore: dev v0.28.11 [release-bot] — *github-actions[bot], 20:50*
+- [`28635d8`](https://github.com/WISE-Developers/project_nomad/commit/28635d89f2ce6afd8062584223a6a23f91650771) Bump the root lockfile with the package.json files (#442 follow-up) — *Franco Nogarin, 14:50*
+
+### 2026-10-14
+
+- [`1e9ad9e`](https://github.com/WISE-Developers/project_nomad/commit/1e9ad9ee24b7ca2546d2d553d9a860d9cbec9335) chore: dev v0.28.10 [release-bot] — *github-actions[bot], 18:01*
+- [`987ed44`](https://github.com/WISE-Developers/project_nomad/commit/987ed44a7885f1da987f2868ffbeb8fb33be05b8) #442: the release workflows must COMMIT all three package.json files — *Franco Nogarin, 12:01*
+- [`93feeb4`](https://github.com/WISE-Developers/project_nomad/commit/93feeb440590ee29c7323a73dca47cbb9ea47443) chore: dev v0.28.9 [release-bot] — *github-actions[bot], 17:48*
+- [`0b4f1f2`](https://github.com/WISE-Developers/project_nomad/commit/0b4f1f237af96f73337dcaad2a58a5714adc1271) #441: a bill of materials for the image that is actually running — *Franco Nogarin, 11:48*
+- [`5988be6`](https://github.com/WISE-Developers/project_nomad/commit/5988be6cb853071a40171c957020f56f7e7ea08b) chore: dev v0.28.8 [release-bot] — *github-actions[bot], 17:40*
+- [`f84bb9d`](https://github.com/WISE-Developers/project_nomad/commit/f84bb9dbe9b65c55b54b7a0f9d35c5b206897acd) #442: every package.json carries the product version — *Franco Nogarin, 11:39*
+- [`86ac625`](https://github.com/WISE-Developers/project_nomad/commit/86ac6257f824cd4d0028a381385b25e882b0ddda) chore: dev v0.28.7 [release-bot] — *github-actions[bot], 16:56*
+- [`6a2fa5e`](https://github.com/WISE-Developers/project_nomad/commit/6a2fa5eed4bd131d95195907f9d72ca5b946bd96) #439: make the next occurrence explain itself, and correct my own diagnosis — *Franco Nogarin, 10:55*
+- [`c54fc29`](https://github.com/WISE-Developers/project_nomad/commit/c54fc2977144b30b3b1f6c67d84e30cdce7bcb75) chore: dev v0.28.6 [release-bot] — *github-actions[bot], 16:35*
+- [`d6c89b8`](https://github.com/WISE-Developers/project_nomad/commit/d6c89b85cf8bc9afa789b450b3cc5321913bcd75) #440: CWFIS reaches the keyless empty state too — *Franco Nogarin, 10:35*
+- [`3473486`](https://github.com/WISE-Developers/project_nomad/commit/347348617433212a3ed42fb1ac6aae811f57848d) chore: dev v0.28.5 [release-bot] — *github-actions[bot], 16:21*
+- [`ec3a72b`](https://github.com/WISE-Developers/project_nomad/commit/ec3a72b221a8b3f0e2923811c1734416e5ff45cc) #398: the SBOM now states its own scope, and drops the stale root id — *Franco Nogarin, 10:20*
+- [`f61f960`](https://github.com/WISE-Developers/project_nomad/commit/f61f960d2b1a0f2cf3615940bb6b9f17120ab102) chore: dev v0.28.4 [release-bot] — *github-actions[bot], 15:36*
+- [`acc3fbe`](https://github.com/WISE-Developers/project_nomad/commit/acc3fbe2d1bafbb6d499ae05dd6f2b26b27c33d5) #398: attach an SPDX SBOM to every release — *Franco Nogarin, 09:36*
+- [`9ca624c`](https://github.com/WISE-Developers/project_nomad/commit/9ca624c152d925afaaba2d15cd5569ef48dde70d) chore: dev v0.28.3 [release-bot] — *github-actions[bot], 15:26*
+- [`6a50af3`](https://github.com/WISE-Developers/project_nomad/commit/6a50af304373784f9032b886edcca91c7d32fc8f) #437: a rollback tag now names the version the image CONTAINS — *Franco Nogarin, 09:26*
+- [`3717261`](https://github.com/WISE-Developers/project_nomad/commit/3717261709e1e66a5bdc0d34972813fc09e3c1f3) chore: dev v0.28.2 [release-bot] — *github-actions[bot], 15:13*
+- [`647d86c`](https://github.com/WISE-Developers/project_nomad/commit/647d86c43efdbeb69d2294abe81dfc5d0052ef52) #438: drop the version number from the splash heading — *Franco Nogarin, 09:13*
+- [`478e3d5`](https://github.com/WISE-Developers/project_nomad/commit/478e3d5099a4aaacd794ad115a7214466f3801a9) chore: dev v0.28.1 [release-bot] — *github-actions[bot], 13:03*
+- [`7607255`](https://github.com/WISE-Developers/project_nomad/commit/7607255e71cd72ee7c9e4af41636a01c921a110c) #438: the demo splash now describes v0.28.0 — *Franco Nogarin, 09:11*
+- [`c77d0ca`](https://github.com/WISE-Developers/project_nomad/commit/c77d0caabae253b99279668520cc7365cea3b06b) #315: three defects found by running the app, none visible to tests — *Franco Nogarin, 07:01*
+
+### 2026-10-13
+
+- [`8f11b40`](https://github.com/WISE-Developers/project_nomad/commit/8f11b406daf2646e92ad8931151347a2f4df2aba) #315: the layer panel section, and WMS layers actually reach the map — *Franco Nogarin, 13:51*
+- [`e5ccdcd`](https://github.com/WISE-Developers/project_nomad/commit/e5ccdcd02e90f39e2f2968d62e3d48e0cfade450) #315: the add-layer form — choose a layer, private checkbox decides storage — *Franco Nogarin, 13:45*
+- [`536771e`](https://github.com/WISE-Developers/project_nomad/commit/536771e22416997df923b05bfaab8cab439e0a3f) #315: private layer store and the ad-hoc layers API client — *Franco Nogarin, 13:41*
+- [`85d083f`](https://github.com/WISE-Developers/project_nomad/commit/85d083f785a79b312cd602bb08da278e8b606f2d) #315: capabilities route — guard, fetch and parser wired together — *Franco Nogarin, 13:27*
+- [`27ba1b4`](https://github.com/WISE-Developers/project_nomad/commit/27ba1b40eaa9d5c226fab24472f0d93b16c6c073) #315: shared ad-hoc layer API, creator-only delete — *Franco Nogarin, 12:38*
+- [`6aaf6d1`](https://github.com/WISE-Developers/project_nomad/commit/6aaf6d1b6cc2d28f73eb3c4a5faab2b19f5458f7) #315: adhoc_layers table, and a guard against unregistered migrations — *Franco Nogarin, 10:14*
+- [`716ddcc`](https://github.com/WISE-Developers/project_nomad/commit/716ddccc45cb358104345cc38a5aabf0f6bfe02f) #315: parse GetCapabilities, keeping "read it, nothing there" apart from "could not read it" — *Franco Nogarin, 09:18*
 
 ### 2026-10-12
 
+- [`ceea85c`](https://github.com/WISE-Developers/project_nomad/commit/ceea85cf1d8d3eada94812754b5a2fb61e2c1603) #315: WMS url builder and the SSRF guard for the capabilities proxy — *Franco Nogarin, 17:20*
+
+### 2026-10-14
+
+- [`aa51955`](https://github.com/WISE-Developers/project_nomad/commit/aa51955eee0670590114929bfd87ae5ee6d83050) chore: dev v0.28.10 [release-bot] — *github-actions[bot], 18:01*
+- [`bffe855`](https://github.com/WISE-Developers/project_nomad/commit/bffe8559df01a2c5a96727ee9bb27e5ad672c3b1) Merge: release workflows commit all three package.json files — *Franco Nogarin, 12:01*
+- [`029e46b`](https://github.com/WISE-Developers/project_nomad/commit/029e46b912c220e262a70cf77c26db108c2802d3) #442: the release workflows must COMMIT all three package.json files — *Franco Nogarin, 12:01*
+- [`12840e7`](https://github.com/WISE-Developers/project_nomad/commit/12840e7dc4110c7e04573d6ca1ce67aff7563913) chore: dev v0.28.9 [release-bot] — *github-actions[bot], 17:48*
+- [`ff0f79d`](https://github.com/WISE-Developers/project_nomad/commit/ff0f79d6230b8e6e7513eaff77950d27838e8a22) Merge #441: image SBOM generated at deploy — *Franco Nogarin, 11:48*
+- [`1235f77`](https://github.com/WISE-Developers/project_nomad/commit/1235f77ccb1ad19e724971aa10b8349a0d94674d) #441: a bill of materials for the image that is actually running — *Franco Nogarin, 11:48*
+- [`e48640d`](https://github.com/WISE-Developers/project_nomad/commit/e48640d72ddfc18e009439a8519e69393705a45c) chore: dev v0.28.8 [release-bot] — *github-actions[bot], 17:40*
+- [`85661ad`](https://github.com/WISE-Developers/project_nomad/commit/85661ad825d0b6477bf99c2b43d816c4f3f40720) Merge #442: every package.json carries the product version — *Franco Nogarin, 11:39*
+- [`cee18ea`](https://github.com/WISE-Developers/project_nomad/commit/cee18ea181ba8acdb37c37081aacca8eb9e9fade) #442: every package.json carries the product version — *Franco Nogarin, 11:39*
+- [`9750a62`](https://github.com/WISE-Developers/project_nomad/commit/9750a622435dc09b709b1cfef2cb77217437918e) chore: dev v0.28.7 [release-bot] — *github-actions[bot], 16:56*
+- [`92f86e2`](https://github.com/WISE-Developers/project_nomad/commit/92f86e251fcab9a683198f25f33490a15fc5e7bd) Merge #439: instrument the flake so its next occurrence self-diagnoses — *Franco Nogarin, 10:55*
+- [`70edc51`](https://github.com/WISE-Developers/project_nomad/commit/70edc51b045a7e8025e22e7d6a77c3f8de971456) #439: make the next occurrence explain itself, and correct my own diagnosis — *Franco Nogarin, 10:55*
+- [`7195fa6`](https://github.com/WISE-Developers/project_nomad/commit/7195fa6f2c51a8fed9cd6d0fcb9fe446d3053b42) chore: dev v0.28.6 [release-bot] — *github-actions[bot], 16:35*
+- [`1cd6131`](https://github.com/WISE-Developers/project_nomad/commit/1cd6131239c0eb2d1124875a78684b0ac9e65fdd) Merge #440: CWFIS reaches the keyless empty state — *Franco Nogarin, 10:35*
+- [`4a622ef`](https://github.com/WISE-Developers/project_nomad/commit/4a622efa06566d7d97f3106a257e138727468344) #440: CWFIS reaches the keyless empty state too — *Franco Nogarin, 10:35*
+- [`857ffdc`](https://github.com/WISE-Developers/project_nomad/commit/857ffdcae02c0b23910a6104c5a1dc5224778f6e) chore: dev v0.28.5 [release-bot] — *github-actions[bot], 16:21*
+- [`f03593e`](https://github.com/WISE-Developers/project_nomad/commit/f03593eba270f7b42c16d8f6f20c43d22b9a2517) Merge: SBOM states its build-time scope, and the stale root id is gone — *Franco Nogarin, 10:20*
+- [`09e16b0`](https://github.com/WISE-Developers/project_nomad/commit/09e16b0edd32296282e79d9037fedc96671b13bf) #398: the SBOM now states its own scope, and drops the stale root id — *Franco Nogarin, 10:20*
+- [`d941440`](https://github.com/WISE-Developers/project_nomad/commit/d9414405dd843565b3bdc714cefd4011e46f75f7) chore: dev v0.28.4 [release-bot] — *github-actions[bot], 15:36*
+- [`f0ed253`](https://github.com/WISE-Developers/project_nomad/commit/f0ed253dbf115c446f72b23f749e627c09f7d8a2) Merge #398: SPDX SBOM attached to every release — *Franco Nogarin, 09:36*
+- [`7619be2`](https://github.com/WISE-Developers/project_nomad/commit/7619be23c2576786dc58d668b909ba8bea9d9514) #398: attach an SPDX SBOM to every release — *Franco Nogarin, 09:36*
+- [`15e6b27`](https://github.com/WISE-Developers/project_nomad/commit/15e6b272696d09a0ad0017f7bddf11a4bd3f2948) chore: dev v0.28.3 [release-bot] — *github-actions[bot], 15:26*
+- [`cae16e1`](https://github.com/WISE-Developers/project_nomad/commit/cae16e1046a5ce05676e946f265a8d9de55ee664) Merge #437: rollback tags name the version the image contains — *Franco Nogarin, 09:26*
+- [`b3c11c9`](https://github.com/WISE-Developers/project_nomad/commit/b3c11c916deb7f57a71a608bfcd0d3980d5fe1ff) #437: a rollback tag now names the version the image CONTAINS — *Franco Nogarin, 09:26*
+- [`bebebb4`](https://github.com/WISE-Developers/project_nomad/commit/bebebb47c88747602083afa07908b9bf1fa514ab) chore: dev v0.28.2 [release-bot] — *github-actions[bot], 15:13*
+- [`c2ea4dc`](https://github.com/WISE-Developers/project_nomad/commit/c2ea4dc0d4c5f29aee239b8efbcd935d09241b37) #438: drop the version number from the splash heading — *Franco Nogarin, 09:13*
+- [`973b2bb`](https://github.com/WISE-Developers/project_nomad/commit/973b2bb9354b7d494b117f8434aeeac3c3b46e80) Merge origin/dev (v0.28.1 release bump) into local dev — *Franco Nogarin, 09:12*
+- [`5cb3e22`](https://github.com/WISE-Developers/project_nomad/commit/5cb3e22cfb06c377c9489b066687e77d7f2d1037) Merge #438: the demo splash now describes v0.28.0 — *Franco Nogarin, 09:12*
+- [`b821e5b`](https://github.com/WISE-Developers/project_nomad/commit/b821e5bf331a8686846bb985c07b9ebf8ecb3305) #438: the demo splash now describes v0.28.0 — *Franco Nogarin, 09:11*
+- [`fe9473d`](https://github.com/WISE-Developers/project_nomad/commit/fe9473d821d4477dd8425678e22588dcd48d9a3d) chore: dev v0.28.1 [release-bot] — *github-actions[bot], 13:03*
+- [`4412118`](https://github.com/WISE-Developers/project_nomad/commit/4412118f71d65d137e7e2cf6810c30034cc730fc) Merge #315: ad-hoc WMS layers — *Franco Nogarin, 07:02*
+- [`997da23`](https://github.com/WISE-Developers/project_nomad/commit/997da2372fabea6bfe7a68496ba59a9af135f30e) #315: three defects found by running the app, none visible to tests — *Franco Nogarin, 07:01*
+
+### 2026-10-13
+
+- [`e85c77f`](https://github.com/WISE-Developers/project_nomad/commit/e85c77f2e8002af1434fd9c247d1890ae58eb60e) #315: the layer panel section, and WMS layers actually reach the map — *Franco Nogarin, 13:51*
+- [`d56e71d`](https://github.com/WISE-Developers/project_nomad/commit/d56e71d7fa2dae48b082757e4c2be17f9880e273) #315: the add-layer form — choose a layer, private checkbox decides storage — *Franco Nogarin, 13:45*
+- [`687ea18`](https://github.com/WISE-Developers/project_nomad/commit/687ea18dbc75ab78ac3376150469a3256d0d63c6) #315: private layer store and the ad-hoc layers API client — *Franco Nogarin, 13:41*
+- [`277fa42`](https://github.com/WISE-Developers/project_nomad/commit/277fa422a014790a21a346bd4c91bad29d5fc202) #315: capabilities route — guard, fetch and parser wired together — *Franco Nogarin, 13:27*
+- [`5a37ec3`](https://github.com/WISE-Developers/project_nomad/commit/5a37ec3878ae4975e6e5a3b0cf2749cc4139ce2f) #315: shared ad-hoc layer API, creator-only delete — *Franco Nogarin, 12:38*
+- [`65ae346`](https://github.com/WISE-Developers/project_nomad/commit/65ae3460a06183b864f9358dbe5d1ddb696ba5e2) #315: adhoc_layers table, and a guard against unregistered migrations — *Franco Nogarin, 10:14*
+- [`394cb52`](https://github.com/WISE-Developers/project_nomad/commit/394cb52d5ebbf7850e0bbcbcb9cfc43a2fc49758) #315: parse GetCapabilities, keeping "read it, nothing there" apart from "could not read it" — *Franco Nogarin, 09:18*
+
+### 2026-10-12
+
+- [`3013db2`](https://github.com/WISE-Developers/project_nomad/commit/3013db2a4482397f04f578d375cd1c23d2c3381e) #315: WMS url builder and the SSRF guard for the capabilities proxy — *Franco Nogarin, 17:20*
+- [`2151baf`](https://github.com/WISE-Developers/project_nomad/commit/2151baf2bbda8cf5f6b6eac1da027658c465faa5) chore: release v0.28.0 [release-bot] — *github-actions[bot], 20:08*
 - [`72546ac`](https://github.com/WISE-Developers/project_nomad/commit/72546accb7cad50185c8b72f94d40dc5476a841f) Merge pull request #436 from WISE-Developers/dev — *Franco Nogarin, 14:08*
 - [`41e6bc3`](https://github.com/WISE-Developers/project_nomad/commit/41e6bc3bb0c0e099624a2bcab6702723bf3e91ae) chore: dev v0.27.6 [release-bot] — *github-actions[bot], 19:56*
 - [`f3a8961`](https://github.com/WISE-Developers/project_nomad/commit/f3a896135724bc309ec3602ec0fe7d0abb9e33f0) A dropped status stream no longer looks like a running job — *Franco Nogarin, 13:56*
