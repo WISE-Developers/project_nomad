@@ -68,11 +68,14 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # All three package.json files, not just the frontend (#442).
+          # All three package.json files, not just the frontend (#442), AND the
+          # root lockfile: bump-version.sh writes it, so a workflow that does not
+          # stage it commits the bump and drops the lockfile change. That happened
+          # on dev v0.28.11 — package.json 0.28.11 against lock 0.28.10.
           # bump-version.sh writes all three; staging only one committed a
           # partial bump and left root/backend drifting again — which is the
           # exact state #442 fixed, reintroduced one layer up.
-          git add package.json backend/package.json frontend/package.json CHANGES.md
+          git add package.json backend/package.json frontend/package.json package-lock.json CHANGES.md
           git commit -m "chore: release v${{ steps.newversion.outputs.version }} [release-bot]"
           git push
 

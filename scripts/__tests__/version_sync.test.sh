@@ -208,9 +208,14 @@ for wf in dev-release lts-release stable-release; do
   case "$add_line" in *" package.json"*) ;; *) missing="root " ;; esac
   case "$add_line" in *"backend/package.json"*) ;; *) missing="${missing}backend " ;; esac
   case "$add_line" in *"frontend/package.json"*) ;; *) missing="${missing}frontend " ;; esac
+  # The LOCKFILE too. bump-version.sh writes it, but a workflow that does not
+  # stage it commits the bump and silently drops the lockfile change — which is
+  # exactly what happened on dev v0.28.11: package.json 0.28.11, lock 0.28.10.
+  # A script that writes a file nobody commits is a fix that only works locally.
+  case "$add_line" in *"package-lock.json"*) ;; *) missing="${missing}lockfile " ;; esac
 
   if [ -z "$missing" ]; then
-    ok "$wf stages all three package.json files"
+    ok "$wf stages all three package.json files AND the lockfile"
   else
     bad "$wf stages a PARTIAL bump — missing: $missing"
   fi
