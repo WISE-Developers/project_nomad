@@ -57,6 +57,40 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 1b. THE LOCKFILE. #442 bumped the three package.json files and left the root
+#     package-lock.json behind at 0.5.0, so the pair it forms with the root
+#     package.json CONTRADICT each other. Before #442 they agreed, because
+#     neither moved.
+#
+#     This breaks no build — `npm ci` was measured tolerating it (exit 0, deps
+#     unchanged), which is why CI stayed green and the drift went unseen. It is
+#     a lying artifact rather than an outage: build-offline-bundle.sh stages
+#     package.json AND package-lock.json together into the agency bundle, so a
+#     machine-readable manifest ships claiming two different versions of the
+#     same package.
+#
+#     npm records the root version TWICE and both must move.
+# ---------------------------------------------------------------------------
+lock_field() { node -p "JSON.parse(require('fs').readFileSync('$1','utf8'))$2 ?? ''" 2>/dev/null; }
+
+if [ -f "$REPO/package-lock.json" ]; then
+  lock_top="$(lock_field "$REPO/package-lock.json" ".version")"
+  lock_self="$(lock_field "$REPO/package-lock.json" '.packages[""].version')"
+
+  echo "  (lock .version=$lock_top  packages[\"\"].version=$lock_self)"
+
+  [ "$lock_top" = "$front_v" ] \
+    && ok "package-lock.json .version matches the product version" \
+    || bad "lock .version is $lock_top, product is $front_v"
+
+  [ "$lock_self" = "$front_v" ] \
+    && ok "package-lock.json packages[\"\"].version matches the product version" \
+    || bad "lock packages[\"\"].version is $lock_self, product is $front_v"
+else
+  bad "package-lock.json is missing from the repo root"
+fi
+
+# ---------------------------------------------------------------------------
 # 2. THE SCRIPT. Run it against a COPY — running it here would bump the real
 #    repo, which is precisely the kind of side effect a test must not have.
 # ---------------------------------------------------------------------------
@@ -69,6 +103,9 @@ cp "$BUMP" "$WORK/.github/scripts/"
 for f in package.json backend/package.json frontend/package.json; do
   cp "$REPO/$f" "$WORK/$f"
 done
+# The REAL lockfile, not a synthetic one: the two version fields are the thing
+# under test and their nesting is npm's, not ours.
+cp "$REPO/package-lock.json" "$WORK/package-lock.json"
 # Known starting point, deliberately mismatched so a script that bumps only one
 # file cannot accidentally look correct.
 node -e '
@@ -100,6 +137,17 @@ w_front="$(version_of "$WORK/frontend/package.json")"
 [ "$w_back" = "3.3.4" ] \
   && ok "writes the SAME version to backend (was 2.2.2, deliberately different)" \
   || bad "backend is $w_back, expected 3.3.4 — this is #442"
+
+w_lock_top="$(lock_field "$WORK/package-lock.json" ".version")"
+w_lock_self="$(lock_field "$WORK/package-lock.json" '.packages[""].version')"
+
+[ "$w_lock_top" = "3.3.4" ] \
+  && ok "writes the SAME version to package-lock.json .version" \
+  || bad "lock .version is $w_lock_top, expected 3.3.4 — the lockfile was left behind"
+
+[ "$w_lock_self" = "3.3.4" ] \
+  && ok "writes the SAME version to package-lock.json packages[\"\"].version" \
+  || bad "lock packages[\"\"].version is $w_lock_self, expected 3.3.4 — npm records it twice"
 
 # ---------------------------------------------------------------------------
 # 3. It must take the version FROM the product file, not from whichever it
@@ -160,9 +208,14 @@ for wf in dev-release lts-release stable-release; do
   case "$add_line" in *" package.json"*) ;; *) missing="root " ;; esac
   case "$add_line" in *"backend/package.json"*) ;; *) missing="${missing}backend " ;; esac
   case "$add_line" in *"frontend/package.json"*) ;; *) missing="${missing}frontend " ;; esac
+  # The LOCKFILE too. bump-version.sh writes it, but a workflow that does not
+  # stage it commits the bump and silently drops the lockfile change — which is
+  # exactly what happened on dev v0.28.11: package.json 0.28.11, lock 0.28.10.
+  # A script that writes a file nobody commits is a fix that only works locally.
+  case "$add_line" in *"package-lock.json"*) ;; *) missing="${missing}lockfile " ;; esac
 
   if [ -z "$missing" ]; then
-    ok "$wf stages all three package.json files"
+    ok "$wf stages all three package.json files AND the lockfile"
   else
     bad "$wf stages a PARTIAL bump — missing: $missing"
   fi
