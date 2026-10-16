@@ -4,10 +4,14 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.32.0
+## v0.33.0
 
 ### 2026-10-16
 
+- [`6ec00ab`](https://github.com/WISE-Developers/project_nomad/commit/6ec00ab8b1331db7e5d6bce070b6dd2c9ae1cd6f) Merge pull request #453 from WISE-Developers/dev — *Franco Nogarin, 09:34*
+- [`92cc78a`](https://github.com/WISE-Developers/project_nomad/commit/92cc78aacd77537d35ac76a89463ef1986962b53) chore: dev v0.32.1 [release-bot] — *github-actions[bot], 15:33*
+- [`7e873c8`](https://github.com/WISE-Developers/project_nomad/commit/7e873c86ee196992bb033b9a2ad452f66108ec20) Offer a custom legend URL, and stop claiming layers the map never took (#449, #451) — *Franco Nogarin, 09:32*
+- [`8deea13`](https://github.com/WISE-Developers/project_nomad/commit/8deea1325ebb4c02eef2217efe899f83fd3bd645) chore: release v0.32.0 [release-bot] — *github-actions[bot], 15:14*
 - [`220f620`](https://github.com/WISE-Developers/project_nomad/commit/220f620bf4a629d8c8fa002fe0233c14a78335d6) Merge pull request #452 from WISE-Developers/dev — *Franco Nogarin, 09:13*
 - [`5245108`](https://github.com/WISE-Developers/project_nomad/commit/52451080c6ca31d40bd2d2e398e5e799d01c5208) chore: dev v0.31.1 [release-bot] — *github-actions[bot], 14:53*
 - [`f0e0641`](https://github.com/WISE-Developers/project_nomad/commit/f0e06418248a2f0bc2238709977c6c80404e4621) Do not offer Add to map before the map can take a layer (#451) — *Franco Nogarin, 08:53*
