@@ -4,10 +4,26 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.29.0
+## v0.30.0
+
+### 2026-10-16
+
+- [`3fd36dc`](https://github.com/WISE-Developers/project_nomad/commit/3fd36dc8d6ae7de20b6069d114779d912132cf3a) Merge pull request #446 from WISE-Developers/dev — *Franco Nogarin, 04:32*
+- [`61f2421`](https://github.com/WISE-Developers/project_nomad/commit/61f2421974f8f38d9b95a5a2997e8a6c56424528) chore: dev v0.29.2 [release-bot] — *github-actions[bot], 00:20*
 
 ### 2026-10-15
 
+- [`0c86a55`](https://github.com/WISE-Developers/project_nomad/commit/0c86a5537eb253d25186d47af9e15223c1bd0c94) Give the gate test a corpus CI can actually reach (#444) — *Franco Nogarin, 18:19*
+
+### 2026-10-16
+
+- [`9861c1c`](https://github.com/WISE-Developers/project_nomad/commit/9861c1c810da60a94df5479faf2cb71b7907e2f5) chore: dev v0.29.1 [release-bot] — *github-actions[bot], 00:14*
+
+### 2026-10-15
+
+- [`39cf80d`](https://github.com/WISE-Developers/project_nomad/commit/39cf80d30658ac01d93632827a3af211141abcd9) Record the trap the previous commit fell into (#444) — *Franco Nogarin, 18:14*
+- [`0ff4cc2`](https://github.com/WISE-Developers/project_nomad/commit/0ff4cc2d81d7157b016efbc7558d2f8e141aacb8) Stable release fires on work, not on whoever bumped last (#444) — *Franco Nogarin, 18:02*
+- [`8d486e4`](https://github.com/WISE-Developers/project_nomad/commit/8d486e47ffec963c1e40942f7d59957ab0a2651e) chore: release v0.29.0 [release-bot] — *github-actions[bot], 23:26*
 - [`ae2cace`](https://github.com/WISE-Developers/project_nomad/commit/ae2cace2c469c38a123bd22906de7b48814c5696) Merge pull request #445 from WISE-Developers/dev — *Franco Nogarin, 17:25*
 - [`deb2407`](https://github.com/WISE-Developers/project_nomad/commit/deb240710bf35f77a0acd98ec7a221a2c9ad4201) chore: dev v0.28.13 [release-bot] — *github-actions[bot], 23:21*
 - [`bf355b0`](https://github.com/WISE-Developers/project_nomad/commit/bf355b019def524aec78aefce1c94ebd3702ec92) Merge origin/main into dev — the rebase-merge of #443 left a stale merge base — *Franco Nogarin, 17:20*
