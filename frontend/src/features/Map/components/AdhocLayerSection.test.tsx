@@ -464,3 +464,86 @@ describe('before the map is ready (#451)', () => {
     expect(addRasterLayer).toHaveBeenCalled();
   });
 });
+
+
+/**
+ * ONE LINE FOR THE NAME, ONE LINE FOR THE BUTTONS (#456).
+ *
+ * Reported with a screenshot: three ad-hoc rows, three different layouts. A
+ * shared layer wrapped its scope label, "Add to map" and "Hide" onto a second
+ * line; another put "Delete" alone on a second line; a third put both buttons
+ * there. Nothing lined up.
+ *
+ * The cause was one `display: flex` with `flexWrap: wrap` holding the name, the
+ * scope label and every button as SIBLINGS, with the name taking `flex: 1 1
+ * auto`. The wrap point was therefore a function of the layer's NAME LENGTH
+ * plus the scope text, so no two rows could agree — and the number of buttons
+ * varies by design, since shared layers get "Hide" and only the creator gets
+ * "Delete".
+ *
+ * THE HAZARD, NOT THE LOOK: a stray "Delete" sitting under the wrong row reads
+ * as belonging to the layer below it. In a panel used while a fire is running,
+ * a delete button whose owner is ambiguous is the part that matters.
+ *
+ * Franco's ruling: two dedicated lines, never shared. With a fixed structure
+ * the name length cannot move anything, and every button sits on a line that
+ * belongs unambiguously to the layer named directly above it.
+ */
+describe('row layout: name and buttons never share a line (#456)', () => {
+  const layers = [
+    { id: 'adhoc-short', name: 'Fire Danger', serviceUrl: 'https://example.org/wms', layerName: 'a', wmsVersion: '1.3.0' },
+    {
+      id: 'adhoc-long',
+      name: 'Transport Wind Vector (direction) with a deliberately long name',
+      serviceUrl: 'https://example.org/wms',
+      layerName: 'b',
+      wmsVersion: '1.3.0',
+    },
+  ];
+
+  beforeEach(() => {
+    vi.spyOn(privateStore, 'listPrivateLayers').mockReturnValue(layers);
+    vi.mocked(api.listAdhocLayers).mockResolvedValue({ layers: [] });
+  });
+
+  it('puts every button of a row in ONE container that holds no layer name', async () => {
+    render(<AdhocLayerSection />);
+    const button = await screen.findByLabelText('Add Fire Danger to map');
+    const buttonRow = button.parentElement;
+    expect(buttonRow).not.toBeNull();
+    // The name must not live in the same container as the controls.
+    expect(buttonRow?.textContent).not.toContain('Fire Danger');
+  });
+
+  it('gives the name its own line, separate from the controls', async () => {
+    render(<AdhocLayerSection />);
+    await screen.findByLabelText('Add Fire Danger to map');
+    const name = screen.getByText('Fire Danger');
+    const nameLine = name.parentElement;
+    expect(nameLine?.querySelector('button')).toBeNull();
+  });
+
+  it('lays a LONG name out exactly like a short one — the whole point', async () => {
+    // Name length was the variable that made every row different.
+    render(<AdhocLayerSection />);
+    const shortBtn = await screen.findByLabelText('Add Fire Danger to map');
+    const longBtn = await screen.findByLabelText(
+      'Add Transport Wind Vector (direction) with a deliberately long name to map',
+    );
+    const shape = (el: HTMLElement) => {
+      const row = el.parentElement!;
+      return {
+        tag: row.tagName,
+        buttonCount: row.querySelectorAll('button').length,
+        hasName: /Fire Danger|Transport Wind/.test(row.textContent || ''),
+      };
+    };
+    expect(shape(longBtn)).toEqual(shape(shortBtn));
+  });
+
+  it('keeps every control reachable by its label — the control', async () => {
+    render(<AdhocLayerSection />);
+    expect(await screen.findByLabelText('Add Fire Danger to map')).toBeTruthy();
+    expect(screen.getByLabelText('Delete Fire Danger')).toBeTruthy();
+  });
+});
