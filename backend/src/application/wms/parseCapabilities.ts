@@ -22,6 +22,22 @@ export interface WmsLayer {
   readonly name: string;
   readonly title: string;
   readonly abstract?: string;
+  /**
+   * Scale range the server will actually draw this layer at (#448).
+   *
+   * ABSENT MEANS UNCONSTRAINED, and that is not the same as zero. A layer
+   * outside its declared range renders an EMPTY IMAGE with a 200, which is
+   * indistinguishable from a layer that worked — BC's Forest Licensee
+   * Operating Areas did exactly that on the live demo, declaring
+   * `<MaxScaleDenominator>6000000</MaxScaleDenominator>` while the view sat at
+   * roughly 1:35,000,000.
+   *
+   * Both are inherited from parent layers unless the child redefines them,
+   * which is how the WMS spec says to read them and how BC publishes most of
+   * theirs.
+   */
+  readonly minScaleDenominator?: number;
+  readonly maxScaleDenominator?: number;
 }
 
 export type CapabilitiesResult =
@@ -74,21 +90,55 @@ function text(value: unknown): string | undefined {
  * that can never render — a GetMap for it returns an error or a blank tile,
  * which looks like a broken feature rather than an unselectable heading.
  */
-function collectLayers(node: Record<string, unknown>, into: WmsLayer[]): void {
+/**
+ * A scale denominator, or undefined when the server did not give us a usable
+ * one.
+ *
+ * NaN IS REFUSED DELIBERATELY. A NaN threshold compares false against
+ * everything, so a warning built on it would silently never fire — the defect
+ * wearing the fix's clothes. Absent and unreadable are both "we do not know",
+ * and neither may masquerade as a limit.
+ */
+function scaleDenominator(value: unknown): number | undefined {
+  const raw = text(value);
+  if (raw === undefined) return undefined;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+/** Scale limits inherited down the layer tree, per the WMS spec. */
+interface InheritedScale {
+  readonly min?: number;
+  readonly max?: number;
+}
+
+function collectLayers(
+  node: Record<string, unknown>,
+  into: WmsLayer[],
+  inherited: InheritedScale = {},
+): void {
   const name = text(node.Name);
   const title = text(node.Title);
+
+  // A child's own value wins; otherwise it inherits. BC publishes most of its
+  // limits on parent layers, so ignoring inheritance would read nearly every
+  // child as unconstrained — never warning, which is this bug in reverse.
+  const min = scaleDenominator(node.MinScaleDenominator) ?? inherited.min;
+  const max = scaleDenominator(node.MaxScaleDenominator) ?? inherited.max;
 
   if (name) {
     into.push({
       name,
       title: title ?? name,
       ...(text(node.Abstract) ? { abstract: text(node.Abstract) as string } : {}),
+      ...(min !== undefined ? { minScaleDenominator: min } : {}),
+      ...(max !== undefined ? { maxScaleDenominator: max } : {}),
     });
   }
 
   for (const child of asArray(node.Layer)) {
     const childNode = asNode(child);
-    if (childNode) collectLayers(childNode, into);
+    if (childNode) collectLayers(childNode, into, { min, max });
   }
 }
 
