@@ -238,7 +238,7 @@ export function ModelCard({
               <span style={modeBadgeStyle}>{getModeLabel(model.outputMode)}</span>
             </td>
             <td style={infoTableTdStyle}>
-              <span style={userBadgeStyle}>{model.userId}</span>
+              <span style={userBadgeStyle}>{model.userDisplayName || model.userId}</span>
             </td>
             <td style={infoTableTdStyle}>
               <span style={modelIdStyle}>{model.id}</span>

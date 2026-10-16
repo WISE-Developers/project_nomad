@@ -79,6 +79,7 @@ export function ModelReviewPanel({
         modelName: results.modelName,
         engineType: results.engineType,
         userId: results.userId,
+        userDisplayName: results.userDisplayName,
         outputMode: results.outputConfig?.outputMode,
         notes: results.notes,
       }));
@@ -287,6 +288,7 @@ export function ModelReviewPanel({
           modelName={results.modelName}
           engineType={results.engineType}
           userId={results.userId}
+          userDisplayName={results.userDisplayName}
           summary={results.executionSummary}
           outputCount={results.outputs.length}
           inputs={results.inputs}

@@ -71,6 +71,7 @@ function mapModelResponse(response: ModelResponse): Model {
     engine: response.engineType as EngineType,
     status: response.status as ModelStatus,
     userId: response.userId ?? 'anonymous',
+    userDisplayName: response.userDisplayName ?? undefined,
     createdAt: response.createdAt,
     updatedAt: response.updatedAt ?? response.createdAt,
     outputMode: response.outputMode ?? null,

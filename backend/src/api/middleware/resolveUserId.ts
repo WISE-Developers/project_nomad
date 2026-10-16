@@ -61,3 +61,26 @@ export function resolveUserIdCandidates(req: Request): string[] {
 
   return candidates;
 }
+
+/**
+ * Resolve a friendly label only when the current user owns the model.
+ */
+export function resolveUserDisplayName(
+  req: Request,
+  modelUserId: string | null | undefined
+): string | undefined {
+  if (!modelUserId || resolveUserId(req) !== modelUserId) {
+    return undefined;
+  }
+
+  const acnDisplayName = req.acn?.user.displayName?.trim();
+  if (acnDisplayName) return acnDisplayName;
+
+  const acnName = req.acn?.user.name.trim();
+  if (acnName && acnName !== 'Unknown User') return acnName;
+
+  const userName = req.user?.trim();
+  if (userName) return userName;
+
+  return req.userEmail?.trim() || undefined;
+}

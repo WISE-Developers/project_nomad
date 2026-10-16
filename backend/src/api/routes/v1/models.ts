@@ -1,6 +1,11 @@
 import { Router } from 'express';
 import * as fs from 'fs';
-import { asyncHandler, resolveUserId, resolveUserIdCandidates } from '../../middleware/index.js';
+import {
+  asyncHandler,
+  resolveUserId,
+  resolveUserIdCandidates,
+  resolveUserDisplayName,
+} from '../../middleware/index.js';
 import { resolveRequestedIgnitions } from '../../../application/ignitions/resolveRequestedIgnitions.js';
 import { logger } from '../../../infrastructure/logging/index.js';
 import {
@@ -454,6 +459,9 @@ router.post(
  *                 createdAt:
  *                   type: string
  *                   format: date-time
+ *                 userDisplayName:
+ *                   type: string
+ *                   description: Friendly label for the current user's own model
  *       404:
  *         $ref: '#/components/responses/NotFound'
  */
@@ -476,6 +484,7 @@ router.get(
       createdAt: model.createdAt.toISOString(),
       updatedAt: model.updatedAt.toISOString(),
       userId: model.userId ?? null,
+      userDisplayName: resolveUserDisplayName(req, model.userId) ?? null,
       notes: model.notes ?? null,
       outputMode: model.outputMode ?? null,
     });
@@ -819,6 +828,9 @@ router.post(
  *                   type: string
  *                 engineType:
  *                   type: string
+ *                 userDisplayName:
+ *                   type: string
+ *                   description: Friendly label for the current user's own model
  *                 executionSummary:
  *                   type: object
  *                   properties:
@@ -894,7 +906,10 @@ router.get(
       }
 
       logger.debug(`Returning result.value with status=${result.value.executionSummary.status}`, 'Results');
-      res.json(result.value);
+      res.json({
+        ...result.value,
+        userDisplayName: resolveUserDisplayName(req, model.userId) ?? null,
+      });
     } catch (error) {
       // Engine not configured or no execution state — fall back to database results
       const message = error instanceof Error ? error.message : String(error);
@@ -910,6 +925,7 @@ router.get(
           modelName: model.name,
           engineType: model.engineType,
           userId: model.userId,
+          userDisplayName: resolveUserDisplayName(req, model.userId) ?? null,
           notes: model.notes,
           executionSummary: {
             startedAt: model.createdAt.toISOString(),
@@ -934,6 +950,8 @@ router.get(
           modelId: id,
           modelName: model.name,
           engineType: model.engineType,
+          userId: model.userId ?? null,
+          userDisplayName: resolveUserDisplayName(req, model.userId) ?? null,
           executionSummary: {
             startedAt: null,
             completedAt: null,
@@ -1341,6 +1359,9 @@ router.post(
  *                         type: string
  *                       status:
  *                         type: string
+ *                       userDisplayName:
+ *                         type: string
+ *                         description: Friendly label for the current user's own models
  *                 total:
  *                   type: number
  */
@@ -1366,6 +1387,7 @@ router.get(
         status: model.status,
         createdAt: model.createdAt.toISOString(),
         userId: model.userId ?? null,
+        userDisplayName: resolveUserDisplayName(req, model.userId) ?? null,
         notes: model.notes ?? null,
         outputMode: model.outputMode ?? null,
         confidenceInterval: null as number | null,

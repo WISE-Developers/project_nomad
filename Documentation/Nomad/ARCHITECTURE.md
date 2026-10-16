@@ -88,7 +88,7 @@ SAN mode authentication is controlled by `NOMAD_AUTH_MODE` (backend) / `VITE_AUT
 | `simple` | Username entry on splash screen. Sent as `X-Nomad-User` header. User tracking only, no real security. |
 | `oauth` | OAuth social login via Google, Microsoft, or GitHub using [Better Auth](https://better-auth.com/). Session cookie-based. For web-facing SAN deployments that need real authentication. |
 
-**ACN mode:** Nomad does not handle user authentication. The host application (e.g., EasyMap3) manages its own users and proves its identity to Nomad using a server-to-server trust key (`NOMAD_AGENCY_KEY_{AGENCY_ID}`). Once the key validates, Nomad trusts the user identity forwarded via request headers (`X-Nomad-Agency-Id`, `X-Nomad-User-Id`, `X-Nomad-User-Role`). See [configuration/README.md](../../configuration/README.md) for full setup details.
+**ACN mode:** Nomad does not handle user authentication. The host application (e.g., EasyMap3) manages its own users and proves its identity to Nomad using a server-to-server trust key (`NOMAD_AGENCY_KEY_{AGENCY_ID}`). Once the key validates, Nomad trusts the user identity forwarded via request headers (`X-Nomad-Agency-Id`, `X-Nomad-User-Id`, `X-Nomad-User-Role`). Hosts may also provide `X-Nomad-User-Display-Name` for friendly labels on that user's own models; this value never replaces the ownership ID. See [configuration/README.md](../../configuration/README.md) for full setup details.
 
 All auth modes converge on the same `req.user` contract — route handlers don't need to know which auth mode is active.
 

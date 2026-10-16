@@ -35,6 +35,7 @@ Component integrated into existing agency systems:
 - Nomad dashboard embedded as a React component
 - Agency-managed authentication (FusionAuth, Okta, etc.) — Nomad defers all user auth to the host
 - Server-to-server trust key required between host app and Nomad backend
+- Optional `X-Nomad-User-Display-Name` for friendly labels on the current user's models; stable user IDs remain unchanged
 - PostGIS or other agency database
 - See [EMBEDDING.md](EMBEDDING.md) for integration guide
 

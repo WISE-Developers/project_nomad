@@ -31,7 +31,9 @@ function getModelMetadata(): Record<string, string> {
       if (model.engineType) meta['Engine'] = model.engineType.toUpperCase();
       if (model.outputMode) meta['Mode'] = model.outputMode === 'deterministic' ? 'Deterministic' : 'Probabilistic';
       if (model.modelId) meta['Run ID'] = model.modelId;
-      if (model.userId) meta['User'] = model.userId;
+      if (model.userDisplayName || model.userId) {
+        meta['User'] = model.userDisplayName || model.userId;
+      }
       if (model.notes) meta['Notes'] = model.notes;
     }
   } catch { /* no model context */ }

@@ -66,7 +66,7 @@ NOMAD_AGENCY_KEY_NWT=MySecurityKey_12345
 VITE_NOMAD_AGENCY_KEY=MySecurityKey_12345
 ```
 
-Your application must send this key as the `X-Nomad-Agency-Key` header with every request to the Nomad backend, along with user identity headers (`X-Nomad-Agency-Id`, `X-Nomad-User-Id`, `X-Nomad-User-Role`).
+Your application must send this key as the `X-Nomad-Agency-Key` header with every request to the Nomad backend, along with user identity headers (`X-Nomad-Agency-Id`, `X-Nomad-User-Id`, `X-Nomad-User-Role`). It may also send `X-Nomad-User-Display-Name` as a friendly name or email for the current user's own model displays; the stable `X-Nomad-User-Id` remains the ownership key.
 
 See [configuration/README.md](configuration/README.md) for the complete trust model and header reference.
 

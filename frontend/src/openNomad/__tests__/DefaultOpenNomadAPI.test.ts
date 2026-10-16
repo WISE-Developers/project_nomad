@@ -93,6 +93,7 @@ describe('DefaultOpenNomadAPI', () => {
             status: 'completed',
             createdAt: '2024-01-01T00:00:00Z',
             userId: 'user1',
+            userDisplayName: 'owner@example.test',
           },
           {
             id: 'model-2',
@@ -115,6 +116,7 @@ describe('DefaultOpenNomadAPI', () => {
         expect(result.data).toHaveLength(2);
         expect(result.data[0].id).toBe('model-1');
         expect(result.data[0].engine).toBe('firestarr');
+        expect(result.data[0].userDisplayName).toBe('owner@example.test');
         expect(result.total).toBe(2);
       });
 

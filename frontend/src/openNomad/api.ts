@@ -154,6 +154,8 @@ export interface Model {
   status: ModelStatus;
   /** User who created this model */
   userId: string;
+  /** Friendly label shown to the model owner when available */
+  userDisplayName?: string | null;
   /** ISO 8601 timestamp when model was created */
   createdAt: string;
   /** ISO 8601 timestamp when model was last updated */

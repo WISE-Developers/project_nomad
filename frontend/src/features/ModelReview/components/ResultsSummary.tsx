@@ -21,6 +21,8 @@ interface ResultsSummaryProps {
   engineType: string;
   /** User who ran the model */
   userId: string | null;
+  /** Friendly owner label, when the API can safely provide it */
+  userDisplayName?: string | null;
   /** Execution summary data */
   summary: ExecutionSummary;
   /** Number of output files */
@@ -96,6 +98,7 @@ export function ResultsSummary({
   modelName,
   engineType,
   userId,
+  userDisplayName,
   summary,
   outputCount,
   inputs,
@@ -254,7 +257,7 @@ export function ResultsSummary({
             </div>
             <div>
               <div style={infoTableHeaderStyle}>User</div>
-              <span style={{ ...engineTagStyle, backgroundColor: '#e3f2fd', color: '#1565c0' }}>{userId ?? '-'}</span>
+              <span style={{ ...engineTagStyle, backgroundColor: '#e3f2fd', color: '#1565c0' }}>{userDisplayName || userId || '-'}</span>
             </div>
             <div>
               <div style={infoTableHeaderStyle}>Model Run ID</div>

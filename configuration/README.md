@@ -125,6 +125,7 @@ When the host application makes requests to the Nomad backend, it must include t
 | `X-Nomad-User-Id` | Yes | Unique user identifier from the host's auth system |
 | `X-Nomad-User-Role` | Yes | Nomad role (see table below) |
 | `X-Nomad-User-Name` | Recommended | Display name for audit logging |
+| `X-Nomad-User-Display-Name` | No | Friendly name or email shown only for models owned by the current user; does not change the stored user ID |
 
 #### SAN Mode Authentication
 

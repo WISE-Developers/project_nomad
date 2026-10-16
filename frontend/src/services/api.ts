@@ -170,6 +170,7 @@ export interface ModelResponse {
   createdAt: string;
   updatedAt?: string;
   userId: string | null;
+  userDisplayName?: string | null;
   outputMode?: string | null;
   durationDays?: number | null;
   notes?: string | null;

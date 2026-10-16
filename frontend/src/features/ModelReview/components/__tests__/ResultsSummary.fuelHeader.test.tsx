@@ -40,13 +40,17 @@ const inputs = {
   },
 } as ModelInputs;
 
-function renderResults(withInputs: ModelInputs | undefined = inputs) {
+function renderResults(
+  withInputs: ModelInputs | undefined = inputs,
+  userDisplayName?: string | null
+) {
   return render(
     <ResultsSummary
       modelId="071edf71"
       modelName="FireSTARR - 2023-06-19"
       engineType="firestarr"
       userId="tester"
+      userDisplayName={userDisplayName}
       summary={summary}
       outputCount={3}
       inputs={withInputs}
@@ -62,6 +66,15 @@ beforeEach(() => {
 });
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe('ResultsSummary owner display', () => {
+  it('shows the friendly owner label instead of the stable user ID', () => {
+    renderResults(inputs, 'owner@example.test');
+
+    expect(screen.getByText('owner@example.test')).toBeInTheDocument();
+    expect(screen.queryByText('tester')).not.toBeInTheDocument();
+  });
+});
 
 describe('ResultsSummary fuel vintage card header (#431)', () => {
   it('titles the fuel vintage card, in the same card as the notice', () => {

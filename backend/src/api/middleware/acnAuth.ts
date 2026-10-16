@@ -18,6 +18,7 @@
  * - X-Nomad-User-Id: Unique user identifier from agency IdP
  * - X-Nomad-User-Role: Nomad role (admin|fban|modeler|user|anonymous)
  * - X-Nomad-User-Name: Display name for audit logging (optional but recommended)
+ * - X-Nomad-User-Display-Name: Friendly owner label for UI display (optional)
  */
 
 import { Request, Response, NextFunction } from 'express';
@@ -50,6 +51,8 @@ export interface UserIdentity {
   id: string;
   /** User's display name */
   name: string;
+  /** Optional friendly name or email, used only when displaying the user's own models */
+  displayName?: string;
   /** User's role in Nomad */
   role: NomadRole;
 }
@@ -165,6 +168,7 @@ export function acnAuthMiddleware(
   const userId = getHeader(req, 'x-nomad-user-id');
   const userRole = getHeader(req, 'x-nomad-user-role');
   const userName = getHeader(req, 'x-nomad-user-name') || 'Unknown User';
+  const userDisplayName = getHeader(req, 'x-nomad-user-display-name');
 
   // Validate required headers
   if (!agencyId || !agencyKey) {
@@ -224,6 +228,7 @@ export function acnAuthMiddleware(
     user: {
       id: userId,
       name: userName,
+      displayName: userDisplayName,
       role: normalizedRole,
     },
   };

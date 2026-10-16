@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import type { Request } from 'express';
-import { resolveUserId, resolveUserIdCandidates } from '../resolveUserId.js';
+import {
+  resolveUserId,
+  resolveUserIdCandidates,
+  resolveUserDisplayName,
+} from '../resolveUserId.js';
 
 /**
  * Model ownership identity (#346).
@@ -80,5 +84,54 @@ describe('resolveUserIdCandidates — what gets MATCHED on read', () => {
   it('always includes whatever resolveUserId would store', () => {
     const r = req({ user: 'Franco Nogarin', userEmail: 'spydmobile@gmail.com' });
     expect(resolveUserIdCandidates(r)).toContain(resolveUserId(r) as string);
+  });
+});
+
+describe('resolveUserDisplayName — owner-only presentation', () => {
+  const owner = req({
+    acn: {
+      agency: { id: 'alberta', keyPrefix: 'test' },
+      user: {
+        id: 'u-77',
+        name: 'Keycloak user',
+        displayName: 'owner@example.test',
+        role: 'admin',
+      },
+    },
+  });
+
+  it('uses the friendly value for the matching owner without changing the stored ID', () => {
+    expect(resolveUserDisplayName(owner, 'Keycloak user (u-77)')).toBe(
+      'owner@example.test'
+    );
+    expect(resolveUserId(owner)).toBe('Keycloak user (u-77)');
+  });
+
+  it('does not expose the requester display value for another owner or an unowned model', () => {
+    expect(resolveUserDisplayName(owner, 'Other user (u-88)')).toBeUndefined();
+    expect(resolveUserDisplayName(owner, undefined)).toBeUndefined();
+  });
+
+  it('does not treat a legacy display-name match as proof of ownership', () => {
+    const request = req({
+      user: 'Franco Nogarin',
+      userEmail: 'franco@example.test',
+    });
+
+    expect(resolveUserDisplayName(request, 'Franco Nogarin')).toBeUndefined();
+    expect(resolveUserDisplayName(request, 'franco@example.test')).toBe(
+      'Franco Nogarin'
+    );
+  });
+
+  it('uses the existing ACN name when no separate display value is supplied', () => {
+    const request = req({
+      acn: {
+        agency: { id: 'alberta', keyPrefix: 'test' },
+        user: { id: 'u-77', name: 'Rick', role: 'user' },
+      },
+    });
+
+    expect(resolveUserDisplayName(request, 'Rick (u-77)')).toBe('Rick');
   });
 });
