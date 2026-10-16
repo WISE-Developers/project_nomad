@@ -87,17 +87,41 @@ const smallButtonStyle: React.CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
+/**
+ * TWO DEDICATED LINES PER ROW: the name on one, the controls on the other, and
+ * never shared (#456, Franco's ruling).
+ *
+ * This was one `display: flex` with `flexWrap: 'wrap'` holding the name, the
+ * scope label and every button as siblings, with the name taking
+ * `flex: 1 1 auto`. The wrap point was therefore a function of the layer's NAME
+ * LENGTH plus the scope text, so no two rows agreed — and the button count
+ * varies by design, since shared layers get Hide and only the creator gets
+ * Delete.
+ *
+ * THE HAZARD, NOT THE LOOK: a stray Delete sitting under the wrong row reads as
+ * belonging to the layer below it. In a panel used while a fire is running, a
+ * delete button whose owner is ambiguous is the part that matters. With a fixed
+ * structure, name length cannot move anything and every control sits on a line
+ * belonging unambiguously to the layer named directly above it.
+ */
 const rowStyle: React.CSSProperties = {
   display: 'flex',
-  alignItems: 'center',
-  flexWrap: 'wrap',
-  gap: '6px',
-  padding: '4px 8px',
+  flexDirection: 'column',
+  gap: '2px',
+  padding: '6px 8px',
   fontSize: '13px',
   // EXPLICIT, not inherited. An ancestor sets `color: #eee`, so these rows
   // rendered near-white on white — the layer name was effectively invisible in
   // the running panel while every test passed. Matches the CWFIS labels.
   color: '#1f2937',
+};
+
+/** The name line: the layer name, with its scope label to the right. */
+const nameLineStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'baseline',
+  gap: '6px',
+  minWidth: 0,
 };
 
 const nameStyle: React.CSSProperties = {
@@ -106,6 +130,16 @@ const nameStyle: React.CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
+};
+
+/**
+ * The control line. Wraps only if the buttons themselves cannot fit, which no
+ * longer depends on how long the layer is called.
+ */
+const controlsStyle: React.CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '6px',
 };
 
 const scopeStyle: React.CSSProperties = {
@@ -408,11 +442,17 @@ export function AdhocLayerSection({ currentUser }: AdhocLayerSectionProps): JSX.
       <ul className="adhoc-layer-section__list" style={listStyle}>
         {visibleRows.map((row) => (
           <li key={`${row.scope}-${row.layer.id}`} style={rowStyle}>
-            <span style={nameStyle}>{row.layer.name}</span>
-            <span className="adhoc-layer-section__scope" style={scopeStyle}>
-              {row.scope === 'private' ? 'Private' : `Shared${row.createdBy ? ` · ${row.createdBy}` : ''}`}
-            </span>
+            {/* Line 1: what the layer IS. No controls live here (#456). */}
+            <div className="adhoc-layer-section__name-line" style={nameLineStyle}>
+              <span style={nameStyle}>{row.layer.name}</span>
+              <span className="adhoc-layer-section__scope" style={scopeStyle}>
+                {row.scope === 'private' ? 'Private' : `Shared${row.createdBy ? ` · ${row.createdBy}` : ''}`}
+              </span>
+            </div>
 
+            {/* Line 2: what you can DO to it. No layer name lives here, so a
+                button can never appear to belong to a neighbouring row. */}
+            <div className="adhoc-layer-section__controls" style={controlsStyle}>
             {/*
               Disabled until the map can actually take a layer (#451).
               `addRasterLayer` opens `if (!map || !isLoaded) return;` — correct
@@ -453,6 +493,7 @@ export function AdhocLayerSection({ currentUser }: AdhocLayerSectionProps): JSX.
                 Delete
               </button>
             )}
+            </div>
           </li>
         ))}
       </ul>
