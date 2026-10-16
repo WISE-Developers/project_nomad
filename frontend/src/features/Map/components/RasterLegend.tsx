@@ -11,12 +11,20 @@
  * @module features/Map/components/RasterLegend
  */
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { useLayers } from '../context/useLayers.js';
+import { useMap } from '../context/MapContext';
+import { assessScaleVisibility, scaleDenominatorFor } from '../utils/scaleVisibility.js';
+import {
+  setPrivateLayerLegendUrl,
+  dismissLegendPrompt,
+  isLegendPromptDismissed,
+} from '../adhoc/privateAdhocLayers.js';
 import type {
   ArrivalTimestep,
   ArrivalRasterMeta,
   RasterLayerConfig,
+  LayerConfig,
 } from '../types/layer.js';
 import {
   generateArrivalLegend,
@@ -303,6 +311,56 @@ function ArrivalLegendBlock({
 
 export function RasterLegend() {
   const { state, updateLayer } = useLayers();
+  const { map } = useMap();
+
+  /**
+   * Legends whose image failed to load (#449). A WMS server is not obliged to
+   * serve one, and the derived GetLegendGraphic url simply 404s for some
+   * layers. The LAYER is fine; only its legend is missing.
+   */
+  const [failedLegends, setFailedLegends] = useState<Record<string, true>>({});
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [dismissed, setDismissed] = useState<Record<string, true>>({});
+
+  const markFailed = useCallback((id: string) => {
+    setFailedLegends((prev) => ({ ...prev, [id]: true }));
+  }, []);
+
+  const applyLegendUrl = useCallback(
+    (id: string, url: string) => {
+      const trimmed = url.trim();
+      if (trimmed === '') return;
+      updateLayer(id, { legendUrl: trimmed } as Partial<LayerConfig>);
+      // Persist for private ad-hoc layers so it survives a reload. A url that
+      // is accepted and then forgotten is worse than never offering the field.
+      setPrivateLayerLegendUrl(id, trimmed);
+      setFailedLegends((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    },
+    [updateLayer],
+  );
+
+  const dismissPrompt = useCallback((id: string) => {
+    dismissLegendPrompt(id);
+    setDismissed((prev) => ({ ...prev, [id]: true }));
+  }, []);
+
+  /**
+   * Prompt only for a layer that is actually rendering (#448 is the gate).
+   * Asking someone to repair the legend of a layer that cannot draw wastes
+   * their time and points them at the wrong problem — the scale warning is the
+   * useful thing to say there.
+   */
+  const shouldPrompt = (layer: RasterLayerConfig): boolean => {
+    if (!failedLegends[layer.id]) return false;
+    if (dismissed[layer.id] || isLegendPromptDismissed(layer.id)) return false;
+    if (!map) return true;
+    return assessScaleVisibility(scaleDenominatorFor(map.getZoom(), map.getCenter().lat), layer)
+      .visible;
+  };
 
   const visibleRasters = state.layers.filter(
     (layer) => layer.type === 'raster' && layer.visible,
@@ -418,8 +476,48 @@ export function RasterLegend() {
           <img
             src={layer.legendUrl}
             alt={`${layer.name} legend`}
+            onError={() => markFailed(layer.id)}
             style={{ display: 'block', maxWidth: '220px' }}
           />
+          {shouldPrompt(layer) && (
+            <div style={{ marginTop: '4px', maxWidth: '220px' }}>
+              <p style={{ margin: '0 0 4px', fontSize: '11px', color: '#7a4b00' }}>
+                This server did not return a legend for this layer. If you know where its
+                legend image lives, paste the URL.
+              </p>
+              <label
+                htmlFor={`legend-url-${layer.id}`}
+                style={{ display: 'block', fontSize: '11px', marginBottom: '2px' }}
+              >
+                Legend graphic URL
+              </label>
+              <input
+                id={`legend-url-${layer.id}`}
+                type="url"
+                value={drafts[layer.id] ?? ''}
+                onChange={(event) =>
+                  setDrafts((prev) => ({ ...prev, [layer.id]: event.target.value }))
+                }
+                style={{ width: '100%', fontSize: '11px', padding: '2px 4px' }}
+              />
+              <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  style={{ fontSize: '11px' }}
+                  onClick={() => applyLegendUrl(layer.id, drafts[layer.id] ?? '')}
+                >
+                  Use this legend
+                </button>
+                <button
+                  type="button"
+                  style={{ fontSize: '11px' }}
+                  onClick={() => dismissPrompt(layer.id)}
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ))}
       {arrivalLayers.map((layer) => (

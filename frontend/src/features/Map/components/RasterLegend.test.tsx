@@ -24,6 +24,18 @@ vi.mock('../context/useLayers.js', () => ({
   useLayers: () => mockUseLayers(),
 }));
 
+/** The map, for the scale gate on the legend prompt (#449). */
+const legendMapView = { zoom: 12, lat: 55 };
+vi.mock('../context/MapContext', () => ({
+  useMap: () => ({
+    map: {
+      getZoom: () => legendMapView.zoom,
+      getCenter: () => ({ lat: legendMapView.lat, lng: -106 }),
+    },
+    isLoaded: true,
+  }),
+}));
+
 // =============================================================================
 // Test Helpers
 // =============================================================================
@@ -507,5 +519,95 @@ describe('a legend must not outlive its layer (#447)', () => {
     });
     render(<RasterLegend />);
     expect(screen.queryByAltText('Shared Perimeters legend')).toBeNull();
+  });
+});
+
+
+/**
+ * OFFERING A CUSTOM LEGEND URL WHEN THE DERIVED ONE FAILS (#449).
+ *
+ * A WMS server is not obliged to serve a legend. When the derived
+ * GetLegendGraphic URL 404s, the layer is fine and only its legend is missing —
+ * and the user may know where the real one lives.
+ *
+ * GATED ON THE LAYER ACTUALLY RENDERING. Asking someone to repair the cosmetic
+ * half of something already broken wastes their time and misdirects them, so a
+ * layer that cannot draw at this scale (#448) gets no prompt — it gets the
+ * scale warning instead, which is the useful thing to say.
+ *
+ * A DISMISSAL STICKS. A prompt that will not take no for an answer is one
+ * people learn to click past without reading.
+ */
+describe('a legend that will not load (#449)', () => {
+  const wms = (over = {}) => ({
+    id: 'adhoc-1',
+    name: 'Legendless',
+    type: 'raster',
+    visible: true,
+    opacity: 1,
+    zIndex: 0,
+    url: 'https://example.org/wms?layers=topo',
+    legendType: 'wms',
+    legendUrl: 'https://example.org/wms?layer=topo&request=GetLegendGraphic',
+    ...over,
+  });
+
+  beforeEach(() => {
+    localStorage.clear();
+    legendMapView.zoom = 12;
+  });
+
+  it('says nothing while the legend is loading or fine — the control', () => {
+    mockUseLayers.mockReturnValue({ state: { layers: [wms()] }, updateLayer: vi.fn() });
+    render(<RasterLegend />);
+    expect(screen.queryByLabelText(/legend graphic url/i)).toBeNull();
+  });
+
+  it('offers a url field once the legend image fails', () => {
+    mockUseLayers.mockReturnValue({ state: { layers: [wms()] }, updateLayer: vi.fn() });
+    render(<RasterLegend />);
+    fireEvent.error(screen.getByAltText('Legendless legend'));
+    expect(screen.getByLabelText(/legend graphic url/i)).toBeTruthy();
+  });
+
+  it('applies the url the user supplies', () => {
+    const updateLayer = vi.fn();
+    mockUseLayers.mockReturnValue({ state: { layers: [wms()] }, updateLayer });
+    render(<RasterLegend />);
+    fireEvent.error(screen.getByAltText('Legendless legend'));
+
+    fireEvent.change(screen.getByLabelText(/legend graphic url/i), {
+      target: { value: 'https://example.org/real-legend.png' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /use this legend/i }));
+
+    expect(updateLayer).toHaveBeenCalledWith('adhoc-1', {
+      legendUrl: 'https://example.org/real-legend.png',
+    });
+  });
+
+  it('stops asking once dismissed, and stays stopped across a remount', () => {
+    mockUseLayers.mockReturnValue({ state: { layers: [wms()] }, updateLayer: vi.fn() });
+    const { unmount } = render(<RasterLegend />);
+    fireEvent.error(screen.getByAltText('Legendless legend'));
+    fireEvent.click(screen.getByRole('button', { name: /dismiss/i }));
+    expect(screen.queryByLabelText(/legend graphic url/i)).toBeNull();
+
+    unmount();
+    render(<RasterLegend />);
+    fireEvent.error(screen.getByAltText('Legendless legend'));
+    expect(screen.queryByLabelText(/legend graphic url/i)).toBeNull();
+  });
+
+  it('does NOT prompt for a layer that cannot draw at this scale', () => {
+    // It is not the legend that is wrong — #448 says what is, and says it better.
+    legendMapView.zoom = 4.3;
+    mockUseLayers.mockReturnValue({
+      state: { layers: [wms({ maxScaleDenominator: 6_000_000 })] },
+      updateLayer: vi.fn(),
+    });
+    render(<RasterLegend />);
+    fireEvent.error(screen.getByAltText('Legendless legend'));
+    expect(screen.queryByLabelText(/legend graphic url/i)).toBeNull();
   });
 });

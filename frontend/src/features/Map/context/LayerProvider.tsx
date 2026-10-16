@@ -444,8 +444,11 @@ export function LayerProvider({ children }: { children: ReactNode }) {
   }, [isLoaded, map]);
 
   const addGeoJSONLayer = useCallback(
-    (config: Omit<GeoJSONLayerConfig, 'type'>) => {
-      if (!map || !isLoaded) return;
+    (config: Omit<GeoJSONLayerConfig, 'type'>): boolean => {
+      // Report refusal rather than returning silently (#451). The guard is
+      // right — there is nothing to add a layer to yet — but a caller that
+      // cannot tell will record a layer the map never took.
+      if (!map || !isLoaded) return false;
 
       const layerConfig: GeoJSONLayerConfig = {
         ...config,
@@ -553,13 +556,18 @@ export function LayerProvider({ children }: { children: ReactNode }) {
         ...prev,
         layers: upsertLayer(prev.layers, layerConfig),
       }));
+
+      return true;
     },
     [map, isLoaded]
   );
 
   const addRasterLayer = useCallback(
-    (config: Omit<RasterLayerConfig, 'type'>) => {
-      if (!map || !isLoaded) return;
+    (config: Omit<RasterLayerConfig, 'type'>): boolean => {
+      // Report refusal rather than returning silently (#451). The guard is
+      // right — there is nothing to add a layer to yet — but a caller that
+      // cannot tell will record a layer the map never took.
+      if (!map || !isLoaded) return false;
 
       const layerConfig: RasterLayerConfig = {
         ...config,
@@ -613,6 +621,8 @@ export function LayerProvider({ children }: { children: ReactNode }) {
         ...prev,
         layers: upsertLayer(prev.layers, layerConfig),
       }));
+
+      return true;
     },
     [map, isLoaded]
   );

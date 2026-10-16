@@ -36,7 +36,8 @@ function getOutputColors(type: OutputType): { fill: string; stroke: string } {
  */
 interface UseAddToMapReturn {
   /** Add an output to the main map */
-  addOutput: (output: OutputItem, geoJson: GeoJSON.GeoJSON) => string;
+  /** @returns the layer id, or null when the map could not take it (#451). */
+  addOutput: (output: OutputItem, geoJson: GeoJSON.GeoJSON) => string | null;
   /** Remove an output layer from the map */
   removeOutput: (layerId: string) => void;
   /** Check if an output is already on the map */
@@ -79,7 +80,7 @@ export function useAddToMap(): UseAddToMapReturn {
    * Add an output to the map
    */
   const addOutput = useCallback(
-    (output: OutputItem, geoJson: GeoJSON.GeoJSON): string => {
+    (output: OutputItem, geoJson: GeoJSON.GeoJSON): string | null => {
       const layerId = getLayerId(output.id);
       const colors = getOutputColors(output.type);
 
@@ -89,7 +90,7 @@ export function useAddToMap(): UseAddToMapReturn {
         geoJson.features.some((f) => f.properties?.color);
 
       // Add the layer with appropriate styling
-      addGeoJSONLayer({
+      const added = addGeoJSONLayer({
         id: layerId,
         name: output.name,
         data: geoJson as GeoJSON.FeatureCollection,
@@ -102,6 +103,11 @@ export function useAddToMap(): UseAddToMapReturn {
         visible: true,
         zIndex: 100 + outputLayersRef.current.size,
       });
+
+      // Only record what the map actually took (#451). Recording regardless
+      // left isOnMap() answering yes for a layer that was never added, so the
+      // UI refused to offer it again and the user could not recover.
+      if (!added) return null;
 
       outputLayersRef.current.add(layerId);
       return layerId;
