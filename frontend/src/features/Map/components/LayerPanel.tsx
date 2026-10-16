@@ -257,7 +257,14 @@ export function LayerPanel({
     // present, so the old 400px no-CFS budget left the actual layer list
     // squeezed to a sliver — the count said 1 and the row was invisible.
     // Observed in the running panel; no test could see it.
-    maxHeight: isMobile ? 'calc(100vh - 120px)' : '550px',
+    // BUDGETED FROM THE VIEWPORT, not a fixed pixel count (#454).
+    //
+    // 550px was chosen for one screen. On a 1154px-tall viewport it left ~600px
+    // of space unused WHILE clipping content — the panel was short and
+    // overflowing at the same time. Measured in the running app: scrollHeight
+    // 659 against clientHeight 550, with `overflow: hidden`, so 109px of the
+    // panel was unreachable.
+    maxHeight: isMobile ? 'calc(100vh - 120px)' : 'calc(100vh - 140px)',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
@@ -328,9 +335,24 @@ export function LayerPanel({
     </div>
   );
 
-  const listStyle: React.CSSProperties = {
+  /**
+   * Everything below the header scrolls as one (#454).
+   *
+   * The panel's own `overflow: hidden` clips to its rounded corners; this is
+   * the region that may exceed it. Previously only the layer LIST scrolled, so
+   * the ad-hoc, CFS, CWFIS and basemap sections below it were clipped away
+   * with no way to reach them — which is exactly what the report showed.
+   *
+   * `minHeight: 0` is load-bearing: without it a flex child refuses to shrink
+   * below its content and the scrollbar never appears.
+   */
+  const bodyStyle: React.CSSProperties = {
     flex: 1,
+    minHeight: 0,
     overflowY: 'auto',
+  };
+
+  const listStyle: React.CSSProperties = {
     padding: '8px',
   };
 
@@ -568,16 +590,18 @@ export function LayerPanel({
     return (
       <div className={`layer-panel ${className}`} style={containerStyle}>
         {renderHeader()}
-        <div style={emptyStyle}>
-          No layers added yet
+        <div style={bodyStyle}>
+          <div style={emptyStyle}>
+            No layers added yet
+          </div>
+          {AdhocSection}
+          {/* CWFIS is public and needs no API key (#440). This branch exists
+              because the CFS key is absent, which is no reason to withhold the
+              section that never depended on it — a keyless user with no layers
+              was otherwise unable to reach the M3 layers at all. */}
+          {CwfisSection}
+          {MapSettingsSection}
         </div>
-        {AdhocSection}
-        {/* CWFIS is public and needs no API key (#440). This branch exists
-            because the CFS key is absent, which is no reason to withhold the
-            section that never depended on it — a keyless user with no layers
-            was otherwise unable to reach the M3 layers at all. */}
-        {CwfisSection}
-        {MapSettingsSection}
       </div>
     );
   }
@@ -586,13 +610,15 @@ export function LayerPanel({
     return (
       <div className={`layer-panel ${className}`} style={containerStyle}>
         {renderHeader()}
-        <div style={emptyStyle}>
-          No layers added yet
+        <div style={bodyStyle}>
+          <div style={emptyStyle}>
+            No layers added yet
+          </div>
+          {AdhocSection}
+          {CFSSection}
+          {CwfisSection}
+          {MapSettingsSection}
         </div>
-        {AdhocSection}
-        {CFSSection}
-        {CwfisSection}
-        {MapSettingsSection}
       </div>
     );
   }
@@ -600,6 +626,7 @@ export function LayerPanel({
   return (
     <div className={`layer-panel ${className}`} style={containerStyle}>
       {renderHeader()}
+      <div style={bodyStyle}>
       <div style={listStyle}>
         {state.layers.map((layer) => (
           <LayerItem
@@ -630,6 +657,7 @@ export function LayerPanel({
       {CFSSection}
       {CwfisSection}
       {MapSettingsSection}
+      </div>
     </div>
   );
 }
