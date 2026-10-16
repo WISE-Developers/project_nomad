@@ -90,37 +90,69 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 4. REAL HISTORY, not invented strings. Every stable bump main has ever
-#    carried must be refused; everything else must release.
+# 4. REAL HISTORY, not invented strings.
+#
+#    TWO SOURCES, and the fixture is the floor rather than a convenience. CI
+#    checks out dev with no origin/main ref, so the live scan found nothing —
+#    and this suite FAILED rather than passing with two checks silently not
+#    run, which is the behaviour wanted and the reason the fixture exists.
+#
+#    fixtures/main-commit-subjects.txt holds real subjects captured from
+#    origin/main, labelled SKIP (the stable bot's own bumps) and GO. The live
+#    scan still runs wherever main's history is reachable, so the fixture going
+#    stale cannot hide a regression on new commits.
 # ---------------------------------------------------------------------------
-hist_bad=0; hist_n=0
-while IFS= read -r subj; do
-  [ -n "$subj" ] || continue
-  hist_n=$((hist_n+1))
-  gate "$subj" && { hist_bad=$((hist_bad+1)); echo "      would release: $subj"; }
-done <<< "$(git -C "$REPO" log origin/main --format='%s' -300 2>/dev/null | grep '^chore: release ')"
+FIXTURE="$TEST_DIR/fixtures/main-commit-subjects.txt"
 
-if [ "$hist_n" -eq 0 ]; then
-  bad "found no real 'chore: release' commits to test against — the check never ran"
-elif [ "$hist_bad" -eq 0 ]; then
-  ok "all $hist_n real stable bumps in main's history are refused"
+if [ ! -f "$FIXTURE" ]; then
+  bad "fixtures/main-commit-subjects.txt is missing — the history checks have no corpus"
 else
-  bad "$hist_bad of $hist_n real stable bumps would have re-triggered a release"
+  fx_bad=0; fx_skip=0; fx_go=0
+  while IFS= read -r line; do
+    case "$line" in
+      SKIP:*)
+        fx_skip=$((fx_skip+1))
+        gate "${line#SKIP:}" && { fx_bad=$((fx_bad+1)); echo "      would release: ${line#SKIP:}"; }
+        ;;
+      GO:*)
+        fx_go=$((fx_go+1))
+        gate "${line#GO:}" || { fx_bad=$((fx_bad+1)); echo "      would skip: ${line#GO:}"; }
+        ;;
+    esac
+  done < "$FIXTURE"
+
+  if [ "$fx_skip" -eq 0 ] || [ "$fx_go" -eq 0 ]; then
+    bad "the fixture has no SKIP or no GO rows — it cannot discriminate"
+  elif [ "$fx_bad" -eq 0 ]; then
+    ok "fixture: $fx_skip real stable bumps refused, $fx_go real commits released"
+  else
+    bad "$fx_bad of $((fx_skip+fx_go)) real fixture subjects got the wrong answer"
+  fi
 fi
 
-work_bad=0; work_n=0
-while IFS= read -r subj; do
-  [ -n "$subj" ] || continue
-  work_n=$((work_n+1))
-  gate "$subj" || { work_bad=$((work_bad+1)); echo "      would skip: $subj"; }
-done <<< "$(git -C "$REPO" log origin/main --format='%s' -60 2>/dev/null | grep -v '^chore: release ')"
+# The LIVE scan, where main's history is reachable. Reported as not-run rather
+# than passed when it is not — an unreachable corpus and a clean one look
+# identical, and only one of them is evidence.
+if git -C "$REPO" rev-parse --verify --quiet origin/main >/dev/null 2>&1; then
+  live_bad=0; live_n=0
+  while IFS= read -r subj; do
+    [ -n "$subj" ] || continue
+    live_n=$((live_n+1))
+    case "$subj" in
+      "chore: release "*) gate "$subj" && { live_bad=$((live_bad+1)); echo "      would release: $subj"; } ;;
+      *)                  gate "$subj" || { live_bad=$((live_bad+1)); echo "      would skip: $subj"; } ;;
+    esac
+  done <<< "$(git -C "$REPO" log origin/main --format='%s' -300 2>/dev/null)"
 
-if [ "$work_n" -eq 0 ]; then
-  bad "found no real work commits to test against — the check never ran"
-elif [ "$work_bad" -eq 0 ]; then
-  ok "all $work_n real non-stable-bump commits in main's history release"
+  if [ "$live_n" -eq 0 ]; then
+    bad "origin/main resolves but yielded no commits"
+  elif [ "$live_bad" -eq 0 ]; then
+    ok "live history: all $live_n real subjects on origin/main get the right answer"
+  else
+    bad "$live_bad of $live_n real subjects on origin/main get the wrong answer"
+  fi
 else
-  bad "$work_bad of $work_n real commits would have shipped nothing"
+  echo "  n/a  - live history scan: origin/main is not reachable here (fixture covered it)"
 fi
 
 # ---------------------------------------------------------------------------
