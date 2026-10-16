@@ -39,6 +39,21 @@ vi.mock('../context/useLayers', () => ({
   useLayers: () => ({ addRasterLayer, removeLayer }),
 }));
 
+/**
+ * The map, for the scale check (#448). Default is the view that produced the
+ * live failure: zoom 4.3 over Canada, roughly 1:35,000,000.
+ */
+const mapView = { zoom: 4.3, lat: 55 };
+vi.mock('../context/MapContext', () => ({
+  useMap: () => ({
+    map: {
+      getZoom: () => mapView.zoom,
+      getCenter: () => ({ lat: mapView.lat, lng: -106 }),
+    },
+    isLoaded: true,
+  }),
+}));
+
 vi.mock('../../../services/api.js', async () => {
   const actual = await vi.importActual<typeof import('../../../services/api.js')>(
     '../../../services/api.js',
@@ -293,5 +308,91 @@ describe('AdhocLayerSection', () => {
 
       await waitFor(() => expect(privateStore.isSharedLayerHidden('shared-theirs')).toBe(false));
     });
+  });
+});
+
+
+/**
+ * TELLING THE USER A LAYER CANNOT DRAW HERE (#448).
+ *
+ * Reported from the live demo: adding BC's *Forest Licensee Operating Areas*
+ * succeeded at every step — capabilities 200, legend 200, nineteen GetMap tiles
+ * all 200 — and the map stayed empty, with nothing said.
+ *
+ * The layer declares `<MaxScaleDenominator>6000000</MaxScaleDenominator>` and
+ * the view was at roughly 1:35,000,000, so the server correctly returned an
+ * empty image. The layer is fine; the SCALE was wrong.
+ *
+ * The warning must still ADD the layer. Refusing would be worse: the user chose
+ * it deliberately, it is correct at a closer zoom, and a layer that vanishes
+ * from the panel is the opaque disappearance this feature already guards
+ * against elsewhere.
+ */
+describe('a layer that cannot draw at this scale (#448)', () => {
+  const scaled = (over: Partial<privateStore.AdhocLayerDefinition> = {}) => ({
+    id: 'adhoc-bc',
+    name: 'Forest Licensee Operating Areas',
+    serviceUrl: 'https://openmaps.gov.bc.ca/geo/pub/wms',
+    layerName: 'pub:REG_LAND_AND_NATURAL_RESOURCE.FOREST_LICENSEE_OPER_SP',
+    wmsVersion: '1.3.0',
+    ...over,
+  });
+
+  beforeEach(() => {
+    mapView.zoom = 4.3;
+    mapView.lat = 55;
+  });
+
+  it('warns, naming the limit and the way out, when the view is too coarse', async () => {
+    vi.spyOn(privateStore, 'listPrivateLayers').mockReturnValue([
+      scaled({ maxScaleDenominator: 6_000_000 }),
+    ]);
+    vi.mocked(api.listAdhocLayers).mockResolvedValue({ layers: [] });
+
+    render(<AdhocLayerSection />);
+    const button = await screen.findByLabelText('Add Forest Licensee Operating Areas to map');
+    await userEvent.click(button);
+
+    const notice = await screen.findByRole('status');
+    expect(notice.textContent).toMatch(/zoom in/i);
+    expect(notice.textContent).toContain('6,000,000');
+  });
+
+  it('ADDS the layer anyway — a warning is not a refusal', async () => {
+    vi.spyOn(privateStore, 'listPrivateLayers').mockReturnValue([
+      scaled({ maxScaleDenominator: 6_000_000 }),
+    ]);
+    vi.mocked(api.listAdhocLayers).mockResolvedValue({ layers: [] });
+
+    render(<AdhocLayerSection />);
+    await userEvent.click(
+      await screen.findByLabelText('Add Forest Licensee Operating Areas to map'),
+    );
+    expect(addRasterLayer).toHaveBeenCalled();
+  });
+
+  it('says nothing when the layer declares no scale range — the control', async () => {
+    vi.spyOn(privateStore, 'listPrivateLayers').mockReturnValue([scaled()]);
+    vi.mocked(api.listAdhocLayers).mockResolvedValue({ layers: [] });
+
+    render(<AdhocLayerSection />);
+    await userEvent.click(
+      await screen.findByLabelText('Add Forest Licensee Operating Areas to map'),
+    );
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('says nothing once the view is inside the range', async () => {
+    mapView.zoom = 12;
+    vi.spyOn(privateStore, 'listPrivateLayers').mockReturnValue([
+      scaled({ maxScaleDenominator: 6_000_000 }),
+    ]);
+    vi.mocked(api.listAdhocLayers).mockResolvedValue({ layers: [] });
+
+    render(<AdhocLayerSection />);
+    await userEvent.click(
+      await screen.findByLabelText('Add Forest Licensee Operating Areas to map'),
+    );
+    expect(screen.queryByRole('status')).toBeNull();
   });
 });

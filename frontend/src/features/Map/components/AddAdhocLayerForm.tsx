@@ -207,6 +207,14 @@ export function AddAdhocLayerForm({ onAdded, onCancel }: AddAdhocLayerFormProps)
           serviceUrl: catalogue.serviceUrl,
           layerName: chosenLayerName,
           wmsVersion: catalogue.version,
+          // Kept with the layer so the scale warning survives a reload (#448);
+          // the capabilities document is not fetched again on startup.
+          ...(chosen?.minScaleDenominator !== undefined
+            ? { minScaleDenominator: chosen.minScaleDenominator }
+            : {}),
+          ...(chosen?.maxScaleDenominator !== undefined
+            ? { maxScaleDenominator: chosen.maxScaleDenominator }
+            : {}),
         };
 
         if (!addPrivateLayer(layer)) {

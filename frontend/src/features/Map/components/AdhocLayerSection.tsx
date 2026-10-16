@@ -42,6 +42,8 @@ import {
 } from '../adhoc/privateAdhocLayers.js';
 import { buildWmsTileUrl, buildWmsLegendUrl } from '../utils/wmsUrl.js';
 import { useLayers } from '../context/useLayers';
+import { useMap } from '../context/MapContext';
+import { assessScaleVisibility, scaleDenominatorFor } from '../utils/scaleVisibility.js';
 import { AddAdhocLayerForm, type AdhocLayerScope } from './AddAdhocLayerForm.js';
 
 /**
@@ -175,6 +177,7 @@ function messageFrom(error: unknown): string {
 
 export function AdhocLayerSection({ currentUser }: AdhocLayerSectionProps): JSX.Element {
   const { addRasterLayer, removeLayer } = useLayers();
+  const { map } = useMap();
 
   const [shared, setShared] = useState<AdhocLayerResponse[]>([]);
   const [privateLayers, setPrivateLayers] = useState<AdhocLayerDefinition[]>(() =>
@@ -232,8 +235,29 @@ export function AdhocLayerSection({ currentUser }: AdhocLayerSectionProps): JSX.
     [shared, hiddenIds],
   );
 
+  /**
+   * A layer that cannot draw at the current scale (#448).
+   *
+   * Kept apart from `actionError` deliberately: nothing failed. The layer was
+   * added, the server will answer, and the answer will be an empty image. That
+   * is a fact about the VIEW, not an error, and rendering it as one would train
+   * people to dismiss it.
+   */
+  const [scaleNotice, setScaleNotice] = useState<string | null>(null);
+
   const handleAddToMap = useCallback(
     (layer: AdhocLayerDefinition) => {
+      // Warn, then add anyway. The user chose this layer deliberately and it is
+      // correct at a closer zoom; refusing it would be the opaque disappearance
+      // this feature guards against elsewhere.
+      if (map) {
+        const assessment = assessScaleVisibility(
+          scaleDenominatorFor(map.getZoom(), map.getCenter().lat),
+          layer,
+        );
+        setScaleNotice(assessment.visible ? null : (assessment.reason ?? null));
+      }
+
       const url = buildWmsTileUrl({
         serviceUrl: layer.serviceUrl,
         layer: layer.layerName,
@@ -347,6 +371,25 @@ export function AdhocLayerSection({ currentUser }: AdhocLayerSectionProps): JSX.
       {actionError !== null && (
         <p role="alert" className="adhoc-layer-section__error" style={errorStyle}>
           {actionError}
+        </p>
+      )}
+
+      {scaleNotice !== null && (
+        <p
+          role="status"
+          className="adhoc-layer-section__scale-notice"
+          style={{
+            margin: '6px 0',
+            padding: '6px 8px',
+            fontSize: '12px',
+            lineHeight: 1.4,
+            color: '#7a4b00',
+            background: '#fff6e5',
+            border: '1px solid #f0c678',
+            borderRadius: '3px',
+          }}
+        >
+          {scaleNotice}
         </p>
       )}
 
