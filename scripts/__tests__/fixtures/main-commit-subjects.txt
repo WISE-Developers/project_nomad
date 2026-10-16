@@ -1,0 +1,68 @@
+# Real commit subjects from origin/main, captured 2026-10-15 18:18 MDT at 8d486e4.
+# Captured, not invented: git log origin/main --format='%s'.
+# Used by stable_release_gate.test.sh so the history checks have a corpus in CI,
+# where the checkout carries no origin/main ref. The live scan still runs when
+# the ref IS reachable; this is the floor, not a replacement.
+#
+# Lines starting with SKIP: must NOT release (the stable bot's own bumps).
+# Lines starting with GO:   must release.
+SKIP:chore: release v0.19.0 [skip ci]
+SKIP:chore: release v0.20.0 [skip ci]
+SKIP:chore: release v0.21.0 [release-bot]
+SKIP:chore: release v0.22.0 [release-bot]
+SKIP:chore: release v0.23.0 [release-bot]
+SKIP:chore: release v0.24.0 [release-bot]
+SKIP:chore: release v0.25.0 [release-bot]
+SKIP:chore: release v0.26.0 [release-bot]
+SKIP:chore: release v0.27.0 [release-bot]
+SKIP:chore: release v0.28.0 [release-bot]
+SKIP:chore: release v0.29.0 [release-bot]
+GO:#315: adhoc_layers table, and a guard against unregistered migrations
+GO:#315: capabilities route — guard, fetch and parser wired together
+GO:#315: parse GetCapabilities, keeping "read it, nothing there" apart from "could not read it"
+GO:#315: private layer store and the ad-hoc layers API client
+GO:#315: shared ad-hoc layer API, creator-only delete
+GO:#315: the add-layer form — choose a layer, private checkbox decides storage
+GO:#315: the layer panel section, and WMS layers actually reach the map
+GO:#315: three defects found by running the app, none visible to tests
+GO:#315: WMS url builder and the SSRF guard for the capabilities proxy
+GO:#398: attach an SPDX SBOM to every release
+GO:#398: the SBOM now states its own scope, and drops the stale root id
+GO:#437: a rollback tag now names the version the image CONTAINS
+GO:#438: drop the version number from the splash heading
+GO:#438: the demo splash now describes v0.28.0
+GO:#439: make the next occurrence explain itself, and correct my own diagnosis
+GO:#440: CWFIS reaches the keyless empty state too
+GO:#441: a bill of materials for the image that is actually running
+GO:#442: every package.json carries the product version
+GO:#442: the release workflows must COMMIT all three package.json files
+GO:Bump the root lockfile with the package.json files (#442 follow-up)
+GO:chore: dev v0.27.6 [release-bot]
+GO:chore: dev v0.28.1 [release-bot]
+GO:chore: dev v0.28.10 [release-bot]
+GO:chore: dev v0.28.11 [release-bot]
+GO:chore: dev v0.28.12 [release-bot]
+GO:chore: dev v0.28.13 [release-bot]
+GO:chore: dev v0.28.2 [release-bot]
+GO:chore: dev v0.28.3 [release-bot]
+GO:chore: dev v0.28.4 [release-bot]
+GO:chore: dev v0.28.5 [release-bot]
+GO:chore: dev v0.28.6 [release-bot]
+GO:chore: dev v0.28.7 [release-bot]
+GO:chore: dev v0.28.8 [release-bot]
+GO:chore: dev v0.28.9 [release-bot]
+GO:Merge #315: ad-hoc WMS layers
+GO:Merge #398: SPDX SBOM attached to every release
+GO:Merge #437: rollback tags name the version the image contains
+GO:Merge #438: the demo splash now describes v0.28.0
+GO:Merge #439: instrument the flake so its next occurrence self-diagnoses
+GO:Merge #440: CWFIS reaches the keyless empty state
+GO:Merge #441: image SBOM generated at deploy
+GO:Merge #442: every package.json carries the product version
+GO:Merge origin/dev (v0.28.1 release bump) into local dev
+GO:Merge origin/main into dev — the rebase-merge of #443 left a stale merge base
+GO:Merge pull request #436 from WISE-Developers/dev
+GO:Merge pull request #445 from WISE-Developers/dev
+GO:Merge: release workflows commit all three package.json files
+GO:Merge: SBOM states its build-time scope, and the stale root id is gone
+GO:Release workflows must stage the lockfile too (#442 follow-up)
