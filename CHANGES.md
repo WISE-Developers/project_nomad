@@ -4,10 +4,14 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.33.0
+## v0.34.0
 
 ### 2026-10-16
 
+- [`1d8666e`](https://github.com/WISE-Developers/project_nomad/commit/1d8666e1d2f415f45c644aa6ac326d63d4f4627b) Merge pull request #455 from WISE-Developers/dev — *Franco Nogarin, 10:34*
+- [`7a4c2a1`](https://github.com/WISE-Developers/project_nomad/commit/7a4c2a1ab0d4d16d5145b0ac8f069c3858a3a7ee) chore: dev v0.33.1 [release-bot] — *github-actions[bot], 16:27*
+- [`bc60919`](https://github.com/WISE-Developers/project_nomad/commit/bc609199d557e5f495a13ff884804e26e4b3f817) The layer panel must not clip what it cannot show (#454) — *Franco Nogarin, 10:27*
+- [`67de175`](https://github.com/WISE-Developers/project_nomad/commit/67de175e2912e93ec2d07c7889094ff9ee0fcbb3) chore: release v0.33.0 [release-bot] — *github-actions[bot], 15:35*
 - [`6ec00ab`](https://github.com/WISE-Developers/project_nomad/commit/6ec00ab8b1331db7e5d6bce070b6dd2c9ae1cd6f) Merge pull request #453 from WISE-Developers/dev — *Franco Nogarin, 09:34*
 - [`92cc78a`](https://github.com/WISE-Developers/project_nomad/commit/92cc78aacd77537d35ac76a89463ef1986962b53) chore: dev v0.32.1 [release-bot] — *github-actions[bot], 15:33*
 - [`7e873c8`](https://github.com/WISE-Developers/project_nomad/commit/7e873c86ee196992bb033b9a2ad452f66108ec20) Offer a custom legend URL, and stop claiming layers the map never took (#449, #451) — *Franco Nogarin, 09:32*
