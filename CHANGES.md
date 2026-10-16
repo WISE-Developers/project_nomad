@@ -4,10 +4,21 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.30.0
+## v0.31.0
 
 ### 2026-10-16
 
+- [`6ce3fa0`](https://github.com/WISE-Developers/project_nomad/commit/6ce3fa0b18a0b03a9169e8e385ecf4be42cdb948) Merge pull request #450 from WISE-Developers/dev — *Franco Nogarin, 08:38*
+- [`d6cc97f`](https://github.com/WISE-Developers/project_nomad/commit/d6cc97ff52c91c7096288a9b5fb4029b3afad84a) chore: dev v0.30.4 [release-bot] — *github-actions[bot], 14:34*
+- [`8328b7d`](https://github.com/WISE-Developers/project_nomad/commit/8328b7d6377215498de0edaa28ab87605ed28d71) Lint: handleAddToMap must list map in its dependencies (#448) — *Franco Nogarin, 08:34*
+- [`074f60f`](https://github.com/WISE-Developers/project_nomad/commit/074f60f6075d2e9b3c680cd275ba9c9e9c7f3d6a) chore: dev v0.30.3 [release-bot] — *github-actions[bot], 14:28*
+- [`6f899ed`](https://github.com/WISE-Developers/project_nomad/commit/6f899ed807bee1bd0775853d193f37c70e8c0913) Say so when a layer cannot draw at this scale (#448 part 2) — *Franco Nogarin, 08:28*
+- [`e0eaedf`](https://github.com/WISE-Developers/project_nomad/commit/e0eaedf5380ed1b41934b3cab6154a97f98fa9ba) Parse the WMS scale range, with inheritance (#448 part 1) — *Franco Nogarin, 08:21*
+- [`1ea9399`](https://github.com/WISE-Developers/project_nomad/commit/1ea9399077c64a86c80f8f5e9236fdd6e0528682) chore: dev v0.30.2 [release-bot] — *github-actions[bot], 14:16*
+- [`b73133f`](https://github.com/WISE-Developers/project_nomad/commit/b73133f059923073e1cb66bc48273dbe4583bb8c) A legend must not outlive its layer (#447) — *Franco Nogarin, 08:16*
+- [`23cac48`](https://github.com/WISE-Developers/project_nomad/commit/23cac4852a9c940d3855e55fb08eb267a6f80b6e) chore: dev v0.30.1 [release-bot] — *github-actions[bot], 14:07*
+- [`63d12e7`](https://github.com/WISE-Developers/project_nomad/commit/63d12e7bba5516b7639c4b839edee1b31955f571) Ad-hoc layers: drop our own params from a service url, and stop duplicating rows (#315 follow-up) — *Franco Nogarin, 08:07*
+- [`87cafe6`](https://github.com/WISE-Developers/project_nomad/commit/87cafe6645e04bfec3af7b1f55153132be03a689) chore: release v0.30.0 [release-bot] — *github-actions[bot], 10:33*
 - [`3fd36dc`](https://github.com/WISE-Developers/project_nomad/commit/3fd36dc8d6ae7de20b6069d114779d912132cf3a) Merge pull request #446 from WISE-Developers/dev — *Franco Nogarin, 04:32*
 - [`61f2421`](https://github.com/WISE-Developers/project_nomad/commit/61f2421974f8f38d9b95a5a2997e8a6c56424528) chore: dev v0.29.2 [release-bot] — *github-actions[bot], 00:20*
 
