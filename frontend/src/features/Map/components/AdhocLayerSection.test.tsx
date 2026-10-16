@@ -43,14 +43,16 @@ vi.mock('../context/useLayers', () => ({
  * The map, for the scale check (#448). Default is the view that produced the
  * live failure: zoom 4.3 over Canada, roughly 1:35,000,000.
  */
-const mapView = { zoom: 4.3, lat: 55 };
+const mapView = { zoom: 4.3, lat: 55, isLoaded: true };
 vi.mock('../context/MapContext', () => ({
   useMap: () => ({
-    map: {
-      getZoom: () => mapView.zoom,
-      getCenter: () => ({ lat: mapView.lat, lng: -106 }),
-    },
-    isLoaded: true,
+    map: mapView.isLoaded
+      ? {
+          getZoom: () => mapView.zoom,
+          getCenter: () => ({ lat: mapView.lat, lng: -106 }),
+        }
+      : null,
+    isLoaded: mapView.isLoaded,
   }),
 }));
 
@@ -394,5 +396,71 @@ describe('a layer that cannot draw at this scale (#448)', () => {
       await screen.findByLabelText('Add Forest Licensee Operating Areas to map'),
     );
     expect(screen.queryByRole('status')).toBeNull();
+  });
+});
+
+
+/**
+ * A CLICK THAT CANNOT BE HONOURED MUST NOT BE SILENTLY DISCARDED (#451).
+ *
+ * Found while verifying the v0.31.0 deploy in a real browser. Clicking "Add to
+ * map" a second after page load did NOTHING — no layer, no error, nothing. It
+ * bit twice before I understood it. Waiting four seconds and clicking the
+ * identical button worked.
+ *
+ * The cause is a guard that is right about the world and silent about it:
+ * `addRasterLayer` opens `if (!map || !isLoaded) return;`. There is genuinely
+ * nothing to add a layer to yet — but the caller cannot tell the click was
+ * dropped.
+ *
+ * Same family as #448: an action that did nothing is indistinguishable from one
+ * that worked. The window is short and it is exactly when a user clicks, because
+ * the panel renders before the map is ready.
+ *
+ * A DISABLED CONTROL THAT SAYS WHY beats an enabled control that lies.
+ */
+describe('before the map is ready (#451)', () => {
+  const layer = {
+    id: 'adhoc-early',
+    name: 'Eager Layer',
+    serviceUrl: 'https://example.org/wms',
+    layerName: 'topo',
+    wmsVersion: '1.3.0',
+  };
+
+  afterEach(() => {
+    mapView.isLoaded = true;
+  });
+
+  it('does not offer Add to map as ready while the map is still loading', async () => {
+    mapView.isLoaded = false;
+    vi.spyOn(privateStore, 'listPrivateLayers').mockReturnValue([layer]);
+    vi.mocked(api.listAdhocLayers).mockResolvedValue({ layers: [] });
+
+    render(<AdhocLayerSection />);
+    const button = await screen.findByLabelText('Add Eager Layer to map');
+    expect(button).toBeDisabled();
+  });
+
+  it('says why, rather than presenting a dead control', async () => {
+    mapView.isLoaded = false;
+    vi.spyOn(privateStore, 'listPrivateLayers').mockReturnValue([layer]);
+    vi.mocked(api.listAdhocLayers).mockResolvedValue({ layers: [] });
+
+    render(<AdhocLayerSection />);
+    const button = await screen.findByLabelText('Add Eager Layer to map');
+    expect(button.getAttribute('title')).toMatch(/still loading|not ready/i);
+  });
+
+  it('offers it normally once the map is ready — the control', async () => {
+    mapView.isLoaded = true;
+    vi.spyOn(privateStore, 'listPrivateLayers').mockReturnValue([layer]);
+    vi.mocked(api.listAdhocLayers).mockResolvedValue({ layers: [] });
+
+    render(<AdhocLayerSection />);
+    const button = await screen.findByLabelText('Add Eager Layer to map');
+    expect(button).not.toBeDisabled();
+    await userEvent.click(button);
+    expect(addRasterLayer).toHaveBeenCalled();
   });
 });

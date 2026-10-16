@@ -177,7 +177,7 @@ function messageFrom(error: unknown): string {
 
 export function AdhocLayerSection({ currentUser }: AdhocLayerSectionProps): JSX.Element {
   const { addRasterLayer, removeLayer } = useLayers();
-  const { map } = useMap();
+  const { map, isLoaded: mapReady } = useMap();
 
   const [shared, setShared] = useState<AdhocLayerResponse[]>([]);
   const [privateLayers, setPrivateLayers] = useState<AdhocLayerDefinition[]>(() =>
@@ -405,10 +405,20 @@ export function AdhocLayerSection({ currentUser }: AdhocLayerSectionProps): JSX.
               {row.scope === 'private' ? 'Private' : `Shared${row.createdBy ? ` · ${row.createdBy}` : ''}`}
             </span>
 
+            {/*
+              Disabled until the map can actually take a layer (#451).
+              `addRasterLayer` opens `if (!map || !isLoaded) return;` — correct
+              about the world, and silent about it. A click in that window was
+              discarded with no layer, no error and no explanation, which is
+              indistinguishable from one that worked. The panel renders before
+              the map is ready, so this is exactly when people click.
+            */}
             <button
               type="button"
               style={smallButtonStyle}
               aria-label={`Add ${row.layer.name} to map`}
+              disabled={!mapReady}
+              title={mapReady ? undefined : 'The map is still loading — this will be available in a moment.'}
               onClick={() => handleAddToMap(row.layer)}
             >
               Add to map
