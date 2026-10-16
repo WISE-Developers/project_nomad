@@ -40,15 +40,65 @@ const BBOX_PLACEHOLDER = '{bbox-epsg-3857}';
 const CRS = 'EPSG:3857';
 
 /**
+ * Parameters this module sets itself. Anything here that arrives on the service
+ * URL is DROPPED, because the one we are about to append is the correct one.
+ *
+ * Everything NOT on this list survives untouched — a MapServer endpoint is
+ * useless without its `map=`, so stripping the whole query would trade one
+ * broken feature for another.
+ */
+const OWNED_PARAMS = new Set([
+  'service',
+  'request',
+  'version',
+  'crs',
+  'srs',
+  'format',
+  'transparent',
+  'width',
+  'height',
+  'styles',
+  'layers',
+  'layer',
+  'bbox',
+]);
+
+/**
  * Joins query parameters onto a service URL that may already carry some.
  *
  * Services are routinely handed out with parameters attached — a MapServer
  * endpoint ending `?map=/data/fire.map`, for instance. A naive `${url}?${params}`
  * produces two `?` and the server parses none of ours.
+ *
+ * AND A URL MAY ALREADY CARRY A PARAMETER WE ALSO SET (#315 follow-up). The
+ * obvious thing for a user to paste is the GetCapabilities URL — it is what the
+ * "Read catalogue" step asks for — which ends `?request=getCapabilities`.
+ * Appending our own `request=GetMap` left `request` in the URL TWICE; the
+ * server picked one, and on the live CIFFC demo every legend rendered broken.
+ *
+ * Earlier coverage used `?map=/data/fire.map`, a parameter we do not set, so no
+ * collision was ever exercised and a green suite shipped the defect.
+ *
+ * Kept pairs are copied VERBATIM rather than round-tripped through
+ * `URLSearchParams`, which would re-encode them — `map=/data/fire.map` would
+ * become `map=%2Fdata%2Ffire.map`. Encoding values that servers accept literally
+ * has broken real endpoints before, which is the same reason `layers` is
+ * appended by hand below.
  */
 function joinQuery(serviceUrl: string, query: string): string {
-  const separator = serviceUrl.includes('?') ? '&' : '?';
-  return `${serviceUrl}${separator}${query}`;
+  const queryStart = serviceUrl.indexOf('?');
+  if (queryStart === -1) {
+    return `${serviceUrl}?${query}`;
+  }
+
+  const base = serviceUrl.slice(0, queryStart);
+  const kept = serviceUrl
+    .slice(queryStart + 1)
+    .split('&')
+    .filter((pair) => pair.length > 0)
+    .filter((pair) => !OWNED_PARAMS.has(pair.split('=')[0].toLowerCase()));
+
+  return kept.length > 0 ? `${base}?${kept.join('&')}&${query}` : `${base}?${query}`;
 }
 
 /** The CRS parameter name, which is the whole substantive difference. */

@@ -43,6 +43,12 @@ export interface AdhocLayerDefinition {
   readonly layerName: string;
   readonly wmsVersion: string;
   readonly legendUrl?: string | null;
+  /**
+   * Carried from the capabilities document so the warning survives a reload
+   * (#448). Absent means the server declared no limit, not a limit of zero.
+   */
+  readonly minScaleDenominator?: number;
+  readonly maxScaleDenominator?: number;
 }
 
 /**

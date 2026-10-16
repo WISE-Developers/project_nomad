@@ -187,6 +187,112 @@ describe('parseCapabilities', () => {
     });
   });
 
+  /**
+   * SCALE RANGE (#448).
+   *
+   * A layer that draws nothing is indistinguishable from one that worked:
+   * every request returns 200 and the map stays empty. On the live demo, BC's
+   * *Forest Licensee Operating Areas* did exactly that — capabilities 200,
+   * legend 200, 19 GetMap tiles all 200, nothing drawn.
+   *
+   * The cause was not an empty server and not a bad request. The layer
+   * declares:
+   *
+   *   <MaxScaleDenominator>6000000.0</MaxScaleDenominator>
+   *
+   * and the view was at roughly 1:35,000,000. Measured: the same bbox and CRS
+   * at 256 px returned a 1,784-byte blank, at 1024 px returned 24,007 bytes of
+   * content — four times the resolution crosses the threshold.
+   *
+   * This is not rare. 888 of roughly 900 <Layer> elements in that one document
+   * declare a MaxScaleDenominator.
+   *
+   * ABSENCE MUST STAY DISTINGUISHABLE FROM A VALUE. A layer that declares no
+   * limit is unconstrained, which is NOT the same as a limit of zero, and the
+   * two must not collapse into one number — that is the failure this whole
+   * module exists to avoid.
+   */
+  describe('scale range (#448)', () => {
+    it('reads MaxScaleDenominator from a layer that declares one', () => {
+      const result = parseCapabilities(`<?xml version="1.0"?>
+        <WMS_Capabilities version="1.3.0"><Capability><Layer>
+          <Layer><Name>roads</Name><Title>Roads</Title>
+            <MaxScaleDenominator>6000000.0</MaxScaleDenominator>
+          </Layer>
+        </Layer></Capability></WMS_Capabilities>`);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.layers[0].maxScaleDenominator).toBe(6000000);
+    });
+
+    it('reads MinScaleDenominator too', () => {
+      const result = parseCapabilities(`<?xml version="1.0"?>
+        <WMS_Capabilities version="1.3.0"><Capability><Layer>
+          <Layer><Name>overview</Name><Title>Overview</Title>
+            <MinScaleDenominator>1000000</MinScaleDenominator>
+          </Layer>
+        </Layer></Capability></WMS_Capabilities>`);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.layers[0].minScaleDenominator).toBe(1000000);
+    });
+
+    it('leaves both ABSENT when the layer declares neither', () => {
+      // The control, and the important one. Unconstrained is not "zero".
+      const result = parseCapabilities(`<?xml version="1.0"?>
+        <WMS_Capabilities version="1.3.0"><Capability><Layer>
+          <Layer><Name>plain</Name><Title>Plain</Title></Layer>
+        </Layer></Capability></WMS_Capabilities>`);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.layers[0].maxScaleDenominator).toBeUndefined();
+      expect(result.layers[0].minScaleDenominator).toBeUndefined();
+    });
+
+    it('INHERITS a parent scale range, as the spec requires', () => {
+      // BC publishes the bulk of its limits on parent layers; a child that
+      // reads as unconstrained because we ignored inheritance would be warned
+      // about never, which is the bug in reverse.
+      const result = parseCapabilities(`<?xml version="1.0"?>
+        <WMS_Capabilities version="1.3.0"><Capability><Layer>
+          <Title>Root</Title>
+          <MaxScaleDenominator>6000000</MaxScaleDenominator>
+          <Layer><Name>child</Name><Title>Child</Title></Layer>
+        </Layer></Capability></WMS_Capabilities>`);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.layers[0].maxScaleDenominator).toBe(6000000);
+    });
+
+    it("a child's OWN value overrides the parent's", () => {
+      const result = parseCapabilities(`<?xml version="1.0"?>
+        <WMS_Capabilities version="1.3.0"><Capability><Layer>
+          <Title>Root</Title>
+          <MaxScaleDenominator>6000000</MaxScaleDenominator>
+          <Layer><Name>child</Name><Title>Child</Title>
+            <MaxScaleDenominator>250000</MaxScaleDenominator>
+          </Layer>
+        </Layer></Capability></WMS_Capabilities>`);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.layers[0].maxScaleDenominator).toBe(250000);
+    });
+
+    it('ignores a value that is not a number rather than emitting NaN', () => {
+      // A NaN threshold compares false against everything, so the warning
+      // would silently never fire — the defect wearing the fix's clothes.
+      const result = parseCapabilities(`<?xml version="1.0"?>
+        <WMS_Capabilities version="1.3.0"><Capability><Layer>
+          <Layer><Name>odd</Name><Title>Odd</Title>
+            <MaxScaleDenominator>not-a-number</MaxScaleDenominator>
+          </Layer>
+        </Layer></Capability></WMS_Capabilities>`);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.layers[0].maxScaleDenominator).toBeUndefined();
+    });
+  });
+
   describe('the control on the controls', () => {
     it('does not refuse everything — success and failure are both reachable', () => {
       // A parser that always failed would satisfy every refusal assertion

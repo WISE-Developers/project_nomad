@@ -138,6 +138,81 @@ describe('buildWmsLegendUrl', () => {
   });
 });
 
+/**
+ * A SERVICE URL CARRYING A PARAMETER WE ALSO SET (#315 follow-up).
+ *
+ * Found on the live CIFFC demo, 2026-10-16, after this feature had been
+ * declared verified. The stored service url was:
+ *
+ *   https://cwfis.cfs.nrcan.gc.ca/geoserver/wms?request=getCapabilities
+ *
+ * which is the obvious thing for a user to paste — it is the url the
+ * "Read catalogue" step asks for. `joinQuery` chose `&` correctly and appended
+ * our own `request=GetLegendGraphic`, so the url carried `request` TWICE. The
+ * legend images rendered broken on the demo (naturalWidth 0, measured in the
+ * page).
+ *
+ * The existing coverage used `?map=/data/fire.map` — a parameter we do NOT
+ * set, so it never exercised a collision. That is why a green suite shipped
+ * this. Both cases matter and both are asserted here: parameters we own must
+ * be REPLACED, parameters we do not own must SURVIVE.
+ */
+describe('a service url carrying a parameter we also set', () => {
+  const CAPS = 'https://cwfis.cfs.nrcan.gc.ca/geoserver/wms?request=getCapabilities';
+
+  /** Count occurrences of a key, because `param()` only reveals the first. */
+  function countParam(url: string, key: string): number {
+    const query = url.slice(url.indexOf('?') + 1);
+    return query
+      .split('&')
+      .filter((pair) => pair.split('=')[0].toLowerCase() === key.toLowerCase()).length;
+  }
+
+  it('emits request exactly once on a tile url, and it is GetMap', () => {
+    const url = buildWmsTileUrl({ serviceUrl: CAPS, layer: 'public:fdr' });
+    expect(countParam(url, 'request')).toBe(1);
+    expect(param(url, 'request')).toBe('GetMap');
+    expect(url).not.toContain('getCapabilities');
+  });
+
+  it('emits request exactly once on a legend url, and it is GetLegendGraphic', () => {
+    const url = buildWmsLegendUrl({ serviceUrl: CAPS, layer: 'public:fdr' });
+    expect(countParam(url, 'request')).toBe(1);
+    expect(param(url, 'request')).toBe('GetLegendGraphic');
+    expect(url).not.toContain('getCapabilities');
+  });
+
+  it('replaces every parameter we own, whatever the incoming casing', () => {
+    const noisy =
+      'https://example.org/wms?SERVICE=WMS&Request=GetCapabilities&version=1.1.1&format=image/gif';
+    const url = buildWmsTileUrl({ serviceUrl: noisy, layer: 'topo' });
+    for (const key of ['service', 'request', 'version', 'format']) {
+      expect(countParam(url, key)).toBe(1);
+    }
+    expect(param(url, 'request')).toBe('GetMap');
+    expect(param(url, 'version')).toBe('1.3.0');
+  });
+
+  it('KEEPS a parameter we do not own — the endpoint may need it', () => {
+    // A MapServer endpoint is useless without its `map=`. Stripping everything
+    // would trade one broken feature for another.
+    const url = buildWmsTileUrl({
+      serviceUrl: 'https://example.org/wms?map=/data/fire.map&request=GetCapabilities',
+      layer: 'topo',
+    });
+    expect(url).toContain('map=/data/fire.map');
+    expect(countParam(url, 'request')).toBe(1);
+    expect(param(url, 'request')).toBe('GetMap');
+  });
+
+  it('leaves a clean service url exactly as it was', () => {
+    // The control. This is the case that was tested before and must not change.
+    const url = buildWmsTileUrl({ serviceUrl: SERVICE, layer: 'topo' });
+    expect(url.startsWith(`${SERVICE}?`)).toBe(true);
+    expect(countParam(url, 'request')).toBe(1);
+  });
+});
+
 describe('version typing', () => {
   it('accepts only the two versions we build for', () => {
     // A compile-time guard, asserted here so the intent is visible at runtime

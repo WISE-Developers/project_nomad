@@ -423,3 +423,89 @@ describe('RasterLegend', () => {
     });
   });
 });
+
+
+/**
+ * A LEGEND MUST NOT OUTLIVE ITS LAYER (#447).
+ *
+ * Reported from the live CIFFC demo: an ad-hoc layer was deleted, the row
+ * disappeared from the panel, and TWO legends for it stayed on the map. A
+ * legend is a claim about what is displayed; one with nothing behind it tells
+ * an operator something is on the map when it is not. During an incident that
+ * is a wrong answer rather than an untidy screen.
+ *
+ * The cause was upstream and is fixed in 63d12e7. The layer list had TWO
+ * entries carrying the SAME id, because `addRasterLayer` guarded the map but
+ * appended to state unconditionally. This component keys each legend block by
+ * `layer.id`, so duplicate entries rendered duplicate React keys — and
+ * reconciliation with colliding keys is exactly how stale DOM survives a
+ * removal.
+ *
+ * These tests pin the contract at this end regardless: one legend per layer,
+ * and none for a layer that is gone. They would have caught the symptom even
+ * though the defect was elsewhere, which is the point of asserting at the seam
+ * a user actually looks at.
+ */
+describe('a legend must not outlive its layer (#447)', () => {
+  const wmsLayer = (id: string, name: string) => ({
+    id,
+    name,
+    type: 'raster' as const,
+    visible: true,
+    opacity: 1,
+    zIndex: 0,
+    url: `https://example.org/wms?layers=${id}`,
+    legendType: 'wms' as const,
+    legendUrl: `https://example.org/wms?layer=${id}&request=GetLegendGraphic`,
+  });
+
+  it('renders no legend for a layer that is no longer in the list', () => {
+    // The control: it is there first, so the absence below means something.
+    mockUseLayers.mockReturnValue({
+      state: { layers: [wmsLayer('adhoc-1', 'M3 Fire Perimeter Estimate')] },
+      updateLayer: vi.fn(),
+    });
+    const { rerender } = render(<RasterLegend />);
+    expect(screen.getByAltText('M3 Fire Perimeter Estimate legend')).toBeTruthy();
+
+    // Deleted — removeLayer filters it out of state.
+    mockUseLayers.mockReturnValue({ state: { layers: [] }, updateLayer: vi.fn() });
+    rerender(<RasterLegend />);
+    expect(screen.queryByAltText('M3 Fire Perimeter Estimate legend')).toBeNull();
+  });
+
+  it('renders ONE legend per layer even if the list carries a duplicate id', () => {
+    // Defensive: upsertLayer now prevents this state upstream, but a colliding
+    // React key is a hazard this component should not depend on others to avoid.
+    const dup = wmsLayer('adhoc-1', 'M3 Fire Perimeter Estimate');
+    mockUseLayers.mockReturnValue({
+      state: { layers: [dup, { ...dup }] },
+      updateLayer: vi.fn(),
+    });
+    render(<RasterLegend />);
+    expect(screen.getAllByAltText('M3 Fire Perimeter Estimate legend')).toHaveLength(1);
+  });
+
+  it('removes only the deleted layer, leaving the others legended', () => {
+    const a = wmsLayer('adhoc-a', 'Fire Danger');
+    const b = wmsLayer('adhoc-b', 'Forest Licensee Operating Areas');
+    mockUseLayers.mockReturnValue({ state: { layers: [a, b] }, updateLayer: vi.fn() });
+    const { rerender } = render(<RasterLegend />);
+    expect(screen.getByAltText('Fire Danger legend')).toBeTruthy();
+    expect(screen.getByAltText('Forest Licensee Operating Areas legend')).toBeTruthy();
+
+    mockUseLayers.mockReturnValue({ state: { layers: [b] }, updateLayer: vi.fn() });
+    rerender(<RasterLegend />);
+    expect(screen.queryByAltText('Fire Danger legend')).toBeNull();
+    expect(screen.getByAltText('Forest Licensee Operating Areas legend')).toBeTruthy();
+  });
+
+  it('renders no legend for a HIDDEN layer — hide takes it off the map too', () => {
+    mockUseLayers.mockReturnValue({
+      state: { layers: [{ ...wmsLayer('adhoc-1', 'Shared Perimeters'), visible: false }] },
+      updateLayer: vi.fn(),
+    });
+    render(<RasterLegend />);
+    expect(screen.queryByAltText('Shared Perimeters legend')).toBeNull();
+  });
+});

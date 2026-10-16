@@ -529,6 +529,14 @@ export interface WmsCatalogueLayer {
   name: string;
   title: string;
   abstract?: string;
+  /**
+   * The scale range the server will draw this layer at (#448). Absent means
+   * unconstrained — which is NOT the same as zero. Outside its range a server
+   * returns an empty image with a 200, so without these a layer that cannot
+   * draw is indistinguishable from one that worked.
+   */
+  minScaleDenominator?: number;
+  maxScaleDenominator?: number;
 }
 
 export interface WmsCapabilitiesResponse {
