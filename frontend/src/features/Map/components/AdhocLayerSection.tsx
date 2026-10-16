@@ -282,7 +282,7 @@ export function AdhocLayerSection({ currentUser }: AdhocLayerSectionProps): JSX.
           }),
       });
     },
-    [addRasterLayer],
+    [addRasterLayer, map],
   );
 
   /** Hide a SHARED layer for this user only. The shared row is not touched. */
