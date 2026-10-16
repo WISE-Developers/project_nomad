@@ -11,6 +11,7 @@ import type {
   LayerGroup,
 } from '../types/layer';
 import { LayerContext } from './LayerContext';
+import { upsertLayer } from '../utils/upsertLayer.js';
 
 /** Local storage key for layer persistence */
 const LAYERS_STORAGE_KEY = 'nomad-layers';
@@ -545,9 +546,12 @@ export function LayerProvider({ children }: { children: ReactNode }) {
         });
       }
 
+      // Replace rather than append: the map is guarded above, the list was not,
+      // so adding an already-present layer left the map right and the panel
+      // showing it twice. See upsertLayer (#315 follow-up).
       setState((prev) => ({
         ...prev,
-        layers: [...prev.layers, layerConfig],
+        layers: upsertLayer(prev.layers, layerConfig),
       }));
     },
     [map, isLoaded]
@@ -602,9 +606,12 @@ export function LayerProvider({ children }: { children: ReactNode }) {
         }, beforeId);
       }
 
+      // Replace rather than append: the map is guarded above, the list was not,
+      // so adding an already-present layer left the map right and the panel
+      // showing it twice. See upsertLayer (#315 follow-up).
       setState((prev) => ({
         ...prev,
-        layers: [...prev.layers, layerConfig],
+        layers: upsertLayer(prev.layers, layerConfig),
       }));
     },
     [map, isLoaded]
