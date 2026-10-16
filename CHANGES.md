@@ -4,10 +4,14 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.31.0
+## v0.32.0
 
 ### 2026-10-16
 
+- [`220f620`](https://github.com/WISE-Developers/project_nomad/commit/220f620bf4a629d8c8fa002fe0233c14a78335d6) Merge pull request #452 from WISE-Developers/dev — *Franco Nogarin, 09:13*
+- [`5245108`](https://github.com/WISE-Developers/project_nomad/commit/52451080c6ca31d40bd2d2e398e5e799d01c5208) chore: dev v0.31.1 [release-bot] — *github-actions[bot], 14:53*
+- [`f0e0641`](https://github.com/WISE-Developers/project_nomad/commit/f0e06418248a2f0bc2238709977c6c80404e4621) Do not offer Add to map before the map can take a layer (#451) — *Franco Nogarin, 08:53*
+- [`29768b5`](https://github.com/WISE-Developers/project_nomad/commit/29768b5776a9539ae93bbe8858c355ab7127f2c1) chore: release v0.31.0 [release-bot] — *github-actions[bot], 14:39*
 - [`6ce3fa0`](https://github.com/WISE-Developers/project_nomad/commit/6ce3fa0b18a0b03a9169e8e385ecf4be42cdb948) Merge pull request #450 from WISE-Developers/dev — *Franco Nogarin, 08:38*
 - [`d6cc97f`](https://github.com/WISE-Developers/project_nomad/commit/d6cc97ff52c91c7096288a9b5fb4029b3afad84a) chore: dev v0.30.4 [release-bot] — *github-actions[bot], 14:34*
 - [`8328b7d`](https://github.com/WISE-Developers/project_nomad/commit/8328b7d6377215498de0edaa28ab87605ed28d71) Lint: handleAddToMap must list map in its dependencies (#448) — *Franco Nogarin, 08:34*
