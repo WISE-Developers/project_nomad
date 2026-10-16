@@ -11,11 +11,42 @@ permissions:
   pull-requests: read
 
 jobs:
-  stable-release:
+  # Decide whether this push is work (release it) or our own version bump
+  # (skip it). #444: the old job-level guard refused ANY head commit containing
+  # `[release-bot]`, and BOTH release bots write that marker — so a dev -> main
+  # merge, which pushes dev's history, skipped the release for a whole sprint
+  # with nothing going red.
+  #
+  # The decision lives in a script so it can be executed against real commit
+  # messages instead of read. scripts/__tests__/stable_release_gate.test.sh runs
+  # it over every release commit in main's history, over the message this
+  # workflow itself writes, and against a control reproducing the old guard.
+  gate:
     runs-on: ubuntu-latest
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && !contains(github.event.head_commit.message, '[release-bot]'))
+    outputs:
+      release: ${{ steps.decide.outputs.release }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Decide
+        id: decide
+        env:
+          HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "Manually dispatched — releasing."
+            exit 0
+          fi
+          if bash .github/scripts/should-release.sh "$HEAD_COMMIT_MESSAGE"; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  stable-release:
+    needs: gate
+    if: needs.gate.outputs.release == 'true'
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout with full history
