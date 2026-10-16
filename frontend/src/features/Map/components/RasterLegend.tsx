@@ -377,10 +377,20 @@ export function RasterLegend() {
   const arrivalLayers = visibleRasters.filter(
     (l) => l.legendType === 'arrival' && l.arrivalMeta,
   );
-  // Server-rendered legend images (CWFIS M3 layers #299)
-  const wmsLayers = visibleRasters.filter(
-    (l) => l.legendType === 'wms' && l.legendUrl,
-  );
+  // Server-rendered legend images (CWFIS M3 layers #299).
+  //
+  // DEDUPED BY ID (#447). Each block below is keyed by `layer.id`, so two
+  // entries sharing an id render two children with the SAME React key — and
+  // reconciliation with colliding keys is how a legend survives the removal of
+  // the layer it describes. Reported from the live demo: an ad-hoc layer was
+  // deleted, its row vanished, and two legends for it stayed on the map.
+  //
+  // `upsertLayer` now prevents that state upstream, and this does not rely on
+  // it. A legend is a claim about what is displayed; one with nothing behind it
+  // tells an operator something is on the map when it is not.
+  const wmsLayers = visibleRasters
+    .filter((l) => l.legendType === 'wms' && l.legendUrl)
+    .filter((layer, i, all) => all.findIndex((other) => other.id === layer.id) === i);
   // Probability = model-output rasters (and legacy CFS layers with no type),
   // but NOT arrival or wms layers.
   const hasProbability = visibleRasters.some(
