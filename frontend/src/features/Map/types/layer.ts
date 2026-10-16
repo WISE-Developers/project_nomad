@@ -91,6 +91,15 @@ export interface ArrivalRasterMeta {
  * Raster layer configuration
  */
 export interface RasterLayerConfig extends BaseLayerConfig {
+  /**
+   * The scale range the server declared for this layer (#448/#449).
+   *
+   * Carried onto the map layer so anything looking at it — the legend prompt,
+   * a future warning — can tell whether the layer is expected to be drawing,
+   * without going back to the ad-hoc store. Absent means unconstrained.
+   */
+  minScaleDenominator?: number;
+  maxScaleDenominator?: number;
   type: 'raster';
   /** Tile URL template or URL array */
   url: string | string[];

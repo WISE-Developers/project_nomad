@@ -135,6 +135,52 @@ export function removePrivateLayer(id: string): boolean {
   return writeList(PRIVATE_LAYERS_KEY, next);
 }
 
+/**
+ * Record a legend graphic URL the user supplied by hand (#449).
+ *
+ * A WMS server is not obliged to serve a legend, and some that do cannot serve
+ * one for every layer — the derived `GetLegendGraphic` URL simply 404s or
+ * returns something that is not an image. The layer itself is fine; only its
+ * legend is missing, and the user may well know where the real one lives.
+ *
+ * @returns whether it persisted. `false` means either no such layer or the
+ * browser is not storing site data, and the caller must say so rather than
+ * implying the URL was kept.
+ */
+export function setPrivateLayerLegendUrl(id: string, legendUrl: string): boolean {
+  const existing = listPrivateLayers();
+  const index = existing.findIndex((layer) => layer.id === id);
+  if (index < 0) return false;
+
+  const updated: AdhocLayerDefinition = { ...existing[index], legendUrl };
+  const next = [...existing.slice(0, index), updated, ...existing.slice(index + 1)];
+  return writeList(PRIVATE_LAYERS_KEY, next);
+}
+
+/**
+ * Layers whose legend prompt the user has waved away (#449).
+ *
+ * A DISMISSAL MUST PERSIST. Asking again on every reload is its own defect:
+ * the user already answered, and a prompt that will not take no for an answer
+ * is one people learn to click past without reading — which costs more than
+ * the missing legend did.
+ */
+export const LEGEND_PROMPT_DISMISSED_KEY = 'nomad-adhoc-legend-prompt-dismissed';
+
+export function listDismissedLegendPrompts(): string[] {
+  return readList(LEGEND_PROMPT_DISMISSED_KEY, isNonEmptyString);
+}
+
+export function isLegendPromptDismissed(id: string): boolean {
+  return listDismissedLegendPrompts().includes(id);
+}
+
+export function dismissLegendPrompt(id: string): boolean {
+  const existing = listDismissedLegendPrompts();
+  if (existing.includes(id)) return true;
+  return writeList(LEGEND_PROMPT_DISMISSED_KEY, [...existing, id]);
+}
+
 export function listHiddenSharedIds(): string[] {
   return readList(HIDDEN_SHARED_KEY, isNonEmptyString);
 }

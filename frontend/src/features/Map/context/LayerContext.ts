@@ -21,8 +21,10 @@ import type {
  */
 export interface LayerContextValue {
   state: LayerState;
-  addGeoJSONLayer: (config: Omit<GeoJSONLayerConfig, 'type'>) => void;
-  addRasterLayer: (config: Omit<RasterLayerConfig, 'type'>) => void;
+  /** @returns whether the layer was actually added — false if the map is not ready (#451). */
+  addGeoJSONLayer: (config: Omit<GeoJSONLayerConfig, 'type'>) => boolean;
+  /** @returns whether the layer was actually added — false if the map is not ready (#451). */
+  addRasterLayer: (config: Omit<RasterLayerConfig, 'type'>) => boolean;
   removeLayer: (layerId: string) => void;
   updateLayer: (layerId: string, updates: Partial<LayerConfig>) => void;
   setOpacity: (layerId: string, opacity: number) => void;

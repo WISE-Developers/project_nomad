@@ -35,7 +35,10 @@ import {
   isSharedLayerHidden,
   PRIVATE_LAYERS_KEY,
   HIDDEN_SHARED_KEY,
-} from './privateAdhocLayers.js';
+  setPrivateLayerLegendUrl,
+  dismissLegendPrompt,
+  isLegendPromptDismissed,
+  listDismissedLegendPrompts} from './privateAdhocLayers.js';
 import type { AdhocLayerDefinition } from './privateAdhocLayers.js';
 
 const BC_RIVERS: AdhocLayerDefinition = {
@@ -207,5 +210,86 @@ describe('private ad-hoc layers', () => {
       expect(stored).toHaveLength(1);
       expect(stored[0].id).toBe(BC_RIVERS.id);
     });
+  });
+});
+
+
+/**
+ * A HAND-SUPPLIED LEGEND URL, AND A DISMISSAL THAT STICKS (#449).
+ *
+ * A WMS server is not obliged to serve a legend, and some cannot serve one for
+ * every layer: the derived GetLegendGraphic URL 404s or returns something that
+ * is not an image. The LAYER is fine; only its legend is missing, and the user
+ * may know where the real one lives.
+ *
+ * Both halves persist, and for the same reason. A URL that is accepted and then
+ * forgotten on reload is worse than never offering the field. And a dismissal
+ * that does not stick means asking again every reload — a prompt that will not
+ * take no for an answer is one people learn to click past without reading,
+ * which costs more than the missing legend did.
+ */
+describe('a hand-supplied legend url (#449)', () => {
+  const layer = {
+    id: 'adhoc-legendless',
+    name: 'Legendless',
+    serviceUrl: 'https://example.org/wms',
+    layerName: 'topo',
+    wmsVersion: '1.3.0',
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('records the url against the right layer', () => {
+    addPrivateLayer(layer);
+    expect(setPrivateLayerLegendUrl(layer.id, 'https://example.org/legend.png')).toBe(true);
+    expect(listPrivateLayers()[0].legendUrl).toBe('https://example.org/legend.png');
+  });
+
+  it('survives a reload — it is read back from storage, not memory', () => {
+    addPrivateLayer(layer);
+    setPrivateLayerLegendUrl(layer.id, 'https://example.org/legend.png');
+    // listPrivateLayers re-reads localStorage, which is the reload path.
+    expect(listPrivateLayers()[0].legendUrl).toBe('https://example.org/legend.png');
+  });
+
+  it('refuses for a layer that does not exist rather than inventing one', () => {
+    expect(setPrivateLayerLegendUrl('adhoc-nope', 'https://example.org/legend.png')).toBe(false);
+    expect(listPrivateLayers()).toHaveLength(0);
+  });
+
+  it('leaves the other layers alone', () => {
+    addPrivateLayer(layer);
+    addPrivateLayer({ ...layer, id: 'adhoc-other', name: 'Other' });
+    setPrivateLayerLegendUrl(layer.id, 'https://example.org/legend.png');
+    const other = listPrivateLayers().find((l) => l.id === 'adhoc-other');
+    expect(other?.legendUrl).toBeUndefined();
+  });
+});
+
+describe('dismissing the legend prompt (#449)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('is not dismissed to begin with — the control', () => {
+    expect(isLegendPromptDismissed('adhoc-1')).toBe(false);
+  });
+
+  it('stays dismissed once dismissed', () => {
+    expect(dismissLegendPrompt('adhoc-1')).toBe(true);
+    expect(isLegendPromptDismissed('adhoc-1')).toBe(true);
+  });
+
+  it('dismisses one layer without dismissing the rest', () => {
+    dismissLegendPrompt('adhoc-1');
+    expect(isLegendPromptDismissed('adhoc-2')).toBe(false);
+  });
+
+  it('is idempotent — dismissing twice records one entry', () => {
+    dismissLegendPrompt('adhoc-1');
+    dismissLegendPrompt('adhoc-1');
+    expect(listDismissedLegendPrompts()).toEqual(['adhoc-1']);
   });
 });

@@ -267,6 +267,14 @@ export function AdhocLayerSection({ currentUser }: AdhocLayerSectionProps): JSX.
       addRasterLayer({
         id: layer.id,
         name: layer.name,
+        // So the legend prompt can tell a missing legend from a layer that is
+        // simply not drawing at this scale (#449 is gated on #448).
+        ...(layer.minScaleDenominator !== undefined
+          ? { minScaleDenominator: layer.minScaleDenominator }
+          : {}),
+        ...(layer.maxScaleDenominator !== undefined
+          ? { maxScaleDenominator: layer.maxScaleDenominator }
+          : {}),
         url,
         tileSize: 256,
         opacity: 1,
