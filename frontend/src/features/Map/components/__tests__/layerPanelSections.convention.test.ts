@@ -89,6 +89,52 @@ describe('LayerPanel section wiring (convention)', () => {
     expect(missing).toEqual([]);
   });
 
+  /**
+   * THE PANEL MUST NOT CLIP WHAT IT CANNOT SHOW (#454).
+   *
+   * Reported with screenshots: adding ad-hoc layers pushed the CFS, CWFIS and
+   * basemap sections off the bottom of the panel, and the layer controls above
+   * them became unreachable too.
+   *
+   * Measured in the running app before fixing:
+   *
+   *   maxHeight    550px
+   *   overflowY    hidden
+   *   scrollHeight 659   clientHeight 550
+   *
+   * So 109px of the panel was clipped with NO WAY TO REACH IT. The
+   * `overflowY: auto` already in the file sits on the layer LIST only, which
+   * is why the list scrolled and everything below it simply vanished.
+   *
+   * Two invariants, asserted against the source for the same reason this file
+   * exists at all: the previous fix in here landed in two of three branches,
+   * and the branch it missed was the one this machine takes.
+   */
+  it('every branch puts its sections inside a scrollable body', () => {
+    // A section that cannot be scrolled to is a section that is not there.
+    const unscrollable = branches
+      .map((chunk, index) => ({ index, chunk }))
+      .filter(({ chunk }) => chunk.includes('{MapSettingsSection}'))
+      .filter(({ chunk }) => !chunk.includes('style={bodyStyle}'))
+      .map(({ index }) => index);
+
+    expect(unscrollable).toEqual([]);
+  });
+
+  it('the panel height is budgeted from the viewport, not a fixed pixel count', () => {
+    // 550px was a magic number chosen for one screen. On a 1154px-tall viewport
+    // it left 600px of space unused while clipping content — the panel was
+    // short AND overflowing at the same time.
+    const source = readFileSync(PANEL, 'utf8');
+    const containerBlock = source.slice(
+      source.indexOf('const containerStyle'),
+      source.indexOf('const cfsSectionStyle'),
+    );
+    expect(containerBlock).toContain('maxHeight');
+    expect(containerBlock).toMatch(/maxHeight:[^,]*100vh/);
+    expect(containerBlock).not.toMatch(/maxHeight:[^,]*'550px'/);
+  });
+
   it('the ad-hoc section is not gated behind the CFS API key', () => {
     // The bug was precisely this: present only where `cfs.available` was
     // true. Ad-hoc layers need no key, and a user with no layers still needs
