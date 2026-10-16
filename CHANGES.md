@@ -4,10 +4,14 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.34.0
+## v0.35.0
 
 ### 2026-10-16
 
+- [`0df476e`](https://github.com/WISE-Developers/project_nomad/commit/0df476e4cf743cf1f3134be5fa51e1f7d88acfd8) Merge pull request #458 from WISE-Developers/dev — *Franco Nogarin, 11:11*
+- [`77a5b2b`](https://github.com/WISE-Developers/project_nomad/commit/77a5b2b47b02613c617ad6dee8a2b37ad790a4ed) chore: dev v0.34.1 [release-bot] — *github-actions[bot], 17:04*
+- [`2730677`](https://github.com/WISE-Developers/project_nomad/commit/273067739a94325bbbeb0e549a6b08c757dd1dd8) One line for the name, one for the buttons — never shared (#456) — *Franco Nogarin, 11:04*
+- [`e8ed093`](https://github.com/WISE-Developers/project_nomad/commit/e8ed093c5ff265b2984845133384896f0574b263) chore: release v0.34.0 [release-bot] — *github-actions[bot], 16:35*
 - [`1d8666e`](https://github.com/WISE-Developers/project_nomad/commit/1d8666e1d2f415f45c644aa6ac326d63d4f4627b) Merge pull request #455 from WISE-Developers/dev — *Franco Nogarin, 10:34*
 - [`7a4c2a1`](https://github.com/WISE-Developers/project_nomad/commit/7a4c2a1ab0d4d16d5145b0ac8f069c3858a3a7ee) chore: dev v0.33.1 [release-bot] — *github-actions[bot], 16:27*
 - [`bc60919`](https://github.com/WISE-Developers/project_nomad/commit/bc609199d557e5f495a13ff884804e26e4b3f817) The layer panel must not clip what it cannot show (#454) — *Franco Nogarin, 10:27*
