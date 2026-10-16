@@ -23,6 +23,15 @@
 # silently not shipping, so it is executed against real commit messages instead.
 #
 # Deps: bash 3.x (macOS default), git. Exit 0 = pass, 1 = fail.
+#
+# AND THE SAME BUG BIT THIS COMMIT'S PREDECESSOR, which is worth more than the
+# fix. 0ff4cc2's message QUOTED the older marker while explaining it, GitHub
+# read the quotation as an instruction, and no CI ran for that push at all —
+# not a failed run, no run. A marker inside a message, matched where it was
+# never meant as an instruction, is precisely #444 wearing different clothes.
+#
+# So: never write a CI control marker literally in a commit message, even in
+# quotation. Describe it instead.
 set -u
 
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
