@@ -106,6 +106,44 @@ check "names the chain in the abort message" 0 \
 check "abort message rules out rollback as a workaround" 0 \
   "docker_chain_verdict 1 2>&1 | grep -qi rollback"
 
+# ---------------------------------------------------------------------------
+# A FAILING IMAGE SBOM MUST NEVER ABORT A DEPLOY (#441 rule 1, guarded here
+# after #460 moved the exit-code contract).
+#
+# This assertion used to live in image_sbom.test.sh as "exited 0 when the tool
+# was missing". #460 deliberately reversed that: generate-image-sbom.sh now
+# exits NON-ZERO when it cannot produce a document, because exiting 0 on every
+# failure path is precisely how #464 stayed invisible for two months. The
+# protection therefore moved to where it actually lives — the `|| true` on
+# deploy.sh's invocation — and the old test was deleted rather than loosened.
+#
+# It is a SOURCE assertion because the block sits inside main() and cannot be
+# extracted by name like the functions above. That is a real limitation, so the
+# control below exists: the check is proven to fail when the `|| true` is taken
+# away. A guard nobody has watched fail is not a guard.
+echo
+echo "image SBOM cannot break a deploy"
+
+sbom_line="$(grep -n 'generate-image-sbom.sh"' "$DEPLOY" | grep -v 'sbom_script=' | head -1)"
+check "deploy.sh invokes the image SBOM script" 0 \
+  "grep -q '\"\$sbom_script\"' '$DEPLOY'"
+
+check "the invocation is unconditionally swallowed with '|| true'" 0 \
+  "grep -E '\"\\\$sbom_script\" .*\\|\\| true' '$DEPLOY' >/dev/null"
+
+# THE CONTROL. Strip the `|| true` from a copy and the check above must fail.
+# Without this, the assertion would pass against a deploy.sh that had lost the
+# guard entirely, so long as the grep happened to match something else.
+cp "$DEPLOY" "$tmp/deploy_nogaurd.sh"
+sed -i.bak 's/\(\"\$sbom_script\" .*\) || true/\1/' "$tmp/deploy_nogaurd.sh"
+if grep -E '"\$sbom_script" .*\|\| true' "$tmp/deploy_nogaurd.sh" >/dev/null 2>&1; then
+  echo "  FAIL - the control did not strip '|| true', so the guard above proves nothing"
+  fail=$((fail+1))
+else
+  echo "  ok   - control: removing '|| true' makes the guard above fail"
+  pass=$((pass+1))
+fi
+
 echo
 echo "passed: $pass   failed: $fail"
 [ "$fail" -eq 0 ] || exit 1
