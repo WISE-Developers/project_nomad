@@ -60,6 +60,19 @@ jobs:
           file: docker/firestarr/Dockerfile
           push: true
           platforms: linux/amd64
+          # Attach an SPDX SBOM attestation to the pushed image (#460).
+          #
+          # These images already carried an attestation — SLSA provenance v0.2,
+          # which build-push-action adds by default — but `imagetools inspect
+          # --format '{{json .SBOM}}'` returned `{}`, so nothing described the
+          # contents. Checked on the real pushed image rather than assumed.
+          #
+          # BuildKit runs the scan itself, so this needs no extra tool, no
+          # syft pull and no export. The registry then carries the document
+          # alongside the image, which is what makes it readable later by
+          # anyone with pull access — unlike the deploy-time bill, which only
+          # ever exists on the box that built it.
+          sbom: true
           tags: |
             ghcr.io/wise-developers/project_nomad/firestarr:${{ inputs.firestarr_version }}-amd64
             ghcr.io/wise-developers/project_nomad/firestarr:${{ inputs.firestarr_version }}
@@ -114,5 +127,9 @@ jobs:
           file: docker/firestarr/Dockerfile
           push: true
           platforms: linux/arm64
+          # As above (#460). Both architectures need it: the attestation is
+          # per-manifest, so setting it on amd64 alone would describe half the
+          # images and look complete in the index.
+          sbom: true
           tags: |
             ghcr.io/wise-developers/project_nomad/firestarr:${{ inputs.firestarr_version }}-arm64
