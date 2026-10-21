@@ -136,20 +136,33 @@ fi
 python3 -c '
 import json, sys, tarfile
 
-# Layers are large and never metadata. 8 MiB is comfortably above any manifest,
-# config or attestation and far below any real layer, so the whole index can be
-# held in memory while the layers are skipped unread.
-LIMIT = 8 * 1024 * 1024
-small = {}
+# DO NOT FILTER BLOBS BY SIZE. The first version skipped anything over 8 MiB on
+# the reasoning that "layers are large and metadata is small". MEASURED FALSE on
+# the demo box: the SPDX attestation for the Nomad image is 20.89 MB — 1334
+# packages — and was the fifth-largest blob in the export, sitting just above
+# that cutoff. The script reported "no SPDX attestation in the OCI output" while
+# the attestation was right there, and the test passed because the
+# stub attestation was a few hundred bytes.
+#
+# A size heuristic cannot separate a document from a layer, because an SBOM
+# grows with the thing it describes. The CONTENT can: a gzipped layer starts
+# with 0x1f 0x8b, JSON starts with "{". So peek one byte and only read the
+# member if it could possibly be a document. Layers are skipped without being
+# loaded, which is the property the size limit was reaching for.
+candidates = {}
 
 try:
     tf = tarfile.open(sys.argv[1], mode="r")
     for m in tf:
-        if not m.isfile() or m.size > LIMIT:
+        if not m.isfile():
             continue
         f = tf.extractfile(m)
-        if f is not None:
-            small[m.name] = f.read()
+        if f is None:
+            continue
+        head = f.read(1)
+        if head != b"{":
+            continue
+        candidates[m.name] = head + f.read()
 except Exception as e:
     print("could not read the OCI export: %s" % e, file=sys.stderr)
     sys.exit(2)
@@ -172,7 +185,7 @@ def predicate_from(raw):
     return None
 
 found = None
-for name, raw in small.items():
+for name, raw in candidates.items():
     if not name.startswith("blobs/"):
         continue
     found = predicate_from(raw)

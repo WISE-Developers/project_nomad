@@ -107,6 +107,11 @@ att_digest, att_raw = blob({
     "predicate": {
         "spdxVersion": "SPDX-2.3",
         "name": "sbom",
+        # DELIBERATELY FAT. The real attestation for the Nomad image is 20.89 MB
+        # (1334 packages) and an 8 MiB size filter silently skipped it while
+        # this stub's few-hundred-byte version sailed through. A stub smaller
+        # than reality tested the stub, again. Padding to >8 MiB makes any
+        # future size heuristic fail here instead of in production.
         "packages": [
             {"name": "libc6", "versionInfo": "2.36",
              "externalRefs": [{"referenceType": "purl",
@@ -114,6 +119,10 @@ att_digest, att_raw = blob({
             {"name": "systemd", "versionInfo": "252",
              "externalRefs": [{"referenceType": "purl",
                                "referenceLocator": "pkg:deb/debian/systemd@252"}]},
+        ] + [
+            {"name": "filler-%d" % i, "versionInfo": "1.0",
+             "description": "x" * 400}
+            for i in range(22000)
         ],
     },
 })
