@@ -29,10 +29,19 @@
 # wrapper image `FROM <image>` with `--sbom=true`; BuildKit scans the resulting
 # filesystem, which is the image's filesystem. No layers are rebuilt.
 #
-# NOTHING LARGE IS EVER WRITTEN TO DISK. The OCI output is streamed to stdout
-# and parsed in flight, keeping only members small enough to be metadata. That
-# is the actual fix for #464 — not a better temp directory, but no temp file at
-# all.
+# IT DOES NEED TRANSIENT DISK, AND I TRIED HARD TO AVOID THAT. The first version
+# streamed `type=oci,dest=-` and parsed the tar in flight, so nothing was staged
+# at all. MEASURED ON THE DEMO BOX 2026-10-21: that does not work. With
+# `dest=-` the attestation blob is simply absent from the stream — buildx cannot
+# seek back to add it — while the identical build with `dest=<file>` writes it.
+# Same command, same image, one produced an SBOM and one produced nothing.
+#
+# So the export is written to a file, and the #464 lesson is applied where it
+# actually bites: the file goes in the CALLER'S output directory, never /tmp,
+# and free space is checked against the image size BEFORE starting, so a box
+# that cannot hold it says so instead of failing halfway. The export is also far
+# smaller than the old `docker save` path — 512 MB against 2.42 GB for the same
+# image, because the OCI layers stay compressed.
 #
 # TWO RULES, and the second is a deliberate REVERSAL of the original
 #
@@ -89,23 +98,52 @@ write_status() { # write_status <state> <detail>
 
 printf 'FROM %s\n' "$IMAGE" > "$CTX/Dockerfile"
 
-# --sbom=true asks BuildKit for the attestation; type=oci,dest=- streams the
-# result so nothing is staged on disk. The extractor keeps only small members,
-# so a multi-gigabyte image costs bounded memory rather than bounded disk.
+# SPACE FIRST, because the whole point of #464 is that this step failed halfway
+# and said so only in passing. The image's own size is a conservative bound: the
+# OCI export compresses to roughly a fifth of it, so requiring the full size
+# means we never start an export that cannot finish.
+IMG_BYTES="$(docker image inspect "$IMAGE" --format '{{.Size}}' 2>/dev/null || echo 0)"
+AVAIL_KB="$(df -Pk "$OUT_DIR" 2>/dev/null | awk 'NR==2{print $4}')"
+if [ -n "${AVAIL_KB:-}" ] && [ "${IMG_BYTES:-0}" -gt 0 ]; then
+    NEED_KB=$(( IMG_BYTES / 1024 ))
+    if [ "$AVAIL_KB" -lt "$NEED_KB" ]; then
+        write_status "FAILED" "only ${AVAIL_KB}KB free under $OUT_DIR, need ${NEED_KB}KB for the OCI export of $IMAGE"
+        say_warn "Not enough free space under $OUT_DIR to export $IMAGE — image SBOM skipped. The deploy is unaffected."
+        say_warn "Recorded in $STATUS_FILE"
+        exit 1
+    fi
+fi
+
+# --sbom=true asks BuildKit for the attestation. dest must be a FILE: with
+# dest=- the attestation never appears in the stream (measured, see the header).
+OCI_TAR="$CTX/oci.tar"
 docker buildx build \
     --sbom=true \
     -f "$CTX/Dockerfile" \
-    --output type=oci,dest=- \
-    "$CTX" 2>"$ERR" | python3 -c '
+    --output "type=oci,dest=$OCI_TAR" \
+    "$CTX" >/dev/null 2>"$ERR"
+BUILD_RC=$?
+
+if [ "$BUILD_RC" != "0" ]; then
+    DETAIL="$(head -c 400 "$ERR" 2>/dev/null | tr '\n' ' ')"
+    [ -n "$DETAIL" ] || DETAIL="docker buildx build exited $BUILD_RC with no message"
+    write_status "FAILED" "$DETAIL"
+    say_warn "BuildKit could not attest $IMAGE — image SBOM skipped. The deploy is unaffected."
+    say_warn "Recorded in $STATUS_FILE: $DETAIL"
+    exit 1
+fi
+
+python3 -c '
 import json, sys, tarfile
 
 # Layers are large and never metadata. 8 MiB is comfortably above any manifest,
-# config or attestation and far below any real layer.
+# config or attestation and far below any real layer, so the whole index can be
+# held in memory while the layers are skipped unread.
 LIMIT = 8 * 1024 * 1024
 small = {}
 
 try:
-    tf = tarfile.open(fileobj=sys.stdin.buffer, mode="r|*")
+    tf = tarfile.open(sys.argv[1], mode="r")
     for m in tf:
         if not m.isfile() or m.size > LIMIT:
             continue
@@ -113,13 +151,15 @@ try:
         if f is not None:
             small[m.name] = f.read()
 except Exception as e:
-    print("could not read the OCI stream: %s" % e, file=sys.stderr)
+    print("could not read the OCI export: %s" % e, file=sys.stderr)
     sys.exit(2)
 
-# Prefer the declared attestation, but fall back to scanning the small blobs:
-# the index is authoritative and the scan is the safety net for a layout whose
-# annotations differ. Either way the predicate is identified by its own
-# predicateType, never by position.
+# The blobs are scanned rather than resolved through the index, deliberately.
+# MEASURED on the demo box: the attestation blob is present in `blobs/` while
+# `index.json` does not list an `attestation-manifest` entry for it at all. A
+# parser that walked the index would correctly conclude there was no
+# attestation and be wrong. The predicate is identified by its own
+# predicateType, never by position or by the index agreeing it exists.
 def predicate_from(raw):
     try:
         d = json.loads(raw)
@@ -144,28 +184,13 @@ if not found:
     sys.exit(3)
 
 json.dump(found, sys.stdout, indent=2)
-' > "$OUT_FILE" 2>"$CTX/extract.err"
+' "$OCI_TAR" > "$OUT_FILE" 2>"$CTX/extract.err"
+EXTRACT_RC=$?
 
-# PIPESTATUS, not $?, or a buildx failure is masked by a happy extractor. bash
-# 3.x has it, which matters because macOS ships 3.x and these tests run there.
-#
-# COPY THE WHOLE ARRAY IN ONE STATEMENT. Reading PIPESTATUS[0] into a variable
-# is itself a command, which resets PIPESTATUS — so the second read saw a
-# one-element array and died under `set -u`. Caught by the test rather than in
-# production, which is the only reason it is a footnote instead of an incident.
-RCS=("${PIPESTATUS[@]}")
-BUILD_RC="${RCS[0]:-1}"
-EXTRACT_RC="${RCS[1]:-1}"
-
-if [ "$BUILD_RC" != "0" ]; then
-    rm -f "$OUT_FILE"
-    DETAIL="$(head -c 400 "$ERR" 2>/dev/null | tr '\n' ' ')"
-    [ -n "$DETAIL" ] || DETAIL="docker buildx build exited $BUILD_RC with no message"
-    write_status "FAILED" "$DETAIL"
-    say_warn "BuildKit could not attest $IMAGE — image SBOM skipped. The deploy is unaffected."
-    say_warn "Recorded in $STATUS_FILE: $DETAIL"
-    exit 1
-fi
+# Drop the export the moment it has been read. It is the largest thing this
+# script touches and it is worthless once parsed; leaving it on a production
+# box mid-deploy is its own hazard.
+rm -f "$OCI_TAR"
 
 if [ "$EXTRACT_RC" != "0" ]; then
     rm -f "$OUT_FILE"

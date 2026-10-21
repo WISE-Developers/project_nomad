@@ -81,11 +81,16 @@ case "$1" in
       echo "ERROR: attestations are not supported by the current builder" >&2
       exit 1
     fi
-    # Where was the OCI output asked for? `-` means stdout.
+    # Where was the OCI output asked for? A FILE, since dest=- demonstrably
+    # omits the attestation blob (measured on the demo box 2026-10-21).
     dest=""
     for a in "$@"; do
       case "$a" in *dest=*) dest="${a#*dest=}" ;; esac
     done
+    if [ -z "$dest" ] || [ "$dest" = "-" ]; then
+      echo "STUB: refusing dest=- — buildx omits the attestation when streaming" >&2
+      exit 1
+    fi
     python3 - "$dest" <<'PYOCI'
 import hashlib, io, json, os, sys, tarfile
 
@@ -148,7 +153,7 @@ index = {
     ],
 }
 
-out = sys.stdout.buffer if dest in ("-", "") else open(dest, "wb")
+out = open(dest, "wb")
 tf = tarfile.open(fileobj=out, mode="w|")
 
 def add(name, raw):
@@ -167,12 +172,15 @@ add("blobs/sha256/" + am_digest, am_raw)
 add("blobs/sha256/" + im_digest, im_raw)
 add("index.json", json.dumps(index).encode())
 tf.close()
-if out is not sys.stdout.buffer:
-    out.close()
+out.close()
 PYOCI
     exit 0 ;;
   info)
     if [ "${STUB_MODE:-ok}" = "noattest" ]; then echo "overlay2"; else echo "io.containerd.snapshotter.v1"; fi
+    exit 0 ;;
+  image)
+    # `docker image inspect <img> --format {{.Size}}` for the space precheck.
+    echo "${STUB_IMAGE_BYTES:-1048576}"
     exit 0 ;;
   save)
     echo "STUB SAW docker save — the whole point of #460 is not to do this" >&2
@@ -190,7 +198,9 @@ CALLS="$WORK/calls"
 
 run_gen() { # run_gen <image> <version> <outdir>
   : > "$CALLS"
-  ( cd "$WORK" && PATH="$BIN:$PATH" CALLS="$CALLS" bash "$GEN" "$1" "$2" "$3" 2>&1 )
+  ( cd "$WORK" && PATH="$BIN:$PATH" CALLS="$CALLS" \
+      STUB_MODE="${STUB_MODE:-ok}" STUB_IMAGE_BYTES="${STUB_IMAGE_BYTES:-1048576}" \
+      bash "$GEN" "$1" "$2" "$3" 2>&1 )
 }
 
 # ---------------------------------------------------------------------------
@@ -261,6 +271,29 @@ if grep -v '^[[:space:]]*#' "$GEN" | grep -q 'mktemp -t'; then
   bad "code still allocates scratch with 'mktemp -t', which lands in /tmp — the #464 cause"
 else
   ok "no 'mktemp -t' in code (comments may still name the old bug)"
+fi
+
+# The OCI export is the biggest thing this script touches. It must not be left
+# behind on a production box, and it must never be allocated in /tmp.
+if [ -z "$(find "$OUT" -name 'oci.tar' 2>/dev/null)" ]; then
+  ok "removes the OCI export after reading it"
+else
+  bad "left the OCI export on disk"
+fi
+
+if grep -v '^[[:space:]]*#' "$GEN" | grep -q 'df -Pk'; then
+  ok "checks free space before exporting (the #464 failure mode, stated up front)"
+else
+  bad "no free-space precheck — #464 was a halfway failure for want of one"
+fi
+
+# A box without room must refuse BEFORE the export, and say so durably.
+OUT3="$WORK/sbom3"
+out="$(STUB_MODE=ok STUB_IMAGE_BYTES=999999999999 run_gen nomad-app-nomad:latest 9.9.9 "$OUT3" 2>&1)"; rc=$?
+if [ "$rc" != "0" ] && ls "$OUT3"/*STATUS* >/dev/null 2>&1 && grep -qi 'free' "$OUT3"/*STATUS*; then
+  ok "refuses up front when free space is short, and records why"
+else
+  bad "did not refuse-and-record on insufficient space (rc=$rc)"
 fi
 
 # ---------------------------------------------------------------------------
