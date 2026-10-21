@@ -4,10 +4,20 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.35.0
+## v0.36.0
+
+### 2026-10-21
+
+- [`a9f2f72`](https://github.com/WISE-Developers/project_nomad/commit/a9f2f728d0cd84a6a33a8ef70565c8691146d3ac) Merge pull request #466 from WISE-Developers/dev — *Franco Nogarin, 11:38*
+- [`3153e0c`](https://github.com/WISE-Developers/project_nomad/commit/3153e0c4bc00125fd59aa782f3b53fb5e6dcfde5) chore: dev v0.35.1 [release-bot] — *github-actions[bot], 16:30*
+- [`8e694d6`](https://github.com/WISE-Developers/project_nomad/commit/8e694d6e46a62e2cfd364a1e0b9b503dbfadcd58) Merge chore/460-buildkit-image-sbom into dev — *Franco Nogarin, 10:29*
+- [`9d45d6b`](https://github.com/WISE-Developers/project_nomad/commit/9d45d6b7eb8616c840bed46b66684c8c97fc8bbf) #460: do not filter OCI blobs by size — the SBOM is 20.89MB, not 'small' — *Franco Nogarin, 09:05*
+- [`9ce0797`](https://github.com/WISE-Developers/project_nomad/commit/9ce0797b85742de31b4a90a3d63726e434485cf6) #460: the OCI export must go to a file — dest=- omits the attestation — *Franco Nogarin, 09:01*
+- [`737a83b`](https://github.com/WISE-Developers/project_nomad/commit/737a83bbd818cc16ee8114cc5abfaa9571647597) #460: image SBOM from BuildKit attestation, not a syft scan — *Franco Nogarin, 08:55*
 
 ### 2026-10-16
 
+- [`36072cb`](https://github.com/WISE-Developers/project_nomad/commit/36072cb6f04d0563de7f3bc38c39ddb9de4586f6) chore: release v0.35.0 [release-bot] — *github-actions[bot], 17:11*
 - [`0df476e`](https://github.com/WISE-Developers/project_nomad/commit/0df476e4cf743cf1f3134be5fa51e1f7d88acfd8) Merge pull request #458 from WISE-Developers/dev — *Franco Nogarin, 11:11*
 - [`77a5b2b`](https://github.com/WISE-Developers/project_nomad/commit/77a5b2b47b02613c617ad6dee8a2b37ad790a4ed) chore: dev v0.34.1 [release-bot] — *github-actions[bot], 17:04*
 - [`2730677`](https://github.com/WISE-Developers/project_nomad/commit/273067739a94325bbbeb0e549a6b08c757dd1dd8) One line for the name, one for the buttons — never shared (#456) — *Franco Nogarin, 11:04*
