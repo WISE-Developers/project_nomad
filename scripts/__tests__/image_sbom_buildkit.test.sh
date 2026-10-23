@@ -337,6 +337,63 @@ else
   bad "output directory left empty on failure — exactly what #464 looked like on disk"
 fi
 
+# ---------------------------------------------------------------------------
+# 5. A FILENAME MUST NEVER CARRY UN-SANITISED CALLER INPUT (#469).
+#
+# deploy.sh passed the version as the JSON fragment `"version":"0.36.0"` and
+# this script put it straight into a filename, so the CIFFC demo now holds
+# `nomad-image-"version":"0.36.0".spdx.json`. The caller's bug is #469's first
+# half; THIS is the second half, and it is the reason the defect surfaced as
+# mangled artefacts rather than being caught at the boundary.
+#
+# The point is not to tolerate a bad caller. It is that a script which names
+# files from an argument owns the safety of that name regardless of who calls
+# it, and there is no version string for which a quote, colon, slash or newline
+# in the filename is the right outcome.
+echo ""
+echo "hostile version strings cannot produce hostile filenames (#469)"
+
+OUT4="$WORK/sbom4"
+out="$(STUB_MODE=ok run_gen nomad-app-nomad:latest '"version":"0.36.0"' "$OUT4" 2>&1)"; rc=$?
+
+produced="$(ls "$OUT4" 2>/dev/null | tr '\n' ' ')"
+if [ -z "$produced" ]; then
+  bad "nothing was written at all for a hostile version (rc=$rc)"
+else
+  ok "still produced output for a hostile version ($produced)"
+fi
+
+# Whether it sanitises or refuses, what it must NOT do is create these names.
+hostile=0
+for n in $(ls "$OUT4" 2>/dev/null); do
+  case "$n" in
+    *'"'*|*:*|*'/'*|*' '*) hostile=$((hostile+1)) ;;
+  esac
+done
+if [ "$hostile" -eq 0 ]; then
+  ok "no filename contains a quote, colon, slash or space"
+else
+  bad "$hostile filename(s) carry shell-hostile characters — the #469 defect"
+fi
+
+# And the version recorded INSIDE the status file must be the clean one too,
+# because that line is the document's own provenance.
+if ls "$OUT4"/*STATUS* >/dev/null 2>&1 && ! grep -q '"version"' "$OUT4"/*STATUS* 2>/dev/null; then
+  ok "the status file records a clean version, not the raw fragment"
+else
+  bad "the status file carries the raw JSON fragment as the version"
+fi
+
+# A clean version must still pass through untouched — sanitising must not
+# mangle the normal case.
+OUT5="$WORK/sbom5"
+STUB_MODE=ok run_gen nomad-app-nomad:latest 0.36.0 "$OUT5" >/dev/null 2>&1
+if [ -f "$OUT5/nomad-image-0.36.0.spdx.json" ]; then
+  ok "a clean version is used verbatim (nomad-image-0.36.0.spdx.json)"
+else
+  bad "a clean version was altered: $(ls "$OUT5" 2>/dev/null | tr '\n' ' ')"
+fi
+
 echo ""
 echo "passed: $pass   failed: $fail"
 [ "$fail" = "0" ] || exit 1

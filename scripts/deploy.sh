@@ -237,7 +237,13 @@ await_version() {
     # which handles "53000", "127.0.0.1:53000" and an IPv6 host alike.
     local port="${spec##*:}"
     while [ "$waited" -lt "$budget" ]; do
-        reported="$(curl -fsS "localhost:${port}/api/v1/info" 2>/dev/null | grep -oE '"version":"[^"]+"' || true)"
+        # sed, not `grep -o`: grep prints the WHOLE match and has no capture
+        # group, so this returned the JSON fragment `"version":"0.36.0"` rather
+        # than `0.36.0`. Invisible for as long as it only reached the log line
+        # below -- then #460 passed it to generate-image-sbom.sh, which names
+        # files with it, and the v0.36.0 deploy wrote
+        # `nomad-image-"version":"0.36.0".spdx.json` (#469).
+        reported="$(curl -fsS "localhost:${port}/api/v1/info" 2>/dev/null | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' || true)"
         if [ -n "$reported" ]; then
             printf '%s' "$reported"
             return 0

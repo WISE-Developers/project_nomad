@@ -25,6 +25,7 @@ sed -n '/^refuse_root() {/,/^}/p'      "$DEPLOY" >  "$tmp/fn.sh"
 sed -n '/^owner_drift_count() {/,/^}/p' "$DEPLOY" >> "$tmp/fn.sh"
 sed -n '/^probe_docker_chain() {/,/^}/p'   "$DEPLOY" >> "$tmp/fn.sh"
 sed -n '/^docker_chain_verdict() {/,/^}/p' "$DEPLOY" >> "$tmp/fn.sh"
+sed -n '/^await_version() {/,/^}/p'        "$DEPLOY" >> "$tmp/fn.sh"
 
 cat > "$tmp/harness.sh" <<EOF
 print_error(){ echo "ERROR: \$*"; }
@@ -142,6 +143,63 @@ if grep -E '"\$sbom_script" .*\|\| true' "$tmp/deploy_nogaurd.sh" >/dev/null 2>&
 else
   echo "  ok   - control: removing '|| true' makes the guard above fail"
   pass=$((pass+1))
+fi
+
+# ---------------------------------------------------------------------------
+# THE REPORTED VERSION MUST BE A BARE VERSION, NOT A JSON FRAGMENT (#469).
+#
+# deploy.sh used `grep -oE '"version":"[^"]+"'`, which prints the WHOLE match
+# because grep has no capture-group extraction. So `reported` held
+# `"version":"0.36.0"`. That was invisible for as long as it only reached one
+# log line -- and #460 then passed it to generate-image-sbom.sh, which names
+# files with it. The v0.36.0 deploy wrote
+# `nomad-image-"version":"0.36.0".spdx.json` on the CIFFC demo.
+#
+# This calls the REAL await_version with curl and sleep stubbed, rather than
+# re-implementing its pipeline here. The first version of this test lifted the
+# line out with a regex, produced an empty string, and then "passed" a
+# filename-safety assertion on that emptiness -- a test failing for the wrong
+# reason, which would have gone green after the fix for a reason unrelated to
+# the fix.
+echo
+echo "reported version is a bare version (#469)"
+
+vbin="$tmp/vbin"
+mkdir -p "$vbin"
+cat > "$vbin/curl" <<'STUB'
+#!/usr/bin/env bash
+# The real shape of GET /api/v1/info, version deliberately not first.
+printf '{"name":"nomad","version":"0.36.0","engine":"firestarr"}'
+STUB
+cat > "$vbin/sleep" <<'STUB'
+#!/usr/bin/env bash
+exit 0
+STUB
+chmod +x "$vbin/curl" "$vbin/sleep"
+
+got="$(PATH="$vbin:$PATH" bash -c "source '$tmp/harness.sh'; await_version 3001 3" 2>/dev/null)"
+
+if [ "$got" = "0.36.0" ]; then
+  echo "  ok   - await_version returns 0.36.0"
+  pass=$((pass+1))
+else
+  echo "  FAIL - await_version returned '$got', expected '0.36.0' (#469)"
+  fail=$((fail+1))
+fi
+
+# Guard against passing on emptiness: a blank result is filename-safe and useless.
+if [ -z "$got" ]; then
+  echo "  FAIL - await_version returned nothing, so the stub or extraction is wrong, not the version"
+  fail=$((fail+1))
+else
+  case "$got" in
+    *'"'*|*:*|*/*)
+      echo "  FAIL - returned version contains a quote, colon or slash, so it cannot safely name a file"
+      fail=$((fail+1)) ;;
+    *)
+      echo "  ok   - returned version is filename-safe and non-empty"
+      pass=$((pass+1)) ;;
+  esac
 fi
 
 echo

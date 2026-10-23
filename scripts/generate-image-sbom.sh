@@ -72,8 +72,44 @@ mkdir -p "$OUT_DIR" 2>/dev/null || {
     exit 1
 }
 
-OUT_FILE="$OUT_DIR/nomad-image-${VERSION}.spdx.json"
-STATUS_FILE="$OUT_DIR/SBOM-STATUS-${VERSION}.txt"
+# THE VERSION NAMES FILES, SO IT IS SANITISED HERE REGARDLESS OF THE CALLER
+# (#469). deploy.sh passed the JSON fragment `"version":"0.36.0"` and this
+# script put it straight into a filename, producing
+# `nomad-image-"version":"0.36.0".spdx.json` on the CIFFC demo. deploy.sh is
+# fixed, and that is not the reason this guard exists: a script that names
+# files from an argument owns the safety of that name, and there is no version
+# string for which a quote, colon or slash in the filename is right.
+#
+# Narrowed to what a version can legitimately contain -- alphanumerics, dot,
+# underscore, plus, hyphen -- which covers semver, pre-release tags and build
+# metadata. Anything else is dropped.
+SAFE_VERSION="$(printf '%s' "$VERSION" | tr -cd 'A-Za-z0-9._+-')"
+
+if [ -z "$SAFE_VERSION" ]; then
+    # Nothing usable left. Refusing beats writing `nomad-image-.spdx.json`,
+    # which would collide with itself on every deploy.
+    say_warn "Version '$VERSION' contains no filename-safe characters — image SBOM skipped."
+    VERSION_FOR_STATUS="unusable"
+    mkdir -p "$OUT_DIR" 2>/dev/null
+    {
+        echo "state:   FAILED"
+        echo "image:   $IMAGE"
+        echo "version: (rejected: no filename-safe characters)"
+        echo "when:    $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+        echo "detail:  the caller passed a version that cannot name a file"
+    } > "$OUT_DIR/SBOM-STATUS-unusable.txt" 2>/dev/null || true
+    exit 1
+fi
+
+if [ "$SAFE_VERSION" != "$VERSION" ]; then
+    # Said rather than normalised quietly. A caller passing an unsafe version is
+    # a bug in the caller, and silently cleaning it up is how #469 would have
+    # stayed hidden a second time.
+    say_warn "Version was not filename-safe; using '$SAFE_VERSION'. The caller passed something else — fix the caller."
+fi
+
+OUT_FILE="$OUT_DIR/nomad-image-${SAFE_VERSION}.spdx.json"
+STATUS_FILE="$OUT_DIR/SBOM-STATUS-${SAFE_VERSION}.txt"
 
 # The build context and the error log live beside the output, never in /tmp.
 # That is the #464 lesson stated as code: this directory is chosen by the
@@ -90,7 +126,7 @@ write_status() { # write_status <state> <detail>
     {
         echo "state:   $1"
         echo "image:   $IMAGE"
-        echo "version: $VERSION"
+        echo "version: $SAFE_VERSION"
         echo "when:    $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
         echo "detail:  $2"
     } > "$STATUS_FILE" 2>/dev/null || true
