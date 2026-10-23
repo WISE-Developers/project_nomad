@@ -30,24 +30,27 @@ SRC_DIR="${SRC_DIR:-/Volumes/KINGSTON/FireSTARR_Fuel_Data_Sets/DataSourcesFromJo
 OUT_DIR="${OUT_DIR:-/Volumes/KINGSTON/FireSTARR_Fuel_Data_Sets/masterDataSets}"
 LUT_SRC="${LUT_SRC:-}"          # override; defaults to the master at $OUT_DIR/fuel.lut
 
-# THE LUT IS PINNED TO A SINGLE SOURCE OF TRUTH, BY CONTENT (#461).
+# UPSTREAM IS THE SOURCE OF TRUTH FOR fuel.lut, FETCHED EVERY BUILD (#461).
 #
 # The legend that decodes a fuel grid must be THE legend, identically, in every
-# dataset we ship. It was not, and nothing caught it: two shipped vintage
+# dataset we ship. Keeping our own copy is what broke that: two shipped vintage
 # archives carry a pre-2026 legend with no row 107 (Urban), a value their own
-# tiles contain -- 182,355 pixels of it in one real tile. They predate the row,
-# were built before this script took its present shape, and carry no manifest.
+# tiles contain -- 182,355 pixels of it in one real tile. Upstream gained the
+# row, our copy did not, and nobody noticed for eight months.
 #
-# This is upstream CWFMF/firestarr-cpp:fuel.lut at origin/main, read 2026-10-23:
-# 11684 bytes, 150 data rows. Our master is byte-identical to it, so there is no
-# longer any local augmentation -- see the lutNote in dataset_json, which used to
-# claim one.
+# A hash PIN was tried and removed. Pinning our copy catches OUR copy drifting,
+# which was never the failure; it is blind to upstream changing, so the build
+# would pass happily while shipping a stale legend. Fetching removes the second
+# copy entirely, and with it the thing that can go stale.
 #
-# Pinning by hash makes a legend change a DELIBERATE act: upstream changes the
-# lut, the build refuses, someone updates this line having looked at the diff.
-# The alternative is a legend that drifts into a dataset silently, which is the
-# failure this exists to prevent. Override only to test the refusal path.
-LUT_SHA256="${LUT_SHA256:-468eed481e55371250b0a7210d79fe60859bc7e47e4662a1dde056f4ffd61ce3}"
+# Reproducibility comes from dataset.json's lutSha256, not from a pin: to
+# rebuild an old vintage, check upstream out at the hash its manifest records.
+LUT_URL="${LUT_URL:-https://raw.githubusercontent.com/CWFMF/firestarr-cpp/main/fuel.lut}"
+
+# Resolved ONCE per run and reused, so every vintage in a build carries the
+# byte-identical file. Fetching per year would risk two vintages built minutes
+# apart disagreeing, which is the property this whole change exists to provide.
+RUN_LUT=""
 VERSION="${VERSION:-1.0}"
 COG="${COG:-1}"                 # 1 = convert tiles to Cloud Optimized GeoTIFF
 
@@ -134,26 +137,63 @@ sha256_of() {
     else sha256sum "$1" | awk '{print $1}'; fi
 }
 
-# Refuse a lut that is not the pinned one. Returns 0 on a match, 1 otherwise,
-# and SAYS WHICH -- a build that stops without naming the reason sends the next
-# person to read this script instead of the diff.
-verify_lut() {
-    local lut="$1" got
-    if [ ! -f "$lut" ]; then
-        print_error "fuel.lut not found at $lut"
+# Does this file look like a fuel lookup table at all?
+#
+# THE EXIT STATUS OF A FETCH IS NOT ENOUGH. A 404 page, a captive portal or a
+# proxy error arrives as HTTP 200 with HTML in it, and curl reports success.
+# Checked by shape: the header line, and a plausible number of rows that start
+# with an integer and carry ten comma-separated fields.
+looks_like_lut() {
+    local f="$1" rows
+    [ -s "$f" ] || return 1
+    head -1 "$f" | grep -q 'grid_value' || return 1
+    rows="$(awk -F, 'NR>1 && $1 ~ /^[0-9]+$/ && NF==10' "$f" | wc -l | tr -d ' ')"
+    # The real lut has 150 data rows. A floor rather than an exact count, so a
+    # legitimate upstream addition does not fail the build for being bigger.
+    [ "${rows:-0}" -ge 100 ]
+}
+
+# Fetch the lut from upstream. Fails loudly and cleans up after itself; NEVER
+# falls back to a local copy, because a build that appears to succeed while
+# shipping whatever was on disk is the original defect with extra steps.
+fetch_lut() {
+    local dest="$1" part="$1.part"
+    rm -f "$part"
+    if ! curl -fsSL "$LUT_URL" -o "$part" 2>/dev/null; then
+        print_error "Could not fetch fuel.lut from $LUT_URL"
+        print_error "  Upstream CWFMF/firestarr-cpp is the source of truth and there is no fallback."
+        print_error "  Fix the network, or pass LUT_SRC=<path> to use a local copy DELIBERATELY."
+        rm -f "$part"
         return 1
     fi
-    got="$(sha256_of "$lut")"
-    if [ "$got" != "$LUT_SHA256" ]; then
-        print_error "fuel.lut does not match the pinned source of truth"
-        print_error "  expected: $LUT_SHA256"
-        print_error "  found:    $got  ($lut)"
-        print_error "  If upstream changed the legend, diff it against"
-        print_error "  CWFMF/firestarr-cpp:fuel.lut and update LUT_SHA256 deliberately."
-        print_error "  Refusing to ship a dataset whose legend is not the one we pinned."
+    if ! looks_like_lut "$part"; then
+        print_error "Fetched $LUT_URL but it is not a fuel lookup table"
+        print_error "  $(wc -c < "$part" | tr -d ' ') bytes, first line: $(head -c 80 "$part" | tr -d '\n')"
+        print_error "  An error page returns HTTP 200, so the download succeeding proves nothing."
+        rm -f "$part"
         return 1
     fi
-    return 0
+    mv "$part" "$dest"
+}
+
+# Resolve the lut for this run, once, into $1.
+#
+# LUT_SRC is an EXPLICIT offline override, not a fallback. Set it and no fetch
+# happens; leave it unset and upstream is authoritative. The distinction is the
+# point: an operator choosing a local file is fine, a build quietly settling for
+# one is not.
+resolve_lut() {
+    local dest="$1"
+    if [ -n "${LUT_SRC:-}" ]; then
+        print_info "Using LUT_SRC=$LUT_SRC (explicit override — not fetching upstream)"
+        if ! looks_like_lut "$LUT_SRC"; then
+            print_error "LUT_SRC=$LUT_SRC is not a fuel lookup table. Refusing to ship it."
+            return 1
+        fi
+        cp "$LUT_SRC" "$dest" || return 1
+        return 0
+    fi
+    fetch_lut "$dest"
 }
 
 write_checksums() {
@@ -221,23 +261,19 @@ package_year() {
     nfuel=$(find "$tiles" -name 'fuel_*.tif' | wc -l | tr -d ' ')
     ndem=$(find "$tiles" -name 'dem_*.tif' | wc -l | tr -d ' ')
 
-    # fuel.lut comes from THE MASTER at the root of OUT_DIR — one canonical copy,
-    # byte-identical to upstream CWFMF/firestarr-cpp:fuel.lut, copied identically
-    # into every vintage. Jordan's source zips contain tiles only and never a lut,
-    # so there is nothing to fall back to: a dataset without the lut is broken.
-    #
-    # VERIFIED BEFORE IT IS COPIED, against the pin at the top of this file. The
-    # reason is #461: two archives shipped with a legend that could not decode a
-    # value their own tiles carried, and the only thing that would have caught it
-    # is a check on the way in.
-    local lut="${LUT_SRC:-$OUT_DIR/fuel.lut}"
-    if [ ! -f "$lut" ]; then
-        print_error "$year: master fuel.lut not found at $lut"
-        print_error "  Set LUT_SRC, or restore the master lut. Refusing to build an incomplete dataset."
-        return 1
+    # fuel.lut comes from UPSTREAM, fetched once per run and reused, so every
+    # vintage in this build carries the byte-identical legend. Jordan's source
+    # zips contain tiles only and never a lut.
+    if [ -z "$RUN_LUT" ]; then
+        RUN_LUT="$OUT_DIR/.fuel.lut.run"
+        if ! resolve_lut "$RUN_LUT"; then
+            RUN_LUT=""
+            print_error "$year: could not obtain fuel.lut. Refusing to build a dataset without its legend."
+            return 1
+        fi
+        print_step "fuel.lut resolved for this run ($(sha256_of "$RUN_LUT" | cut -c1-12)…)"
     fi
-    verify_lut "$lut" || return 1
-    cp "$lut" "$root/fuel.lut"
+    cp "$RUN_LUT" "$root/fuel.lut"
 
     local lut_sha
     lut_sha="$(sha256_of "$root/fuel.lut")"
