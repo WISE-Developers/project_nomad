@@ -4,10 +4,15 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.38.0
+## v0.39.0
 
 ### 2026-10-23
 
+- [`5190604`](https://github.com/WISE-Developers/project_nomad/commit/5190604ce607374d4f5e8da1fad4b47d1ef06446) Merge pull request #472 from WISE-Developers/dev — *Franco Nogarin, 12:06*
+- [`4423ab8`](https://github.com/WISE-Developers/project_nomad/commit/4423ab8715b2f60511dff7e0b88eb4ece2576985) chore: dev v0.38.1 [release-bot] — *github-actions[bot], 15:40*
+- [`3cb4fcb`](https://github.com/WISE-Developers/project_nomad/commit/3cb4fcbabfa555acf4c1d269d054f55482292fea) Merge feat/465-publish-app-image into dev — *Franco Nogarin, 09:40*
+- [`eb5855b`](https://github.com/WISE-Developers/project_nomad/commit/eb5855b082186ae66fb748e784653c2ad5a4accf) #465: build and publish the application image from CI — *Franco Nogarin, 09:39*
+- [`88cf874`](https://github.com/WISE-Developers/project_nomad/commit/88cf87402d73aae5bd8704cb7f8c1e5093c5676a) chore: release v0.38.0 [release-bot] — *github-actions[bot], 15:02*
 - [`f5a070f`](https://github.com/WISE-Developers/project_nomad/commit/f5a070f8c42e48c266c82ef5fef9f218c9a9923c) Merge pull request #471 from WISE-Developers/dev — *Franco Nogarin, 09:02*
 - [`07c53c5`](https://github.com/WISE-Developers/project_nomad/commit/07c53c5fa29809d9a25dc50049de455dfb3b8153) chore: dev v0.37.2 [release-bot] — *github-actions[bot], 13:36*
 - [`bc4f7d7`](https://github.com/WISE-Developers/project_nomad/commit/bc4f7d7cf53a7ea3c6f0aaa1b8eb83b752350139) Merge remote-tracking branch 'origin/dev' into dev — *Franco Nogarin, 07:36*
