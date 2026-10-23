@@ -4,10 +4,18 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.36.0
+## v0.37.0
+
+### 2026-10-23
+
+- [`08a2f57`](https://github.com/WISE-Developers/project_nomad/commit/08a2f5768c3d2861a741603324a86f492d45eef9) Merge pull request #470 from WISE-Developers/dev — *Franco Nogarin, 06:45*
+- [`e10f337`](https://github.com/WISE-Developers/project_nomad/commit/e10f33701f1974d30a06a5c7e26d0e80edb5a3bf) chore: dev v0.36.1 [release-bot] — *github-actions[bot], 12:20*
+- [`143058d`](https://github.com/WISE-Developers/project_nomad/commit/143058d53b5b8357ca7f6f27c08b4817688d2691) Merge fix/469-version-extraction into dev — *Franco Nogarin, 06:20*
+- [`486cb7f`](https://github.com/WISE-Developers/project_nomad/commit/486cb7fb20032e321575563038b82efa838cd583) #469: deploy.sh reported the JSON fragment as the version, and the SBOM named files with it — *Franco Nogarin, 06:19*
 
 ### 2026-10-21
 
+- [`3941a39`](https://github.com/WISE-Developers/project_nomad/commit/3941a3925d3436581eb8c19e302058faf03bfc05) chore: release v0.36.0 [release-bot] — *github-actions[bot], 17:39*
 - [`a9f2f72`](https://github.com/WISE-Developers/project_nomad/commit/a9f2f728d0cd84a6a33a8ef70565c8691146d3ac) Merge pull request #466 from WISE-Developers/dev — *Franco Nogarin, 11:38*
 - [`3153e0c`](https://github.com/WISE-Developers/project_nomad/commit/3153e0c4bc00125fd59aa782f3b53fb5e6dcfde5) chore: dev v0.35.1 [release-bot] — *github-actions[bot], 16:30*
 - [`8e694d6`](https://github.com/WISE-Developers/project_nomad/commit/8e694d6e46a62e2cfd364a1e0b9b503dbfadcd58) Merge chore/460-buildkit-image-sbom into dev — *Franco Nogarin, 10:29*
