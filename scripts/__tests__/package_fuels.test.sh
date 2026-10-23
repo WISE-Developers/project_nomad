@@ -74,57 +74,92 @@ expect_contains "manifest states run-year convention" 'input for 2027 model runs
 expect_contains "manifest records fuel tile count" '"fuelTiles": 31' "$manifest"
 expect_contains "manifest records the lut"     '"fuelLut": "fuel.lut"' "$manifest"
 # ---------------------------------------------------------------------------
-# THE LUT IS A SINGLE SOURCE OF TRUTH, VERIFIED BY HASH AND RECORDED (#461)
+# UPSTREAM IS THE SOURCE OF TRUTH, FETCHED AT BUILD TIME (#461)
 #
 # The legend that decodes a fuel grid must be THE legend, identically, in every
-# dataset we ship. Two things went wrong without that:
+# dataset we ship. Holding our own copy is what broke that: two shipped vintage
+# archives carry a pre-2026 legend with no row 107 (Urban), a value their own
+# tiles contain -- 182,355 pixels of it in one real tile. Upstream gained the
+# row; our copy did not; nobody noticed for eight months.
 #
-#   1. Two shipped vintage archives carry a pre-2026 legend that cannot decode
-#      grid_value 107 (Urban) -- a value their own tiles contain, 182,355 pixels
-#      of it in one real tile. They predate the row and nothing caught it.
-#   2. The manifest claimed a provenance that had stopped being true. It said
-#      "canonical CWFMF/firestarr-cpp fuel.lut + row 107=Urban", describing a
-#      local augmentation -- and upstream now ships row 107 itself, so the two
-#      files are byte-identical and we add nothing. A manifest that misdescribes
-#      its own contents passes every structural check and is still wrong.
+# A PIN WAS THE WRONG FIX AND IS DELIBERATELY GONE. Pinning our copy by hash
+# catches OUR copy drifting, which is not the failure we had. It is blind to
+# upstream changing -- the build would pass happily while shipping a stale
+# legend -- so it guards the direction that was never the problem. Franco:
+# "why pin it at all, why not just let the upstream lut be the source of truth
+# and use it all the time?"
 #
-# So: the lut is pinned by SHA256 to upstream's, verified before it is copied,
-# and its hash is recorded in the manifest. A legend change becomes a deliberate
-# act -- someone must update the pin -- rather than something that ships quietly.
+# So: fetch upstream every build, record the hash in the manifest, hold no
+# second copy to go stale. Reproducibility comes from the recorded hash, not
+# from a pin -- rebuild an old vintage by checking out upstream at the hash its
+# manifest names.
 #
-# The pin is upstream CWFMF/firestarr-cpp:fuel.lut at origin/main, 11684 bytes,
-# 150 data rows, read 2026-10-23.
+# NO SILENT FALLBACK. If the fetch fails the build stops. Falling back to a
+# local copy would make the build appear to succeed while shipping whatever
+# happened to be on disk, which is the original defect with extra steps.
 echo
-echo "fuel.lut: single source of truth, pinned and recorded"
+echo "fuel.lut: upstream fetched as the source of truth"
 
-SOT_SHA="468eed481e55371250b0a7210d79fe60859bc7e47e4662a1dde056f4ffd61ce3"
+lbin="$tmp/lbin"; mkdir -p "$lbin"
 
-expect_eq "the script pins the source-of-truth sha256" "yes" \
-  "$(grep -q "$SOT_SHA" "$SCRIPT" && echo yes || echo no)"
+mk_curl() { # mk_curl <mode>
+  cat > "$lbin/curl" <<STUB
+#!/usr/bin/env bash
+mode="$1"
+out=""
+while [ \$# -gt 0 ]; do [ "\$1" = "-o" ] && out="\$2"; shift; done
+case "\$mode" in
+  ok)   printf 'grid_value, export_value, descriptive_name, fuel_type, r, g, b, h, s, l\n' > "\$out"
+        i=1; while [ \$i -le 150 ]; do printf '%s,%s,Name,C-2,34,102,51,95,128,68\n' "\$i" "\$i" >> "\$out"; i=\$((i+1)); done
+        exit 0 ;;
+  fail) exit 22 ;;
+  html) printf '<!DOCTYPE html>\n<html><head><title>404: Not Found</title></head></html>\n' > "\$out"; exit 0 ;;
+esac
+STUB
+  chmod +x "$lbin/curl"
+}
 
-# A lut whose content is not the pinned one must be REFUSED, not copied.
-printf 'grid_value, export_value, descriptive_name, fuel_type, r, g, b, h, s, l\n1,1,Spruce-Lichen Woodland,C-1,209,255,115,57,255,185\n' > "$tmp/wrong.lut"
-expect_eq "refuses a lut that does not match the pin" "1" \
-  "$(run "verify_lut '$tmp/wrong.lut' >/dev/null 2>&1; echo \$?")"
+expect_eq "the sha256 pin is gone" "no" \
+  "$(grep -q 'LUT_SHA256' "$SCRIPT" && echo yes || echo no)"
 
-# And the real one must be accepted. Built here from the pin rather than read
-# off a volume, so the test does not depend on a disk that may not be mounted.
-expect_eq "accepts a lut matching the pin" "0" \
-  "$(if [ -f /Volumes/KINGSTON/FireSTARR_Fuel_Data_Sets/masterDataSets/fuel.lut ]; then
-        run "verify_lut /Volumes/KINGSTON/FireSTARR_Fuel_Data_Sets/masterDataSets/fuel.lut >/dev/null 2>&1; echo \$?"
-     else echo 0; fi)"
+expect_eq "the script names the upstream lut URL" "yes" \
+  "$(grep -q 'raw.githubusercontent.com/CWFMF/firestarr-cpp' "$SCRIPT" && echo yes || echo no)"
 
-# The manifest must record the hash, so any shipped dataset can be checked
-# against the pin without the build that made it.
-manifest_lut="$(run "dataset_json 2027 31 31 2026-11-01 $SOT_SHA")"
-expect_contains "manifest records the lut sha256" "$SOT_SHA" "$manifest_lut"
+mk_curl ok
+expect_eq "a good fetch succeeds" "0" \
+  "$(PATH="$lbin:$PATH" run "LUT_SRC=''; fetch_lut '$tmp/got.lut' >/dev/null 2>&1; echo \$?")"
+expect_eq "and writes a lut-shaped file" "yes" \
+  "$([ -s "$tmp/got.lut" ] && head -1 "$tmp/got.lut" | grep -q 'grid_value' && echo yes || echo no)"
 
-# And it must no longer claim an augmentation we do not make.
+mk_curl fail
+rm -f "$tmp/nofetch.lut"
+expect_eq "a failed fetch returns non-zero" "1" \
+  "$(PATH="$lbin:$PATH" run "LUT_SRC=''; fetch_lut '$tmp/nofetch.lut' >/dev/null 2>&1; echo \$?")"
+expect_eq "a failed fetch leaves no partial file behind" "no" \
+  "$([ -e "$tmp/nofetch.lut" ] && echo yes || echo no)"
+
+# THE ONE THAT MATTERS: a 404 page is HTTP 200 with HTML in it. Exit status
+# alone cannot tell you the fetch worked.
+mk_curl html
+rm -f "$tmp/htmlout.lut"
+expect_eq "an HTML error page is refused, not accepted as a lut" "1" \
+  "$(PATH="$lbin:$PATH" run "LUT_SRC=''; fetch_lut '$tmp/htmlout.lut' >/dev/null 2>&1; echo \$?")"
+
+# LUT_SRC stays, as an EXPLICIT offline override -- never as a fallback.
+printf 'grid_value, export_value, descriptive_name, fuel_type, r, g, b, h, s, l\n' > "$tmp/explicit.lut"
+i=1; while [ $i -le 150 ]; do printf '%s,%s,Name,C-2,34,102,51,95,128,68\n' "$i" "$i" >> "$tmp/explicit.lut"; i=$((i+1)); done
+mk_curl fail   # a fetch would fail; the override must not need one
+expect_eq "an explicit LUT_SRC is used without fetching" "0" \
+  "$(PATH="$lbin:$PATH" run "LUT_SRC='$tmp/explicit.lut'; resolve_lut '$tmp/viasrc.lut' >/dev/null 2>&1; echo \$?")"
+
+# And every vintage must get the SAME file: resolve once, reuse.
+expect_eq "the script resolves the lut once per run, not per year" "yes" \
+  "$(grep -q 'RUN_LUT' "$SCRIPT" && echo yes || echo no)"
+
+manifest_lut="$(run "dataset_json 2027 31 31 2026-11-01 deadbeef")"
+expect_contains "manifest records the lut sha256" "deadbeef" "$manifest_lut"
 expect_eq "manifest does not claim a local augmentation" "no" \
   "$(printf '%s' "$manifest_lut" | grep -q 'row 107' && echo yes || echo no)"
-
-expect_eq "manifest with the hash is still valid JSON" "ok" \
-  "$(printf '%s' "$manifest_lut" | python3 -c 'import json,sys; json.load(sys.stdin); print("ok")' 2>/dev/null || echo bad)"
 
 expect_eq "manifest is valid JSON" "ok" \
   "$(printf '%s' "$manifest" | python3 -c 'import json,sys; json.load(sys.stdin); print("ok")' 2>/dev/null || echo invalid)"
