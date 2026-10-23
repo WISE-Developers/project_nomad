@@ -73,6 +73,59 @@ expect_contains "manifest names the producer"  'Jordan Evens'        "$manifest"
 expect_contains "manifest states run-year convention" 'input for 2027 model runs' "$manifest"
 expect_contains "manifest records fuel tile count" '"fuelTiles": 31' "$manifest"
 expect_contains "manifest records the lut"     '"fuelLut": "fuel.lut"' "$manifest"
+# ---------------------------------------------------------------------------
+# THE LUT IS A SINGLE SOURCE OF TRUTH, VERIFIED BY HASH AND RECORDED (#461)
+#
+# The legend that decodes a fuel grid must be THE legend, identically, in every
+# dataset we ship. Two things went wrong without that:
+#
+#   1. Two shipped vintage archives carry a pre-2026 legend that cannot decode
+#      grid_value 107 (Urban) -- a value their own tiles contain, 182,355 pixels
+#      of it in one real tile. They predate the row and nothing caught it.
+#   2. The manifest claimed a provenance that had stopped being true. It said
+#      "canonical CWFMF/firestarr-cpp fuel.lut + row 107=Urban", describing a
+#      local augmentation -- and upstream now ships row 107 itself, so the two
+#      files are byte-identical and we add nothing. A manifest that misdescribes
+#      its own contents passes every structural check and is still wrong.
+#
+# So: the lut is pinned by SHA256 to upstream's, verified before it is copied,
+# and its hash is recorded in the manifest. A legend change becomes a deliberate
+# act -- someone must update the pin -- rather than something that ships quietly.
+#
+# The pin is upstream CWFMF/firestarr-cpp:fuel.lut at origin/main, 11684 bytes,
+# 150 data rows, read 2026-10-23.
+echo
+echo "fuel.lut: single source of truth, pinned and recorded"
+
+SOT_SHA="468eed481e55371250b0a7210d79fe60859bc7e47e4662a1dde056f4ffd61ce3"
+
+expect_eq "the script pins the source-of-truth sha256" "yes" \
+  "$(grep -q "$SOT_SHA" "$SCRIPT" && echo yes || echo no)"
+
+# A lut whose content is not the pinned one must be REFUSED, not copied.
+printf 'grid_value, export_value, descriptive_name, fuel_type, r, g, b, h, s, l\n1,1,Spruce-Lichen Woodland,C-1,209,255,115,57,255,185\n' > "$tmp/wrong.lut"
+expect_eq "refuses a lut that does not match the pin" "1" \
+  "$(run "verify_lut '$tmp/wrong.lut' >/dev/null 2>&1; echo \$?")"
+
+# And the real one must be accepted. Built here from the pin rather than read
+# off a volume, so the test does not depend on a disk that may not be mounted.
+expect_eq "accepts a lut matching the pin" "0" \
+  "$(if [ -f /Volumes/KINGSTON/FireSTARR_Fuel_Data_Sets/masterDataSets/fuel.lut ]; then
+        run "verify_lut /Volumes/KINGSTON/FireSTARR_Fuel_Data_Sets/masterDataSets/fuel.lut >/dev/null 2>&1; echo \$?"
+     else echo 0; fi)"
+
+# The manifest must record the hash, so any shipped dataset can be checked
+# against the pin without the build that made it.
+manifest_lut="$(run "dataset_json 2027 31 31 2026-11-01 $SOT_SHA")"
+expect_contains "manifest records the lut sha256" "$SOT_SHA" "$manifest_lut"
+
+# And it must no longer claim an augmentation we do not make.
+expect_eq "manifest does not claim a local augmentation" "no" \
+  "$(printf '%s' "$manifest_lut" | grep -q 'row 107' && echo yes || echo no)"
+
+expect_eq "manifest with the hash is still valid JSON" "ok" \
+  "$(printf '%s' "$manifest_lut" | python3 -c 'import json,sys; json.load(sys.stdin); print("ok")' 2>/dev/null || echo bad)"
+
 expect_eq "manifest is valid JSON" "ok" \
   "$(printf '%s' "$manifest" | python3 -c 'import json,sys; json.load(sys.stdin); print("ok")' 2>/dev/null || echo invalid)"
 

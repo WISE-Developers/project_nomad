@@ -29,6 +29,25 @@ set -euo pipefail
 SRC_DIR="${SRC_DIR:-/Volumes/KINGSTON/FireSTARR_Fuel_Data_Sets/DataSourcesFromJordan}"
 OUT_DIR="${OUT_DIR:-/Volumes/KINGSTON/FireSTARR_Fuel_Data_Sets/masterDataSets}"
 LUT_SRC="${LUT_SRC:-}"          # override; defaults to the master at $OUT_DIR/fuel.lut
+
+# THE LUT IS PINNED TO A SINGLE SOURCE OF TRUTH, BY CONTENT (#461).
+#
+# The legend that decodes a fuel grid must be THE legend, identically, in every
+# dataset we ship. It was not, and nothing caught it: two shipped vintage
+# archives carry a pre-2026 legend with no row 107 (Urban), a value their own
+# tiles contain -- 182,355 pixels of it in one real tile. They predate the row,
+# were built before this script took its present shape, and carry no manifest.
+#
+# This is upstream CWFMF/firestarr-cpp:fuel.lut at origin/main, read 2026-10-23:
+# 11684 bytes, 150 data rows. Our master is byte-identical to it, so there is no
+# longer any local augmentation -- see the lutNote in dataset_json, which used to
+# claim one.
+#
+# Pinning by hash makes a legend change a DELIBERATE act: upstream changes the
+# lut, the build refuses, someone updates this line having looked at the diff.
+# The alternative is a legend that drifts into a dataset silently, which is the
+# failure this exists to prevent. Override only to test the refusal path.
+LUT_SHA256="${LUT_SHA256:-468eed481e55371250b0a7210d79fe60859bc7e47e4662a1dde056f4ffd61ce3}"
 VERSION="${VERSION:-1.0}"
 COG="${COG:-1}"                 # 1 = convert tiles to Cloud Optimized GeoTIFF
 
@@ -78,7 +97,7 @@ overview_resampling_for() {
 # The provenance manifest that ships inside every vintage and is read by
 # Nomad's fuel dataset catalog (#319) to show which fuel produced a result.
 dataset_json() {
-    local year="$1" nfuel="$2" ndem="$3" build_date="$4"
+    local year="$1" nfuel="$2" ndem="$3" build_date="$4" lut_sha="${5:-}"
     cat <<JSON
 {
   "vintage": $year,
@@ -90,7 +109,8 @@ dataset_json() {
   "crs": "NAD83 / UTM (per zone; each tile carries its own)",
   "grid": { "path": "generated/grid/100m/$year", "tilePattern": "{fuel|dem}_{zone}_{row}.tif", "fuelTiles": $nfuel, "demTiles": $ndem },
   "fuelLut": "fuel.lut",
-  "lutNote": "canonical CWFMF/firestarr-cpp fuel.lut + row 107=Urban (D-1/D-2, clone of 106)"
+  "lutSha256": "$lut_sha",
+  "lutNote": "canonical CWFMF/firestarr-cpp fuel.lut, verified by sha256 at build time; identical in every vintage"
 }
 JSON
 }
@@ -106,6 +126,36 @@ strip_mac_metadata() {
 }
 
 # sha256 over every file, relative paths, excluding the checksum file itself.
+# Hash one file, using whichever tool this host has. Same idiom as
+# write_checksums below, kept separate so verify_lut can be called on an input
+# before anything is copied.
+sha256_of() {
+    if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | awk '{print $1}'
+    else sha256sum "$1" | awk '{print $1}'; fi
+}
+
+# Refuse a lut that is not the pinned one. Returns 0 on a match, 1 otherwise,
+# and SAYS WHICH -- a build that stops without naming the reason sends the next
+# person to read this script instead of the diff.
+verify_lut() {
+    local lut="$1" got
+    if [ ! -f "$lut" ]; then
+        print_error "fuel.lut not found at $lut"
+        return 1
+    fi
+    got="$(sha256_of "$lut")"
+    if [ "$got" != "$LUT_SHA256" ]; then
+        print_error "fuel.lut does not match the pinned source of truth"
+        print_error "  expected: $LUT_SHA256"
+        print_error "  found:    $got  ($lut)"
+        print_error "  If upstream changed the legend, diff it against"
+        print_error "  CWFMF/firestarr-cpp:fuel.lut and update LUT_SHA256 deliberately."
+        print_error "  Refusing to ship a dataset whose legend is not the one we pinned."
+        return 1
+    fi
+    return 0
+}
+
 write_checksums() {
     local root="$1"
     ( cd "$root" && find . -type f ! -name checksums.txt | sort | while read -r f; do
@@ -171,20 +221,27 @@ package_year() {
     nfuel=$(find "$tiles" -name 'fuel_*.tif' | wc -l | tr -d ' ')
     ndem=$(find "$tiles" -name 'dem_*.tif' | wc -l | tr -d ' ')
 
-    # fuel.lut comes from THE MASTER at the root of OUT_DIR — one canonical copy
-    # (upstream CWFMF/firestarr-cpp lut + row 107=Urban, which upstream still
-    # lacks), copied identically into every vintage. Jordan's source zips contain
-    # tiles only and never a lut, so there is nothing to fall back to: a dataset
-    # without the lut is broken, so fail loudly rather than ship one.
+    # fuel.lut comes from THE MASTER at the root of OUT_DIR — one canonical copy,
+    # byte-identical to upstream CWFMF/firestarr-cpp:fuel.lut, copied identically
+    # into every vintage. Jordan's source zips contain tiles only and never a lut,
+    # so there is nothing to fall back to: a dataset without the lut is broken.
+    #
+    # VERIFIED BEFORE IT IS COPIED, against the pin at the top of this file. The
+    # reason is #461: two archives shipped with a legend that could not decode a
+    # value their own tiles carried, and the only thing that would have caught it
+    # is a check on the way in.
     local lut="${LUT_SRC:-$OUT_DIR/fuel.lut}"
     if [ ! -f "$lut" ]; then
         print_error "$year: master fuel.lut not found at $lut"
         print_error "  Set LUT_SRC, or restore the master lut. Refusing to build an incomplete dataset."
         return 1
     fi
+    verify_lut "$lut" || return 1
     cp "$lut" "$root/fuel.lut"
 
-    dataset_json "$year" "$nfuel" "$ndem" "$build_date" > "$root/dataset.json"
+    local lut_sha
+    lut_sha="$(sha256_of "$root/fuel.lut")"
+    dataset_json "$year" "$nfuel" "$ndem" "$build_date" "$lut_sha" > "$root/dataset.json"
     # Strip immediately before hashing so checksums.txt can never list a
     # .DS_Store, then exclude them again at zip time in case Finder recreates
     # one while the build is running.
