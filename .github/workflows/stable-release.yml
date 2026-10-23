@@ -47,6 +47,9 @@ jobs:
     needs: gate
     if: needs.gate.outputs.release == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.newversion.outputs.version }}
+      tag: ${{ steps.newversion.outputs.tag }}
 
     steps:
       - name: Checkout with full history
@@ -157,3 +160,69 @@ jobs:
           git checkout dev
           git merge main -m "chore: sync v${{ steps.newversion.outputs.version }} from main [release-bot]"
           git push origin dev
+
+  # PUBLISH THE APPLICATION IMAGE (#465)
+  #
+  # Until this job existed, CI never produced an application image: deploy.sh
+  # ran `docker compose build` on each target. Everything #465 lists follows
+  # from that one fact — the SBOM had to run on a production box (#441, #464),
+  # each deployed version left a ~28MB document there, nobody could audit a
+  # version they had not deployed, and the artefact that shipped was not the
+  # artefact CI tested.
+  #
+  # WHY A JOB HERE RATHER THAN `on: release: [published]`. A release created
+  # with a token does not reliably cascade into another workflow, and the
+  # failure mode is silence — which is exactly #465's own origin: `sbom: true`
+  # has been set on build-firestarr.yml for months and has NEVER EXECUTED,
+  # because that workflow is workflow_dispatch only. Hanging this off the job
+  # that already cuts the release needs no cascade and no assumption.
+  #
+  # WHAT THE PUBLISHED IMAGE IS. The frontend bakes VITE_* at build time, so a
+  # published image necessarily carries the DEFAULTS: free basemaps (no Mapbox
+  # token), a relative API base, and simple auth. A site needing a Mapbox token
+  # or a different auth mode still builds locally. That is a real limit of a
+  # prebuilt image, not an oversight — it is stated here so the next reader does
+  # not discover it from a blank map.
+  publish-image:
+    needs: [gate, stable-release]
+    if: needs.gate.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # The TAG, not the triggering SHA: this workflow's own release job commits
+      # the version bump, so the push SHA that started the run predates the
+      # thing being released. Checking out the tag publishes the source that was
+      # actually tagged.
+      - name: Checkout the released tag
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.stable-release.outputs.tag }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          platforms: linux/amd64
+          # The registry carries the bill of materials, so it is readable by
+          # anyone with pull access rather than existing only on the box that
+          # happened to deploy that version (#460, #464).
+          sbom: true
+          provenance: true
+          tags: |
+            ghcr.io/wise-developers/project_nomad/nomad:${{ needs.stable-release.outputs.version }}
+            ghcr.io/wise-developers/project_nomad/nomad:latest
