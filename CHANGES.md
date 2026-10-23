@@ -4,10 +4,19 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.37.0
+## v0.38.0
 
 ### 2026-10-23
 
+- [`f5a070f`](https://github.com/WISE-Developers/project_nomad/commit/f5a070f8c42e48c266c82ef5fef9f218c9a9923c) Merge pull request #471 from WISE-Developers/dev — *Franco Nogarin, 09:02*
+- [`07c53c5`](https://github.com/WISE-Developers/project_nomad/commit/07c53c5fa29809d9a25dc50049de455dfb3b8153) chore: dev v0.37.2 [release-bot] — *github-actions[bot], 13:36*
+- [`bc4f7d7`](https://github.com/WISE-Developers/project_nomad/commit/bc4f7d7cf53a7ea3c6f0aaa1b8eb83b752350139) Merge remote-tracking branch 'origin/dev' into dev — *Franco Nogarin, 07:36*
+- [`ba28bf2`](https://github.com/WISE-Developers/project_nomad/commit/ba28bf280607ebdde4dd1b65975c8cef297e37dc) Merge chore/lut-fetch-upstream into dev — *Franco Nogarin, 07:35*
+- [`c8e678c`](https://github.com/WISE-Developers/project_nomad/commit/c8e678c4ac367c421d45bde432076015726e798b) #461: fetch fuel.lut from upstream every build; drop the pin — *Franco Nogarin, 07:35*
+- [`ba9458f`](https://github.com/WISE-Developers/project_nomad/commit/ba9458f96b656f79bcdc5a2006d6d517cba9c8dd) chore: dev v0.37.1 [release-bot] — *github-actions[bot], 13:25*
+- [`ebb1cab`](https://github.com/WISE-Developers/project_nomad/commit/ebb1cab257ff130fbfdcfa6809fb331c583c23f7) Merge chore/lut-source-of-truth into dev — *Franco Nogarin, 07:25*
+- [`6cc733d`](https://github.com/WISE-Developers/project_nomad/commit/6cc733d544bcf065870ed8a4c5d3943d0d11768c) #461: pin fuel.lut to a single source of truth, verify it, and record its hash — *Franco Nogarin, 07:25*
+- [`95744eb`](https://github.com/WISE-Developers/project_nomad/commit/95744eb0201cefd0c15eb465669d7e80a9ce4942) chore: release v0.37.0 [release-bot] — *github-actions[bot], 12:46*
 - [`08a2f57`](https://github.com/WISE-Developers/project_nomad/commit/08a2f5768c3d2861a741603324a86f492d45eef9) Merge pull request #470 from WISE-Developers/dev — *Franco Nogarin, 06:45*
 - [`e10f337`](https://github.com/WISE-Developers/project_nomad/commit/e10f33701f1974d30a06a5c7e26d0e80edb5a3bf) chore: dev v0.36.1 [release-bot] — *github-actions[bot], 12:20*
 - [`143058d`](https://github.com/WISE-Developers/project_nomad/commit/143058d53b5b8357ca7f6f27c08b4817688d2691) Merge fix/469-version-extraction into dev — *Franco Nogarin, 06:20*
