@@ -29,6 +29,28 @@ set -euo pipefail
 SRC_DIR="${SRC_DIR:-/Volumes/KINGSTON/FireSTARR_Fuel_Data_Sets/DataSourcesFromJordan}"
 OUT_DIR="${OUT_DIR:-/Volumes/KINGSTON/FireSTARR_Fuel_Data_Sets/masterDataSets}"
 LUT_SRC="${LUT_SRC:-}"          # override; defaults to the master at $OUT_DIR/fuel.lut
+
+# UPSTREAM IS THE SOURCE OF TRUTH FOR fuel.lut, FETCHED EVERY BUILD (#461).
+#
+# The legend that decodes a fuel grid must be THE legend, identically, in every
+# dataset we ship. Keeping our own copy is what broke that: two shipped vintage
+# archives carry a pre-2026 legend with no row 107 (Urban), a value their own
+# tiles contain -- 182,355 pixels of it in one real tile. Upstream gained the
+# row, our copy did not, and nobody noticed for eight months.
+#
+# A hash PIN was tried and removed. Pinning our copy catches OUR copy drifting,
+# which was never the failure; it is blind to upstream changing, so the build
+# would pass happily while shipping a stale legend. Fetching removes the second
+# copy entirely, and with it the thing that can go stale.
+#
+# Reproducibility comes from dataset.json's lutSha256, not from a pin: to
+# rebuild an old vintage, check upstream out at the hash its manifest records.
+LUT_URL="${LUT_URL:-https://raw.githubusercontent.com/CWFMF/firestarr-cpp/main/fuel.lut}"
+
+# Resolved ONCE per run and reused, so every vintage in a build carries the
+# byte-identical file. Fetching per year would risk two vintages built minutes
+# apart disagreeing, which is the property this whole change exists to provide.
+RUN_LUT=""
 VERSION="${VERSION:-1.0}"
 COG="${COG:-1}"                 # 1 = convert tiles to Cloud Optimized GeoTIFF
 
@@ -78,7 +100,7 @@ overview_resampling_for() {
 # The provenance manifest that ships inside every vintage and is read by
 # Nomad's fuel dataset catalog (#319) to show which fuel produced a result.
 dataset_json() {
-    local year="$1" nfuel="$2" ndem="$3" build_date="$4"
+    local year="$1" nfuel="$2" ndem="$3" build_date="$4" lut_sha="${5:-}"
     cat <<JSON
 {
   "vintage": $year,
@@ -90,7 +112,8 @@ dataset_json() {
   "crs": "NAD83 / UTM (per zone; each tile carries its own)",
   "grid": { "path": "generated/grid/100m/$year", "tilePattern": "{fuel|dem}_{zone}_{row}.tif", "fuelTiles": $nfuel, "demTiles": $ndem },
   "fuelLut": "fuel.lut",
-  "lutNote": "canonical CWFMF/firestarr-cpp fuel.lut + row 107=Urban (D-1/D-2, clone of 106)"
+  "lutSha256": "$lut_sha",
+  "lutNote": "canonical CWFMF/firestarr-cpp fuel.lut, verified by sha256 at build time; identical in every vintage"
 }
 JSON
 }
@@ -106,6 +129,73 @@ strip_mac_metadata() {
 }
 
 # sha256 over every file, relative paths, excluding the checksum file itself.
+# Hash one file, using whichever tool this host has. Same idiom as
+# write_checksums below, kept separate so verify_lut can be called on an input
+# before anything is copied.
+sha256_of() {
+    if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | awk '{print $1}'
+    else sha256sum "$1" | awk '{print $1}'; fi
+}
+
+# Does this file look like a fuel lookup table at all?
+#
+# THE EXIT STATUS OF A FETCH IS NOT ENOUGH. A 404 page, a captive portal or a
+# proxy error arrives as HTTP 200 with HTML in it, and curl reports success.
+# Checked by shape: the header line, and a plausible number of rows that start
+# with an integer and carry ten comma-separated fields.
+looks_like_lut() {
+    local f="$1" rows
+    [ -s "$f" ] || return 1
+    head -1 "$f" | grep -q 'grid_value' || return 1
+    rows="$(awk -F, 'NR>1 && $1 ~ /^[0-9]+$/ && NF==10' "$f" | wc -l | tr -d ' ')"
+    # The real lut has 150 data rows. A floor rather than an exact count, so a
+    # legitimate upstream addition does not fail the build for being bigger.
+    [ "${rows:-0}" -ge 100 ]
+}
+
+# Fetch the lut from upstream. Fails loudly and cleans up after itself; NEVER
+# falls back to a local copy, because a build that appears to succeed while
+# shipping whatever was on disk is the original defect with extra steps.
+fetch_lut() {
+    local dest="$1" part="$1.part"
+    rm -f "$part"
+    if ! curl -fsSL "$LUT_URL" -o "$part" 2>/dev/null; then
+        print_error "Could not fetch fuel.lut from $LUT_URL"
+        print_error "  Upstream CWFMF/firestarr-cpp is the source of truth and there is no fallback."
+        print_error "  Fix the network, or pass LUT_SRC=<path> to use a local copy DELIBERATELY."
+        rm -f "$part"
+        return 1
+    fi
+    if ! looks_like_lut "$part"; then
+        print_error "Fetched $LUT_URL but it is not a fuel lookup table"
+        print_error "  $(wc -c < "$part" | tr -d ' ') bytes, first line: $(head -c 80 "$part" | tr -d '\n')"
+        print_error "  An error page returns HTTP 200, so the download succeeding proves nothing."
+        rm -f "$part"
+        return 1
+    fi
+    mv "$part" "$dest"
+}
+
+# Resolve the lut for this run, once, into $1.
+#
+# LUT_SRC is an EXPLICIT offline override, not a fallback. Set it and no fetch
+# happens; leave it unset and upstream is authoritative. The distinction is the
+# point: an operator choosing a local file is fine, a build quietly settling for
+# one is not.
+resolve_lut() {
+    local dest="$1"
+    if [ -n "${LUT_SRC:-}" ]; then
+        print_info "Using LUT_SRC=$LUT_SRC (explicit override — not fetching upstream)"
+        if ! looks_like_lut "$LUT_SRC"; then
+            print_error "LUT_SRC=$LUT_SRC is not a fuel lookup table. Refusing to ship it."
+            return 1
+        fi
+        cp "$LUT_SRC" "$dest" || return 1
+        return 0
+    fi
+    fetch_lut "$dest"
+}
+
 write_checksums() {
     local root="$1"
     ( cd "$root" && find . -type f ! -name checksums.txt | sort | while read -r f; do
@@ -171,20 +261,23 @@ package_year() {
     nfuel=$(find "$tiles" -name 'fuel_*.tif' | wc -l | tr -d ' ')
     ndem=$(find "$tiles" -name 'dem_*.tif' | wc -l | tr -d ' ')
 
-    # fuel.lut comes from THE MASTER at the root of OUT_DIR — one canonical copy
-    # (upstream CWFMF/firestarr-cpp lut + row 107=Urban, which upstream still
-    # lacks), copied identically into every vintage. Jordan's source zips contain
-    # tiles only and never a lut, so there is nothing to fall back to: a dataset
-    # without the lut is broken, so fail loudly rather than ship one.
-    local lut="${LUT_SRC:-$OUT_DIR/fuel.lut}"
-    if [ ! -f "$lut" ]; then
-        print_error "$year: master fuel.lut not found at $lut"
-        print_error "  Set LUT_SRC, or restore the master lut. Refusing to build an incomplete dataset."
-        return 1
+    # fuel.lut comes from UPSTREAM, fetched once per run and reused, so every
+    # vintage in this build carries the byte-identical legend. Jordan's source
+    # zips contain tiles only and never a lut.
+    if [ -z "$RUN_LUT" ]; then
+        RUN_LUT="$OUT_DIR/.fuel.lut.run"
+        if ! resolve_lut "$RUN_LUT"; then
+            RUN_LUT=""
+            print_error "$year: could not obtain fuel.lut. Refusing to build a dataset without its legend."
+            return 1
+        fi
+        print_step "fuel.lut resolved for this run ($(sha256_of "$RUN_LUT" | cut -c1-12)…)"
     fi
-    cp "$lut" "$root/fuel.lut"
+    cp "$RUN_LUT" "$root/fuel.lut"
 
-    dataset_json "$year" "$nfuel" "$ndem" "$build_date" > "$root/dataset.json"
+    local lut_sha
+    lut_sha="$(sha256_of "$root/fuel.lut")"
+    dataset_json "$year" "$nfuel" "$ndem" "$build_date" "$lut_sha" > "$root/dataset.json"
     # Strip immediately before hashing so checksums.txt can never list a
     # .DS_Store, then exclude them again at zip time in case Finder recreates
     # one while the build is running.
