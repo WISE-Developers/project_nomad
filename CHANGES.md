@@ -4,11 +4,22 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.39.0
+## v0.40.0
+
+### 2026-10-24
+
+- [`6c10791`](https://github.com/WISE-Developers/project_nomad/commit/6c1079118244a54262a1554c3a5d270a42cf1f82) Merge pull request #473 from WISE-Developers/dev — *Franco Nogarin, 05:46*
+- [`09df55f`](https://github.com/WISE-Developers/project_nomad/commit/09df55f2175f989cb460c49a16e55eb5c3c0f6f1) chore: dev v0.39.2 [release-bot] — *github-actions[bot], 11:38*
+- [`018decf`](https://github.com/WISE-Developers/project_nomad/commit/018decf5b71d49bf5bc8b5722f233a8a97f25cc4) Merge feat/465-no-deploy-time-sbom into dev — *Franco Nogarin, 05:38*
+- [`92d28c8`](https://github.com/WISE-Developers/project_nomad/commit/92d28c807c43cf5e77db0b07ca0524dc6b52939e) #465: a deploy no longer produces a bill of materials — *Franco Nogarin, 05:33*
 
 ### 2026-10-23
 
+- [`4b7bf05`](https://github.com/WISE-Developers/project_nomad/commit/4b7bf05fb51c8c8cc29160c69afe6af7fbdd36ec) chore: dev v0.39.1 [release-bot] — *github-actions[bot], 18:12*
+- [`89101ab`](https://github.com/WISE-Developers/project_nomad/commit/89101abd8fcf5c21263414aea4e671041a853c41) Merge feat/465-deploy-pulls-image into dev — *Franco Nogarin, 12:12*
+- [`87366d2`](https://github.com/WISE-Developers/project_nomad/commit/87366d2ef73fa0b31710e1703080dd1c6e44c570) chore: release v0.39.0 [release-bot] — *github-actions[bot], 18:06*
 - [`5190604`](https://github.com/WISE-Developers/project_nomad/commit/5190604ce607374d4f5e8da1fad4b47d1ef06446) Merge pull request #472 from WISE-Developers/dev — *Franco Nogarin, 12:06*
+- [`da80e0e`](https://github.com/WISE-Developers/project_nomad/commit/da80e0e74b42270985c01e35c5e84062d9ca2bc5) #465: deploy pulls the published image instead of building on the target — *Franco Nogarin, 11:03*
 - [`4423ab8`](https://github.com/WISE-Developers/project_nomad/commit/4423ab8715b2f60511dff7e0b88eb4ece2576985) chore: dev v0.38.1 [release-bot] — *github-actions[bot], 15:40*
 - [`3cb4fcb`](https://github.com/WISE-Developers/project_nomad/commit/3cb4fcbabfa555acf4c1d269d054f55482292fea) Merge feat/465-publish-app-image into dev — *Franco Nogarin, 09:40*
 - [`eb5855b`](https://github.com/WISE-Developers/project_nomad/commit/eb5855b082186ae66fb748e784653c2ad5a4accf) #465: build and publish the application image from CI — *Franco Nogarin, 09:39*
