@@ -108,42 +108,20 @@ check "abort message rules out rollback as a workaround" 0 \
   "docker_chain_verdict 1 2>&1 | grep -qi rollback"
 
 # ---------------------------------------------------------------------------
-# A FAILING IMAGE SBOM MUST NEVER ABORT A DEPLOY (#441 rule 1, guarded here
-# after #460 moved the exit-code contract).
+# THE IMAGE SBOM SECTION WAS REMOVED HERE, WITH THE FEATURE IT GUARDED (#465).
 #
-# This assertion used to live in image_sbom.test.sh as "exited 0 when the tool
-# was missing". #460 deliberately reversed that: generate-image-sbom.sh now
-# exits NON-ZERO when it cannot produce a document, because exiting 0 on every
-# failure path is precisely how #464 stayed invisible for two months. The
-# protection therefore moved to where it actually lives — the `|| true` on
-# deploy.sh's invocation — and the old test was deleted rather than loosened.
+# It asserted that deploy.sh invoked generate-image-sbom.sh and swallowed its
+# exit status with `|| true`, so a failing bill of materials could never abort a
+# deploy — plus a control proving the assertion failed when the `|| true` was
+# stripped. All three are gone because the deploy no longer produces a document
+# at all: CI publishes the image and the registry carries its SPDX attestation,
+# beside the source it was built from.
 #
-# It is a SOURCE assertion because the block sits inside main() and cannot be
-# extracted by name like the functions above. That is a real limitation, so the
-# control below exists: the check is proven to fail when the `|| true` is taken
-# away. A guard nobody has watched fail is not a guard.
-echo
-echo "image SBOM cannot break a deploy"
-
-sbom_line="$(grep -n 'generate-image-sbom.sh"' "$DEPLOY" | grep -v 'sbom_script=' | head -1)"
-check "deploy.sh invokes the image SBOM script" 0 \
-  "grep -q '\"\$sbom_script\"' '$DEPLOY'"
-
-check "the invocation is unconditionally swallowed with '|| true'" 0 \
-  "grep -E '\"\\\$sbom_script\" .*\\|\\| true' '$DEPLOY' >/dev/null"
-
-# THE CONTROL. Strip the `|| true` from a copy and the check above must fail.
-# Without this, the assertion would pass against a deploy.sh that had lost the
-# guard entirely, so long as the grep happened to match something else.
-cp "$DEPLOY" "$tmp/deploy_nogaurd.sh"
-sed -i.bak 's/\(\"\$sbom_script\" .*\) || true/\1/' "$tmp/deploy_nogaurd.sh"
-if grep -E '"\$sbom_script" .*\|\| true' "$tmp/deploy_nogaurd.sh" >/dev/null 2>&1; then
-  echo "  FAIL - the control did not strip '|| true', so the guard above proves nothing"
-  fail=$((fail+1))
-else
-  echo "  ok   - control: removing '|| true' makes the guard above fail"
-  pass=$((pass+1))
-fi
+# Recorded rather than silently dropped. A guard that disappears without a word
+# reads as an oversight to the next person, and the lessons behind it are still
+# live elsewhere: #464 (a step that exits 0 on every failure path can fail
+# invisibly for months) and #469 (the bare-version assertion below, which was
+# what named those files).
 
 # ---------------------------------------------------------------------------
 # THE REPORTED VERSION MUST BE A BARE VERSION, NOT A JSON FRAGMENT (#469).
