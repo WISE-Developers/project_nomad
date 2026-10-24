@@ -2,9 +2,10 @@
 #
 # Deploy Project Nomad to a server from git.
 #
-#   ./scripts/deploy.sh              # pull main, rebuild, recreate, verify
+#   ./scripts/deploy.sh              # pull main, pull the image, recreate, verify
 #   ./scripts/deploy.sh --dry-run    # show what would happen
 #   ./scripts/deploy.sh --branch dev
+#   ./scripts/deploy.sh --build-local  # build the image here (offline installs)
 #
 # WHY THIS EXISTS
 #
@@ -24,9 +25,18 @@ BRANCH="main"
 DRY_RUN=false
 SERVICE="nomad"
 
+# #465. The image is built by CI and pulled here. An offline or air-gapped
+# install genuinely needs a local build, so that stays available — but as a
+# mode the operator ASKS for, never as something this script falls back to.
+# A fallback would leave every deploy working while the published image went
+# silently unused, which is the failure this change exists to remove.
+BUILD_LOCAL=false
+APP_IMAGE_REPO="ghcr.io/wise-developers/project_nomad/nomad"
+
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY_RUN=true; shift ;;
+    --build-local) BUILD_LOCAL=true; shift ;;
     --branch)  BRANCH="${2:?--branch needs a value}"; shift 2 ;;
     --service) SERVICE="${2:?--service needs a value}"; shift 2 ;;
     -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
@@ -240,9 +250,10 @@ await_version() {
         # sed, not `grep -o`: grep prints the WHOLE match and has no capture
         # group, so this returned the JSON fragment `"version":"0.36.0"` rather
         # than `0.36.0`. Invisible for as long as it only reached the log line
-        # below -- then #460 passed it to generate-image-sbom.sh, which names
-        # files with it, and the v0.36.0 deploy wrote
-        # `nomad-image-"version":"0.36.0".spdx.json` (#469).
+        # below -- then #460 passed it to a step that named FILES with it, and
+        # the v0.36.0 deploy wrote `nomad-image-"version":"0.36.0".spdx.json`
+        # (#469). That step is gone (#465); the lesson is not, and the same
+        # capture-group pattern reads the version for the image pull below.
         reported="$(curl -fsS "localhost:${port}/api/v1/info" 2>/dev/null | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' || true)"
         if [ -n "$reported" ]; then
             printf '%s' "$reported"
@@ -357,8 +368,46 @@ main() {
         fi
     fi
 
-    print_info "Building $SERVICE (current container keeps serving)"
-    docker compose build "$SERVICE"
+    # #465. CI builds and publishes the image on release; this pulls the one
+    # that matches the checkout, so the artefact that serves production is the
+    # artefact CI tested. The version comes out of the tree we have just pulled,
+    # not from a variable someone set once.
+    if [ "$BUILD_LOCAL" = true ]; then
+        print_info "Building $SERVICE locally (--build-local; current container keeps serving)"
+        docker compose build "$SERVICE"
+    else
+        local app_version app_image
+        # sed, not node: node runs in the container, not necessarily on the
+        # host, and this script's only other version read uses exactly this
+        # pattern. A capture group, not `grep -o` — that is #469, where the
+        # whole match came back as `"version":"0.36.0"` and went on to name
+        # files.
+        app_version="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' package.json | head -1)"
+        if [ -z "$app_version" ]; then
+            # Loud. A floating tag here would deploy whatever :latest happens to
+            # be, which is the "declared value is not a running value" trap: the
+            # deploy would report success having shipped something nobody named.
+            print_error "Could not read the version from package.json — refusing to deploy an unpinned image"
+            print_info  "Use --build-local for an offline install."
+            exit 1
+        fi
+        app_image="${NOMAD_APP_IMAGE:-${APP_IMAGE_REPO}:${app_version}}"
+
+        # compose interpolates NOMAD_APP_IMAGE into the service's `image:` key,
+        # so the pull and the recreate name the same thing and no tagging
+        # sleight of hand is needed in between.
+        export NOMAD_APP_IMAGE="$app_image"
+
+        print_info "Pulling $app_image (current container keeps serving)"
+        if ! docker compose pull "$SERVICE"; then
+            # NO FALLBACK TO A BUILD. See the flag comment at the top: a build
+            # reached from a failed pull leaves the deploy green and the
+            # published image silently unused.
+            print_error "Could not pull $app_image"
+            print_info  "Check the release published an image, or deploy with --build-local for an offline install."
+            exit 1
+        fi
+    fi
 
     print_info "Recreating $SERVICE only"
     docker compose up -d "$SERVICE"
@@ -374,32 +423,31 @@ main() {
         print_warning "No answer from /api/v1/info on port ${host_port##*:} after 90s — check 'docker logs $SERVICE'"
     fi
 
-    # Bill of materials for the image we just deployed (#441).
+    # NO BILL OF MATERIALS IS PRODUCED HERE, and that is deliberate (#465).
     #
-    # LAST, deliberately. It exports the image and pulls a scanner, which takes
-    # time and bandwidth — doing it before `up -d` would delay serving for the
-    # sake of a description. The container is already live by the time this
-    # runs, and the script exits 0 on every failure path so a missing SBOM can
-    # never turn a good deploy into a failed one.
+    # #441 put one at deploy time for a sound reason: CI had no image to
+    # describe, so a document produced there would have described something
+    # nobody ran. CI now publishes the image, so that reason is gone.
     #
-    # Paired with the npm bill from #398, which is attached to the GitHub
-    # Release and covers the build; this one covers what is actually running,
-    # OS layer included.
-    local deployed_image sbom_script
-    sbom_script="$(dirname "$SCRIPT_PATH")/generate-image-sbom.sh"
-    deployed_image="$(docker inspect "$SERVICE" --format '{{.Config.Image}}' 2>/dev/null || true)"
-
-    if [ "$DRY_RUN" = true ]; then
-        print_info "[dry-run] would generate an image SBOM for ${deployed_image:-$SERVICE}"
-    elif [ -z "$deployed_image" ]; then
-        print_warning "Could not identify the deployed image — image SBOM skipped"
-    elif [ ! -x "$sbom_script" ]; then
-        # Said rather than skipped: an absent step that stays quiet leaves the
-        # next person believing an artifact exists.
-        print_warning "generate-image-sbom.sh is missing or not executable — image SBOM skipped"
-    else
-        "$sbom_script" "$deployed_image" "${reported:-unknown}" "sbom" || true
-    fi
+    # The document serves its purpose BEFORE the thing is deployed, not after.
+    # It is read when deciding whether to ship, and when answering "does the
+    # version we run contain $CVE" — both away from the box, often by someone
+    # who has deployed nothing. Producing it during a deploy put it in the one
+    # place least useful to either question, and wrote ~28MB to a production
+    # host per deployed version to duplicate something already published.
+    #
+    # Where it lives instead, beside the source it was built from:
+    #   - the image's SPDX attestation in the registry:
+    #       docker buildx imagetools inspect \
+    #         ghcr.io/wise-developers/project_nomad/nomad:<version> \
+    #         --format '{{ json .SBOM }}'
+    #   - the npm bill attached to the GitHub Release (#398).
+    #
+    # This removed a class of defect rather than a step: #464 (the document had
+    # never been produced, silently, for two months), #469 (the version arrived
+    # as a JSON fragment and named the files), and the `|| true` that existed
+    # only so a failing SBOM could not break a deploy. None can recur in a
+    # deploy that produces no document.
 }
 
 main "$@"

@@ -6,6 +6,11 @@ services:
   # No separate frontend container or nginx proxy needed.
   nomad:
     container_name: nomad
+    # #465: CI publishes this image on release and deploy.sh pulls it, so the
+    # artefact that serves production is the artefact CI tested. The build
+    # block stays for offline installs (`deploy.sh --build-local`), which
+    # genuinely need it, and tags the result with this same name.
+    image: ${NOMAD_APP_IMAGE:-ghcr.io/wise-developers/project_nomad/nomad:latest}
     build:
       context: .
       dockerfile: backend/Dockerfile
