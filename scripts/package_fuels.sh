@@ -90,6 +90,78 @@ cog_opts_for() {
     fi
 }
 
+# Can this band type actually hold this NoData value? (#476)
+#
+# THE DEFECT THIS EXISTS FOR. Every shipped DEM tile is Int16 declaring
+# NoData=-32769. Int16 holds -32768..32767, so the sentinel can never equal a
+# stored pixel: the flag is inert and masks nothing. Harmless while the tiles
+# are void-filled -- the lowest value across the first eight 2026 tiles was
+# -251 -- and a trap for the first DEM that carries real voids, because a void
+# read as elevation produces slope and aspect out of nothing and FireSTARR
+# consumes both.
+#
+# Returns 0 when the declaration is fine (including when there is none, which
+# is the normal case), 1 when the type cannot hold it.
+nodata_representable() {
+    local type="$1" value="${2-}"
+
+    # No declaration is not a defect.
+    case "$value" in ''|None|none|nan|NaN) return 0 ;; esac
+
+    local lo hi
+    case "$type" in
+        Byte)    lo=0;      hi=255 ;;
+        Int8)    lo=-128;   hi=127 ;;
+        UInt16)  lo=0;      hi=65535 ;;
+        Int16)   lo=-32768; hi=32767 ;;
+        UInt32)  lo=0;      hi=4294967295 ;;
+        Int32)   lo=-2147483648; hi=2147483647 ;;
+        # Float bands carry their own sentinels, fractional ones included, and
+        # are not bounded the way an integer band is.
+        *)       return 0 ;;
+    esac
+
+    # Integer band: a fractional sentinel cannot be stored either.
+    case "$value" in *.*) return 1 ;; esac
+
+    [ "$value" -ge "$lo" ] 2>/dev/null && [ "$value" -le "$hi" ] 2>/dev/null && return 0
+    return 1
+}
+
+# Drop a NoData declaration the band type cannot hold (#476).
+#
+# PIXELS ARE NEVER TOUCHED. The declaration is removed, because a sentinel that
+# cannot be stored masks nothing and is only able to mislead the next reader.
+# Removing it is also the only honest option: the voids it claims to mark, if
+# any existed, would be indistinguishable from elevation and we cannot guess
+# which value they took.
+#
+# Returns 0 when it dropped one, 1 when there was nothing to do.
+drop_unusable_nodata() {
+    local f="$1" type nd
+    command -v gdalinfo >/dev/null 2>&1 || return 1
+    read -r type nd <<EOF
+$(gdalinfo -json "$f" 2>/dev/null | python3 -c "
+import sys, json
+try:
+    b = json.load(sys.stdin)['bands'][0]
+except Exception:
+    print('', ''); raise SystemExit
+print(b.get('type', ''), b.get('noDataValue', ''))
+" 2>/dev/null)
+EOF
+    [ -n "${type:-}" ] || return 1
+    nodata_representable "$type" "${nd:-}" && return 1
+
+    command -v gdal_edit.py >/dev/null 2>&1 || {
+        print_warning "$(basename "$f"): declares NoData=$nd which $type cannot hold, and gdal_edit.py is not installed to fix it"
+        return 1
+    }
+    gdal_edit.py -unsetnodata "$f" >/dev/null 2>&1 || return 1
+    print_warning "$(basename "$f"): dropped NoData=$nd — $type cannot hold it (#476); pixels untouched"
+    return 0
+}
+
 # Overview resampling for the online sidecars. MODE for categorical: AVERAGE
 # invents fuel codes that do not exist (e.g. "103.5" between two classes) and
 # compresses far worse.
@@ -100,7 +172,17 @@ overview_resampling_for() {
 # The provenance manifest that ships inside every vintage and is read by
 # Nomad's fuel dataset catalog (#319) to show which fuel produced a result.
 dataset_json() {
-    local year="$1" nfuel="$2" ndem="$3" build_date="$4" lut_sha="${5:-}"
+    local year="$1" nfuel="$2" ndem="$3" build_date="$4" lut_sha="${5:-}" nodata_dropped="${6:-0}"
+    # A correction the build made to the source data is RECORDED (#476). A
+    # manifest that reads identically whether or not tiles were edited cannot
+    # answer "is this vintage the data Jordan sent?". Absent when nothing was
+    # corrected, so the common case stays quiet.
+    local nodata_line=""
+    if [ "${nodata_dropped:-0}" -gt 0 ] 2>/dev/null; then
+        nodata_line="
+  \"demNoDataDropped\": $nodata_dropped,
+  \"demNoDataNote\": \"source tiles declared a NoData their band type cannot hold (#476); the declaration was removed, pixels untouched\","
+    fi
     cat <<JSON
 {
   "vintage": $year,
@@ -111,7 +193,7 @@ dataset_json() {
   "resolution_m": 100,
   "crs": "NAD83 / UTM (per zone; each tile carries its own)",
   "grid": { "path": "generated/grid/100m/$year", "tilePattern": "{fuel|dem}_{zone}_{row}.tif", "fuelTiles": $nfuel, "demTiles": $ndem },
-  "fuelLut": "fuel.lut",
+  "fuelLut": "fuel.lut",$nodata_line
   "lutSha256": "$lut_sha",
   "lutNote": "canonical CWFMF/firestarr-cpp fuel.lut, verified by sha256 at build time; identical in every vintage"
 }
@@ -242,7 +324,7 @@ package_year() {
     [ -d "$srctiles" ] || srctiles="$(find "$stage" -maxdepth 2 -type d -name '*.tif' -prune -o -maxdepth 2 -type d -print | tail -1)"
 
     print_step "$year: building tiles (COG=$COG)"
-    local n=0 f
+    local n=0 f nodata_dropped=0
     for f in "$srctiles"/*.tif; do
         [ -f "$f" ] || continue
         case "$(basename "$f")" in .DS_Store|._*) continue ;; esac
@@ -251,6 +333,12 @@ package_year() {
             gdal_translate -q $(cog_opts_for "$f") "$f" "$tiles/$(basename "$f")"
         else
             cp "$f" "$tiles/$(basename "$f")"
+        fi
+        # #476: every shipped DEM tile declares NoData=-32769 on an Int16 band,
+        # which cannot hold it. Checked on the OUTPUT, so the shipped file is
+        # what gets vouched for.
+        if drop_unusable_nodata "$tiles/$(basename "$f")"; then
+            nodata_dropped=$((nodata_dropped + 1))
         fi
         n=$((n + 1))
     done
@@ -277,7 +365,7 @@ package_year() {
 
     local lut_sha
     lut_sha="$(sha256_of "$root/fuel.lut")"
-    dataset_json "$year" "$nfuel" "$ndem" "$build_date" "$lut_sha" > "$root/dataset.json"
+    dataset_json "$year" "$nfuel" "$ndem" "$build_date" "$lut_sha" "$nodata_dropped" > "$root/dataset.json"
     # Strip immediately before hashing so checksums.txt can never list a
     # .DS_Store, then exclude them again at zip time in case Finder recreates
     # one while the build is running.
