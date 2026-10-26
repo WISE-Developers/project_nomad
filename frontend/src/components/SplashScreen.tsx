@@ -11,23 +11,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { version } from '../../package.json';
 import { authClient } from '../services/authClient';
+import { fetchAuthMode, type AuthMode } from '../services/authMode';
 
-type AuthMode = 'none' | 'simple' | 'oauth';
-
-function resolveAuthMode(): AuthMode {
-  const mode = import.meta.env.VITE_AUTH_MODE;
-  if (mode === 'none' || mode === 'simple' || mode === 'oauth') {
-    return mode;
-  }
-  // Legacy fallback
-  if (import.meta.env.VITE_SIMPLE_AUTH !== undefined) {
-    console.warn('[Nomad] VITE_SIMPLE_AUTH is deprecated. Use VITE_AUTH_MODE=none|simple|oauth');
-    return import.meta.env.VITE_SIMPLE_AUTH === 'true' ? 'simple' : 'none';
-  }
-  return 'none';
-}
-
-const AUTH_MODE = resolveAuthMode();
 const STORAGE_KEY = 'nomad_username';
 
 /** Brand colors and labels for each OAuth provider */
@@ -53,7 +38,11 @@ interface SplashScreenProps {
 export function SplashScreen({ onEnter }: SplashScreenProps) {
   const [username, setUsername] = useState('');
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
-  const [loadingProviders, setLoadingProviders] = useState(AUTH_MODE === 'oauth');
+  // null while we are still asking the server (#474)
+  const [authMode, setAuthMode] = useState<AuthMode | null>(null);
+  const [authModeError, setAuthModeError] = useState<string | null>(null);
+  const AUTH_MODE = authMode;
+  const [loadingProviders, setLoadingProviders] = useState(true);
   // A failed sign-in used to show the operator nothing at all (refs #380):
   // signIn.social was called without await or catch, so a rejected request
   // left the page sitting exactly as it was. A dead button is indistinguishable
@@ -67,6 +56,25 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
     if (saved) {
       setUsername(saved);
     }
+  }, []);
+
+  // Ask the server what mode it is in (#474). Everything mode-dependent waits.
+  useEffect(() => {
+    let cancelled = false;
+    fetchAuthMode()
+      .then((mode) => {
+        if (cancelled) return;
+        setAuthMode(mode);
+        if (mode !== 'oauth') setLoadingProviders(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setAuthModeError(err instanceof Error ? err.message : String(err));
+        setLoadingProviders(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Check for existing OAuth session and fetch available providers
@@ -95,7 +103,10 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
       .catch(() => {
         setLoadingProviders(false);
       });
-  }, [onEnter]);
+    // AUTH_MODE arrives asynchronously now (#474), so it MUST be a dependency:
+    // without it this effect runs once while the mode is still null and never
+    // again, and the OAuth provider buttons never load.
+  }, [onEnter, AUTH_MODE]);
 
   const handleSubmit = useCallback(() => {
     if (AUTH_MODE === 'simple' && !username.trim()) {
@@ -105,7 +116,11 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
       localStorage.setItem(STORAGE_KEY, username.trim());
     }
     onEnter();
-  }, [username, onEnter]);
+    // AUTH_MODE is state now (#474), not a module constant, so it belongs in
+    // the dependency list — without it this callback keeps the value from the
+    // render before the server answered, which is null, and the simple-mode
+    // guard above silently stops applying.
+  }, [username, onEnter, AUTH_MODE]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -176,6 +191,29 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
       </p>
 
       {/* Username input (when simple auth enabled) */}
+      {/* The server could not tell us its auth mode (#474). Say so rather than
+          rendering a login that may be the wrong one — guessing is the defect
+          this whole change exists to remove. */}
+      {authModeError !== null && (
+        <div
+          role="alert"
+          style={{
+            maxWidth: '420px',
+            padding: '12px 16px',
+            marginBottom: '16px',
+            color: '#fecaca',
+            backgroundColor: 'rgba(127, 29, 29, 0.4)',
+            border: '1px solid #b91c1c',
+            borderRadius: '8px',
+            fontSize: '14px',
+            textAlign: 'center',
+          }}
+        >
+          Could not reach this server to find out how to sign you in.
+          <div style={{ marginTop: '6px', opacity: 0.8, fontSize: '13px' }}>{authModeError}</div>
+        </div>
+      )}
+
       {AUTH_MODE === 'simple' && (
         <div style={{ marginBottom: '24px', width: '280px' }}>
           <label
@@ -284,7 +322,7 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
       )}
 
       {/* Enter button (shown for none and simple modes) */}
-      {AUTH_MODE !== 'oauth' && (
+      {AUTH_MODE !== null && AUTH_MODE !== 'oauth' && (
         <button
           onClick={handleSubmit}
           disabled={!canEnter}
