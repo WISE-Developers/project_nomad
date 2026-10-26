@@ -4,10 +4,18 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.40.0
+## v0.41.0
+
+### 2026-10-26
+
+- [`70203c0`](https://github.com/WISE-Developers/project_nomad/commit/70203c0ee0a153844a058d3033407a9e8bf13786) Merge pull request #475 from WISE-Developers/dev — *Franco Nogarin, 06:16*
+- [`8ea96af`](https://github.com/WISE-Developers/project_nomad/commit/8ea96affe8955795338e5a584e8fccf3cd25608d) chore: dev v0.40.1 [release-bot] — *github-actions[bot], 12:11*
+- [`75d3e2d`](https://github.com/WISE-Developers/project_nomad/commit/75d3e2d947869cffeb5776b74ab0dc1589eb4395) Merge fix/474-runtime-auth-mode into dev — *Franco Nogarin, 06:11*
+- [`2e4463b`](https://github.com/WISE-Developers/project_nomad/commit/2e4463b163a3289dca3a047b24fa8513dd6cbb5a) #474: the server decides the auth mode, not the bundle — *Franco Nogarin, 06:10*
 
 ### 2026-10-24
 
+- [`3742bbd`](https://github.com/WISE-Developers/project_nomad/commit/3742bbd7e0feb99a866fd44f28b6c4e1b4a724a8) chore: release v0.40.0 [release-bot] — *github-actions[bot], 11:47*
 - [`6c10791`](https://github.com/WISE-Developers/project_nomad/commit/6c1079118244a54262a1554c3a5d270a42cf1f82) Merge pull request #473 from WISE-Developers/dev — *Franco Nogarin, 05:46*
 - [`09df55f`](https://github.com/WISE-Developers/project_nomad/commit/09df55f2175f989cb460c49a16e55eb5c3c0f6f1) chore: dev v0.39.2 [release-bot] — *github-actions[bot], 11:38*
 - [`018decf`](https://github.com/WISE-Developers/project_nomad/commit/018decf5b71d49bf5bc8b5722f233a8a97f25cc4) Merge feat/465-no-deploy-time-sbom into dev — *Franco Nogarin, 05:38*
