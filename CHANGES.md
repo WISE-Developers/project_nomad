@@ -4,10 +4,16 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.41.0
+## v0.42.0
 
 ### 2026-10-26
 
+- [`f18747d`](https://github.com/WISE-Developers/project_nomad/commit/f18747d736d1e1d0b4098d2ae4e1eace03cdcc48) Merge pull request #478 from WISE-Developers/dev — *Franco Nogarin, 08:14*
+- [`11f173f`](https://github.com/WISE-Developers/project_nomad/commit/11f173f41f902203d4d21f6dc92d97b8f72a9f1f) chore: dev v0.41.1 [release-bot] — *github-actions[bot], 14:12*
+- [`eccbd19`](https://github.com/WISE-Developers/project_nomad/commit/eccbd196a746c711778c19db92a8c34540cb60db) Merge fix/476-nodata-representable into dev — *Franco Nogarin, 08:12*
+- [`8b436c6`](https://github.com/WISE-Developers/project_nomad/commit/8b436c61f4244c15baa20cf9e60470aa77e82a20) #477: record a DEM pixel fingerprint so a vintage can say whether its elevation is new — *Franco Nogarin, 08:12*
+- [`1d8448a`](https://github.com/WISE-Developers/project_nomad/commit/1d8448a6c2549e792a741c6ecaf6705fc3e0c54d) #476: drop a NoData declaration the band type cannot hold — *Franco Nogarin, 08:08*
+- [`1634ca5`](https://github.com/WISE-Developers/project_nomad/commit/1634ca58214e816faa819b8739e60383a3e616da) chore: release v0.41.0 [release-bot] — *github-actions[bot], 12:17*
 - [`70203c0`](https://github.com/WISE-Developers/project_nomad/commit/70203c0ee0a153844a058d3033407a9e8bf13786) Merge pull request #475 from WISE-Developers/dev — *Franco Nogarin, 06:16*
 - [`8ea96af`](https://github.com/WISE-Developers/project_nomad/commit/8ea96affe8955795338e5a584e8fccf3cd25608d) chore: dev v0.40.1 [release-bot] — *github-actions[bot], 12:11*
 - [`75d3e2d`](https://github.com/WISE-Developers/project_nomad/commit/75d3e2d947869cffeb5776b74ab0dc1589eb4395) Merge fix/474-runtime-auth-mode into dev — *Franco Nogarin, 06:11*
