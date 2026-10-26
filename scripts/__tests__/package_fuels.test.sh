@@ -64,6 +64,61 @@ expect_contains "dem DOES use predictor (measured 32% smaller)" "PREDICTOR=YES" 
 expect_contains "no internal overviews — sidecar .ovr is served online" "OVERVIEWS=NONE" "$fuel_opts"
 expect_contains "dem also ships without internal overviews" "OVERVIEWS=NONE" "$dem_opts"
 
+# ---- a declared NoData must fit the band type (#476) --------------------
+#
+# THE DEFECT. Every shipped DEM tile is Int16 with NoData=-32769. Int16 holds
+# -32768..32767, so that sentinel CANNOT equal any stored pixel: the flag is
+# inert and masks nothing. It is harmless while the tiles are void-filled --
+# the lowest value across the first eight 2026 tiles was -251 -- and it is a
+# trap for the first DEM that carries real voids, because a void read as
+# elevation produces slope and aspect out of nothing, and FireSTARR consumes
+# both.
+#
+# The arithmetic is the whole fix, so it is a pure function and tested as one.
+expect_eq "Int16 cannot hold -32769 (the shipped defect)" "1" \
+  "$(run "nodata_representable Int16 -32769; echo \$?")"
+expect_eq "Int16 can hold -32768"            "0" "$(run "nodata_representable Int16 -32768; echo \$?")"
+expect_eq "Int16 can hold 32767"             "0" "$(run "nodata_representable Int16 32767; echo \$?")"
+expect_eq "Int16 cannot hold 32768"          "1" "$(run "nodata_representable Int16 32768; echo \$?")"
+expect_eq "Byte cannot hold -1"              "1" "$(run "nodata_representable Byte -1; echo \$?")"
+expect_eq "Byte can hold 255"                "0" "$(run "nodata_representable Byte 255; echo \$?")"
+expect_eq "UInt16 cannot hold -1"            "1" "$(run "nodata_representable UInt16 -1; echo \$?")"
+expect_eq "Float32 holds -32767 fine"        "0" "$(run "nodata_representable Float32 -32767; echo \$?")"
+# A float NoData on a float band may be fractional; only integer bands are
+# bounded this way.
+expect_eq "Float32 holds a fractional value" "0" "$(run "nodata_representable Float32 -9999.5; echo \$?")"
+# An absent declaration is not a defect -- most tiles legitimately have none.
+expect_eq "no declared NoData is not a defect" "0" "$(run "nodata_representable Int16 ''; echo \$?")"
+expect_eq "a None declaration is not a defect" "0" "$(run "nodata_representable Int16 None; echo \$?")"
+
+# ---- a vintage can say whether its elevation is new (#477) ---------------
+#
+# THE DEFECT. The 2024 and 2025 vintages ship PIXEL-IDENTICAL DEM tiles with
+# different bytes — GDAL checksums agree on every tile checked while sha256 and
+# byte counts differ. Re-encoded, not re-derived: roughly 3GB per vintage of no
+# new elevation.
+#
+# checksums.txt cannot detect that, because a file sha256 changes when the
+# encoding changes. A PIXEL fingerprint survives re-encoding, which is exactly
+# the property needed to answer "is this the same elevation as last year?".
+# Newlines travel badly through the `run` harness (bash -c), so the lines are
+# built with printf inside the subshell rather than quoted in from out here.
+fp_a="$(run "dem_pixel_fingerprint_from \"\$(printf 'dem_10_0.tif:16484\\ndem_11_0.tif:50880\\n')\"")"
+fp_b="$(run "dem_pixel_fingerprint_from \"\$(printf 'dem_11_0.tif:50880\\ndem_10_0.tif:16484\\n')\"")"
+fp_c="$(run "dem_pixel_fingerprint_from \"\$(printf 'dem_10_0.tif:25879\\ndem_11_0.tif:62820\\n')\"")"
+
+expect_eq "fingerprint is 64 hex chars" "64" "$(printf '%s' "$fp_a" | tr -d '\n' | wc -c | tr -d ' ')"
+# Guarded: two EMPTY strings are equal, so without this the order assertion
+# passes on a function that does not exist — a check agreeing with me instead
+# of testing me.
+expect_eq "same tiles in any order give the same fingerprint (2024 vs 2025)" "same-and-nonempty" \
+  "$([ -n "$fp_a" ] && [ "$fp_a" = "$fp_b" ] && echo same-and-nonempty || echo differs-or-empty)"
+expect_eq "different pixels give a different fingerprint (2025 vs 2026)" "different" \
+  "$([ "$fp_a" != "$fp_c" ] && echo different || echo same)"
+
+manifest_dem="$(run "dataset_json 2027 31 31 2026-11-01 '' 0 abc123")"
+expect_contains "manifest carries the dem pixel fingerprint" '"demPixelFingerprint": "abc123"' "$manifest_dem"
+
 # ---- dataset.json manifest ----------------------------------------------
 manifest="$(run "dataset_json 2027 31 31 2026-11-01")"
 expect_contains "manifest carries vintage"     '"vintage": 2027'     "$manifest"
@@ -73,6 +128,15 @@ expect_contains "manifest names the producer"  'Jordan Evens'        "$manifest"
 expect_contains "manifest states run-year convention" 'input for 2027 model runs' "$manifest"
 expect_contains "manifest records fuel tile count" '"fuelTiles": 31' "$manifest"
 expect_contains "manifest records the lut"     '"fuelLut": "fuel.lut"' "$manifest"
+
+# A correction the build made to the source data must be RECORDED, not silent
+# (#476). A manifest that looks identical whether or not tiles were edited
+# cannot answer "is this vintage the data Jordan sent?".
+manifest_fixed="$(run "dataset_json 2027 31 31 2026-11-01 '' 4")"
+expect_contains "manifest records how many tiles had an unusable NoData dropped" \
+  '"demNoDataDropped": 4' "$manifest_fixed"
+expect_eq "manifest stays silent when nothing was corrected" "no" \
+  "$(printf '%s' "$manifest" | grep -q demNoDataDropped && echo yes || echo no)"
 # ---------------------------------------------------------------------------
 # UPSTREAM IS THE SOURCE OF TRUTH, FETCHED AT BUILD TIME (#461)
 #
