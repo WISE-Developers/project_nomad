@@ -31,6 +31,9 @@
  *    the engine is the expensive kind of silent.
  */
 
+import { readdirSync, readFileSync, type Dirent } from 'fs';
+import { join } from 'path';
+
 /** Filename shapes the export manifest already accepts (`exportManifest.ts`). */
 export const SIZES_FILENAME_RE = /^sizes_(\d+)(?:_(\d{4}-\d{2}-\d{2}))?\.csv$/;
 
@@ -147,4 +150,73 @@ export function parseSizesFilename(filename: string): SizesFileIdentity | null {
   const m = filename.match(SIZES_FILENAME_RE);
   if (!m) return null;
   return { julianDay: Number(m[1]), date: m[2] ?? null };
+}
+
+/** One output day's fire-size distribution. */
+export interface FireSizeDay {
+  julianDay: number;
+  date: string | null;
+  sizesHa: number[];
+  summary: FireSizeSummary;
+  reducedPrecision: boolean;
+}
+
+export interface FireSizeSeries {
+  /** Ascending by Julian day. Empty when the run recorded no ensemble. */
+  days: FireSizeDay[];
+  /**
+   * The ensemble size. NULL when no sizes files exist, which is "no ensemble
+   * recorded" and must not render as an ensemble of size zero. 12 of 73 real
+   * run directories are in that state.
+   */
+  n: number | null;
+  /**
+   * False when the row count differs between days. Not observed in any of the
+   * 61 real runs, and flagged rather than smoothed: a population that changes
+   * between days silently invalidates any day-over-day comparison drawn from it.
+   */
+  nConstantAcrossDays: boolean;
+  /** True when any day carried a value written in reduced precision. */
+  reducedPrecision: boolean;
+}
+
+/**
+ * Read every `sizes_*.csv` in a simulation directory.
+ *
+ * A missing or unreadable directory yields an empty series rather than
+ * throwing: callers distinguish "no ensemble recorded" from "an ensemble of
+ * zero" through `n`, and a deterministic run legitimately has neither.
+ */
+export function readFireSizeSeries(simDir: string): FireSizeSeries {
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(simDir, { withFileTypes: true });
+  } catch {
+    return { days: [], n: null, nConstantAcrossDays: true, reducedPrecision: false };
+  }
+
+  const days: FireSizeDay[] = [];
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    const identity = parseSizesFilename(entry.name);
+    if (!identity) continue;
+    const parsed = parseSizesCsv(readFileSync(join(simDir, entry.name), 'utf8'));
+    days.push({
+      julianDay: identity.julianDay,
+      date: identity.date,
+      sizesHa: parsed.sizesHa,
+      summary: summariseFireSizes(parsed.sizesHa),
+      reducedPrecision: parsed.reducedPrecision,
+    });
+  }
+
+  days.sort((a, b) => a.julianDay - b.julianDay);
+
+  const counts = days.map(d => d.summary.n);
+  return {
+    days,
+    n: counts.length === 0 ? null : Math.max(...counts),
+    nConstantAcrossDays: new Set(counts).size <= 1,
+    reducedPrecision: days.some(d => d.reducedPrecision),
+  };
 }
