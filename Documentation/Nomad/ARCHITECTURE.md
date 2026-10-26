@@ -80,7 +80,9 @@ There is no polling. The frontend does not periodically fetch job status.
 
 ## Authentication
 
-SAN mode authentication is controlled by `NOMAD_AUTH_MODE` (backend) / `VITE_AUTH_MODE` (frontend):
+SAN mode authentication is controlled by **`NOMAD_AUTH_MODE` alone**. The frontend asks
+the backend for the mode at runtime (`GET /api/v1/info` → `authMode`) rather than reading
+a value compiled into its bundle, so one published image serves every site (#474):
 
 | Mode | Description |
 |------|-------------|

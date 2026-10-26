@@ -6,6 +6,7 @@ import {
 } from '../../../infrastructure/database/knex/KnexConnection.js';
 import { getModelExecutionService } from '../../../infrastructure/services/index.js';
 import { resolveAppVersion } from '../../../infrastructure/config/appVersion.js';
+import { resolveAuthMode } from '../../middleware/authMode.js';
 
 const router = Router();
 const startTime = Date.now();
@@ -97,6 +98,15 @@ router.get('/info', (_req, res) => {
     version: resolveAppVersion(),
     environment: process.env.NODE_ENV || 'development',
     deploymentMode: (process.env.NOMAD_DEPLOYMENT_MODE as 'SAN' | 'ACN') || 'SAN',
+    // THE SERVER IS THE AUTHORITY ON ITS OWN AUTH MODE (#474).
+    //
+    // The frontend used to read `import.meta.env.VITE_AUTH_MODE`, which Vite
+    // inlines at BUILD time. Once CI published one image for every site (#465),
+    // that constant carried the CI default — `simple` — to a demo running
+    // `oauth`: the splash offered "Enter your name to continue" while the
+    // server had Google and GitHub initialised. Runtime environment cannot
+    // change a compiled bundle, so the client has to ask.
+    authMode: resolveAuthMode(),
     capabilities: {
       engines: ['FireSTARR', 'WISE'],
       maxJobDuration: 240, // 4 hours in minutes
