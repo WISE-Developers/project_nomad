@@ -8,13 +8,10 @@
 import React, { useState, useEffect } from 'react';
 import { authClient } from '../../services/authClient';
 
-type AuthMode = 'none' | 'simple' | 'oauth';
-function getAuthMode(): AuthMode {
-  const mode = import.meta.env.VITE_AUTH_MODE;
-  if (mode === 'none' || mode === 'simple' || mode === 'oauth') return mode;
-  if (import.meta.env.VITE_SIMPLE_AUTH === 'true') return 'simple';
-  return 'none';
-}
+import { fetchAuthMode, type AuthMode } from '../../services/authMode';
+
+// The mode comes from the server, not from a constant baked into this bundle
+// (#474) — see services/authMode.ts for what that cost in production.
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -128,6 +125,23 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const [apiKey, setApiKey] = useState('');
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ message: string; ok: boolean } | null>(null);
+  // null until the server answers (#474). The sign-out control stays hidden
+  // until then rather than being guessed into or out of existence.
+  const [authMode, setAuthMode] = useState<AuthMode | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAuthMode()
+      .then((mode) => {
+        if (!cancelled) setAuthMode(mode);
+      })
+      .catch(() => {
+        // Leave it unknown: this modal has other jobs and must still open.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Load existing value on mount
   useEffect(() => {
@@ -202,7 +216,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
         </div>
 
         {/* Logout (OAuth mode only) */}
-        {getAuthMode() === 'oauth' && (
+        {authMode === 'oauth' && (
           <div style={{ ...sectionStyle, borderTop: '1px solid #374151', paddingTop: '16px' }}>
             <label style={labelStyle}>Session</label>
             <button
