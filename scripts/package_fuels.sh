@@ -128,6 +128,43 @@ nodata_representable() {
     return 1
 }
 
+# Does this vintage carry new elevation? (#477)
+#
+# THE DEFECT THIS ANSWERS. The 2024 and 2025 vintages ship PIXEL-IDENTICAL DEM
+# tiles with different bytes: GDAL checksums agree on every tile checked while
+# sha256 and byte counts differ. Re-encoded, not re-derived — roughly 3GB per
+# vintage of elevation that did not change.
+#
+# checksums.txt cannot see that, because a file sha256 moves whenever the
+# encoding moves. A PIXEL fingerprint survives re-encoding, which is exactly
+# the property needed to answer "is this the same elevation as last year?".
+#
+# Order-independent by construction: the per-tile lines are sorted before
+# hashing, so a build that walks tiles in a different order still agrees.
+dem_pixel_fingerprint_from() {
+    printf '%s\n' "$1" | sed '/^[[:space:]]*$/d' | LC_ALL=C sort | {
+        if command -v shasum >/dev/null 2>&1; then shasum -a 256
+        else sha256sum; fi
+    } | awk '{print $1}'
+}
+
+# The same thing over a built tile directory. Uses the GDAL checksum per tile,
+# which is a function of the PIXELS and not of the container.
+dem_pixel_fingerprint() {
+    local dir="$1" f lines=""
+    command -v gdalinfo >/dev/null 2>&1 || return 1
+    for f in "$dir"/dem_*.tif; do
+        [ -f "$f" ] || continue
+        local ck
+        ck="$(gdalinfo -checksum "$f" 2>/dev/null | grep -m1 Checksum | cut -d= -f2)"
+        [ -n "$ck" ] || return 1
+        lines="$lines$(basename "$f"):$ck
+"
+    done
+    [ -n "$lines" ] || return 1
+    dem_pixel_fingerprint_from "$lines"
+}
+
 # Drop a NoData declaration the band type cannot hold (#476).
 #
 # PIXELS ARE NEVER TOUCHED. The declaration is removed, because a sentinel that
@@ -172,7 +209,7 @@ overview_resampling_for() {
 # The provenance manifest that ships inside every vintage and is read by
 # Nomad's fuel dataset catalog (#319) to show which fuel produced a result.
 dataset_json() {
-    local year="$1" nfuel="$2" ndem="$3" build_date="$4" lut_sha="${5:-}" nodata_dropped="${6:-0}"
+    local year="$1" nfuel="$2" ndem="$3" build_date="$4" lut_sha="${5:-}" nodata_dropped="${6:-0}" dem_fp="${7:-}"
     # A correction the build made to the source data is RECORDED (#476). A
     # manifest that reads identically whether or not tiles were edited cannot
     # answer "is this vintage the data Jordan sent?". Absent when nothing was
@@ -195,6 +232,8 @@ dataset_json() {
   "grid": { "path": "generated/grid/100m/$year", "tilePattern": "{fuel|dem}_{zone}_{row}.tif", "fuelTiles": $nfuel, "demTiles": $ndem },
   "fuelLut": "fuel.lut",$nodata_line
   "lutSha256": "$lut_sha",
+  "demPixelFingerprint": "$dem_fp",
+  "demPixelNote": "sha256 over the per-tile GDAL pixel checksums (#477). Survives re-encoding, so two vintages sharing this value carry the SAME elevation however the files were written.",
   "lutNote": "canonical CWFMF/firestarr-cpp fuel.lut, verified by sha256 at build time; identical in every vintage"
 }
 JSON
@@ -365,7 +404,13 @@ package_year() {
 
     local lut_sha
     lut_sha="$(sha256_of "$root/fuel.lut")"
-    dataset_json "$year" "$nfuel" "$ndem" "$build_date" "$lut_sha" "$nodata_dropped" > "$root/dataset.json"
+    # #477: a pixel fingerprint over the DEM tiles, so a vintage can say whether
+    # its elevation is new. 2024 and 2025 shipped identical pixels in different
+    # bytes, which checksums.txt cannot see.
+    local dem_fp=""
+    dem_fp="$(dem_pixel_fingerprint "$tiles" || true)"
+    [ -n "$dem_fp" ] || print_warning "$year: could not fingerprint the DEM tiles — dataset.json will carry none"
+    dataset_json "$year" "$nfuel" "$ndem" "$build_date" "$lut_sha" "$nodata_dropped" "$dem_fp" > "$root/dataset.json"
     # Strip immediately before hashing so checksums.txt can never list a
     # .DS_Store, then exclude them again at zip time in case Finder recreates
     # one while the build is running.

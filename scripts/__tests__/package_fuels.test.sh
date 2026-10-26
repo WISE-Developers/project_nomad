@@ -91,6 +91,34 @@ expect_eq "Float32 holds a fractional value" "0" "$(run "nodata_representable Fl
 expect_eq "no declared NoData is not a defect" "0" "$(run "nodata_representable Int16 ''; echo \$?")"
 expect_eq "a None declaration is not a defect" "0" "$(run "nodata_representable Int16 None; echo \$?")"
 
+# ---- a vintage can say whether its elevation is new (#477) ---------------
+#
+# THE DEFECT. The 2024 and 2025 vintages ship PIXEL-IDENTICAL DEM tiles with
+# different bytes — GDAL checksums agree on every tile checked while sha256 and
+# byte counts differ. Re-encoded, not re-derived: roughly 3GB per vintage of no
+# new elevation.
+#
+# checksums.txt cannot detect that, because a file sha256 changes when the
+# encoding changes. A PIXEL fingerprint survives re-encoding, which is exactly
+# the property needed to answer "is this the same elevation as last year?".
+# Newlines travel badly through the `run` harness (bash -c), so the lines are
+# built with printf inside the subshell rather than quoted in from out here.
+fp_a="$(run "dem_pixel_fingerprint_from \"\$(printf 'dem_10_0.tif:16484\\ndem_11_0.tif:50880\\n')\"")"
+fp_b="$(run "dem_pixel_fingerprint_from \"\$(printf 'dem_11_0.tif:50880\\ndem_10_0.tif:16484\\n')\"")"
+fp_c="$(run "dem_pixel_fingerprint_from \"\$(printf 'dem_10_0.tif:25879\\ndem_11_0.tif:62820\\n')\"")"
+
+expect_eq "fingerprint is 64 hex chars" "64" "$(printf '%s' "$fp_a" | tr -d '\n' | wc -c | tr -d ' ')"
+# Guarded: two EMPTY strings are equal, so without this the order assertion
+# passes on a function that does not exist — a check agreeing with me instead
+# of testing me.
+expect_eq "same tiles in any order give the same fingerprint (2024 vs 2025)" "same-and-nonempty" \
+  "$([ -n "$fp_a" ] && [ "$fp_a" = "$fp_b" ] && echo same-and-nonempty || echo differs-or-empty)"
+expect_eq "different pixels give a different fingerprint (2025 vs 2026)" "different" \
+  "$([ "$fp_a" != "$fp_c" ] && echo different || echo same)"
+
+manifest_dem="$(run "dataset_json 2027 31 31 2026-11-01 '' 0 abc123")"
+expect_contains "manifest carries the dem pixel fingerprint" '"demPixelFingerprint": "abc123"' "$manifest_dem"
+
 # ---- dataset.json manifest ----------------------------------------------
 manifest="$(run "dataset_json 2027 31 31 2026-11-01")"
 expect_contains "manifest carries vintage"     '"vintage": 2027'     "$manifest"
