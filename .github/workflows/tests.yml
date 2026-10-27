@@ -107,7 +107,14 @@ jobs:
           npm pkg set devDependencies.react="^19.0.0" devDependencies.react-dom="^19.0.0" \
             devDependencies.@types/react="^19.3.0" devDependencies.@types/react-dom="^19.3.0" \
             --workspace @nomad/frontend
-          rm -f package-lock.json
+
+          # The lockfile is deliberately KEPT. Deleting it and installing from
+          # the manifests alone fails on a clean runner with
+          # `npm error Cannot read properties of null (reading 'edgesOut')` —
+          # an npm workspace bug that does not reproduce locally, where
+          # node_modules already exists. Verified 2026-10-27 by removing
+          # node_modules and reinstalling with the lock present: npm reconciles
+          # it against the edited manifests and resolves a single react 19.
 
       - name: Install
         run: npm install --no-audit --no-fund
