@@ -9,6 +9,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Rnd } from 'react-rnd';
 import { ResultsSummary } from './ResultsSummary';
 import { OutputList } from './OutputList';
+import { FireSizeDistributionSection } from './FireSizeDistributionSection';
 import { ArrivalAnimationManager } from './ArrivalAnimationManager';
 import { useModelResults } from '../hooks/useModelResults';
 import { ExportPanel } from '../../Export';
@@ -301,6 +302,7 @@ export function ModelReviewPanel({
           onAddRasterToMap={onAddRasterToMap ? handleAddRasterToMap : undefined}
           onExport={handleExport}
         />
+        <FireSizeDistributionSection modelId={results.modelId} />
         {results.outputConfig?.outputMode === 'deterministic' && (
           <ArrivalAnimationManager modelId={results.modelId} />
         )}
