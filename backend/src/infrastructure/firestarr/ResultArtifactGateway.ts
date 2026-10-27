@@ -10,12 +10,14 @@
 import type {
   IResultArtifactGateway,
   ArrivalArtifactInfo,
+  FireSizeSeriesArtifact,
   DeterministicPerimeterExtraction,
 } from '../../application/interfaces/index.js';
 import type { Result } from '../../application/common/index.js';
 import type { ValidationError, NotFoundError } from '../../domain/errors/index.js';
 import { resolveResultFilePath } from './FireSTARRInputGenerator.js';
 import { findArrivalTifs, extractDeterministicPerimeters } from './index.js';
+import { readFireSizeSeries } from './fireSizeSeries.js';
 
 export class ResultArtifactGateway implements IResultArtifactGateway {
   resolveResultFilePath(relativePath: string): string {
@@ -30,6 +32,10 @@ export class ResultArtifactGateway implements IResultArtifactGateway {
     simDir: string,
   ): Promise<Result<DeterministicPerimeterExtraction, ValidationError | NotFoundError>> {
     return extractDeterministicPerimeters(simDir);
+  }
+
+  readFireSizeSeries(simDir: string): FireSizeSeriesArtifact {
+    return readFireSizeSeries(simDir);
   }
 }
 
