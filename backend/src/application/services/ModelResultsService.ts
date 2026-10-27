@@ -27,6 +27,11 @@ import type {
 } from '../interfaces/index.js';
 import { createFireModelId } from '../../domain/entities/FireModel.js';
 import { readModelStartDate } from './modelStartDate.js';
+import {
+  timeOffsetHoursForJulianDay,
+  dayOfYear,
+  resolveSeriesStartJulian,
+} from './julianTimeOffset.js';
 import { readFuelVintage, type FuelVintageRecord } from './fuelVintageRecord.js';
 
 /**
@@ -389,6 +394,29 @@ export class ModelResultsService {
           inputs.modelStartDate = modelStartDate.toISOString();
         }
 
+        // Give the stored outputs their time coordinate (#418, closing
+        // TODO #236-followup). The per-day `probability_*.tif` rasters are
+        // already one result row each, carrying `julianDay` — they are a real
+        // BP(x,t) series and the only reason a consumer could not use them as
+        // one is that `timeOffsetHours` was hard-coded null above, because the
+        // model's start day is not known until simDir has been resolved here.
+        //
+        // A second pass rather than a reordering: the start day depends on
+        // simDir, simDir depends on a result's file path, and nothing is gained
+        // by threading that through ninety lines of unrelated input loading.
+        const seriesDays = outputs
+          .map(o => o.metadata?.julianDay)
+          .filter((d): d is number => typeof d === 'number');
+        const startJulian = resolveSeriesStartJulian(seriesDays, modelStartDate);
+        for (const output of outputs) {
+          if (output.timeOffsetHours !== null) continue;
+          const julianDay = output.metadata?.julianDay;
+          output.timeOffsetHours = timeOffsetHoursForJulianDay(
+            typeof julianDay === 'number' ? julianDay : null,
+            startJulian,
+          );
+        }
+
         // Only include inputs if we found something
         if (!inputs.ignition && !inputs.weatherCsvPath) {
           inputs = undefined;
@@ -449,10 +477,6 @@ export class ModelResultsService {
                     const startDt = parseIsoToDate(timeRange.start, 'ModelResultsService timeRange.start');
                     const endDt = parseIsoToDate(timeRange.end, 'ModelResultsService timeRange.end');
                     startDate = startDt.toISOString();
-                    const dayOfYear = (d: Date) => {
-                      const jan1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-                      return Math.floor((d.getTime() - jan1.getTime()) / 86_400_000) + 1;
-                    };
                     startJulian = dayOfYear(startDt);
                     endJulian = dayOfYear(endDt);
                   } else {
@@ -517,9 +541,10 @@ export class ModelResultsService {
                       type: 'perimeter' as OutputType,
                       format: 'geojson' as OutputFormat,
                       name: `Fire Boundary - ${dateLabel}`,
-                      timeOffsetHours: startJulianForPerimeters !== null
-                        ? (perimeter.julianDay - startJulianForPerimeters) * 24
-                        : null,
+                      timeOffsetHours: timeOffsetHoursForJulianDay(
+                        perimeter.julianDay,
+                        startJulianForPerimeters,
+                      ),
                       filePath: null,
                       previewUrl: `/api/v1/models/${modelId}/perimeters?day=${perimeter.julianDay}`,
                       downloadUrl: `/api/v1/models/${modelId}/perimeters?day=${perimeter.julianDay}&download=true`,
