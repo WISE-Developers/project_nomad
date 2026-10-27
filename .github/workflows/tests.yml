@@ -90,6 +90,73 @@ jobs:
         run: bash scripts/__tests__/lib_bundle_no_css.test.sh
         working-directory: frontend
 
+      # react/react-dom are externalised by the library build, so declaring them
+      # as `dependencies` ships a second React into every consumer. That blocked
+      # EasyMap 3's React 18 -> 19 upgrade and was found as "Invalid hook call"
+      # in a browser, not by CI. One `npm install react` undoes the fix silently.
+      - name: react is a peer dependency, not a dependency
+        run: bash scripts/__tests__/react_is_a_peer_dep.test.sh
+        working-directory: frontend
+
+  frontend-react19:
+    name: Frontend on React 19 (typecheck + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      # THE DECLARATION MUST AGREE AT THE ROOT AND THE WORKSPACE.
+      #
+      # Setting react only in the frontend leaves npm hoisting a peer-satisfying
+      # copy to the workspace root (it marks it `peer: true` in the lockfile) and
+      # nesting the new one beneath it. @testing-library/react, hoisted at the
+      # root, then binds the OTHER copy: elements from one React rendered by
+      # another, "Objects are not valid as a React child", and 368 failures that
+      # have nothing to do with React 19. Measured 2026-10-27.
+      #
+      # The check that matters is what the HARNESS resolves, asserted below —
+      # not the root version, which was misleading in every wrong run.
+      - name: Declare React 19 in both manifests
+        run: |
+          npm pkg set devDependencies.react="^19.0.0" devDependencies.react-dom="^19.0.0"
+          npm pkg set devDependencies.react="^19.0.0" devDependencies.react-dom="^19.0.0" \
+            devDependencies.@types/react="^19.3.0" devDependencies.@types/react-dom="^19.3.0" \
+            --workspace @nomad/frontend
+          rm -f package-lock.json
+
+      - name: Install
+        run: npm install --no-audit --no-fund
+
+      - name: Assert ONE React, and that the test harness sees it
+        run: |
+          node -e "
+            const path = require.resolve('react', { paths: [require.resolve('@testing-library/react')] });
+            const version = require(path.replace(/index\.js$/, 'package.json')).version;
+            console.log('harness resolves react', version, 'from', path);
+            if (!version.startsWith('19.')) {
+              throw new Error('harness resolved react ' + version + ', not 19 — the tree is split and any result below is meaningless');
+            }
+          "
+        working-directory: frontend
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+        working-directory: frontend
+
+      - name: Test
+        run: npx vitest run
+        working-directory: frontend
+
+      # build:lib is deliberately NOT run here. On @types/react@19 the dts step
+      # fails with `[vite:dts] Internal Error: Unable to follow symbol for "JSX"`
+      # from @microsoft/api-extractor — the React 19 JSX-namespace move, which
+      # api-extractor cannot follow. The published artifact is built on React 18,
+      # where it succeeds. Stated rather than left as an absence, so nobody reads
+      # this job as proving the library BUILDS on 19. It does not.
+
   scripts:
     name: Installer suites (bash)
     runs-on: ubuntu-latest
@@ -198,7 +265,7 @@ jobs:
   all-tests:
     name: All tests
     runs-on: ubuntu-latest
-    needs: [backend, frontend, scripts, lint]
+    needs: [backend, frontend, frontend-react19, scripts, lint]
     if: always()
     steps:
       - name: Verify every suite passed
