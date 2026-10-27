@@ -4,10 +4,41 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.42.0
+## v0.43.0
+
+### 2026-10-27
+
+- [`ab313de`](https://github.com/WISE-Developers/project_nomad/commit/ab313decde2e3f7a39e216311c85ea38a12b9cc6) Merge pull request #481 from WISE-Developers/dev — *Franco Nogarin, 11:22*
+- [`b20ef43`](https://github.com/WISE-Developers/project_nomad/commit/b20ef43f9a76f85cc651f6178f45b9374c2c136a) chore: dev v0.42.7 [release-bot] — *github-actions[bot], 17:04*
+- [`e7acedc`](https://github.com/WISE-Developers/project_nomad/commit/e7acedc8cbf79b0edb23ea6b581b3170d32664df) CI: run build:lib on React 19 - the dts failure was our own bare JSX namespace — *Franco Nogarin, 11:04*
+- [`ad8f60e`](https://github.com/WISE-Developers/project_nomad/commit/ad8f60e5afb54ee3a04acb6b47118457cdec9c89) CI: run build:lib in the React 19 job - the defect was ours and is fixed — *Franco Nogarin, 11:03*
+- [`dcea270`](https://github.com/WISE-Developers/project_nomad/commit/dcea2705ccfdf5aa8f254be1327c0fc0d960bf30) chore: dev v0.42.6 [release-bot] — *github-actions[bot], 15:46*
+- [`55d2d29`](https://github.com/WISE-Developers/project_nomad/commit/55d2d294c14e75a1b2d6e5943def9d553e358647) CI: keep the lockfile in the React 19 job (clean-runner npm workspace bug) — *Franco Nogarin, 09:46*
+- [`a8943d1`](https://github.com/WISE-Developers/project_nomad/commit/a8943d10d7e962e5c6b96085d3cd0ec9f9712297) CI: keep the lockfile in the React 19 job — *Franco Nogarin, 09:46*
+- [`6559f09`](https://github.com/WISE-Developers/project_nomad/commit/6559f092ef75acf37022fed9dde3b5acf1a52108) chore: dev v0.42.5 [release-bot] — *github-actions[bot], 15:37*
+- [`a44a5e9`](https://github.com/WISE-Developers/project_nomad/commit/a44a5e93b5869ea88cfd4828e72b144a4e0bffdc) react and react-dom become peer dependencies (EM3 #927) — *Franco Nogarin, 09:37*
+- [`6e7a3da`](https://github.com/WISE-Developers/project_nomad/commit/6e7a3da4d03e44cc734170d5e625c284c6f8ca6e) react and react-dom are peer dependencies, not dependencies — *Franco Nogarin, 09:36*
+- [`151c55e`](https://github.com/WISE-Developers/project_nomad/commit/151c55e0071015866d2226eea9b2b0ddffef66a1) chore: dev v0.42.4 [release-bot] — *github-actions[bot], 13:29*
+- [`f5efca6`](https://github.com/WISE-Developers/project_nomad/commit/f5efca6d3d311a0f300e28c39d4552808b950cf7) #419: paint the charts - the CDF was drawing an invisible line — *Franco Nogarin, 07:29*
+- [`e9a6c9b`](https://github.com/WISE-Developers/project_nomad/commit/e9a6c9be1b6a8f1f7f5c9823803496aff045fac6) chore: dev v0.42.3 [release-bot] — *github-actions[bot], 12:58*
+- [`161f1b1`](https://github.com/WISE-Developers/project_nomad/commit/161f1b14e909b5699faea80b96764b1e8c19a23c) #419: the ensemble fire-size distribution — *Franco Nogarin, 06:58*
+- [`816c523`](https://github.com/WISE-Developers/project_nomad/commit/816c523fec402b8c159e1250d0a8f6b654db3132) #419: ship the ensemble as data in the export payload — *Franco Nogarin, 06:56*
+- [`6cc53b5`](https://github.com/WISE-Developers/project_nomad/commit/6cc53b5e0469aa32df882d3071cce9a0fd399211) #419: wire the distribution into the model review panel — *Franco Nogarin, 06:54*
+- [`0d9ac68`](https://github.com/WISE-Developers/project_nomad/commit/0d9ac68cc72dccae5c92b5d7445a119d4b5e883a) #419: the ensemble fire-size distribution component — *Franco Nogarin, 06:50*
+- [`37814fd`](https://github.com/WISE-Developers/project_nomad/commit/37814fdd10bb8f18faefc8dc8ef73720a958c405) chore: dev v0.42.2 [release-bot] — *github-actions[bot], 12:35*
+- [`3f6eef0`](https://github.com/WISE-Developers/project_nomad/commit/3f6eef0fa0ae88b57f7f86c60ce8d5af0004e854) Merge dev v0.42.1 bump — *Franco Nogarin, 06:35*
+- [`b236119`](https://github.com/WISE-Developers/project_nomad/commit/b236119e0a063aa2ce9ffd1c1471395317db8c54) #418: the probability time-series half — *Franco Nogarin, 06:34*
+- [`a8f70c1`](https://github.com/WISE-Developers/project_nomad/commit/a8f70c1a3fe8716b84e02a455bb1fad642587370) #418: give the per-day probability rasters their time coordinate — *Franco Nogarin, 06:34*
+- [`8899a7c`](https://github.com/WISE-Developers/project_nomad/commit/8899a7ce7e56d91b464d6b6b4bfc8b9e840fa21d) chore: dev v0.42.1 [release-bot] — *github-actions[bot], 12:11*
+- [`b9d1fea`](https://github.com/WISE-Developers/project_nomad/commit/b9d1fea49f6a4c41b087da3f0542687777e82621) #418: the fire-size half of the ingest layer — *Franco Nogarin, 06:11*
+- [`46798a9`](https://github.com/WISE-Developers/project_nomad/commit/46798a99e99588fd93347247d7a813d57fe7fb01) #418: read the real FireSTARR runs through the real gateway — *Franco Nogarin, 06:09*
+- [`2cb0ae6`](https://github.com/WISE-Developers/project_nomad/commit/2cb0ae656a1ec91398102f081bd105181f2b6806) #418: expose the fire-size ensemble through the results API — *Franco Nogarin, 06:07*
 
 ### 2026-10-26
 
+- [`67c1bad`](https://github.com/WISE-Developers/project_nomad/commit/67c1badba0c24ff1875e0cf6760c8a67ebbb5549) #418: read a run directory's fire-size series, ascending, with N and its caveats — *Franco Nogarin, 12:02*
+- [`0db34b5`](https://github.com/WISE-Developers/project_nomad/commit/0db34b5a122fc5c425f6458e058e772f27b3fc21) #418: parse the per-day fire-size CSVs FireSTARR already writes — *Franco Nogarin, 11:59*
+- [`8de7a12`](https://github.com/WISE-Developers/project_nomad/commit/8de7a126404b7e627331ebb0636ac8cbc681eae1) chore: release v0.42.0 [release-bot] — *github-actions[bot], 14:14*
 - [`f18747d`](https://github.com/WISE-Developers/project_nomad/commit/f18747d736d1e1d0b4098d2ae4e1eace03cdcc48) Merge pull request #478 from WISE-Developers/dev — *Franco Nogarin, 08:14*
 - [`11f173f`](https://github.com/WISE-Developers/project_nomad/commit/11f173f41f902203d4d21f6dc92d97b8f72a9f1f) chore: dev v0.41.1 [release-bot] — *github-actions[bot], 14:12*
 - [`eccbd19`](https://github.com/WISE-Developers/project_nomad/commit/eccbd196a746c711778c19db92a8c34540cb60db) Merge fix/476-nodata-representable into dev — *Franco Nogarin, 08:12*
