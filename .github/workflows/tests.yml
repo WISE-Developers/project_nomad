@@ -139,12 +139,21 @@ jobs:
         run: npx vitest run
         working-directory: frontend
 
-      # build:lib is deliberately NOT run here. On @types/react@19 the dts step
-      # fails with `[vite:dts] Internal Error: Unable to follow symbol for "JSX"`
-      # from @microsoft/api-extractor — the React 19 JSX-namespace move, which
-      # api-extractor cannot follow. The published artifact is built on React 18,
-      # where it succeeds. Stated rather than left as an absence, so nobody reads
-      # this job as proving the library BUILDS on 19. It does not.
+      # The library build runs here too, and that is deliberate: this is the
+      # artifact consumers vendor, so "the source passes on 19" and "the
+      # published artifact builds on 19" are different claims and the second is
+      # the one they depend on.
+      #
+      # It failed until 2026-10-27 with
+      # `[vite:dts] Internal Error: Unable to follow symbol for "JSX"`. That was
+      # never an api-extractor bug: our own source referenced the BARE global
+      # `JSX` namespace, which @types/react@19 moves to `React.JSX`, so the
+      # extractor correctly could not follow it. Qualifying the one occurrence
+      # fixed the build. Proven both ways — reinstating the bare reference makes
+      # this step fail again.
+      - name: Library build
+        run: npm run build:lib
+        working-directory: frontend
 
   scripts:
     name: Installer suites (bash)
