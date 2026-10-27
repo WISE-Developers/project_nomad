@@ -462,9 +462,24 @@ router.post(
       } catch { /* config reconstruction failed — skip */ }
     }
 
+    // The ensemble as DATA (#419). The raw sizes_*.csv already ship below, but
+    // as unexplained columns: this adds N, the statistics and the caveats a
+    // reader cannot recover from the numbers. Null when the run recorded no
+    // ensemble — an empty file would read as an ensemble of zero.
+    const { getResultArtifactGateway } = await import(
+      '../../../infrastructure/firestarr/ResultArtifactGateway.js'
+    );
+    const { buildFireSizeExport } = await import(
+      '../../../application/services/fireSizeExport.js'
+    );
+    const fireSizeJson = buildFireSizeExport(
+      getResultArtifactGateway().readFireSizeSeries(simDir),
+    );
+
     const entries: import('../../../infrastructure/export/streamFilesToZip.js').ZipEntry[] = [
       { name: 'metadata.txt', content: metadata },
       { name: 'model.json', content: JSON.stringify(modelConfig, null, 2) },
+      ...(fireSizeJson ? [{ name: 'fire-sizes.json', content: fireSizeJson }] : []),
       ...validFiles.map((filename) => ({ name: filename, path: join(simDir, filename) })),
     ];
 
