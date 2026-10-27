@@ -56,6 +56,42 @@ export interface DeterministicPerimeterExtraction {
 }
 
 /**
+ * Summary statistics over one day's fire-size distribution.
+ * Application-owned mirror of the infrastructure `FireSizeSummary` shape.
+ */
+export interface FireSizeSummaryArtifact {
+  n: number;
+  minHa: number;
+  maxHa: number;
+  meanHa: number;
+  /** A true median. FireSTARR's logged median is the upper middle value. */
+  medianHa: number;
+  percentilesHa: Record<number, number>;
+  degenerate: boolean;
+}
+
+/** One output day of the fire-size ensemble. */
+export interface FireSizeDayArtifact {
+  julianDay: number;
+  date: string | null;
+  sizesHa: number[];
+  summary: FireSizeSummaryArtifact;
+  reducedPrecision: boolean;
+}
+
+/**
+ * A run's per-day fire-size ensemble (#418).
+ * Application-owned mirror of the infrastructure `FireSizeSeries` shape.
+ */
+export interface FireSizeSeriesArtifact {
+  days: FireSizeDayArtifact[];
+  /** Null when the run recorded no ensemble — never zero. */
+  n: number | null;
+  nConstantAcrossDays: boolean;
+  reducedPrecision: boolean;
+}
+
+/**
  * Port exposing the artifact operations ModelResultsService requires.
  */
 export interface IResultArtifactGateway {
@@ -76,4 +112,10 @@ export interface IResultArtifactGateway {
   extractDeterministicPerimeters(
     simDir: string,
   ): Promise<Result<DeterministicPerimeterExtraction, ValidationError | NotFoundError>>;
+
+  /**
+   * Read the per-day fire-size ensemble FireSTARR writes as `sizes_*.csv`.
+   * A run with no such files yields a series whose `n` is null.
+   */
+  readFireSizeSeries(simDir: string): FireSizeSeriesArtifact;
 }
