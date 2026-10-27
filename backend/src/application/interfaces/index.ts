@@ -78,6 +78,9 @@ export { type IResultRepository } from './IResultRepository.js';
 export {
   type IResultArtifactGateway,
   type ArrivalArtifactInfo,
+  type FireSizeSeriesArtifact,
+  type FireSizeDayArtifact,
+  type FireSizeSummaryArtifact,
   type DeterministicPerimeterArtifact,
   type DeterministicPerimeterExtraction,
 } from './IResultArtifactGateway.js';

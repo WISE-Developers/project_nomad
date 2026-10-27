@@ -1483,6 +1483,44 @@ router.delete(
  * Returns the stored execution config (model.json or output-config.json)
  * for a model. Used by the frontend to re-run imported or completed models.
  */
+/**
+ * GET /models/:id/fire-sizes
+ *
+ * The per-day fire-size ensemble FireSTARR already writes and NOMAD has until
+ * now only labelled inside the export ZIP (#418). Statistics are computed from
+ * the CSV rather than read from the run log: the logged median is the upper
+ * middle value on every even-N distribution, so surfacing it would ship a
+ * central estimate biased high.
+ *
+ * `hasEnsemble: false` means NO ensemble was recorded, which is not an ensemble
+ * of zero. The reason says which.
+ */
+router.get(
+  '/models/:id/fire-sizes',
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const modelRepo = getModelRepository();
+    const model = await modelRepo.findById(createFireModelId(id));
+    if (!model) throw new NotFoundError('Model', id);
+
+    const resultRepo = getResultRepository();
+    const { getResultArtifactGateway } = await import(
+      '../../../infrastructure/firestarr/ResultArtifactGateway.js'
+    );
+    const { resolveFireSizeSeries } = await import(
+      '../../../application/services/fireSizeSeriesService.js'
+    );
+
+    const resolution = await resolveFireSizeSeries(
+      id,
+      async () => resultRepo.findByModelId(createFireModelId(id)),
+      getResultArtifactGateway(),
+    );
+
+    res.json(resolution);
+  }),
+);
+
 router.get(
   '/models/:id/config',
   asyncHandler(async (req, res) => {
