@@ -95,3 +95,28 @@ describe('FireSizeDistribution', () => {
     expect(screen.getByText(/precision/i)).toBeTruthy();
   });
 });
+
+describe('FireSizeDistribution painting', () => {
+  // Regression: the first build set strokeWidth but never stroke, which
+  // defaults to none — the CDF rendered as an empty box. Every test was green
+  // because the element existed; only opening it in a browser showed it.
+  it('draws the CDF line with an actual stroke, not just a width', () => {
+    const { container } = render(
+      <FireSizeDistribution resolution={{ hasEnsemble: true, series: series([day([1, 50, 120, 400, 900])]), reason: null }} />,
+    );
+    const path = container.querySelector('[data-testid="ecdf"] path');
+    expect(path).toBeTruthy();
+    const stroke = path!.getAttribute('stroke');
+    expect(stroke).toBeTruthy();
+    expect(stroke).not.toBe('none');
+  });
+
+  it('fills the histogram bars rather than leaving them the browser default', () => {
+    const { container } = render(
+      <FireSizeDistribution resolution={{ hasEnsemble: true, series: series([day([1, 50, 120, 400, 900])]), reason: null }} />,
+    );
+    const rects = container.querySelectorAll('[data-testid="histogram"] rect');
+    expect(rects.length).toBeGreaterThan(0);
+    rects.forEach(r => expect(r.getAttribute('fill')).toBeTruthy());
+  });
+});
