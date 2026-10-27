@@ -22,7 +22,7 @@ export interface ThemedContainerProps {
   /** Additional inline styles */
   style?: CSSProperties;
   /** HTML tag to use (default: div) */
-  as?: keyof JSX.IntrinsicElements;
+  as?: keyof React.JSX.IntrinsicElements;
 }
 
 /**
