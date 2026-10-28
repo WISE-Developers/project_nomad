@@ -18,6 +18,25 @@ function day(sizesHa: number[], julianDay = 176, date = '2023-06-25') {
       maxHa: sorted[n - 1],
       meanHa: mean,
       degenerate: sorted[0] === sorted[n - 1],
+      // Applies the REAL rule rather than hardcoding a shape, so the fixture
+      // cannot drift from production: nearest-rank per FireSTARR's
+      // Statistics.h, withheld below N=11.
+      percentileStats:
+        n < 11
+          ? {
+              kind: 'withheld' as const,
+              n,
+              reason: `ensemble of ${n} is too small for a median or percentile`,
+            }
+          : {
+              kind: 'available' as const,
+              medianHa: sorted[Math.trunc(n / 2)],
+              percentilesHa: {
+                50: sorted[Math.min(n - 1, Math.trunc(0.5 * n))],
+                90: sorted[Math.min(n - 1, Math.trunc(0.9 * n))],
+                95: sorted[Math.min(n - 1, Math.trunc(0.95 * n))],
+              },
+            },
     },
   };
 }
@@ -34,24 +53,44 @@ describe('FireSizeDistribution', () => {
     render(<FireSizeDistribution resolution={{ hasEnsemble: true, series: series([day([209352, 227341])]), reason: null }} />);
     // Queried by test id, not by text, which also matches the heading.
     expect(screen.getByTestId('stat-n').textContent).toBe('2');
-    expect(screen.getByTestId('fire-size-n').textContent).toMatch(/2 values/);
+    expect(screen.getByTestId('fire-size-n').textContent).toMatch(/2 scenarios/);
     expect(screen.getByTestId('fire-size-n').textContent).toMatch(/2023-06-25/);
   });
 
-  it('shows NO median and NO percentiles while #429 is open', () => {
-    // #418's blocking prerequisite: the rows of sizes_*.csv are an unknown
-    // subset of the ensemble, so a median would locate a point in a population
-    // we cannot describe. Min/mean/max describe the rows that are present.
-    render(<FireSizeDistribution resolution={{ hasEnsemble: true, series: series([day([100, 200, 300])]), reason: null }} />);
+  it('WITHHOLDS the median and percentiles below N=11, and SHOWS them above it', () => {
+    // RE-AIMED 2026-10-28. #429 is answered: a row is one scenario's size at
+    // that save time. So the rule is no longer "never a median" but "not below
+    // N=11", where FireSTARR's own formulas put p90 and p95 on one index.
+    //
+    // The ids here were ALSO wrong before — it queried `stat-p90`/`stat-p95`
+    // where the component renders `stat-p90Ha`/`stat-p95Ha`, so those two
+    // assertions were null-vs-null and could never have failed.
+    const { unmount } = render(
+      <FireSizeDistribution resolution={{ hasEnsemble: true, series: series([day([100, 200, 300])]), reason: null }} />,
+    );
     expect(screen.queryByTestId('stat-medianHa')).toBeNull();
-    expect(screen.queryByTestId('stat-p90')).toBeNull();
-    expect(screen.queryByTestId('stat-p95')).toBeNull();
+    expect(screen.queryByTestId('stat-p90Ha')).toBeNull();
+    expect(screen.queryByTestId('stat-p95Ha')).toBeNull();
 
-    // The control: the table must still render the statistics it does keep,
-    // or an empty table would satisfy the three assertions above.
+    // Stated, not silent: #419 requires a small ensemble to SAY so.
+    expect(screen.getByTestId('fire-size-withheld').textContent).toMatch(/3 scenarios/);
+
+    // The control: the table must still render what it does keep, or an empty
+    // table would satisfy the assertions above.
     expect(screen.getByTestId('stat-minHa').textContent).toMatch(/100/);
     expect(screen.getByTestId('stat-meanHa').textContent).toMatch(/200/);
     expect(screen.getByTestId('stat-maxHa').textContent).toMatch(/300/);
+    unmount();
+
+    // THE DISCRIMINATING HALF. Without it every assertion above is satisfied by
+    // a component that never shows a median at all — which is precisely the
+    // vacuity this test was re-aimed to escape.
+    const eleven = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    render(<FireSizeDistribution resolution={{ hasEnsemble: true, series: series([day(eleven)]), reason: null }} />);
+    expect(screen.getByTestId('stat-medianHa').textContent).toMatch(/6/);
+    expect(screen.getByTestId('stat-p90Ha').textContent).toMatch(/10/);
+    expect(screen.getByTestId('stat-p95Ha').textContent).toMatch(/11/);
+    expect(screen.queryByTestId('fire-size-withheld')).toBeNull();
   });
 
   it('says plainly that no distribution exists when N is 1, and still shows the value', () => {
@@ -69,7 +108,7 @@ describe('FireSizeDistribution', () => {
 
   it('labels a degenerate ensemble instead of drawing a spread', () => {
     render(<FireSizeDistribution resolution={{ hasEnsemble: true, series: series([day([186994, 186994])]), reason: null }} />);
-    expect(screen.getByText(/every simulation/i)).toBeTruthy();
+    expect(screen.getByText(/every scenario/i)).toBeTruthy();
   });
 
   it('renders the histogram and the CDF when there is a real spread', () => {

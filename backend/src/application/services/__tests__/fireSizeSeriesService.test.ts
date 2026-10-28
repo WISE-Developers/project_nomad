@@ -14,6 +14,7 @@ const SERIES: FireSizeSeriesArtifact = {
         maxHa: 227341,
         meanHa: 218346.5,
         degenerate: false,
+        percentileStats: { kind: 'withheld', n: 2, reason: 'ensemble of 2 is too small for a median or percentile' },
       },
       reducedPrecision: false,
     },

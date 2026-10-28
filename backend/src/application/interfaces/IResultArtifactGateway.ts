@@ -59,10 +59,36 @@ export interface DeterministicPerimeterExtraction {
  * Summary statistics over one day's fire-size distribution.
  * Application-owned mirror of the infrastructure `FireSizeSummary` shape.
  */
+/** Nearest-rank p50/p90/p95, FireSTARR's own convention. */
+export interface FireSizePercentilesArtifact {
+  50: number;
+  90: number;
+  95: number;
+}
+
 /**
- * No median and no percentiles — #418's blocking prerequisite, #429 open.
- * The rows of sizes_*.csv are an unknown subset of the ensemble, so a
- * median would locate a point in a population we cannot yet describe.
+ * A DISCRIMINATED UNION rather than nullable fields, so a consumer gets one
+ * presence check and cannot read a median without handling its absence.
+ *
+ * Two independently-nullable numbers plus an out-of-band reason string would
+ * let `medianHa: null` coexist with an empty reason, or a populated median sit
+ * beside one — both representable, both meaningless. This shape makes the bad
+ * state unconstructible instead of merely discouraged. `n` rides in the
+ * withheld branch so a caller can name the number ("the ensemble had 2
+ * members") rather than hiding a row.
+ */
+export type FireSizePercentileStatsArtifact =
+  | { kind: 'available'; medianHa: number; percentilesHa: FireSizePercentilesArtifact }
+  | { kind: 'withheld'; reason: string; n: number };
+
+/**
+ * #429 is answered: each row is one scenario's fire size at that save time, and
+ * the file is the complete set of what reported in — FireSTARR writes every
+ * value it holds, sorted, with no sampling and no de-duplication.
+ *
+ * So the median and percentiles are reported, nearest-rank per FireSTARR's
+ * `Statistics.h`, and WITHHELD below N=11 where the same formulas collapse
+ * p90/p95 onto one index and make the median the maximum at N<=2.
  */
 export interface FireSizeSummaryArtifact {
   n: number;
@@ -71,6 +97,8 @@ export interface FireSizeSummaryArtifact {
   meanHa: number;
   /** Every value identical — a real result, not a render failure. */
   degenerate: boolean;
+  /** Nearest-rank median and p50/p90/p95, or an explicit withholding. */
+  percentileStats: FireSizePercentileStatsArtifact;
 }
 
 /** One output day of the fire-size ensemble. */

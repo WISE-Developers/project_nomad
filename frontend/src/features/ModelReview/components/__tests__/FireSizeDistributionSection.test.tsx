@@ -24,7 +24,11 @@ describe('FireSizeDistributionSection', () => {
               reducedPrecision: false,
               summary: {
                 n: 2, minHa: 209352, maxHa: 227341, meanHa: 218346.5,
- degenerate: false,
+                degenerate: false,
+                percentileStats: {
+                  kind: 'withheld' as const, n: 2,
+                  reason: 'ensemble of 2 is too small for a median or percentile',
+                },
               },
             },
           ],
