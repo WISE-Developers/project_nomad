@@ -125,4 +125,32 @@ if (DISPATCH_PROBE) {
     record(`RETURN  ${label}`);
     return out;
   };
+
+  /**
+   * The discriminator the first version of this probe lacked.
+   *
+   * supertest's `end()` either dispatches now or defers, waiting on a
+   * `listening` event — and it logs RETURN on BOTH paths, so RETURN cannot tell
+   * them apart. Dispatch, whenever it happens, goes through superagent's own
+   * `Request.prototype.end`. So patch that too:
+   *
+   *   END with no DISPATCH  -> the request was never put on the wire;
+   *                            supertest deferred it and never resumed
+   *   END with a DISPATCH   -> it WAS sent, and the loss is further down
+   *
+   * Only one of those is consistent with the server never seeing the request,
+   * so this separates the standing hypothesis from its refutation.
+   */
+  const Request = nodeRequire('superagent').Request;
+  if (Request?.prototype?.end) {
+    const origAgentEnd = Request.prototype.end;
+    Request.prototype.end = function patchedAgentEnd(this: Record<string, unknown>, ...args: unknown[]) {
+      const method = (this as { method?: string }).method ?? '?';
+      const url = (this as { url?: string }).url ?? '?';
+      record(`DISPATCH ${method} ${url}`);
+      return origAgentEnd.apply(this, args);
+    };
+  } else {
+    record('DISPATCH-PATCH-FAILED superagent Request.prototype.end not found');
+  }
 }
