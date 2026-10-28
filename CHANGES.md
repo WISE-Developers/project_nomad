@@ -4,10 +4,25 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.43.0
+## v0.44.0
+
+### 2026-10-28
+
+- [`975080c`](https://github.com/WISE-Developers/project_nomad/commit/975080c227b0cddef833abf760b1fd27972e3d4a) Merge pull request #483 from WISE-Developers/dev — *Franco Nogarin, 08:57*
+- [`e4d7199`](https://github.com/WISE-Developers/project_nomad/commit/e4d71994a4c074a0e76ab68fed51fbaf0f2d3d06) chore: dev v0.43.3 [release-bot] — *github-actions[bot], 14:48*
+- [`74af8ed`](https://github.com/WISE-Developers/project_nomad/commit/74af8ed37addd1b01b87f020a0922ea5fda27f6e) Merge branch 'dev' of https://github.com/WISE-Developers/project_nomad into dev — *Franco Nogarin, 08:47*
+- [`39aa073`](https://github.com/WISE-Developers/project_nomad/commit/39aa0736bfeca0bfca3f04ba19154c58ea0188d2) Merge fix/418: withhold the median and percentiles until #429 answers the population — *Franco Nogarin, 08:46*
+- [`a455fd3`](https://github.com/WISE-Developers/project_nomad/commit/a455fd3ce8e6080e9f70d3ded3667d61f37250e4) fix(#418): withhold the median and percentiles until #429 answers the population — *Franco Nogarin, 08:46*
+- [`1e25595`](https://github.com/WISE-Developers/project_nomad/commit/1e255953a0bc4d60dcb379a50a814505d59a47b0) chore: dev v0.43.2 [release-bot] — *github-actions[bot], 13:52*
+- [`2ef4ae3`](https://github.com/WISE-Developers/project_nomad/commit/2ef4ae37b30007a668127115925b1f448c3a4bbb) Merge fix/479: delete the weather.csv fallback that could never return a date — *Franco Nogarin, 07:52*
+- [`1814d53`](https://github.com/WISE-Developers/project_nomad/commit/1814d533078335e3d57c670395456ad52aa78d10) fix(#479): delete the weather.csv fallback that could never return a date — *Franco Nogarin, 07:52*
 
 ### 2026-10-27
 
+- [`8fe9b56`](https://github.com/WISE-Developers/project_nomad/commit/8fe9b56847245e7a4d33ad009a41f864785f2c8d) chore: dev v0.43.1 [release-bot] — *github-actions[bot], 18:00*
+- [`e82909e`](https://github.com/WISE-Developers/project_nomad/commit/e82909e628ab355202cb32daf42495f7afc97c36) Render the openNomad surface under StrictMode, with a control that proves it fires — *Franco Nogarin, 11:59*
+- [`520ffbe`](https://github.com/WISE-Developers/project_nomad/commit/520ffbe1c83d8bb9c6572e0014de5cc8c7536a2b) Merge dev into strictmode guard — *Franco Nogarin, 11:57*
+- [`fb713e2`](https://github.com/WISE-Developers/project_nomad/commit/fb713e20d6bf8a17f9fadbe34948b33671ffa510) chore: release v0.43.0 [release-bot] — *github-actions[bot], 17:23*
 - [`ab313de`](https://github.com/WISE-Developers/project_nomad/commit/ab313decde2e3f7a39e216311c85ea38a12b9cc6) Merge pull request #481 from WISE-Developers/dev — *Franco Nogarin, 11:22*
 - [`b20ef43`](https://github.com/WISE-Developers/project_nomad/commit/b20ef43f9a76f85cc651f6178f45b9374c2c136a) chore: dev v0.42.7 [release-bot] — *github-actions[bot], 17:04*
 - [`e7acedc`](https://github.com/WISE-Developers/project_nomad/commit/e7acedc8cbf79b0edb23ea6b581b3170d32664df) CI: run build:lib on React 19 - the dts failure was our own bare JSX namespace — *Franco Nogarin, 11:04*
@@ -18,6 +33,7 @@ Auto-generated from git history. Do not edit manually.
 - [`6559f09`](https://github.com/WISE-Developers/project_nomad/commit/6559f092ef75acf37022fed9dde3b5acf1a52108) chore: dev v0.42.5 [release-bot] — *github-actions[bot], 15:37*
 - [`a44a5e9`](https://github.com/WISE-Developers/project_nomad/commit/a44a5e93b5869ea88cfd4828e72b144a4e0bffdc) react and react-dom become peer dependencies (EM3 #927) — *Franco Nogarin, 09:37*
 - [`6e7a3da`](https://github.com/WISE-Developers/project_nomad/commit/6e7a3da4d03e44cc734170d5e625c284c6f8ca6e) react and react-dom are peer dependencies, not dependencies — *Franco Nogarin, 09:36*
+- [`92cc3a5`](https://github.com/WISE-Developers/project_nomad/commit/92cc3a5b15426911477f828da1447d87f6057e49) Render the openNomad surface under StrictMode, with a control that proves it fires — *Franco Nogarin, 08:12*
 - [`151c55e`](https://github.com/WISE-Developers/project_nomad/commit/151c55e0071015866d2226eea9b2b0ddffef66a1) chore: dev v0.42.4 [release-bot] — *github-actions[bot], 13:29*
 - [`f5efca6`](https://github.com/WISE-Developers/project_nomad/commit/f5efca6d3d311a0f300e28c39d4552808b950cf7) #419: paint the charts - the CDF was drawing an invisible line — *Franco Nogarin, 07:29*
 - [`e9a6c9b`](https://github.com/WISE-Developers/project_nomad/commit/e9a6c9be1b6a8f1f7f5c9823803496aff045fac6) chore: dev v0.42.3 [release-bot] — *github-actions[bot], 12:58*
