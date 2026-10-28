@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { StrictMode, useEffect, useState } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import { OpenNomadProvider } from '../context/OpenNomadProvider.js';
-import { DashboardContainer } from '../../features/Dashboard/components/DashboardContainer.js';
+import { OpenNomadProvider } from '../context/OpenNomadContext.js';
+import { DashboardContainer } from '../../features/Dashboard/index.js';
 
 /**
  * EM3 renders every Nomad component it shows inside <StrictMode> — confirmed by
