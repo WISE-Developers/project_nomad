@@ -59,14 +59,17 @@ export interface DeterministicPerimeterExtraction {
  * Summary statistics over one day's fire-size distribution.
  * Application-owned mirror of the infrastructure `FireSizeSummary` shape.
  */
+/**
+ * No median and no percentiles — #418's blocking prerequisite, #429 open.
+ * The rows of sizes_*.csv are an unknown subset of the ensemble, so a
+ * median would locate a point in a population we cannot yet describe.
+ */
 export interface FireSizeSummaryArtifact {
   n: number;
   minHa: number;
   maxHa: number;
   meanHa: number;
-  /** A true median. FireSTARR's logged median is the upper middle value. */
-  medianHa: number;
-  percentilesHa: Record<number, number>;
+  /** Every value identical — a real result, not a render failure. */
   degenerate: boolean;
 }
 

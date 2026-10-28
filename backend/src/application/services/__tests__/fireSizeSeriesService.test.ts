@@ -13,8 +13,6 @@ const SERIES: FireSizeSeriesArtifact = {
         minHa: 209352,
         maxHa: 227341,
         meanHa: 218346.5,
-        medianHa: 218346.5,
-        percentilesHa: { 50: 218346.5, 90: 225742.1, 95: 226541.55 },
         degenerate: false,
       },
       reducedPrecision: false,

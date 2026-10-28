@@ -59,7 +59,9 @@ export function FireSizeDistribution({ resolution }: Props) {
       <h3 style={{ color: INK, margin: '4px 0' }}>Fire size across simulations</h3>
 
       <p className="fire-size-distribution__n" data-testid="fire-size-n" style={{ color: INK, margin: '2px 0' }}>
-        <strong>{summary.n}</strong> {summary.n === 1 ? 'simulation' : 'simulations'}
+        {/* "values", not "simulations": N is the row count of sizes_*.csv and
+            whether a row is a simulation is the open question in #429. */}
+        <strong>{summary.n}</strong> {summary.n === 1 ? 'value' : 'values'}
         {day.date ? ` — ${day.date}` : ` — day ${day.julianDay}`}
       </p>
 
@@ -116,10 +118,19 @@ export function FireSizeDistribution({ resolution }: Props) {
   );
 }
 
+/**
+ * No median row and no percentile rows — #418's blocking prerequisite (#429).
+ *
+ * "Do not compute a median or a percentile until it is answered, or we will
+ * publish a statistic over an unknown population." The rows of sizes_*.csv are
+ * an unknown subset of the ensemble: a run logging six simulations has been
+ * observed writing two rows. Min, mean and max describe the rows present; a
+ * median or percentile would claim to locate a point in the population.
+ *
+ * N is labelled "Values", not "Simulations", for the same reason. It is the row
+ * count of the CSV, and whether a row IS a simulation is the open question.
+ */
 function Statistics({ summary }: { summary: FireSizeDay['summary'] }) {
-  const percentiles = Object.keys(summary.percentilesHa)
-    .map(Number)
-    .sort((a, b) => a - b);
   return (
     <table
       className="fire-size-distribution__stats"
@@ -128,7 +139,7 @@ function Statistics({ summary }: { summary: FireSizeDay['summary'] }) {
       <tbody>
         <tr>
           <th scope="row" style={{ textAlign: 'right', paddingRight: 8, color: MUTED }}>
-            Simulations (N)
+            Values (N)
           </th>
           <td data-testid="stat-n">{summary.n}</td>
         </tr>
@@ -137,21 +148,9 @@ function Statistics({ summary }: { summary: FireSizeDay['summary'] }) {
           <td data-testid="stat-minHa">{fmtHa(summary.minHa)} ha</td>
         </tr>
         <tr>
-          <th scope="row">Median</th>
-          <td data-testid="stat-medianHa">{fmtHa(summary.medianHa)} ha</td>
-        </tr>
-        <tr>
           <th scope="row">Mean</th>
           <td data-testid="stat-meanHa">{fmtHa(summary.meanHa)} ha</td>
         </tr>
-        {percentiles
-          .filter(p => p !== 50)
-          .map(p => (
-            <tr key={p}>
-              <th scope="row">{`p${p}`}</th>
-              <td data-testid={`stat-p${p}`}>{fmtHa(summary.percentilesHa[p])} ha</td>
-            </tr>
-          ))}
         <tr>
           <th scope="row">Maximum</th>
           <td data-testid="stat-maxHa">{fmtHa(summary.maxHa)} ha</td>
