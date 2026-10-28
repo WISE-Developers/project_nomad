@@ -43,7 +43,7 @@ export function FireSizeDistribution({ resolution }: Props) {
   if (!hasEnsemble || !series || series.days.length === 0) {
     return (
       <section className="fire-size-distribution">
-        <h3>Fire size across simulations</h3>
+        <h3>Fire size across scenarios</h3>
         <p className="fire-size-distribution__empty">
           {reason ?? 'No fire-size ensemble is available for this model.'}
         </p>
@@ -56,12 +56,13 @@ export function FireSizeDistribution({ resolution }: Props) {
 
   return (
     <section className="fire-size-distribution" style={{ color: INK, padding: '8px 4px' }}>
-      <h3 style={{ color: INK, margin: '4px 0' }}>Fire size across simulations</h3>
+      <h3 style={{ color: INK, margin: '4px 0' }}>Fire size across scenarios</h3>
 
       <p className="fire-size-distribution__n" data-testid="fire-size-n" style={{ color: INK, margin: '2px 0' }}>
-        {/* "values", not "simulations": N is the row count of sizes_*.csv and
-            whether a row is a simulation is the open question in #429. */}
-        <strong>{summary.n}</strong> {summary.n === 1 ? 'value' : 'values'}
+        {/* "scenarios", not "simulations": #429 established a row is one
+            scenario's size at that save time, and the log's simulation count is
+            a different number (six simulations, two rows). */}
+        <strong>{summary.n}</strong> {summary.n === 1 ? 'scenario' : 'scenarios'}
         {day.date ? ` — ${day.date}` : ` — day ${day.julianDay}`}
       </p>
 
@@ -84,7 +85,7 @@ export function FireSizeDistribution({ resolution }: Props) {
 
       {!series.nConstantAcrossDays && (
         <p className="fire-size-distribution__warning">
-          The simulation population changed between forecast days, so day-over-day
+          The scenario population changed between forecast days, so day-over-day
           comparison is not reliable for this run.
         </p>
       )}
@@ -97,15 +98,16 @@ export function FireSizeDistribution({ resolution }: Props) {
       )}
 
       <Statistics summary={summary} />
+      <WithheldNote summary={summary} />
 
       {summary.n === 1 ? (
         <p className="fire-size-distribution__single" data-testid="fire-size-single">
-          A single simulation, so <strong>no distribution</strong> exists for this run —
+          A single scenario, so <strong>no distribution</strong> exists for this run —
           one outcome of {fmtHa(summary.minHa)} ha, not a range.
         </p>
       ) : summary.degenerate ? (
         <p className="fire-size-distribution__single" data-testid="fire-size-degenerate">
-          Every simulation produced the same size, {fmtHa(summary.minHa)} ha, so there is
+          Every scenario produced the same size, {fmtHa(summary.minHa)} ha, so there is
           no spread to plot.
         </p>
       ) : (
@@ -119,16 +121,23 @@ export function FireSizeDistribution({ resolution }: Props) {
 }
 
 /**
- * No median row and no percentile rows — #418's blocking prerequisite (#429).
+ * #429 IS ANSWERED, so the median and percentiles are shown — nearest-rank.
  *
- * "Do not compute a median or a percentile until it is answered, or we will
- * publish a statistic over an unknown population." The rows of sizes_*.csv are
- * an unknown subset of the ensemble: a run logging six simulations has been
- * observed writing two rows. Min, mean and max describe the rows present; a
- * median or percentile would claim to locate a point in the population.
+ * Each row of sizes_*.csv is one SCENARIO's fire size at that save time, and the
+ * file is the complete set of what reported in. Median and p50/p90/p95 follow
+ * FireSTARR's own definition (`Statistics.h`): nearest-rank with no
+ * interpolation, so every figure here is a size the ensemble actually produced,
+ * and for an even N the median is the UPPER of the two middle values. That
+ * agrees with the median `firestarr.log` prints and with FireGUARD's
+ * Min/Average/Median/Max table (McFayden et al. 2025, Fig. 5), where a
+ * conventional median would have disagreed with both.
  *
- * N is labelled "Values", not "Simulations", for the same reason. It is the row
- * count of the CSV, and whether a row IS a simulation is the open question.
+ * BELOW N=11 they are WITHHELD WITH A REASON rather than hidden: the same
+ * formulas put p90 and p95 on one index for N<=10 and make the median equal the
+ * maximum at N<=2, so the labels would print over a single value.
+ *
+ * N is labelled "Scenarios", not "Simulations": the log's simulation count is a
+ * different number — a run logging six simulations writes two rows.
  */
 function Statistics({ summary }: { summary: FireSizeDay['summary'] }) {
   return (
@@ -139,7 +148,7 @@ function Statistics({ summary }: { summary: FireSizeDay['summary'] }) {
       <tbody>
         <tr>
           <th scope="row" style={{ textAlign: 'right', paddingRight: 8, color: MUTED }}>
-            Values (N)
+            Scenarios (N)
           </th>
           <td data-testid="stat-n">{summary.n}</td>
         </tr>
@@ -151,12 +160,55 @@ function Statistics({ summary }: { summary: FireSizeDay['summary'] }) {
           <th scope="row">Mean</th>
           <td data-testid="stat-meanHa">{fmtHa(summary.meanHa)} ha</td>
         </tr>
+        {summary.percentileStats.kind === 'available' && (
+          <>
+            <tr>
+              <th scope="row">Median</th>
+              <td data-testid="stat-medianHa">
+                {fmtHa(summary.percentileStats.medianHa)} ha
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">90th percentile</th>
+              <td data-testid="stat-p90Ha">
+                {fmtHa(summary.percentileStats.percentilesHa[90])} ha
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">95th percentile</th>
+              <td data-testid="stat-p95Ha">
+                {fmtHa(summary.percentileStats.percentilesHa[95])} ha
+              </td>
+            </tr>
+          </>
+        )}
         <tr>
           <th scope="row">Maximum</th>
           <td data-testid="stat-maxHa">{fmtHa(summary.maxHa)} ha</td>
         </tr>
       </tbody>
     </table>
+  );
+}
+
+/**
+ * The withheld case, STATED rather than silent. #419 requires a small ensemble
+ * to "explicitly state that no distribution exists" — an omitted row states
+ * nothing, and a reader cannot tell a thin ensemble from a broken backend.
+ */
+function WithheldNote({ summary }: { summary: FireSizeDay['summary'] }) {
+  if (summary.percentileStats.kind !== 'withheld') return null;
+  return (
+    <p
+      className="fire-size-distribution__withheld"
+      data-testid="fire-size-withheld"
+      style={{ color: MUTED, fontSize: 12, margin: '2px 0' }}
+    >
+      No median or percentile for this day: {summary.percentileStats.n}{' '}
+      {summary.percentileStats.n === 1 ? 'scenario' : 'scenarios'} reported, and below 11
+      the 90th and 95th percentiles land on the same value. Minimum, mean and maximum
+      describe what was recorded.
+    </p>
   );
 }
 
@@ -171,14 +223,14 @@ function Histogram({ sizesHa }: { sizesHa: number[] }) {
   return (
     <figure className="fire-size-distribution__chart">
       <figcaption style={{ color: MUTED, fontSize: 12 }}>
-        How many simulations ended in each size range — {fmtHa(bins[0].fromHa)} to{' '}
+        How many scenarios ended in each size range — {fmtHa(bins[0].fromHa)} to{' '}
         {fmtHa(bins[bins.length - 1].toHa)} ha
       </figcaption>
       <svg
         data-testid="histogram"
         viewBox={`0 0 ${W} ${H}`}
         role="img"
-        aria-label={`Histogram of final fire size across ${sizesHa.length} simulations`}
+        aria-label={`Histogram of final fire size across ${sizesHa.length} scenarios`}
       >
         {bins.map((b, i) => {
           const h = (b.count / peak) * (H - PAD * 2);
@@ -215,7 +267,7 @@ function Ecdf({ sizesHa }: { sizesHa: number[] }) {
   return (
     <figure className="fire-size-distribution__chart">
       <figcaption style={{ color: MUTED, fontSize: 12 }}>
-        Proportion of simulations at or below a given size — {fmtHa(min)} to {fmtHa(max)} ha
+        Proportion of scenarios at or below a given size — {fmtHa(min)} to {fmtHa(max)} ha
       </figcaption>
       <svg
         data-testid="ecdf"
