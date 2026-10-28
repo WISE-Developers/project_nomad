@@ -54,7 +54,6 @@ describe('readFireSizeSeries', () => {
     // the log for this day says mean 218346.5, median 227341 — the mean agrees,
     // the median does not, because the logged one is the upper middle value
     expect(day.summary.meanHa).toBe(218346.5);
-    expect(day.summary.medianHa).toBe(218346.5);
   });
 
   it('reports N as the maximum row count seen, and that it is constant', () => {

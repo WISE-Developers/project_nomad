@@ -5,8 +5,6 @@ export interface FireSizeSummary {
   minHa: number;
   maxHa: number;
   meanHa: number;
-  medianHa: number;
-  percentilesHa: Record<number, number>;
   degenerate: boolean;
 }
 

@@ -50,14 +50,30 @@ export interface ParsedSizes {
   reducedPrecision: boolean;
 }
 
+/**
+ * NO MEDIAN AND NO PERCENTILES, DELIBERATELY — #418's blocking prerequisite.
+ *
+ * Verbatim: "Do not compute a median or a percentile until it is answered, or
+ * we will publish a statistic over an unknown population." The question is
+ * #429, which is open.
+ *
+ * The reason is not fussiness. Run c7ea0072 logs six simulations with six
+ * distinct final sizes while sizes_176_2023-06-25.csv holds two rows, so N is
+ * a ROW count and the rows are an unknown subset of the ensemble. Min, max,
+ * mean and N describe the rows that are present and say nothing about a
+ * distribution. A median or a percentile claims to locate a point in the
+ * population, and that population is exactly what is not yet known.
+ *
+ * They were computed and shipped in v0.43.0 before this was caught — never
+ * deployed, caught while the demo was still on 0.41.0. Git holds that code for
+ * when #429 closes; it is removed rather than left dormant so nothing can
+ * reintroduce it by wiring up a field that already exists.
+ */
 export interface FireSizeSummary {
   n: number;
   minHa: number;
   maxHa: number;
   meanHa: number;
-  /** A true median: the mean of the two middle values when N is even. */
-  medianHa: number;
-  percentilesHa: Record<number, number>;
   /** Every value identical — a real result, not a render failure. */
   degenerate: boolean;
 }
@@ -99,13 +115,10 @@ export function parseSizesCsv(text: string): ParsedSizes {
 /**
  * Summary statistics computed from the parsed values.
  *
- * Percentiles use linear interpolation between order statistics, which is the
- * conventional default and makes p50 agree with the median by construction.
+ * Only statistics that describe the rows present — see FireSizeSummary for why
+ * the median and percentiles are withheld until #429 closes.
  */
-export function summariseFireSizes(
-  sizesHa: readonly number[],
-  percentiles: readonly number[] = [50, 90, 95],
-): FireSizeSummary {
+export function summariseFireSizes(sizesHa: readonly number[]): FireSizeSummary {
   if (sizesHa.length === 0) {
     throw new Error('cannot summarise an empty fire-size distribution');
   }
@@ -114,29 +127,13 @@ export function summariseFireSizes(
   const n = sorted.length;
   const sum = sorted.reduce((acc, v) => acc + v, 0);
 
-  const percentilesHa: Record<number, number> = {};
-  for (const p of percentiles) percentilesHa[p] = quantile(sorted, p / 100);
-
   return {
     n,
     minHa: sorted[0],
     maxHa: sorted[n - 1],
     meanHa: sum / n,
-    medianHa: quantile(sorted, 0.5),
-    percentilesHa,
     degenerate: sorted[0] === sorted[n - 1],
   };
-}
-
-/** Linear-interpolated quantile over a pre-sorted ascending array. */
-function quantile(sorted: readonly number[], q: number): number {
-  const n = sorted.length;
-  if (n === 1) return sorted[0];
-  const pos = (n - 1) * q;
-  const lower = Math.floor(pos);
-  const upper = Math.ceil(pos);
-  if (lower === upper) return sorted[lower];
-  return sorted[lower] + (pos - lower) * (sorted[upper] - sorted[lower]);
 }
 
 export interface SizesFileIdentity {

@@ -7,7 +7,6 @@ function day(sizesHa: number[], julianDay = 176, date = '2023-06-25') {
   const sorted = [...sizesHa].sort((a, b) => a - b);
   const n = sorted.length;
   const mean = sorted.reduce((s, v) => s + v, 0) / n;
-  const median = n % 2 ? sorted[(n - 1) / 2] : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
   return {
     julianDay,
     date,
@@ -18,8 +17,6 @@ function day(sizesHa: number[], julianDay = 176, date = '2023-06-25') {
       minHa: sorted[0],
       maxHa: sorted[n - 1],
       meanHa: mean,
-      medianHa: median,
-      percentilesHa: { 50: median, 90: sorted[n - 1], 95: sorted[n - 1] },
       degenerate: sorted[0] === sorted[n - 1],
     },
   };
@@ -35,16 +32,25 @@ const series = (days: ReturnType<typeof day>[]): FireSizeSeries => ({
 describe('FireSizeDistribution', () => {
   it('states N on the product, always', () => {
     render(<FireSizeDistribution resolution={{ hasEnsemble: true, series: series([day([209352, 227341])]), reason: null }} />);
-    // Queried by test id, not by /simulations/i, which also matches the heading.
+    // Queried by test id, not by text, which also matches the heading.
     expect(screen.getByTestId('stat-n').textContent).toBe('2');
-    expect(screen.getByTestId('fire-size-n').textContent).toMatch(/2 simulations/);
+    expect(screen.getByTestId('fire-size-n').textContent).toMatch(/2 values/);
     expect(screen.getByTestId('fire-size-n').textContent).toMatch(/2023-06-25/);
   });
 
-  it('shows the median and the percentiles a resourcing decision needs', () => {
+  it('shows NO median and NO percentiles while #429 is open', () => {
+    // #418's blocking prerequisite: the rows of sizes_*.csv are an unknown
+    // subset of the ensemble, so a median would locate a point in a population
+    // we cannot describe. Min/mean/max describe the rows that are present.
     render(<FireSizeDistribution resolution={{ hasEnsemble: true, series: series([day([100, 200, 300])]), reason: null }} />);
-    expect(screen.getByTestId('stat-medianHa').textContent).toMatch(/200/);
-    expect(screen.getByTestId('stat-p90')).toBeTruthy();
+    expect(screen.queryByTestId('stat-medianHa')).toBeNull();
+    expect(screen.queryByTestId('stat-p90')).toBeNull();
+    expect(screen.queryByTestId('stat-p95')).toBeNull();
+
+    // The control: the table must still render the statistics it does keep,
+    // or an empty table would satisfy the three assertions above.
+    expect(screen.getByTestId('stat-minHa').textContent).toMatch(/100/);
+    expect(screen.getByTestId('stat-meanHa').textContent).toMatch(/200/);
     expect(screen.getByTestId('stat-maxHa').textContent).toMatch(/300/);
   });
 
