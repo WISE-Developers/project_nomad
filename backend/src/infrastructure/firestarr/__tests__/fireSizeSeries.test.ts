@@ -59,18 +59,26 @@ describe('parseSizesCsv', () => {
 });
 
 describe('summariseFireSizes', () => {
-  it('computes a TRUE median on even N, not FireSTARR\'s upper middle value', () => {
-    // Measured: run 053dee34 N=46 logs median 3088 where the median is 3079;
-    // this two-value case is the same defect at its smallest.
-    // Run 17fc56ad: values 6224 and 6714, logged median 6714, true median 6469.
+  it('WITHHOLDS the median and percentiles while #429 is open', () => {
+    // #418's blocking prerequisite, verbatim: "Do not compute a median or a
+    // percentile until it is answered, or we will publish a statistic over an
+    // unknown population." #429 is that question.
+    //
+    // Measured evidence for why: run c7ea0072 logs six simulations with six
+    // distinct final sizes while sizes_176_2023-06-25.csv holds two rows. N is
+    // a ROW count, so the rows are an unknown subset of the ensemble.
+    //
+    // THE MEASUREMENTS THIS REPLACES ARE KEPT HERE, because they are real and
+    // will be needed the moment #429 closes — FireSTARR's logged median is the
+    // upper middle value on an even ensemble, not a median:
+    //   run 17fc56ad: values 6224 and 6714 -> logged 6714, true median 6469
+    //   run 053dee34: N=46 -> logged 3088, true median 3079
+    //   odd N agrees, which is why the defect is easy to miss: [1, 3229, 9000]
+    // The implementation that satisfied them is in git, removed rather than
+    // left dormant so nothing reintroduces it by wiring up an existing field.
     const s = summariseFireSizes([6224, 6714]);
-    expect(s.medianHa).toBe(6469);
-    expect(s.medianHa).not.toBe(6714);
-  });
-
-  it('agrees with FireSTARR on odd N, which is why the defect is easy to miss', () => {
-    const s = summariseFireSizes([1, 3229, 9000]);
-    expect(s.medianHa).toBe(3229);
+    expect(s).not.toHaveProperty('medianHa');
+    expect(s).not.toHaveProperty('percentilesHa');
   });
 
   it('reproduces the logged mean, which is the check that the CSV is the population', () => {
@@ -81,12 +89,14 @@ describe('summariseFireSizes', () => {
     expect(s.maxHa).toBe(227341);
   });
 
-  it('reports percentiles and always states N', () => {
-    const s = summariseFireSizes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [50, 90, 95]);
+  it('always states N, and still describes the rows it does have', () => {
+    // The control for the withholding test above: without it, returning an
+    // empty object would satisfy "no median, no percentiles".
+    const s = summariseFireSizes([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(s.n).toBe(10);
-    expect(s.percentilesHa[50]).toBeCloseTo(5.5, 6);
-    expect(s.percentilesHa[90]).toBeCloseTo(9.1, 6);
-    expect(s.percentilesHa[95]).toBeCloseTo(9.55, 6);
+    expect(s.minHa).toBe(1);
+    expect(s.maxHa).toBe(10);
+    expect(s.meanHa).toBe(5.5);
   });
 
   it('marks a degenerate distribution instead of presenting it as a spread', () => {
