@@ -51,24 +51,89 @@ export interface ParsedSizes {
 }
 
 /**
- * NO MEDIAN AND NO PERCENTILES, DELIBERATELY — #418's blocking prerequisite.
+ * THE MEDIAN AND PERCENTILES ARE NEAREST-RANK, AND WITHHELD BELOW N = 11.
  *
- * Verbatim: "Do not compute a median or a percentile until it is answered, or
- * we will publish a statistic over an unknown population." The question is
- * #429, which is open.
+ * #429 is answered: a row is one scenario's fire size at that save time.
+ * `ProbabilityMap::saveSizes()` writes every element of `sizes_`, sorted, with
+ * no cap, no sampling and no dedup — `insert_sorted` keeps duplicates, and 137
+ * of 194 real size files contain duplicate values, so the file is the complete
+ * set of what reported in rather than a subset of it.
  *
- * The reason is not fussiness. Run c7ea0072 logs six simulations with six
- * distinct final sizes while sizes_176_2023-06-25.csv holds two rows, so N is
- * a ROW count and the rows are an unknown subset of the ensemble. Min, max,
- * mean and N describe the rows that are present and say nothing about a
- * distribution. A median or a percentile claims to locate a point in the
- * population, and that population is exactly what is not yet known.
+ * DEFINITION — FireSTARR's own, not the textbook one:
  *
- * They were computed and shipped in v0.43.0 before this was caught — never
- * deployed, caught while the demo was still on 0.41.0. Git holds that code for
- * when #429 closes; it is removed rather than left dormant so nothing can
- * reintroduce it by wiring up a field that already exists.
+ *   median_      = values[n / 2]                             // integer division
+ *   percentile_i = values[ min(n-1, trunc((i/100) * n)) ]    // Statistics.h
+ *
+ * Determined from the code and the issue, not from preference:
+ *
+ * 1. #419 names the deliverable as "the same product FireGUARD publishes
+ *    (McFayden et al. 2025, Fig. 5: Min / Average / Median / Max)", and the
+ *    person who asked for it authored that figure. A conventional interpolated
+ *    median would print a different number under the same label as his own.
+ * 2. min, max and mean already reproduce EXACTLY from these rows. Matching four
+ *    of five statistics and diverging on the fifth looks like agreement until
+ *    somebody checks the one that differs.
+ * 3. The scope asks for the "maximum SIMULATED fire size" to answer a resourcing
+ *    question, so every figure published should be a fire the ensemble actually
+ *    produced. An interpolated p90 is a size no simulation generated.
+ *
+ * For even N this returns the UPPER middle value — the log's `median` of
+ * 209352/227341 is 227341, not 218346.5. That divergence is deliberate and must
+ * stay documented on the product, or a user comparing us to `firestarr.log`
+ * will reasonably conclude one of us is broken.
+ *
+ * THE FLOOR, which the same formulas force rather than taste:
+ *
+ *   n in {1, 2}  ->  the median IS the maximum
+ *   n <= 10      ->  p90 and p95 are the same index (both the maximum)
+ *   n >= 11      ->  p50, p90 and p95 are mutually distinct
+ *
+ * Below 11 the table would print four labels over one or two values, which is
+ * the shape #419 already forbids at N=1 ("never a one-sample distribution").
+ * Across 61 real runs the distinct N values are 2, 3, 14, 26, 29, 34, 35, 42,
+ * 46, 142, 926, 1578, 3277, 4134 — nothing between 3 and 14 — so the floor does
+ * not land inside the real distribution. 18 of 61 runs fall below it, 17 of
+ * those at N=2.
+ *
+ * Withheld means NULL WITH A REASON, never omitted and never defaulted: a
+ * silent default is a lie, and the UI has to be able to say why there is no
+ * median instead of simply not showing one.
+ *
+ * Working: `Documentation/plans/nomad-429-sizes-csv-population.md`.
  */
+export const FIRE_SIZE_PERCENTILE_FLOOR = 11;
+
+export interface FireSizePercentiles {
+  50: number;
+  90: number;
+  95: number;
+}
+
+/**
+ * A DISCRIMINATED UNION, not nullable fields — Meridian's design call as the
+ * consumer that vendors this boundary, and she is right about why.
+ *
+ * Two independently-nullable numbers plus an out-of-band reason string means
+ * three presence checks that nothing stops from disagreeing: `medianHa: null`
+ * with an empty reason, or a populated median beside a reason, are both
+ * representable and both meaningless. This shape makes the bad state
+ * unconstructible instead of merely discouraged, and the compiler forces a
+ * consumer to handle `withheld` before it can read a median.
+ *
+ * `n` rides in the withheld branch deliberately: the honest message names the
+ * number ("the ensemble had 2 members"), and if N lived only in the available
+ * branch the UI would have to go looking elsewhere to explain itself.
+ *
+ * Her reason for insisting, which is better than an argument from taste: she
+ * shipped a panel that drew seven "Not scheduled" rows when its fetch had
+ * failed — stating as fact that a fire had been skipped when the truth was that
+ * we did not know. A nullable number with a separate reason is the same hazard
+ * in a different coat, because it lets a consumer render an absence as a value.
+ */
+export type FireSizePercentileStats =
+  | { kind: 'available'; medianHa: number; percentilesHa: FireSizePercentiles }
+  | { kind: 'withheld'; reason: string; n: number };
+
 export interface FireSizeSummary {
   n: number;
   minHa: number;
@@ -76,6 +141,16 @@ export interface FireSizeSummary {
   meanHa: number;
   /** Every value identical — a real result, not a render failure. */
   degenerate: boolean;
+  /** Nearest-rank median and p50/p90/p95, or an explicit withholding. */
+  percentileStats: FireSizePercentileStats;
+}
+
+/**
+ * FireSTARR's percentile index, `Statistics.h`. Exported so callers and tests
+ * can state the rule independently of this module's own arithmetic.
+ */
+export function firestarrPercentileIndex(percentile: number, n: number): number {
+  return Math.min(n - 1, Math.trunc((percentile / 100) * n));
 }
 
 /**
@@ -115,8 +190,8 @@ export function parseSizesCsv(text: string): ParsedSizes {
 /**
  * Summary statistics computed from the parsed values.
  *
- * Only statistics that describe the rows present — see FireSizeSummary for why
- * the median and percentiles are withheld until #429 closes.
+ * See FireSizeSummary for the median/percentile definition and the N >= 11
+ * floor, both of which are derived rather than chosen.
  */
 export function summariseFireSizes(sizesHa: readonly number[]): FireSizeSummary {
   if (sizesHa.length === 0) {
@@ -127,12 +202,42 @@ export function summariseFireSizes(sizesHa: readonly number[]): FireSizeSummary 
   const n = sorted.length;
   const sum = sorted.reduce((acc, v) => acc + v, 0);
 
-  return {
+  const base = {
     n,
     minHa: sorted[0],
     maxHa: sorted[n - 1],
     meanHa: sum / n,
     degenerate: sorted[0] === sorted[n - 1],
+  };
+
+  if (n < FIRE_SIZE_PERCENTILE_FLOOR) {
+    return {
+      ...base,
+      percentileStats: {
+        kind: 'withheld',
+        n,
+        reason:
+          `ensemble of ${n} is too small for a median or percentile: below ` +
+          `${FIRE_SIZE_PERCENTILE_FLOOR} values, p90 and p95 resolve to the same ` +
+          'simulation and at two or fewer the median is the maximum. Minimum, ' +
+          'maximum, mean and N describe this ensemble; a median would not.',
+      },
+    };
+  }
+
+  return {
+    ...base,
+    percentileStats: {
+      kind: 'available',
+      // Integer division, matching FireSTARR's `values[n / 2]`: the UPPER middle
+      // value for even n, deliberately not the midpoint.
+      medianHa: sorted[Math.trunc(n / 2)],
+      percentilesHa: {
+        50: sorted[firestarrPercentileIndex(50, n)],
+        90: sorted[firestarrPercentileIndex(90, n)],
+        95: sorted[firestarrPercentileIndex(95, n)],
+      },
+    },
   };
 }
 
