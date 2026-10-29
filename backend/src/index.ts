@@ -14,6 +14,7 @@ import {
   simpleAuthMiddleware,
   resolveAuthMode,
   betterAuthSessionMiddleware,
+  unhonouredIdentityMiddleware,
 } from './api/index.js';
 import { initDatabase, initializeRepositories, getJobRepository } from './infrastructure/database/index.js';
 import { getBundleStore } from './infrastructure/export/index.js';
@@ -185,6 +186,12 @@ if (process.env.NOMAD_ENABLE_MCP === 'true') {
   const { mountMcpServer } = await import('./mcp/index.js');
   mountMcpServer(app);
 }
+
+// 3.5. Warn when a request names a user the active mode cannot honour (#488).
+// Mounted unconditionally and BEFORE the mode-specific auth: acnAuth's own
+// NOMAD_DEPLOYMENT_MODE guard is unreachable in SAN mode, because acnAuth is only mounted
+// when the mode is already ACN. Sets nothing on the request and changes no behaviour.
+app.use(unhonouredIdentityMiddleware);
 
 // 4. Authentication - mode-specific
 if (process.env.NOMAD_DEPLOYMENT_MODE === 'ACN') {
