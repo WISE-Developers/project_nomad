@@ -4,10 +4,25 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.44.0
+## v0.45.0
+
+### 2026-10-29
+
+- [`1d006dd`](https://github.com/WISE-Developers/project_nomad/commit/1d006dd5e22c701c204ab1fc0ebcb07365e3da6e) Merge pull request #486 from WISE-Developers/dev — *Franco Nogarin, 07:51*
+- [`c521178`](https://github.com/WISE-Developers/project_nomad/commit/c5211789f848c85f1cc9dfdc6c1a1a55e65b1f0b) chore: dev v0.44.3 [release-bot] — *github-actions[bot], 13:12*
+- [`2210c73`](https://github.com/WISE-Developers/project_nomad/commit/2210c73a1c9eb860d0cd0888d9ff59bb42d6fc52) Merge fix/better-auth-cve-114607 into dev: lockfile bump past the critical better-auth advisory — *Franco Nogarin, 07:12*
+- [`ada5a7a`](https://github.com/WISE-Developers/project_nomad/commit/ada5a7a1d9c10956920dbda85768990f72dabf07) fix(deps): bump better-auth 1.7.5 -> 1.7.7 in the lockfile — *Franco Nogarin, 07:11*
 
 ### 2026-10-28
 
+- [`dedb4a9`](https://github.com/WISE-Developers/project_nomad/commit/dedb4a92669455894729ebd0aea0bb394a1ceacd) chore: dev v0.44.2 [release-bot] — *github-actions[bot], 21:40*
+- [`955dfce`](https://github.com/WISE-Developers/project_nomad/commit/955dfce8b2277522d1f088ccdecda13eb24e2af7) Merge #419: fire-size median and percentiles, nearest-rank with an N>=11 floor — *Franco Nogarin, 15:39*
+- [`f052274`](https://github.com/WISE-Developers/project_nomad/commit/f0522749f683e166edf8f84081c204cb50d3e4ec) #419 half (b): surface the median and percentiles through the API, export and UI — *Franco Nogarin, 15:37*
+- [`2857ed8`](https://github.com/WISE-Developers/project_nomad/commit/2857ed8b3c5adb9e2fe47748c7ce70d47d12a7a5) chore: dev v0.44.1 [release-bot] — *github-actions[bot], 20:33*
+- [`be72653`](https://github.com/WISE-Developers/project_nomad/commit/be72653e58ba1f2eee02db8f401d313fbb54f404) Merge fix/strictmode-error-channel: the StrictMode test was reading the wrong error channel — *Franco Nogarin, 14:32*
+- [`af5a47b`](https://github.com/WISE-Developers/project_nomad/commit/af5a47bc0494b53829779ecb506865d3d381e30a) StrictMode test: the two error channels are disjoint, and it was reading the wrong one — *Franco Nogarin, 14:29*
+- [`703908c`](https://github.com/WISE-Developers/project_nomad/commit/703908ccc6fb4c4cf3b7f374f37a182f2fc0fa4c) #419: nearest-rank median and percentiles, withheld below N=11 — *Franco Nogarin, 14:18*
+- [`da317ec`](https://github.com/WISE-Developers/project_nomad/commit/da317ec92747b54577e0078a7ed348f796fb90df) chore: release v0.44.0 [release-bot] — *github-actions[bot], 14:57*
 - [`975080c`](https://github.com/WISE-Developers/project_nomad/commit/975080c227b0cddef833abf760b1fd27972e3d4a) Merge pull request #483 from WISE-Developers/dev — *Franco Nogarin, 08:57*
 - [`e4d7199`](https://github.com/WISE-Developers/project_nomad/commit/e4d71994a4c074a0e76ab68fed51fbaf0f2d3d06) chore: dev v0.43.3 [release-bot] — *github-actions[bot], 14:48*
 - [`74af8ed`](https://github.com/WISE-Developers/project_nomad/commit/74af8ed37addd1b01b87f020a0922ea5fda27f6e) Merge branch 'dev' of https://github.com/WISE-Developers/project_nomad into dev — *Franco Nogarin, 08:47*
