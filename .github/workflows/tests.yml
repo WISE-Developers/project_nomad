@@ -55,9 +55,41 @@ jobs:
         run: npx tsc --noEmit
         working-directory: backend
 
+      # The slow-test watchdog is armed here on purpose (#491, refs #405).
+      #
+      # #405 characterised an intermittent HANG — always a timeout, never a
+      # wrong assertion, roughly 1 run in 6-12 — and got its only real evidence
+      # from this instrument: at the stall, a live listening server with an
+      # outstanding request that never gets answered. It was then closed
+      # COMPLETED, but the commit it names fixes the WATCHDOG, not the hang.
+      # #491 is the same shape, still happening.
+      #
+      # It cost 24 local runs to capture one sample. CI runs the suite far more
+      # often than anyone runs it by hand, so arming it here turns every run
+      # into a free sample instead of a lost one. It is a no-op unless
+      # NOMAD_TEST_WATCHDOG=1 and its timer is unref'd, so a green run is
+      # unaffected — verified locally: 8 armed full-suite runs, 1365/1365 each,
+      # no behaviour change, and a 50ms-threshold control proving it does fire.
       - name: Test
         run: npx vitest run
         working-directory: backend
+        env:
+          NOMAD_TEST_WATCHDOG: '1'
+          NOMAD_TEST_WATCHDOG_MS: '5000'
+          NOMAD_TEST_WATCHDOG_FILE: ${{ runner.temp }}/nomad-test-stalls.log
+
+      # Uploaded even when the suite passes: a stall that resolves just under
+      # the 30s timeout is the same defect and leaves no other trace. Without
+      # `if: always()` the one run that fails — the run whose sample matters
+      # most — would skip this step.
+      - name: Upload stall report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-stalls-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/nomad-test-stalls.log
+          if-no-files-found: ignore
+          retention-days: 30
 
   frontend:
     name: Frontend (typecheck + tests)
