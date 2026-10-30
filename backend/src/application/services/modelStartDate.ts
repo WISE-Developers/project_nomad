@@ -85,7 +85,49 @@ async function fromConfig(simDir: string): Promise<Date | undefined> {
 
 /**
  * The model's simulation start date, or undefined when nothing records it.
+ *
+ * THIS IS NOW THE LEGACY SOURCE (#482 half 1). The time range is a property of
+ * the model (`FireModel.timeRange`, migration 009) and callers that have the
+ * model should prefer it. This function remains for the runs that predate that
+ * column, whose range exists only as a side effect in the sim directory.
  */
 export async function readModelStartDate(simDir: string): Promise<Date | undefined> {
   return fromConfig(simDir);
+}
+
+/**
+ * The full range recorded in the sim directory, or undefined.
+ *
+ * Same files and same authority as `readModelStartDate` — kept beside it so the
+ * knowledge of WHICH files record a range lives in one module rather than being
+ * re-derived by each consumer. The arrival-time branch of ModelResultsService
+ * used to inline its own `JSON.parse(readFileSync(...))` against a path it had
+ * just established might not exist; the throw was swallowed by an enclosing
+ * catch and the entire arrival output silently disappeared.
+ *
+ * Returns undefined unless BOTH ends parse. Half a range is not a range.
+ */
+export async function readModelTimeRange(
+  simDir: string,
+): Promise<{ start: Date; end: Date } | undefined> {
+  for (const fileName of CONFIG_FILES) {
+    const filePath = join(simDir, fileName);
+    if (!existsSync(filePath)) {
+      continue;
+    }
+    try {
+      const raw = JSON.parse(await readFile(filePath, 'utf8')) as {
+        timeRange?: { start?: string; end?: string };
+      };
+      const start = parseDate(raw.timeRange?.start, `readModelTimeRange ${fileName} start`);
+      const end = parseDate(raw.timeRange?.end, `readModelTimeRange ${fileName} end`);
+      if (start && end) {
+        return { start, end };
+      }
+    } catch {
+      // Malformed config is not fatal — fall through to the next source.
+      continue;
+    }
+  }
+  return undefined;
 }

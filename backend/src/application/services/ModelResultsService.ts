@@ -11,7 +11,6 @@ import * as path from 'path';
 import type { Feature, FeatureCollection, Point, LineString, Polygon } from 'geojson';
 import { Result } from '../common/index.js';
 import { DomainError, NotFoundError } from '../../domain/errors/index.js';
-import { parseIsoToDate } from '../../shared/dateParsing.js';
 import {
   type FireModelId,
   type ModelResultId,
@@ -19,6 +18,7 @@ import {
   OutputType,
   OutputFormat,
 } from '../../domain/entities/index.js';
+import { TimeRange } from '../../domain/value-objects/index.js';
 import { IFireModelingEngine, ExecutionStatus } from '../interfaces/IFireModelingEngine.js';
 import type {
   IResultRepository,
@@ -26,13 +26,14 @@ import type {
   IResultArtifactGateway,
 } from '../interfaces/index.js';
 import { createFireModelId } from '../../domain/entities/FireModel.js';
-import { readModelStartDate } from './modelStartDate.js';
+import { readModelStartDate, readModelTimeRange } from './modelStartDate.js';
 import {
   timeOffsetHoursForJulianDay,
   dayOfYear,
   resolveSeriesStartJulian,
 } from './julianTimeOffset.js';
 import { readFuelVintage, type FuelVintageRecord } from './fuelVintageRecord.js';
+import { readDerivedModelDate, type DerivedModelDate } from './derivedModelDate.js';
 
 /**
  * Execution summary for API response
@@ -95,6 +96,21 @@ export interface ModelInputs {
    * what a past run claims.
    */
   fuelVintage?: FuelVintageRecord;
+  /**
+   * The DAY recovered from the engine's own `sizes_<julian>_<date>.csv` names,
+   * for runs that recorded no time range anywhere (#482 half 2).
+   *
+   * A SEPARATE FIELD FROM modelStartDate ON PURPOSE. That one is an ISO-8601
+   * instant; this is a calendar date with no time of day, because none was
+   * recorded. Merging them would mean choosing an instant, and the only one
+   * available is midnight — a new invented value, indistinguishable from a real
+   * one once constructed.
+   *
+   * Present ONLY when modelStartDate is absent: a derived value never stands
+   * beside a recorded one. Enough for the year (fuel vintage) and to anchor
+   * Julian days; NOT enough for the sub-day ignition fraction.
+   */
+  derivedModelDate?: DerivedModelDate;
 }
 
 /**
@@ -148,7 +164,17 @@ export class ModelResultsService {
     modelName: string,
     engineType: string,
     userId?: string,
-    notes?: string | null
+    notes?: string | null,
+    /**
+     * The range the model was simulated for, read from the MODEL (#482).
+     *
+     * Authoritative when present. The sim directory's `output-config.json` is
+     * only a side effect of a run — it was the single copy of this value, which
+     * is why runs predating `FireModel.timeRange` have no record of it at all.
+     * Undefined means "the model does not know", and the legacy disk sources
+     * are consulted then; it never means "use today".
+     */
+    modelTimeRange?: TimeRange
   ): Promise<Result<ModelResultsResponse, DomainError>> {
     // Get execution status - handle engine not being configured
     let status: ExecutionStatus;
@@ -389,9 +415,19 @@ export class ModelResultsService {
           inputs.fuelVintage = fuelVintage;
         }
 
-        const modelStartDate = await readModelStartDate(simDir);
+        // #482: the model's own record first; the sim directory only for runs
+        // that predate the column. An unknown start still stays unknown.
+        const modelStartDate = modelTimeRange?.start ?? (await readModelStartDate(simDir));
         if (modelStartDate) {
           inputs.modelStartDate = modelStartDate.toISOString();
+        } else {
+          // #482 half 2: nothing records the instant, so recover the DAY from
+          // the engine's own output filenames and label it as derived. Only in
+          // this branch — a derived value never competes with a recorded one.
+          const derived = await readDerivedModelDate(simDir);
+          if (derived) {
+            inputs.derivedModelDate = derived;
+          }
         }
 
         // Give the stored outputs their time coordinate (#418, closing
@@ -459,39 +495,44 @@ export class ModelResultsService {
               try {
                 const arrival = this.gateway.findArrivalTifs(simDir);
                 if (arrival) {
-                  // Read timeRange from output-config.json to derive the model's
-                  // actual duration (not the number of arrival files, which can
-                  // include a trailing boundary file).
-                  const rawConfig = JSON.parse(fs.readFileSync(
-                    path.join(simDir, fs.existsSync(path.join(simDir, 'output-config.json'))
-                      ? 'output-config.json' : 'model.json'),
-                    'utf-8',
-                  ));
-                  const timeRange = rawConfig.timeRange as { start: string; end: string } | undefined;
+                  // The duration comes from the model's configured range, not
+                  // from the number of arrival files (which can include a
+                  // trailing boundary file).
+                  //
+                  // #482: the MODEL's stored range is authoritative. The sim
+                  // directory is the legacy source, read through
+                  // readModelTimeRange so a missing or malformed config returns
+                  // undefined instead of throwing — the inline
+                  // JSON.parse(readFileSync(...)) that used to be here threw on
+                  // a path it had just established might not exist, and the
+                  // enclosing catch swallowed it, silently dropping the whole
+                  // arrival output.
+                  const timeRange = modelTimeRange
+                    ? { start: modelTimeRange.start, end: modelTimeRange.end }
+                    : await readModelTimeRange(simDir);
 
-                  let startDate: string;
+                  // #482: undefined when the start cannot be determined. Never a
+                  // substituted year — see fallbackModelYear.ts for the ruling.
+                  let startDate: string | undefined;
                   let startJulian = arrival.offsetDay;
                   let endJulian = arrival.endJulian;
 
                   if (timeRange) {
-                    const startDt = parseIsoToDate(timeRange.start, 'ModelResultsService timeRange.start');
-                    const endDt = parseIsoToDate(timeRange.end, 'ModelResultsService timeRange.end');
-                    startDate = startDt.toISOString();
-                    startJulian = dayOfYear(startDt);
-                    endJulian = dayOfYear(endDt);
-                  } else {
-                    // Fallback: derive year from weather.csv
-                    let modelYear = new Date().getFullYear();
-                    try {
-                      const weatherPath = path.join(simDir, 'weather.csv');
-                      if (fs.existsSync(weatherPath)) {
-                        const firstLines = fs.readFileSync(weatherPath, 'utf-8').split('\n').slice(0, 2);
-                        const dateMatch = firstLines[1]?.match(/(\d{4})-\d{2}-\d{2}/);
-                        if (dateMatch) modelYear = parseInt(dateMatch[1], 10);
-                      }
-                    } catch { /* use current year */ }
-                    startDate = new Date(Date.UTC(modelYear, 0, startJulian)).toISOString();
+                    startDate = timeRange.start.toISOString();
+                    startJulian = dayOfYear(timeRange.start);
+                    endJulian = dayOfYear(timeRange.end);
+                  } else if (modelStartDate) {
+                    // A start with no end: the Julian window keeps its
+                    // file-derived end rather than inventing one.
+                    //
+                    // #482: no weather.csv fallback beyond this. A year read off
+                    // weather.csv cannot be made correct — its Date column is a
+                    // BARE LOCAL timestamp and the declared zone lives in the
+                    // very config file whose absence put us here (#479).
+                    startDate = modelStartDate.toISOString();
+                    startJulian = dayOfYear(modelStartDate);
                   }
+                  // else: startDate stays undefined. An unknown start stays unknown.
                   startJulianForPerimeters = startJulian;
 
                   outputs.push({

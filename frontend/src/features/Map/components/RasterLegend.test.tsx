@@ -195,6 +195,85 @@ describe('RasterLegend', () => {
     });
   });
 
+  describe('arrival legend with no recorded start instant (#482)', () => {
+    /**
+     * Franco's ruling, 2026-10-30, option (a): a run whose start instant was
+     * never recorded shows relative day labels, never a substituted date.
+     *
+     * This renders the real component, because the unit tests on
+     * `generateArrivalLegend` prove the FUNCTION returns "Day 1" and say
+     * nothing about whether the legend displays it. `RasterLegend` used to do
+     * `new Date(meta.startDate)` unconditionally, so an absent value would have
+     * reached it as `new Date(undefined)` — an Invalid Date, rendering "NaN"
+     * rather than failing.
+     */
+    function makeArrivalLayerNoStart(id: string, timestep: 'daily' | 'hourly' = 'daily') {
+      const layer = makeArrivalLayer(id, timestep);
+      return {
+        ...layer,
+        arrivalMeta: { ...layer.arrivalMeta, startDate: undefined },
+      };
+    }
+
+    it('shows relative day labels instead of dates', () => {
+      mockUseLayers.mockReturnValue({
+        state: {
+          layers: [makeArrivalLayerNoStart('a', 'daily')],
+          groups: [],
+          selectedLayerId: null,
+        },
+        updateLayer: vi.fn(),
+      });
+
+      render(<RasterLegend />);
+
+      expect(screen.getByText('Day 1')).toBeInTheDocument();
+      expect(screen.getByText('Day 2')).toBeInTheDocument();
+      expect(screen.getByText('Day 3')).toBeInTheDocument();
+    });
+
+    it('renders no NaN and no calendar date anywhere in the legend', () => {
+      mockUseLayers.mockReturnValue({
+        state: {
+          layers: [makeArrivalLayerNoStart('a', 'daily')],
+          groups: [],
+          selectedLayerId: null,
+        },
+        updateLayer: vi.fn(),
+      });
+
+      const { container } = render(<RasterLegend />);
+
+      expect(container.textContent).not.toContain('NaN');
+      expect(container.textContent).not.toContain('Invalid');
+      // No month name and no four-digit year — the substituted date would have
+      // put the CURRENT year here, which is the defect this closes.
+      expect(container.textContent).not.toMatch(
+        /Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec/,
+      );
+      expect(container.textContent).not.toMatch(/\b\d{4}\b/);
+    });
+
+    it('THE CONTROL: a recorded start still renders real calendar dates', () => {
+      // Without this, the assertions above could be passing because the arrival
+      // legend stopped rendering labels altogether.
+      mockUseLayers.mockReturnValue({
+        state: {
+          layers: [makeArrivalLayer('a', 'daily')],
+          groups: [],
+          selectedLayerId: null,
+        },
+        updateLayer: vi.fn(),
+      });
+
+      const { container } = render(<RasterLegend />);
+
+      expect(container.textContent).toMatch(/Jun/);
+      expect(container.textContent).toMatch(/2026/);
+      expect(screen.queryByText('Day 1')).not.toBeInTheDocument();
+    });
+  });
+
   describe('arrival breaks control (#271 Unit 8)', () => {
     it('shows the breaks options in hourly mode', () => {
       mockUseLayers.mockReturnValue({
