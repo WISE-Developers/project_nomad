@@ -15,6 +15,7 @@ import {
   ModelResult,
   ModelResultId,
 } from '../../../domain/entities/index.js';
+import { TimeRange } from '../../../domain/value-objects/index.js';
 import { NotFoundError } from '../../../domain/errors/index.js';
 import { parseDbTimestamp } from '../../../shared/dateParsing.js';
 import {
@@ -35,6 +36,27 @@ interface ModelRow {
   user_id: string | null;
   notes: string | null;
   output_mode: string | null;
+  time_range_start: string | null;
+  time_range_end: string | null;
+}
+
+/**
+ * The simulated period, or undefined when the row does not record one (#482).
+ *
+ * BOTH ends are required to build a TimeRange, and a row carrying only one is
+ * treated as recording nothing. Half a range is not a range: TimeRange's own
+ * invariant is that end follows start, and there is no honest value to put on
+ * the missing side. Substituting one would be the invented value this issue
+ * exists to remove.
+ */
+function rowToTimeRange(row: ModelRow): TimeRange | undefined {
+  if (!row.time_range_start || !row.time_range_end) {
+    return undefined;
+  }
+  return new TimeRange(
+    parseDbTimestamp(row.time_range_start, 'models.time_range_start'),
+    parseDbTimestamp(row.time_range_end, 'models.time_range_end'),
+  );
 }
 
 /**
@@ -51,6 +73,7 @@ function rowToModel(row: ModelRow): FireModel {
     userId: row.user_id ?? undefined,
     notes: row.notes ?? undefined,
     outputMode: row.output_mode ?? undefined,
+    timeRange: rowToTimeRange(row),
   });
 }
 
@@ -73,6 +96,8 @@ export class KnexModelRepository implements IModelRepository {
       user_id: model.userId ?? null,
       notes: model.notes ?? null,
       output_mode: model.outputMode ?? null,
+      time_range_start: model.timeRange?.start.toISOString() ?? null,
+      time_range_end: model.timeRange?.end.toISOString() ?? null,
     };
 
     // Use onConflict().merge() for upsert behavior (works across databases)

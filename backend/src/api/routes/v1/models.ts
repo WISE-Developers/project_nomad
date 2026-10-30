@@ -232,6 +232,11 @@ router.post(
       userId: resolveUserId(req),
       notes: body.notes,
       outputMode: derivedOutputMode,
+      // #482: the range the run is FOR, stored on the model rather than only
+      // written into the sim directory's output-config.json. That file was the
+      // only copy, so a start date was an argument to a run and never a
+      // property of the model — 26 of 64 real sim dirs have no record of it.
+      timeRange,
     });
 
     logger.model(
@@ -707,6 +712,10 @@ router.post(
       // Same derivation as executionOptions above — read from it rather than
       // repeating the ternary, which is how these two drifted apart.
       outputMode: executionOptions.outputMode,
+      // #482: persisted here as well as on POST /models/run. Both endpoints
+      // queue a run with a time range, so a fix applied to only one of them
+      // would leave every execute-path model without a recorded range.
+      timeRange,
     });
     await modelRepo.save(updatedModel);
     const queuedModel = updatedModel;
@@ -877,7 +886,10 @@ router.get(
         model.name,
         model.engineType,
         model.userId,
-        model.notes
+        model.notes,
+        // #482: the model's own stored range, so the start date no longer
+        // depends on output-config.json having survived in the sim directory.
+        model.timeRange
       );
 
       logger.debug(`Got result, success=${result.success}`, 'Results');
@@ -991,7 +1003,10 @@ router.get(
     const result = await resultsService.getResults(
       id as FireModelId,
       model.name,
-      model.engineType
+      model.engineType,
+      undefined,
+      null,
+      model.timeRange
     );
 
     if (!result.success || !result.value.inputs?.weatherCsvPath) {
@@ -1055,7 +1070,10 @@ router.get(
     const result = await resultsService.getResults(
       id as FireModelId,
       model.name,
-      model.engineType
+      model.engineType,
+      undefined,
+      null,
+      model.timeRange
     );
 
     if (!result.success || !result.value.inputs?.ignition?.geojson) {
@@ -1277,7 +1295,9 @@ router.post(
       id as FireModelId,
       model.name,
       model.engineType,
-      model.userId
+      model.userId,
+      model.notes,
+      model.timeRange
     );
 
     if (!resultResponse.success || resultResponse.value.outputs.length === 0) {

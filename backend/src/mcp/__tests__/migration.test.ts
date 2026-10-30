@@ -4,11 +4,28 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import knex, { Knex } from 'knex';
 import { up, down } from '../../infrastructure/database/migrations/003_add_model_config.js';
+import { up as m001 } from '../../infrastructure/database/migrations/001_create_tables.js';
+import { up as m002 } from '../../infrastructure/database/migrations/002_add_user_ownership.js';
+import { up as m006 } from '../../infrastructure/database/migrations/006_add_notes_column.js';
+import { up as m007 } from '../../infrastructure/database/migrations/007_add_output_mode_column.js';
+import { up as m009 } from '../../infrastructure/database/migrations/009_add_time_range_columns.js';
 import { KnexModelRepository } from '../../infrastructure/database/knex/KnexModelRepository.js';
 import { FireModel, createFireModelId, EngineType, ModelStatus } from '../../domain/entities/index.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
+/**
+ * The base schema, built by RUNNING THE REAL MIGRATIONS.
+ *
+ * This used to be a hand-written `createTable` whose own comment said it
+ * "mirrors 001_create_tables + subsequent migrations" — a second copy of the
+ * schema maintained by memory, and it drifted the moment migration 009 added
+ * the time-range columns: the repository wrote them and sqlite rejected the
+ * insert, in a test about migration 003. The whole hand-kept-list class.
+ *
+ * Every migration EXCEPT 003 is applied here, because 003 is the subject of the
+ * tests below and they call its `up`/`down` directly.
+ */
 async function createInMemoryDb(): Promise<Knex> {
   const db = knex({
     client: 'better-sqlite3',
@@ -16,18 +33,9 @@ async function createInMemoryDb(): Promise<Knex> {
     useNullAsDefault: true,
   });
 
-  // Create the base fire_models table (mirrors 001_create_tables + subsequent migrations)
-  await db.schema.createTable('fire_models', (table) => {
-    table.string('id').primary();
-    table.string('name').notNullable();
-    table.string('engine_type').notNullable();
-    table.string('status').notNullable();
-    table.timestamp('created_at').notNullable();
-    table.timestamp('updated_at').notNullable();
-    table.string('user_id').nullable();
-    table.text('notes').nullable();
-    table.text('output_mode').nullable();
-  });
+  for (const migrate of [m001, m002, m006, m007, m009]) {
+    await migrate(db);
+  }
 
   return db;
 }
