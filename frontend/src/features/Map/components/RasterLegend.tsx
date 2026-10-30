@@ -172,7 +172,10 @@ function ArrivalLegendBlock({
     startJulian: meta.startJulian,
     endJulian: meta.endJulian,
     timestep: meta.timestep,
-    startDate: new Date(meta.startDate),
+    // #482: pass the absence through rather than constructing a Date from
+    // nothing — `new Date(undefined)` is an Invalid Date, which would have
+    // produced "NaN" labels instead of relative ones.
+    startDate: meta.startDate === undefined ? undefined : new Date(meta.startDate),
     originDay,
     totalDaysOverride: totalDays,
     breaksPerDay,

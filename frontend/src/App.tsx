@@ -36,6 +36,7 @@ import { DashboardContainer } from './features/Dashboard';
 import { SettingsModal } from './features/Settings/SettingsModal';
 import { AboutModal } from './components/AboutModal';
 import { ContentSplashGate } from './components/ContentSplashGate';
+import { resolveArrivalStartDate } from './features/Map/utils/resolveArrivalStartDate';
 
 /**
  * Calculate bounding box from GeoJSON
@@ -492,7 +493,13 @@ function AppContent() {
           offsetDay: Number(output.metadata?.offsetDay ?? 0),
           startJulian: Number(output.metadata?.startJulian ?? 0),
           endJulian: Number(output.metadata?.endJulian ?? 0),
-          startDate: String(output.metadata?.startDate ?? new Date().toISOString()),
+          // #482: NO substitution. This line used to fall back to the current
+          // time, labelling a run whose start was never recorded with today's
+          // date — in the field an analyst reads to know which fire season and
+          // fuel vintage they are looking at. The decision lives in
+          // resolveArrivalStartDate so it is actually covered by a test; in
+          // place here it was not, and the regression passed all 794.
+          startDate: resolveArrivalStartDate(output.metadata?.startDate),
           timestep: initialTimestep,
         }
       : undefined;

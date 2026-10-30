@@ -71,8 +71,15 @@ export interface ArrivalRasterMeta {
   startJulian: number;
   /** Last Julian day + 1 */
   endJulian: number;
-  /** ISO date corresponding to startJulian (UTC) */
-  startDate: string;
+  /**
+   * ISO date corresponding to startJulian (UTC).
+   *
+   * OPTIONAL (#482): runs predating `FireModel.timeRange` recorded no start
+   * instant, and this field used to be filled with `new Date().toISOString()`
+   * — today's date standing in for a 2023 fire. Absent now, and the legend
+   * labels those bins by relative day instead.
+   */
+  startDate?: string;
   /** Current classification granularity; defaults to 'daily' */
   timestep: ArrivalTimestep;
   /** Sub-buckets per day for the hourly view (#271 Unit 8); defaults to 24. */
