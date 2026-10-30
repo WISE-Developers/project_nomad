@@ -33,7 +33,6 @@ import {
   resolveSeriesStartJulian,
 } from './julianTimeOffset.js';
 import { readFuelVintage, type FuelVintageRecord } from './fuelVintageRecord.js';
-import { resolveFallbackModelYear } from './fallbackModelYear.js';
 
 /**
  * Execution summary for API response
@@ -483,12 +482,17 @@ export class ModelResultsService {
                     startJulian = dayOfYear(startDt);
                     endJulian = dayOfYear(endDt);
                   } else {
-                    // Fallback: derive the year from weather.csv, or leave the start
-                    // date undetermined. It must NOT become the current year (#482).
-                    const modelYear = resolveFallbackModelYear(simDir);
-                    startDate = modelYear === undefined
-                      ? undefined
-                      : new Date(Date.UTC(modelYear, 0, startJulian)).toISOString();
+                    // #482: no weather.csv fallback. modelStartDate is the single
+                    // authoritative source (readModelStartDate, read above) and it
+                    // deliberately returns undefined rather than a guess. A year read
+                    // off weather.csv cannot be made correct — its Date column is a
+                    // BARE LOCAL timestamp and the declared zone lives in the very
+                    // config file whose absence put us in this branch (#479).
+                    if (modelStartDate) {
+                      startDate = modelStartDate.toISOString();
+                      startJulian = dayOfYear(modelStartDate);
+                    }
+                    // else: startDate stays undefined. An unknown start stays unknown.
                   }
                   startJulianForPerimeters = startJulian;
 
