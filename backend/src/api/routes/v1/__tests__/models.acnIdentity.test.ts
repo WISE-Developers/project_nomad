@@ -1,5 +1,5 @@
 /**
- * ACN identity on the model CREATE path (#488).
+ * Identity on the model CREATE path (#488) — ACN mode, and simple mode.
  *
  * A downstream ACN consumer reported that every model it creates is stored with
  * `userId: null` — five pre-existing models and one created live, all null, which
@@ -141,6 +141,75 @@ describe('#488 — ACN identity on POST /models', () => {
     expect(res.body.userId).toBeNull();
 
     expect(save).toHaveBeenCalledTimes(1);
+    const saved: SavedModel = save.mock.calls[0][0];
+    expect(saved.userId).toBeUndefined();
+  });
+});
+
+/**
+ * SIMPLE MODE — the path the real consumer hits.
+ *
+ * Both the staging and production instances run `NOMAD_AUTH_MODE=simple`, and the
+ * consumer sends `X-Nomad-User` on writes. So the operative question for #488 is not the
+ * ACN path at all: it is whether a simple-mode create persists `req.user`.
+ *
+ * `resolveUserId` falls through `req.acn` and `req.userEmail` to `return req.user`, so the
+ * code says yes. These tests establish it, because "the code says yes" is not a
+ * measurement — and the existing deployed models cannot answer it: all five were created
+ * before the consumer sent any identity header, so they are a pre-fix population and
+ * physically cannot test a post-fix build.
+ */
+describe('#488 — simple-mode identity on POST /models', () => {
+  const envBefore = { ...process.env };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    delete process.env.NOMAD_DEPLOYMENT_MODE;
+    process.env.NOMAD_AUTH_MODE = 'simple';
+  });
+
+  afterEach(() => {
+    process.env = { ...envBefore };
+  });
+
+  async function buildSimpleApp() {
+    const { simpleAuthMiddleware } = await import('../../../middleware/simpleAuth.js');
+    const modelsRouter = (await import('../models.js')).default;
+    const app = express();
+    app.use(express.json());
+    app.use(simpleAuthMiddleware);
+    app.use('/api/v1', modelsRouter);
+    return app;
+  }
+
+  it('persists the X-Nomad-User value as the author', async () => {
+    const app = await buildSimpleApp();
+
+    const res = await request(app)
+      .post('/api/v1/models')
+      .set('x-nomad-user', 'fire-analyst-7')
+      .send({ name: 'simple mode create', engineType: 'firestarr' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.userId).toBe('fire-analyst-7');
+
+    // And on the row, not only in the echoed response.
+    expect(save).toHaveBeenCalledTimes(1);
+    const saved: SavedModel = save.mock.calls[0][0];
+    expect(saved.userId).toBe('fire-analyst-7');
+  });
+
+  it('records null when no identity header is sent — the pre-fix shape', async () => {
+    const app = await buildSimpleApp();
+
+    const res = await request(app)
+      .post('/api/v1/models')
+      .send({ name: 'no identity', engineType: 'firestarr' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.userId).toBeNull();
+
     const saved: SavedModel = save.mock.calls[0][0];
     expect(saved.userId).toBeUndefined();
   });
