@@ -4,10 +4,15 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.46.0
+## v0.47.0
 
 ### 2026-10-30
 
+- [`24254dd`](https://github.com/WISE-Developers/project_nomad/commit/24254dd9ded665bba05a04a37574fd7e7daa17fa) Merge pull request #494 from WISE-Developers/dev — *Franco Nogarin, 11:02*
+- [`a200013`](https://github.com/WISE-Developers/project_nomad/commit/a20001310c2ef6323435af4fea2ca9b3fcc13ad6) chore: dev v0.46.1 [release-bot] — *github-actions[bot], 16:56*
+- [`6bb8f91`](https://github.com/WISE-Developers/project_nomad/commit/6bb8f9108a74b83e489916825c39b48beccc7aea) Merge fix/492-no-invented-perimeter-year into dev: perimeters never named with an invented year — *Franco Nogarin, 10:56*
+- [`18ca57e`](https://github.com/WISE-Developers/project_nomad/commit/18ca57ebfe8b88babbbb192639406a482ca7fc88) fix(#492): a perimeter is never named with a year nothing recorded — *Franco Nogarin, 10:56*
+- [`2cf9ac2`](https://github.com/WISE-Developers/project_nomad/commit/2cf9ac2b34a6bf46c1e065243fde57cdced5ff63) chore: release v0.46.0 [release-bot] — *github-actions[bot], 16:07*
 - [`bf99a78`](https://github.com/WISE-Developers/project_nomad/commit/bf99a780c19f2f97e86959352193ddddc0b9e9c4) Merge pull request #493 from WISE-Developers/dev — *Franco Nogarin, 10:07*
 - [`a0eb52a`](https://github.com/WISE-Developers/project_nomad/commit/a0eb52afc28029539d11ebbac3e1ae42d80d1aec) chore: dev v0.45.5 [release-bot] — *github-actions[bot], 15:32*
 - [`53fdbd6`](https://github.com/WISE-Developers/project_nomad/commit/53fdbd68f38c978ec3cb3d2fb17e48a12b21ceec) Merge fix/482-no-invented-start-date into dev — *Franco Nogarin, 09:29*
