@@ -311,6 +311,98 @@ describe('#482 — the model’s stored time range outranks the sim directory', 
     });
   });
 
+  describe('#492 — perimeters are never NAMED with a year nothing recorded', () => {
+    // The extractor no longer sniffs weather.csv or substitutes today, so the
+    // year has to arrive from the model. These assert both halves: that it is
+    // passed when known, and that its absence produces a relative label rather
+    // than a fabricated date.
+
+    function perimetersOn(julianDays: number[], date: (j: number) => string | null) {
+      mockExtractDeterministicPerimeters.mockResolvedValue({
+        success: true,
+        value: {
+          perimeters: julianDays.map((j) => ({
+            julianDay: j,
+            date: date(j),
+            geojson: { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [] } },
+          })),
+        },
+      });
+    }
+
+    function perimeterNames(value: { outputs: Array<{ type: string; name: string }> }) {
+      return value.outputs.filter((o) => o.type === 'perimeter').map((o) => o.name);
+    }
+
+    it('passes the model’s recorded year to the extractor', async () => {
+      fs.writeFileSync(path.join(simDir, 'output-config.json'), JSON.stringify(LEGACY_CONFIG));
+      perimetersOn([170, 171], (j) => `2023-06-${j - 151}`);
+
+      await runGetResults(MODEL_RANGE);
+
+      // Second argument is the year. Without it the extractor has no source at
+      // all now, so a caller that forgets it silently loses every date.
+      expect(mockExtractDeterministicPerimeters).toHaveBeenCalledWith(
+        expect.any(String),
+        2023,
+      );
+    });
+
+    it('CONTROL: with a known year the names are still real calendar dates', async () => {
+      // Without this, "no fabricated date" could be satisfied by a change that
+      // stopped producing dates at all.
+      fs.writeFileSync(path.join(simDir, 'output-config.json'), JSON.stringify(LEGACY_CONFIG));
+      perimetersOn([170, 171], (j) => (j === 170 ? '2023-06-19' : '2023-06-20'));
+
+      const value = await runGetResults(MODEL_RANGE);
+
+      expect(perimeterNames(value)).toEqual([
+        'Fire Boundary - 2023-06-19',
+        'Fire Boundary - 2023-06-20',
+      ]);
+    });
+
+    it('passes undefined when the model records no range', async () => {
+      fs.writeFileSync(path.join(simDir, 'output-config.json'), JSON.stringify(LEGACY_CONFIG));
+      perimetersOn([170, 171], () => null);
+
+      await runGetResults(undefined);
+
+      expect(mockExtractDeterministicPerimeters).toHaveBeenCalledWith(
+        expect.any(String),
+        undefined,
+      );
+    });
+
+    it('names them by RELATIVE day when the year is unknown — Day 1, not Day 170', async () => {
+      // The label has to agree with the arrival legend, which sits directly
+      // above these in Model Outputs and now says "Day 1". Day-of-year here
+      // would put "Day 1" and "Day 170" side by side for the same run.
+      fs.writeFileSync(path.join(simDir, 'output-config.json'), JSON.stringify(LEGACY_CONFIG));
+      perimetersOn([170, 171, 172], () => null);
+
+      const value = await runGetResults(undefined);
+
+      expect(perimeterNames(value)).toEqual([
+        'Fire Boundary - Day 1',
+        'Fire Boundary - Day 2',
+        'Fire Boundary - Day 3',
+      ]);
+    });
+
+    it('never puts a year in a perimeter name when none was recorded', async () => {
+      // The regression itself: "Fire Boundary - 2026-06-19" on a 2023 fire.
+      fs.writeFileSync(path.join(simDir, 'output-config.json'), JSON.stringify(LEGACY_CONFIG));
+      perimetersOn([170, 171, 172], () => null);
+
+      const value = await runGetResults(undefined);
+
+      for (const name of perimeterNames(value)) {
+        expect(name).not.toMatch(/\d{4}/);
+      }
+    });
+  });
+
   it('a malformed config does not defeat the stored range', async () => {
     // The old branch did `JSON.parse(readFileSync(...))` with no guard inside a
     // try that swallowed the throw and dropped the entire arrival output. A
