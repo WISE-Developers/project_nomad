@@ -47,7 +47,17 @@
  */
 
 import type { Server } from 'node:http';
-import type { Express } from 'express';
+/**
+ * `Application`, not `Express`. The suite declares its apps as
+ * `express.Application`, and `Express` is the narrower
+ * `Application & { request, response }` that only `express()` itself returns —
+ * so typing this as `Express` rejected six files. `listen` lives on
+ * `Application`, which is all this helper needs.
+ *
+ * tsc caught that while 85 tests through these very servers passed. Three
+ * gates, three answers.
+ */
+import type { Application } from 'express';
 import { afterAll } from 'vitest';
 
 /**
@@ -58,7 +68,7 @@ import { afterAll } from 'vitest';
  * built once. A file whose app differs per test must not use this; see
  * `serveForTest`.
  */
-export function serveOnce(buildApp: () => Express): () => Server {
+export function serveOnce(buildApp: () => Application): () => Server {
   let server: Server | undefined;
 
   afterAll(async () => {
@@ -85,7 +95,7 @@ export function serveOnce(buildApp: () => Express): () => Server {
  * nothing from it, and calling it per request would reintroduce the defect
  * exactly.
  */
-export function serveForTest(app: Express): { server: Server; close: () => Promise<void> } {
+export function serveForTest(app: Application): { server: Server; close: () => Promise<void> } {
   const server = app.listen(0);
   return {
     server,

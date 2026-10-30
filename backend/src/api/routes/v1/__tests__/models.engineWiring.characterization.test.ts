@@ -100,6 +100,7 @@ vi.mock('../../../../infrastructure/services/JobQueue.js', () => ({
 import modelsRouter from '../models.js';
 import { errorHandler } from '../../../middleware/errorHandler.js';
 import { ModelStatus, EngineType } from '../../../../domain/entities/index.js';
+import { serveOnce } from '../../../../test/sharedServer.js';
 
 function buildApp() {
   const app = express();
@@ -108,6 +109,13 @@ function buildApp() {
   app.use(errorHandler);
   return app;
 }
+/**
+ * One server for this file instead of one per request (#480). `buildApp` is
+ * invariant here — express, the router, the error handler, nothing read at
+ * build time — and the beforeEach blocks only reset mocks, which the router
+ * consults per request. So a single server serves every case.
+ */
+const api = serveOnce(buildApp);
 
 function completedModel(id: string) {
   return {
@@ -131,7 +139,7 @@ beforeEach(() => {
 describe('/models result-service engine wiring — characterization', () => {
   it('GET /models/:id/results returns 404 when the model does not exist', async () => {
     findById.mockResolvedValue(null);
-    const res = await request(buildApp()).get('/api/v1/models/m-missing/results');
+    const res = await request(api()).get('/api/v1/models/m-missing/results');
     expect(res.status).toBe(404);
     expect(res.body.error).toBeDefined();
   });
@@ -139,42 +147,42 @@ describe('/models result-service engine wiring — characterization', () => {
   it('GET /models/:id/results wires an engine into the results service for an existing model', async () => {
     findById.mockResolvedValue(completedModel('m-1'));
     getResults.mockResolvedValue({ success: false });
-    await request(buildApp()).get('/api/v1/models/m-1/results');
+    await request(api()).get('/api/v1/models/m-1/results');
     expect(getModelResultsService).toHaveBeenCalled();
     expect(getModelResultsService.mock.calls[0][0]).toBeTruthy();
   });
 
   it('GET /models/:id/inputs/weather returns 404 when the model does not exist', async () => {
     findById.mockResolvedValue(null);
-    const res = await request(buildApp()).get('/api/v1/models/m-missing/inputs/weather');
+    const res = await request(api()).get('/api/v1/models/m-missing/inputs/weather');
     expect(res.status).toBe(404);
   });
 
   it('GET /models/:id/inputs/weather wires an engine into the results service', async () => {
     findById.mockResolvedValue(completedModel('m-2'));
     getResults.mockResolvedValue({ success: false });
-    const res = await request(buildApp()).get('/api/v1/models/m-2/inputs/weather');
+    const res = await request(api()).get('/api/v1/models/m-2/inputs/weather');
     expect(res.status).toBe(404); // no weather data
     expect(getModelResultsService.mock.calls[0][0]).toBeTruthy();
   });
 
   it('GET /models/:id/inputs/ignition returns 404 when the model does not exist', async () => {
     findById.mockResolvedValue(null);
-    const res = await request(buildApp()).get('/api/v1/models/m-missing/inputs/ignition');
+    const res = await request(api()).get('/api/v1/models/m-missing/inputs/ignition');
     expect(res.status).toBe(404);
   });
 
   it('GET /models/:id/inputs/ignition wires an engine into the results service', async () => {
     findById.mockResolvedValue(completedModel('m-3'));
     getResults.mockResolvedValue({ success: false });
-    const res = await request(buildApp()).get('/api/v1/models/m-3/inputs/ignition');
+    const res = await request(api()).get('/api/v1/models/m-3/inputs/ignition');
     expect(res.status).toBe(404);
     expect(getModelResultsService.mock.calls[0][0]).toBeTruthy();
   });
 
   it('POST /models/:id/perimeters returns 404 when the model does not exist', async () => {
     findById.mockResolvedValue(null);
-    const res = await request(buildApp())
+    const res = await request(api())
       .post('/api/v1/models/m-missing/perimeters')
       .send({ confidenceInterval: 50 });
     expect(res.status).toBe(404);
@@ -183,7 +191,7 @@ describe('/models result-service engine wiring — characterization', () => {
   it('POST /models/:id/perimeters wires an engine into the results service', async () => {
     findById.mockResolvedValue(completedModel('m-4'));
     getResults.mockResolvedValue({ success: true, value: { outputs: [] } });
-    const res = await request(buildApp())
+    const res = await request(api())
       .post('/api/v1/models/m-4/perimeters')
       .send({ confidenceInterval: 50 });
     expect(res.status).toBe(404); // no probability rasters
@@ -195,25 +203,25 @@ describe('/models result-service engine wiring — characterization', () => {
 describe('/models getWorkingDirectory engine wiring — characterization', () => {
   it('GET /models/:id/perimeters (1040) exercises getWorkingDirectory and 404s when absent', async () => {
     findById.mockResolvedValue(completedModel('m-wd-1'));
-    const res = await request(buildApp()).get('/api/v1/models/m-wd-1/perimeters?day=1');
+    const res = await request(api()).get('/api/v1/models/m-wd-1/perimeters?day=1');
     expect(res.status).toBe(404);
     expect(getWorkingDirectory).toHaveBeenCalledWith('m-wd-1');
   });
 
   it('GET /models/:id/arrival-tile (1530) exercises getWorkingDirectory and 404s when absent', async () => {
-    const res = await request(buildApp()).get('/api/v1/models/m-wd-2/arrival-tile/1/2/3.png');
+    const res = await request(api()).get('/api/v1/models/m-wd-2/arrival-tile/1/2/3.png');
     expect(res.status).toBe(404);
     expect(getWorkingDirectory).toHaveBeenCalledWith('m-wd-2');
   });
 
   it('GET /models/:id/arrival-bounds (1588) exercises getWorkingDirectory and 404s when absent', async () => {
-    const res = await request(buildApp()).get('/api/v1/models/m-wd-3/arrival-bounds');
+    const res = await request(api()).get('/api/v1/models/m-wd-3/arrival-bounds');
     expect(res.status).toBe(404);
     expect(getWorkingDirectory).toHaveBeenCalledWith('m-wd-3');
   });
 
   it('GET /models/:id/arrival-perimeters (1643) exercises getWorkingDirectory and 404s when absent', async () => {
-    const res = await request(buildApp()).get('/api/v1/models/m-wd-4/arrival-perimeters');
+    const res = await request(api()).get('/api/v1/models/m-wd-4/arrival-perimeters');
     expect(res.status).toBe(404);
     expect(getWorkingDirectory).toHaveBeenCalledWith('m-wd-4');
   });
@@ -221,7 +229,7 @@ describe('/models getWorkingDirectory engine wiring — characterization', () =>
   it('GET /models (1266) acquires the engine and returns the model list shape', async () => {
     // One completed model so the getWorkingDirectory leak site fires.
     find.mockResolvedValue({ models: [completedModel('m-list-1')] });
-    const res = await request(buildApp()).get('/api/v1/models');
+    const res = await request(api()).get('/api/v1/models');
     expect(res.status).toBe(200);
     expect(getFireSTARREngine).toHaveBeenCalled();
     expect(getWorkingDirectory).toHaveBeenCalledWith('m-list-1');
@@ -234,7 +242,7 @@ describe('/models getWorkingDirectory engine wiring — characterization', () =>
 describe('/models DELETE engine wiring — characterization', () => {
   it('DELETE /models/:id returns 404 when the model does not exist', async () => {
     findById.mockResolvedValue(null);
-    const res = await request(buildApp()).delete('/api/v1/models/m-missing');
+    const res = await request(api()).delete('/api/v1/models/m-missing');
     expect(res.status).toBe(404);
   });
 
@@ -242,7 +250,7 @@ describe('/models DELETE engine wiring — characterization', () => {
     findById.mockResolvedValue({ ...completedModel('m-del-1') });
     // model repo needs delete()
     getModelRepository.mockReturnValue({ findById, find, delete: vi.fn(async () => undefined) });
-    const res = await request(buildApp()).delete('/api/v1/models/m-del-1');
+    const res = await request(api()).delete('/api/v1/models/m-del-1');
     expect(res.status).toBe(200);
     expect(getFireSTARREngine).toHaveBeenCalled();
     expect(res.body.message).toContain('m-del-1');
@@ -255,14 +263,14 @@ describe('/models DELETE engine wiring — characterization', () => {
 describe('/models detached-engine sites — observable behaviour', () => {
   it('POST /models/:id/execute returns 404 when the model does not exist', async () => {
     findById.mockResolvedValue(null);
-    const res = await request(buildApp())
+    const res = await request(api())
       .post('/api/v1/models/m-missing/execute')
       .send({});
     expect(res.status).toBe(404);
   });
 
   it('POST /models/run rejects an invalid body with 4xx (no engine reached)', async () => {
-    const res = await request(buildApp()).post('/api/v1/models/run').send({});
+    const res = await request(api()).post('/api/v1/models/run').send({});
     expect(res.status).toBeGreaterThanOrEqual(400);
     expect(res.status).toBeLessThan(500);
   });

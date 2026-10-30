@@ -38,6 +38,7 @@ vi.mock('../../../../infrastructure/services/index.js', () => ({
 
 import jobsRouter from '../jobs.js';
 import { errorHandler } from '../../../middleware/errorHandler.js';
+import { serveOnce } from '../../../../test/sharedServer.js';
 
 function buildApp() {
   const app = express();
@@ -45,6 +46,13 @@ function buildApp() {
   app.use(errorHandler);
   return app;
 }
+/**
+ * One server for this file instead of one per request (#480). `buildApp` is
+ * invariant here — express, the router, the error handler, nothing read at
+ * build time — and the beforeEach blocks only reset mocks, which the router
+ * consults per request. So a single server serves every case.
+ */
+const api = serveOnce(buildApp);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -54,14 +62,14 @@ beforeEach(() => {
 describe('/jobs/:id/log-stream engine wiring — characterization', () => {
   it('returns an error status when the job does not exist (engine never reached)', async () => {
     getJob.mockResolvedValue({ success: false, error: Object.assign(new Error('Job not found'), { name: 'NotFoundError' }) });
-    const res = await request(buildApp()).get('/api/v1/jobs/job-missing/log-stream');
+    const res = await request(api()).get('/api/v1/jobs/job-missing/log-stream');
     expect(res.status).toBeGreaterThanOrEqual(400);
     expect(getWorkingDirectory).not.toHaveBeenCalled();
   });
 
   it('acquires the engine and 404s when no working directory exists for the job model', async () => {
     getJob.mockResolvedValue({ success: true, value: { modelId: 'model-x' } });
-    const res = await request(buildApp()).get('/api/v1/jobs/job-1/log-stream');
+    const res = await request(api()).get('/api/v1/jobs/job-1/log-stream');
     expect(res.status).toBe(404);
     expect(getFireSTARREngine).toHaveBeenCalled();
     expect(getWorkingDirectory).toHaveBeenCalledWith('model-x');

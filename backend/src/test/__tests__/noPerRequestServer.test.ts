@@ -43,27 +43,18 @@ const SELF = 'test/__tests__/noPerRequestServer.test.ts';
  * entry is a debt to pay down, not an exemption.
  */
 const BASELINE: Record<string, number> = {
-  'api/__tests__/modelsPreflight.test.ts': 17,
-  'api/routes/v1/__tests__/models.engineWiring.characterization.test.ts': 17,
-  'api/__tests__/health.test.ts': 15,
   'api/routes/v1/__tests__/adhocLayersCapabilities.test.ts': 11,
   'api/__tests__/notifications.test.ts': 10,
-  'api/__tests__/settings.test.ts': 10,
-  'api/routes/v1/__tests__/perimetersImport.test.ts': 8,
   'api/routes/v1/__tests__/splash.test.ts': 8,
   'api/routes/v1/__tests__/usage.test.ts': 8,
   'api/routes/v1/__tests__/usage.integration.test.ts': 7,
-  'api/__tests__/modelsRunContract.test.ts': 6,
   'api/middleware/__tests__/unhonouredIdentity.test.ts': 6,
   'api/routes/v1/__tests__/fuelDatasets.test.ts': 6,
   'api/routes/v1/__tests__/models.executeOptions.test.ts': 5,
   'api/routes/v1/__tests__/models.acnIdentity.test.ts': 4,
   'api/__tests__/info_auth_mode.test.ts': 3,
   'api/routes/v1/__tests__/models.listScoping.test.ts': 3,
-  'api/routes/v1/__tests__/results.perimeterDownload.characterization.test.ts': 3,
-  'api/__tests__/timezoneValidation.test.ts': 2,
-  'api/routes/v1/__tests__/jobs.engineWiring.characterization.test.ts': 2,
-  'api/routes/v1/__tests__/results.characterization.test.ts': 2,
+  'api/__tests__/modelsPreflight.test.ts': 1,
 };
 
 /**
