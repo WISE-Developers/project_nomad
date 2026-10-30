@@ -233,6 +233,84 @@ describe('#482 — the model’s stored time range outranks the sim directory', 
     expect(arrivalMetadata(value).startDate).toBe('2019-01-01T00:00:00.000Z');
   });
 
+  describe('#482 half 2 — day-precision recovery, labelled as derived', () => {
+    // The recovered value is REPORTED SEPARATELY from modelStartDate and never
+    // merged into it. modelStartDate is documented as an ISO-8601 instant, and
+    // the only instant a calendar date could become is midnight — the new
+    // invented value this issue exists to prevent. A caller must be able to
+    // tell a recorded start from a recovered day, so they are different fields.
+
+    it('recovers the day from the engine’s own sizes filenames when nothing recorded it', async () => {
+      fs.writeFileSync(path.join(simDir, 'output-config.json'), JSON.stringify(LEGACY_CONFIG));
+      fs.writeFileSync(path.join(simDir, 'sizes_171_2023-06-20.csv'), 'Scenario,Size\n1,10\n');
+      fs.writeFileSync(path.join(simDir, 'sizes_170_2023-06-19.csv'), 'Scenario,Size\n1,10\n');
+
+      const value = await runGetResults(undefined);
+
+      // Still no start date: an unknown instant stays unknown.
+      expect(value.inputs?.modelStartDate).toBeUndefined();
+      // But the day is recovered, labelled, and traceable.
+      expect(value.inputs?.derivedModelDate).toEqual({
+        date: '2023-06-19',
+        julianDay: 170,
+        precision: 'day',
+        source: 'sizes_170_2023-06-19.csv',
+      });
+    });
+
+    it('does NOT report a derived day when the model records a real range', async () => {
+      // A derived value must never stand beside, or appear to compete with, a
+      // recorded one. Recorded wins and the derived field is absent entirely.
+      fs.writeFileSync(path.join(simDir, 'output-config.json'), JSON.stringify(LEGACY_CONFIG));
+      fs.writeFileSync(path.join(simDir, 'sizes_170_2023-06-19.csv'), 'Scenario,Size\n1,10\n');
+
+      const value = await runGetResults(MODEL_RANGE);
+
+      expect(value.inputs?.modelStartDate).toBe(MODEL_START_ISO);
+      expect(value.inputs?.derivedModelDate).toBeUndefined();
+    });
+
+    it('does NOT report a derived day when the sim directory records a range', async () => {
+      fs.writeFileSync(
+        path.join(simDir, 'output-config.json'),
+        JSON.stringify({
+          ...LEGACY_CONFIG,
+          timeRange: { start: '2019-01-01T00:00:00.000Z', end: '2019-01-04T00:00:00.000Z' },
+        }),
+      );
+      fs.writeFileSync(path.join(simDir, 'sizes_170_2023-06-19.csv'), 'Scenario,Size\n1,10\n');
+
+      const value = await runGetResults(undefined);
+
+      expect(value.inputs?.modelStartDate).toBe('2019-01-01T00:00:00.000Z');
+      expect(value.inputs?.derivedModelDate).toBeUndefined();
+    });
+
+    it('reports nothing at all when there are no sizes files either', async () => {
+      // The unrecoverable case, and it stays unrecoverable. No field appears.
+      fs.writeFileSync(path.join(simDir, 'output-config.json'), JSON.stringify(LEGACY_CONFIG));
+
+      const value = await runGetResults(undefined);
+
+      expect(value.inputs?.modelStartDate).toBeUndefined();
+      expect(value.inputs?.derivedModelDate).toBeUndefined();
+    });
+
+    it('does not feed the derived day into the arrival-time start date', async () => {
+      // THE LIMIT, asserted. arrivalTimeSymbolization computes a sub-day
+      // ignition fraction from startDate, so handing it a day-precision value
+      // would smuggle midnight in as the ignition time. startDate stays
+      // undefined; the recovered day is reported only in its own labelled field.
+      fs.writeFileSync(path.join(simDir, 'output-config.json'), JSON.stringify(LEGACY_CONFIG));
+      fs.writeFileSync(path.join(simDir, 'sizes_170_2023-06-19.csv'), 'Scenario,Size\n1,10\n');
+
+      const value = await runGetResults(undefined);
+
+      expect(value.inputs?.derivedModelDate?.date).toBe('2023-06-19');
+      expect(arrivalMetadata(value).startDate).toBeUndefined();
+    });
+  });
+
   it('a malformed config does not defeat the stored range', async () => {
     // The old branch did `JSON.parse(readFileSync(...))` with no guard inside a
     // try that swallowed the throw and dropped the entire arrival output. A

@@ -33,6 +33,7 @@ import {
   resolveSeriesStartJulian,
 } from './julianTimeOffset.js';
 import { readFuelVintage, type FuelVintageRecord } from './fuelVintageRecord.js';
+import { readDerivedModelDate, type DerivedModelDate } from './derivedModelDate.js';
 
 /**
  * Execution summary for API response
@@ -95,6 +96,21 @@ export interface ModelInputs {
    * what a past run claims.
    */
   fuelVintage?: FuelVintageRecord;
+  /**
+   * The DAY recovered from the engine's own `sizes_<julian>_<date>.csv` names,
+   * for runs that recorded no time range anywhere (#482 half 2).
+   *
+   * A SEPARATE FIELD FROM modelStartDate ON PURPOSE. That one is an ISO-8601
+   * instant; this is a calendar date with no time of day, because none was
+   * recorded. Merging them would mean choosing an instant, and the only one
+   * available is midnight — a new invented value, indistinguishable from a real
+   * one once constructed.
+   *
+   * Present ONLY when modelStartDate is absent: a derived value never stands
+   * beside a recorded one. Enough for the year (fuel vintage) and to anchor
+   * Julian days; NOT enough for the sub-day ignition fraction.
+   */
+  derivedModelDate?: DerivedModelDate;
 }
 
 /**
@@ -404,6 +420,14 @@ export class ModelResultsService {
         const modelStartDate = modelTimeRange?.start ?? (await readModelStartDate(simDir));
         if (modelStartDate) {
           inputs.modelStartDate = modelStartDate.toISOString();
+        } else {
+          // #482 half 2: nothing records the instant, so recover the DAY from
+          // the engine's own output filenames and label it as derived. Only in
+          // this branch — a derived value never competes with a recorded one.
+          const derived = await readDerivedModelDate(simDir);
+          if (derived) {
+            inputs.derivedModelDate = derived;
+          }
         }
 
         // Give the stored outputs their time coordinate (#418, closing
