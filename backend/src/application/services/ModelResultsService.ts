@@ -33,6 +33,7 @@ import {
   resolveSeriesStartJulian,
 } from './julianTimeOffset.js';
 import { readFuelVintage, type FuelVintageRecord } from './fuelVintageRecord.js';
+import { resolveFallbackModelYear } from './fallbackModelYear.js';
 
 /**
  * Execution summary for API response
@@ -469,7 +470,9 @@ export class ModelResultsService {
                   ));
                   const timeRange = rawConfig.timeRange as { start: string; end: string } | undefined;
 
-                  let startDate: string;
+                  // #482: undefined when the year cannot be determined. Never a
+                  // substituted year — see fallbackModelYear.ts for the ruling.
+                  let startDate: string | undefined;
                   let startJulian = arrival.offsetDay;
                   let endJulian = arrival.endJulian;
 
@@ -480,17 +483,12 @@ export class ModelResultsService {
                     startJulian = dayOfYear(startDt);
                     endJulian = dayOfYear(endDt);
                   } else {
-                    // Fallback: derive year from weather.csv
-                    let modelYear = new Date().getFullYear();
-                    try {
-                      const weatherPath = path.join(simDir, 'weather.csv');
-                      if (fs.existsSync(weatherPath)) {
-                        const firstLines = fs.readFileSync(weatherPath, 'utf-8').split('\n').slice(0, 2);
-                        const dateMatch = firstLines[1]?.match(/(\d{4})-\d{2}-\d{2}/);
-                        if (dateMatch) modelYear = parseInt(dateMatch[1], 10);
-                      }
-                    } catch { /* use current year */ }
-                    startDate = new Date(Date.UTC(modelYear, 0, startJulian)).toISOString();
+                    // Fallback: derive the year from weather.csv, or leave the start
+                    // date undetermined. It must NOT become the current year (#482).
+                    const modelYear = resolveFallbackModelYear(simDir);
+                    startDate = modelYear === undefined
+                      ? undefined
+                      : new Date(Date.UTC(modelYear, 0, startJulian)).toISOString();
                   }
                   startJulianForPerimeters = startJulian;
 
