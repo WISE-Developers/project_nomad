@@ -30,8 +30,9 @@ export class ResultArtifactGateway implements IResultArtifactGateway {
 
   extractDeterministicPerimeters(
     simDir: string,
+    startYear?: number,
   ): Promise<Result<DeterministicPerimeterExtraction, ValidationError | NotFoundError>> {
-    return extractDeterministicPerimeters(simDir);
+    return extractDeterministicPerimeters(simDir, startYear);
   }
 
   readFireSizeSeries(simDir: string): FireSizeSeriesArtifact {

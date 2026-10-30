@@ -62,9 +62,24 @@ function parseArrivalFilename(filename: string): ArrivalFileInfo | null {
 }
 
 /**
- * Convert Julian day to date string given a start date.
+ * Convert a Julian day to a calendar date, GIVEN a year (#492).
+ *
+ * Returns null when the year is unknown, and that is the whole point: a Julian
+ * day is a position in a year and carries no year of its own. The year comes
+ * from the model or it does not exist.
+ *
+ * This used to take a required `number` and was handed
+ * `startYear ?? new Date().getFullYear()`, so a 2023 reconstruction was NAMED
+ * with the current year — in the output name an analyst reads, with nothing
+ * marking it derived.
+ *
+ * Exported for its own tests: the surrounding extraction needs GDAL and real
+ * rasters, and the arithmetic is the part worth pinning.
  */
-function julianDayToDate(julianDay: number, startYear: number): string | null {
+export function julianDayToDate(julianDay: number, startYear: number | undefined): string | null {
+  if (startYear === undefined) {
+    return null;
+  }
   try {
     // Build the date in UTC; Julian-day math is calendar-positional, not wall-clock.
     const date = new Date(Date.UTC(startYear, 0, julianDay));
@@ -95,22 +110,15 @@ export async function extractDeterministicPerimeters(
     return Result.fail(new NotFoundError('Working directory', workingDir));
   }
 
-  // Derive year from weather.csv if not provided
-  if (!startYear) {
-    try {
-      const weatherPath = join(workingDir, 'weather.csv');
-      if (existsSync(weatherPath)) {
-        const firstLines = readFileSync(weatherPath, 'utf-8').split('\n').slice(0, 2);
-        if (firstLines[1]) {
-          const dateMatch = firstLines[1].match(/(\d{4})-\d{2}-\d{2}/);
-          if (dateMatch) {
-            startYear = parseInt(dateMatch[1], 10);
-            console.log(`[ArrivalTimeExtractor] Derived year ${startYear} from weather.csv`);
-          }
-        }
-      }
-    } catch { /* use fallback */ }
-  }
+  // #492: NOTHING on disk is sniffed for a year any more.
+  //
+  // This used to regex a year out of line 2 of the weather file. Measured on a
+  // running instance: moving the weather year 2023 -> 1999 moved the perimeter
+  // NAMES to 1999. That is the fallback #479 established cannot be correct —
+  // the weather Date column is a bare LOCAL timestamp, and the zone needed to
+  // read it lives in the config file whose absence is what would trigger a
+  // fallback. The year is now supplied by the caller from the model's recorded
+  // time range, or it stays unknown.
 
   if (!isGDALAvailable()) {
     return Result.fail(
@@ -138,7 +146,9 @@ export async function extractDeterministicPerimeters(
 
   const perimeters: DeterministicPerimeter[] = [];
   let successCount = 0;
-  const year = startYear ?? new Date().getFullYear();
+  // #492: no default. An unknown year stays unknown, and `julianDayToDate`
+  // returns null rather than naming a perimeter after today.
+  const year = startYear;
 
   for (const { filename, info } of arrivalFiles) {
     const inputPath = join(workingDir, filename);
