@@ -28,7 +28,21 @@ export interface GenerateLegendOptions {
   startJulian: number;
   endJulian: number;
   timestep: Timestep;
-  startDate: Date;
+  /**
+   * The instant the model started, when it was recorded (#482).
+   *
+   * OPTIONAL ON PURPOSE. Runs that predate `FireModel.timeRange` recorded no
+   * start instant anywhere, and `App.tsx` used to substitute
+   * `new Date().toISOString()` for them — labelling a 2023 reconstruction with
+   * today's date in the one field that tells an analyst which fire season they
+   * are looking at.
+   *
+   * When it is absent the legend labels bins by RELATIVE day ("Day 1", "Day 2")
+   * and applies no ignition filtering, because both a calendar label and the
+   * sub-day ignition fraction can only come from this value. Franco's ruling,
+   * 2026-10-30: show what is known, never a substituted date.
+   */
+  startDate?: Date;
   /**
    * Earliest fire's integer start day, for multi-fire colour alignment (#274
    * Unit 5). When several arrival layers are shown, keying every layer's day
@@ -111,12 +125,19 @@ export function generateArrivalLegend(
   // Midnight (UTC) of the start day, so day bins align to the Julian-day grid
   // and labels land on real clock boundaries. The ignition time-of-day lives in
   // startDate; derive the actual ignition Julian so we can drop pre-ignition bins.
-  const startDayMs = Date.UTC(
-    startDate.getUTCFullYear(),
-    startDate.getUTCMonth(),
-    startDate.getUTCDate(),
-  );
-  const ignitionJulian = startDay + (startDate.getTime() - startDayMs) / MS_PER_DAY;
+  //
+  // #482: both of those need a recorded start instant. With none, startDayMs is
+  // undefined (labels go relative) and the ignition Julian is the start day
+  // itself — which drops NO bins. That is not "assume midnight": dropping bins
+  // requires knowing the ignition instant, and showing every bin the raster
+  // contains is the only answer that claims nothing we did not record.
+  const startDayMs = startDate
+    ? Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate())
+    : undefined;
+  const ignitionJulian =
+    startDate && startDayMs !== undefined
+      ? startDay + (startDate.getTime() - startDayMs) / MS_PER_DAY
+      : startDay;
 
   const entries: ArrivalLegendEntry[] = [];
   for (let i = 0; i < totalBins; i++) {
@@ -132,11 +153,15 @@ export function generateArrivalLegend(
       timestep === 'daily'
         ? baseColor
         : hourColor(dayIndex, colourTotalDays, subBin, binsPerDay, stops, dayColorOverrides);
-    const bucketDate = new Date(startDayMs + i * step * MS_PER_DAY);
+    // #482: a calendar label is only possible with a recorded start. Otherwise
+    // the legend says the one thing it does know — which day of THIS model the
+    // bin falls in, counted from 1.
     const label =
-      timestep === 'daily'
-        ? formatDailyLabel(bucketDate)
-        : formatHourlyLabel(bucketDate);
+      startDayMs === undefined
+        ? formatRelativeLabel(binStart - startDay, timestep, binsPerDay)
+        : timestep === 'daily'
+          ? formatDailyLabel(new Date(startDayMs + i * step * MS_PER_DAY))
+          : formatHourlyLabel(new Date(startDayMs + i * step * MS_PER_DAY));
     entries.push({
       // Absolute bin index (matches the backend colour-table bucket), so a
       // click-to-highlight (#272) targets the same bin server-side.
@@ -150,6 +175,30 @@ export function generateArrivalLegend(
     });
   }
   return entries;
+}
+
+/**
+ * A bin's label when no start instant was recorded (#482).
+ *
+ * `offsetDays` is the bin's start measured in days from the model's first day,
+ * so the first bin is "Day 1" — the first day of THIS model, never the day of
+ * the year. The hourly view adds the whole-hour offset within that day, which
+ * is a duration rather than a clock time: "+13h" means thirteen hours into the
+ * model's first day and makes no claim about when that was.
+ */
+function formatRelativeLabel(
+  offsetDays: number,
+  timestep: Timestep,
+  binsPerDay: number,
+): string {
+  const dayIndex = Math.floor(offsetDays + 1e-9);
+  const dayLabel = `Day ${dayIndex + 1}`;
+  if (timestep === 'daily') {
+    return dayLabel;
+  }
+  const subBin = Math.round((offsetDays - dayIndex) * binsPerDay);
+  const hours = Math.floor((subBin * HOURS_PER_DAY) / binsPerDay);
+  return `${dayLabel} +${String(hours).padStart(2, '0')}h`;
 }
 
 function formatDailyLabel(date: Date): string {

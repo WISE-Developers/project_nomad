@@ -1,3 +1,5 @@
+import { TimeRange } from '../value-objects/TimeRange.js';
+
 /**
  * Branded type for FireModel IDs to provide type-safe identification
  */
@@ -54,6 +56,16 @@ export interface FireModelProps {
   readonly notes?: string;
   /** Output mode selected at model creation time (probabilistic, deterministic) */
   readonly outputMode?: string;
+  /**
+   * The period this model was simulated FOR — not when it executed (#482).
+   *
+   * Undefined when nothing records it. That is the case for the 26 runs that
+   * predate this field, and it must stay undefined rather than becoming today
+   * or the current year: a confident wrong start date is worse than an absent
+   * one, because every downstream surface (fuel vintage, arrival-time Julian
+   * anchoring) treats it as authoritative.
+   */
+  readonly timeRange?: TimeRange;
 }
 
 /**
@@ -90,6 +102,9 @@ export class FireModel {
   /** Output mode selected at model creation time (probabilistic, deterministic) */
   readonly outputMode?: string;
 
+  /** The period this model was simulated for; undefined when unrecorded (#482) */
+  readonly timeRange?: TimeRange;
+
   constructor(props: FireModelProps) {
     if (!props.name || props.name.trim().length === 0) {
       throw new Error('FireModel name cannot be empty');
@@ -104,6 +119,7 @@ export class FireModel {
     this.userId = props.userId;
     this.notes = props.notes;
     this.outputMode = props.outputMode;
+    this.timeRange = props.timeRange;
   }
 
   /**
@@ -120,6 +136,11 @@ export class FireModel {
       userId: this.userId,
       notes: this.notes,
       outputMode: this.outputMode,
+      // Carried deliberately. This method is called on the completion path
+      // (`save(model.withStatus(Completed))`), so dropping it here would
+      // persist the range at queue time and wipe it the moment the run
+      // succeeded — #482 reappearing on the success path only.
+      timeRange: this.timeRange,
     });
   }
 
@@ -137,6 +158,7 @@ export class FireModel {
       userId: this.userId,
       notes: this.notes,
       outputMode: this.outputMode,
+      timeRange: this.timeRange,
     });
   }
 
