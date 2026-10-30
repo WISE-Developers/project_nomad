@@ -41,36 +41,54 @@ const SELF = 'test/__tests__/noPerRequestServer.test.ts';
 /**
  * Files still on the old pattern, with the number of occurrences each. Every
  * entry is a debt to pay down, not an exemption.
+ *
+ * WHAT IS LEFT IS NOT MECHANICAL, which is why it is still here. Each of these
+ * builds a BESPOKE app inside the test — `buildApp({ listInstalled })`,
+ * `makeApp({ logger })`, `await buildApp()` with per-test env — and then makes
+ * ONE request against it. Sharing a server saves nothing when there is one app
+ * per request already; the reduction needs the test redesigned so the app is
+ * built once and the varying part injected per request. That is a judgement
+ * call about test design, not a find-and-replace, so it is recorded as debt
+ * rather than quietly exempted.
+ *
+ * These sites are still exposed. During this very conversion the suite failed
+ * twice at unconverted sites: `results.perimeterDownload` returned a 404 with
+ * no error body, and `usage.test.ts:174` -- `request(makeApp({ logger: log }))`
+ * -- failed with "Parse Error: Expected HTTP/", then passed 6/6 in isolation.
  */
 const BASELINE: Record<string, number> = {
-  'api/routes/v1/__tests__/adhocLayersCapabilities.test.ts': 11,
-  'api/__tests__/notifications.test.ts': 10,
-  'api/routes/v1/__tests__/splash.test.ts': 8,
-  'api/routes/v1/__tests__/usage.test.ts': 8,
   'api/routes/v1/__tests__/usage.integration.test.ts': 7,
   'api/middleware/__tests__/unhonouredIdentity.test.ts': 6,
   'api/routes/v1/__tests__/fuelDatasets.test.ts': 6,
-  'api/routes/v1/__tests__/models.executeOptions.test.ts': 5,
+  'api/routes/v1/__tests__/usage.test.ts': 6,
   'api/routes/v1/__tests__/models.acnIdentity.test.ts': 4,
-  'api/__tests__/info_auth_mode.test.ts': 3,
   'api/routes/v1/__tests__/models.listScoping.test.ts': 3,
+  'api/routes/v1/__tests__/splash.test.ts': 2,
   'api/__tests__/modelsPreflight.test.ts': 1,
 };
 
 /**
- * `request(<identifier>)` or `request(<identifier>())`.
+ * EVERY `request(` call, with the safe form subtracted — not a pattern for the
+ * unsafe form.
  *
- * Deliberately matches a bare identifier too: `request(app)` where `app` is a
- * module-level express app is NOT safe, because supertest still listens per
- * request. Measured by counting listen() calls — 5 requests on one shared app
- * object produced 5 listens. A server obtained through `serveOnce` is called
- * as `request(api())`, which this does not match, because `api()` returns an
- * already-listening http.Server.
+ * THIS IS THE SECOND VERSION AND THE FIRST ONE LIED. It matched
+ * `request(<identifier>)` and `request(<identifier>())`, which silently missed
+ * every parameterised call: `request(makeApp({ query: q }))` has an object
+ * argument and did not match. usage.test.ts then DISAPPEARED from the
+ * remaining-work list while still holding six sites that create a server per
+ * request — and one of them had just failed with "Parse Error: Expected HTTP/".
+ * An instrument that under-reports reads exactly like progress.
+ *
+ * So: count them all, subtract the ones known to pass a listening server. What
+ * is left is anything handing supertest something else, whatever its shape.
  */
-const OFFENDING = /\brequest\(\s*(?:build|make|create)?[A-Za-z_][A-Za-z0-9_]*\s*\(?\)?\s*\)/g;
+const OFFENDING = /\brequest\(/g;
 
-/** Call sites that pass a listening server rather than an app. */
-const ALLOWED = /\brequest\(\s*api\(\)\s*\)/g;
+/**
+ * Call sites that pass a listening server: `request(api())` from `serveOnce`
+ * and `request(api(<key>))` from `serveKeyed`.
+ */
+const ALLOWED = /\brequest\(\s*api\([^)]*\)\s*\)/g;
 
 function testFiles(dir: string, found: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {

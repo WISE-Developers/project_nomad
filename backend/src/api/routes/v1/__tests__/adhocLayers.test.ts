@@ -24,6 +24,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import { serveKeyed } from '../../../../test/sharedServer.js';
 
 const { rows } = vi.hoisted(() => ({ rows: [] as Record<string, unknown>[] }));
 
@@ -67,6 +68,13 @@ function buildApp(asUser?: string) {
   return app;
 }
 
+/**
+ * One server per distinct user instead of one per request (#480). Three keys
+ * here -- 'dylan', 'franco' and undefined -- so fifteen port pairs become
+ * three servers.
+ */
+const api = serveKeyed(buildApp);
+
 const VALID = {
   name: 'BC Hydrography',
   serviceUrl: 'https://openmaps.gov.bc.ca/geo/pub/wms',
@@ -81,14 +89,14 @@ describe('ad-hoc layers', () => {
 
   describe('the control: the route answers at all', () => {
     it('lists an empty set without error', async () => {
-      const res = await request(buildApp('dylan')).get('/api/v1/adhoc-layers').expect(200);
+      const res = await request(api('dylan')).get('/api/v1/adhoc-layers').expect(200);
       expect(res.body.layers).toEqual([]);
     });
   });
 
   describe('creating', () => {
     it('stores a layer and records who created it', async () => {
-      await request(buildApp('dylan'))
+      await request(api('dylan'))
         .post('/api/v1/adhoc-layers')
         .send(VALID)
         .expect(201);
@@ -100,9 +108,9 @@ describe('ad-hoc layers', () => {
     });
 
     it('is visible to a DIFFERENT user — that is what shared means', async () => {
-      await request(buildApp('dylan')).post('/api/v1/adhoc-layers').send(VALID).expect(201);
+      await request(api('dylan')).post('/api/v1/adhoc-layers').send(VALID).expect(201);
 
-      const res = await request(buildApp('franco')).get('/api/v1/adhoc-layers').expect(200);
+      const res = await request(api('franco')).get('/api/v1/adhoc-layers').expect(200);
       expect(res.body.layers).toHaveLength(1);
       expect(res.body.layers[0].name).toBe('BC Hydrography');
     });
@@ -111,7 +119,7 @@ describe('ad-hoc layers', () => {
       // The guard is already tested on its own; this asserts the route is
       // actually WIRED to it. A guard nothing calls is a guard that does not
       // exist.
-      const res = await request(buildApp('dylan'))
+      const res = await request(api('dylan'))
         .post('/api/v1/adhoc-layers')
         .send({ ...VALID, serviceUrl: 'http://169.254.169.254/latest/meta-data/' });
 
@@ -121,7 +129,7 @@ describe('ad-hoc layers', () => {
     });
 
     it('refuses a request missing a required field', async () => {
-      const res = await request(buildApp('dylan'))
+      const res = await request(api('dylan'))
         .post('/api/v1/adhoc-layers')
         .send({ name: 'nameless' });
       expect(res.status).toBe(400);
@@ -131,20 +139,20 @@ describe('ad-hoc layers', () => {
 
   describe('deleting — creator only', () => {
     async function createAs(user: string): Promise<string> {
-      const res = await request(buildApp(user)).post('/api/v1/adhoc-layers').send(VALID);
+      const res = await request(api(user)).post('/api/v1/adhoc-layers').send(VALID);
       return res.body.layer.id as string;
     }
 
     it('lets the creator remove their own layer', async () => {
       const id = await createAs('dylan');
-      await request(buildApp('dylan')).delete(`/api/v1/adhoc-layers/${id}`).expect(204);
+      await request(api('dylan')).delete(`/api/v1/adhoc-layers/${id}`).expect(204);
       expect(rows).toHaveLength(0);
     });
 
     it('REFUSES a different user, and says whose it is', async () => {
       const id = await createAs('dylan');
 
-      const res = await request(buildApp('franco')).delete(`/api/v1/adhoc-layers/${id}`);
+      const res = await request(api('franco')).delete(`/api/v1/adhoc-layers/${id}`);
 
       expect(res.status).toBe(403);
       expect(JSON.stringify(res.body)).toMatch(/dylan/);
@@ -157,7 +165,7 @@ describe('ad-hoc layers', () => {
       // Different facts, different codes. "You may not" and "there is nothing
       // here" must not render the same, or a user cannot tell a permissions
       // problem from a stale bookmark.
-      const res = await request(buildApp('franco')).delete('/api/v1/adhoc-layers/no-such-id');
+      const res = await request(api('franco')).delete('/api/v1/adhoc-layers/no-such-id');
       expect(res.status).toBe(404);
     });
   });
@@ -166,7 +174,7 @@ describe('ad-hoc layers', () => {
     it('still creates, attributing the layer to nobody', async () => {
       // One user, no identity. An unattributed row is honest here; refusing to
       // create would break the mode entirely.
-      await request(buildApp(undefined)).post('/api/v1/adhoc-layers').send(VALID).expect(201);
+      await request(api(undefined)).post('/api/v1/adhoc-layers').send(VALID).expect(201);
       expect(rows[0].created_by).toBeNull();
     });
 
@@ -174,20 +182,20 @@ describe('ad-hoc layers', () => {
       // With no identities there is exactly one user, so creator-only cannot
       // mean anything stricter than this. The alternative — nobody can ever
       // delete — would make the feature a one-way door in SAN mode.
-      await request(buildApp(undefined)).post('/api/v1/adhoc-layers').send(VALID);
+      await request(api(undefined)).post('/api/v1/adhoc-layers').send(VALID);
       const id = rows[0].id as string;
 
-      await request(buildApp(undefined)).delete(`/api/v1/adhoc-layers/${id}`).expect(204);
+      await request(api(undefined)).delete(`/api/v1/adhoc-layers/${id}`).expect(204);
       expect(rows).toHaveLength(0);
     });
 
     it('does NOT let an anonymous caller delete someone ELSE\'s layer', async () => {
       // A deployment that switched from simple auth to none must not hand
       // everyone's layers to an anonymous caller.
-      await request(buildApp('dylan')).post('/api/v1/adhoc-layers').send(VALID);
+      await request(api('dylan')).post('/api/v1/adhoc-layers').send(VALID);
       const id = rows[0].id as string;
 
-      const res = await request(buildApp(undefined)).delete(`/api/v1/adhoc-layers/${id}`);
+      const res = await request(api(undefined)).delete(`/api/v1/adhoc-layers/${id}`);
       expect(res.status).toBe(403);
       expect(rows).toHaveLength(1);
     });

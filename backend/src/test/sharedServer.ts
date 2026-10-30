@@ -102,3 +102,39 @@ export function serveForTest(app: Application): { server: Server; close: () => P
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
 }
+
+/**
+ * One server per distinct ARGUMENT, for a factory parameterised by a scalar.
+ *
+ * `adhocLayers.test.ts` calls `buildApp('dylan')` seven times,
+ * `buildApp(undefined)` four times and `buildApp('franco')` three times. Those
+ * are not fifteen different apps, they are three — so fifteen ephemeral port
+ * pairs become three servers, memoised by key.
+ *
+ * This does NOT help a factory parameterised by an object (`buildApp({ catalog
+ * })`, `makeApp({ logger })`): those genuinely differ per test and there is no
+ * key to memoise on. Reducing those needs the test redesigned so the app is
+ * built once and the varying part injected per request — a judgement call about
+ * test design, deliberately not papered over here.
+ */
+export function serveKeyed<K extends string | number | undefined>(
+  buildApp: (key: K) => Application,
+): (key: K) => Server {
+  const servers = new Map<string, Server>();
+
+  afterAll(async () => {
+    const open = [...servers.values()];
+    servers.clear();
+    await Promise.all(open.map((s) => new Promise<void>((resolve) => s.close(() => resolve()))));
+  });
+
+  return (key: K) => {
+    const id = String(key);
+    let server = servers.get(id);
+    if (!server) {
+      server = buildApp(key).listen(0);
+      servers.set(id, server);
+    }
+    return server;
+  };
+}
