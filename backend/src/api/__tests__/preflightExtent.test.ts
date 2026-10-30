@@ -123,6 +123,13 @@ describe('POST /models/preflight — extent warning (#432)', () => {
         .send(body({ ignition: squareIgnition(500_000) }));
 
       expect(res.status).toBe(200);
+      // #491: assert the block EXISTS before reaching into it. This line once
+      // failed in a full-suite run with `res.body.extent` undefined on a 200,
+      // and `.withinLimit` on undefined throws a TypeError that discards the
+      // response — so the single sighting of that failure tells us nothing
+      // about what the server actually sent. `toHaveProperty` prints the body.
+      // The assertions are unchanged; only what they report on failure is.
+      expect(res.body, 'a 200 from preflight must carry an extent block').toHaveProperty('extent');
       expect(res.body.extent.withinLimit).toBe(false);
       expect(typeof res.body.extent.reason).toBe('string');
       // A refusal must not arrive wearing the advisory field, or the wizard
