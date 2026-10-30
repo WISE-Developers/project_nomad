@@ -4,10 +4,35 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.45.0
+## v0.46.0
+
+### 2026-10-30
+
+- [`bf99a78`](https://github.com/WISE-Developers/project_nomad/commit/bf99a780c19f2f97e86959352193ddddc0b9e9c4) Merge pull request #493 from WISE-Developers/dev — *Franco Nogarin, 10:07*
+- [`a0eb52a`](https://github.com/WISE-Developers/project_nomad/commit/a0eb52afc28029539d11ebbac3e1ae42d80d1aec) chore: dev v0.45.5 [release-bot] — *github-actions[bot], 15:32*
+- [`53fdbd6`](https://github.com/WISE-Developers/project_nomad/commit/53fdbd68f38c978ec3cb3d2fb17e48a12b21ceec) Merge fix/482-no-invented-start-date into dev — *Franco Nogarin, 09:29*
+- [`3c48de5`](https://github.com/WISE-Developers/project_nomad/commit/3c48de53c037fe803c93c2e83ad143089e80f6d7) fix(#482): relative Day N labels when no start instant was recorded — *Franco Nogarin, 09:28*
+- [`d8c30af`](https://github.com/WISE-Developers/project_nomad/commit/d8c30af61d47415f5205440e9e423243257c01d7) feat(#482): recover the DAY for runs that recorded no time range — *Franco Nogarin, 09:13*
+- [`66f6797`](https://github.com/WISE-Developers/project_nomad/commit/66f6797098d1b264c91c6b93fba6bf0880bee8e7) feat(#482): persist the simulated time range on the model — *Franco Nogarin, 09:06*
+- [`0327a81`](https://github.com/WISE-Developers/project_nomad/commit/0327a8134f7f2193270929fb3fddb698de33f4fa) fix(#482): delete the weather.csv fallback — root cause, not the symptom — *Franco Nogarin, 05:12*
+- [`d46f95a`](https://github.com/WISE-Developers/project_nomad/commit/d46f95a510dc05462c9d9c82b805da184493b837) fix(#482): stop substituting the current year for an undeterminable model year — *Franco Nogarin, 05:02*
+- [`4918797`](https://github.com/WISE-Developers/project_nomad/commit/49187978aedf2e59ed9ac602069a31d717bfe332) chore: dev v0.45.4 [release-bot] — *github-actions[bot], 10:50*
+- [`6e8e8ae`](https://github.com/WISE-Developers/project_nomad/commit/6e8e8ae1d23f797504d1b7bdc8947e86fa744ae4) Merge test/488-simple-mode-create into dev: cover the simple-mode create path — *Franco Nogarin, 04:50*
+- [`d7806a2`](https://github.com/WISE-Developers/project_nomad/commit/d7806a256ebdaaa2db0e018ee1e91ed63faa4c6c) test(#488): cover the SIMPLE-mode create path — the one the real consumer hits — *Franco Nogarin, 04:50*
 
 ### 2026-10-29
 
+- [`368acf0`](https://github.com/WISE-Developers/project_nomad/commit/368acf091b7196ee6bf741680753591a2197678f) chore: dev v0.45.3 [release-bot] — *github-actions[bot], 22:58*
+- [`ff56664`](https://github.com/WISE-Developers/project_nomad/commit/ff56664e63c06b065da4d3248d70fb483e904319) Merge fix/488-warn-unhonoured-identity into dev: close #488 criterion 3 — *Franco Nogarin, 16:57*
+- [`d17441b`](https://github.com/WISE-Developers/project_nomad/commit/d17441b269ed44a0e89149f528061030e291643b) fix(#488): warn when a request names a user the active mode cannot honour — *Franco Nogarin, 16:57*
+- [`6293a21`](https://github.com/WISE-Developers/project_nomad/commit/6293a212849c45f0a7b63c37811fca3126c4850c) chore: dev v0.45.2 [release-bot] — *github-actions[bot], 18:39*
+- [`01ee30d`](https://github.com/WISE-Developers/project_nomad/commit/01ee30d9a352f83f365faf6f83ef83fe461e261c) Merge origin/dev (release-bot v0.45.1) into dev — *Franco Nogarin, 12:39*
+- [`e9818bf`](https://github.com/WISE-Developers/project_nomad/commit/e9818bf4bf9103902ecb170109c2826aae83a87c) Merge test/489-list-scoping into dev: pin GET /models' silent identity scoping — *Franco Nogarin, 12:39*
+- [`cfd3f7b`](https://github.com/WISE-Developers/project_nomad/commit/cfd3f7b6d72595e4060554be5297f2c807ae07f1) test(#489): pin the silent identity scoping of GET /models — *Franco Nogarin, 12:39*
+- [`d12b8fe`](https://github.com/WISE-Developers/project_nomad/commit/d12b8fe72e529f298ca449752e2207d1835ff249) chore: dev v0.45.1 [release-bot] — *github-actions[bot], 18:37*
+- [`887e3e4`](https://github.com/WISE-Developers/project_nomad/commit/887e3e41667b9a8a6e87d2e982b119bc485f8de3) Merge fix/488-acn-identity into dev: cover the ACN create path's identity, pin the silent discard — *Franco Nogarin, 12:37*
+- [`79d8ba9`](https://github.com/WISE-Developers/project_nomad/commit/79d8ba9fbfa4b361e769b72a2e003f8890232f73) test(#488): cover ACN identity on the model create path, and pin the silent discard — *Franco Nogarin, 09:40*
+- [`7f3f7d9`](https://github.com/WISE-Developers/project_nomad/commit/7f3f7d9658bc596db6bdd8d621c04c8976ac239b) chore: release v0.45.0 [release-bot] — *github-actions[bot], 13:51*
 - [`1d006dd`](https://github.com/WISE-Developers/project_nomad/commit/1d006dd5e22c701c204ab1fc0ebcb07365e3da6e) Merge pull request #486 from WISE-Developers/dev — *Franco Nogarin, 07:51*
 - [`c521178`](https://github.com/WISE-Developers/project_nomad/commit/c5211789f848c85f1cc9dfdc6c1a1a55e65b1f0b) chore: dev v0.44.3 [release-bot] — *github-actions[bot], 13:12*
 - [`2210c73`](https://github.com/WISE-Developers/project_nomad/commit/2210c73a1c9eb860d0cd0888d9ff59bb42d6fc52) Merge fix/better-auth-cve-114607 into dev: lockfile bump past the critical better-auth advisory — *Franco Nogarin, 07:12*
