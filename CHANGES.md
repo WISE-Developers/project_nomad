@@ -4,10 +4,15 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.47.0
+## v0.48.0
 
 ### 2026-10-30
 
+- [`b52404b`](https://github.com/WISE-Developers/project_nomad/commit/b52404b0c3b9ab407682c08ef5c944744557e9c7) Merge pull request #495 from WISE-Developers/dev — *Franco Nogarin, 11:30*
+- [`6d2cb75`](https://github.com/WISE-Developers/project_nomad/commit/6d2cb75d0da75c54a534cad1dc005158a6973293) chore: dev v0.47.1 [release-bot] — *github-actions[bot], 17:25*
+- [`566657b`](https://github.com/WISE-Developers/project_nomad/commit/566657b7190035a911ac78ccfd0b2bfee9bcd626) Merge chore/491-arm-stall-watchdog into dev: catch the stall instead of guessing at it — *Franco Nogarin, 11:25*
+- [`e0f3477`](https://github.com/WISE-Developers/project_nomad/commit/e0f3477cd2c90392d766fd21665625823d66666c) chore(#491): arm the stall watchdog in CI and make the extent failure legible — *Franco Nogarin, 11:24*
+- [`38b6fac`](https://github.com/WISE-Developers/project_nomad/commit/38b6facd46d4be4df3185ad22f36002306349a04) chore: release v0.47.0 [release-bot] — *github-actions[bot], 17:02*
 - [`24254dd`](https://github.com/WISE-Developers/project_nomad/commit/24254dd9ded665bba05a04a37574fd7e7daa17fa) Merge pull request #494 from WISE-Developers/dev — *Franco Nogarin, 11:02*
 - [`a200013`](https://github.com/WISE-Developers/project_nomad/commit/a20001310c2ef6323435af4fea2ca9b3fcc13ad6) chore: dev v0.46.1 [release-bot] — *github-actions[bot], 16:56*
 - [`6bb8f91`](https://github.com/WISE-Developers/project_nomad/commit/6bb8f9108a74b83e489916825c39b48beccc7aea) Merge fix/492-no-invented-perimeter-year into dev: perimeters never named with an invented year — *Franco Nogarin, 10:56*
