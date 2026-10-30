@@ -489,6 +489,20 @@ export class ModelResultsService {
               // null when no arrival raster / timeRange is available.
               let startJulianForPerimeters: number | null = null;
 
+              // #482/#492: the model's range, resolved ONCE and hoisted, because
+              // both the arrival output and the perimeter naming need it. It
+              // was declared inside the try below and the perimeter block
+              // referenced it anyway — which tsc caught as TS2552 while the
+              // test suite only showed a swallowed ReferenceError and a
+              // perimeter branch that silently never ran. Three gates, three
+              // different answers.
+              //
+              // The model's own record first; the sim directory is the legacy
+              // source for runs predating the column.
+              const timeRange = modelTimeRange
+                ? { start: modelTimeRange.start, end: modelTimeRange.end }
+                : await readModelTimeRange(simDir);
+
               // Arrival raster output (#226) — emit one OutputItem pointing at
               // the classified tile endpoint. Classification window is derived
               // from the model's configured timeRange, not from file count.
@@ -499,17 +513,15 @@ export class ModelResultsService {
                   // from the number of arrival files (which can include a
                   // trailing boundary file).
                   //
-                  // #482: the MODEL's stored range is authoritative. The sim
-                  // directory is the legacy source, read through
-                  // readModelTimeRange so a missing or malformed config returns
-                  // undefined instead of throwing — the inline
+                  // #482: `timeRange` is resolved above and shared with the
+                  // perimeter naming. The MODEL's stored range is
+                  // authoritative; the sim directory is the legacy source, read
+                  // through readModelTimeRange so a missing or malformed config
+                  // returns undefined instead of throwing — the inline
                   // JSON.parse(readFileSync(...)) that used to be here threw on
                   // a path it had just established might not exist, and the
                   // enclosing catch swallowed it, silently dropping the whole
                   // arrival output.
-                  const timeRange = modelTimeRange
-                    ? { start: modelTimeRange.start, end: modelTimeRange.end }
-                    : await readModelTimeRange(simDir);
 
                   // #482: undefined when the start cannot be determined. Never a
                   // substituted year — see fallbackModelYear.ts for the ruling.
@@ -562,16 +574,36 @@ export class ModelResultsService {
               }
 
               if (!hasPerimeters) {
-                // Extract perimeters from arrival-time rasters
-                const perimeterResult = await this.gateway.extractDeterministicPerimeters(simDir);
+                // Extract perimeters from arrival-time rasters.
+                //
+                // #492: the YEAR comes from the model and from nowhere else. A
+                // Julian day is a position in a year and carries none of its
+                // own, so with no recorded range the extractor returns
+                // date: null and these are labelled by relative day below. It
+                // used to regex a year out of weather.csv, and failing that
+                // substitute today — naming a 2023 fire with the current year.
+                const perimeterResult = await this.gateway.extractDeterministicPerimeters(
+                  simDir,
+                  timeRange?.start.getUTCFullYear(),
+                );
 
                 // Perimeter colors — progression from orange→red→crimson (no yellow)
                 // Colorblind-friendly perimeter colors — high contrast, distinct hues
                 const PERIMETER_COLORS = ['#e65100', '#1565c0', '#2e7d32', '#6a1b9a', '#c62828', '#00838f'];
 
                 if (perimeterResult.success && perimeterResult.value.perimeters.length > 0) {
+                  // #492: the relative-day base, so an unknown year reads
+                  // "Day 1" and not "Day 170". The arrival legend sits directly
+                  // above these in Model Outputs and labels its own bins
+                  // relatively; day-of-year here would print "Day 1" and
+                  // "Day 170" side by side for the same run.
+                  const perimeterDayBase =
+                    startJulianForPerimeters ??
+                    Math.min(...perimeterResult.value.perimeters.map((p) => p.julianDay));
+
                   perimeterResult.value.perimeters.forEach((perimeter, index) => {
-                    const dateLabel = perimeter.date || `Day ${perimeter.julianDay}`;
+                    const dateLabel =
+                      perimeter.date || `Day ${perimeter.julianDay - perimeterDayBase + 1}`;
                     const color = PERIMETER_COLORS[index % PERIMETER_COLORS.length];
                     // Hours since sim start, not "hours since Jan 1 of year 0".
                     // perimeter.julianDay is the FILENAME's 1-indexed day-of-year

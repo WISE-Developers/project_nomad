@@ -139,9 +139,16 @@ export interface IResultArtifactGateway {
 
   /**
    * Extract deterministic fire perimeters from arrival-time rasters.
+   *
+   * `startYear` is the year the model was simulated for, and it is the ONLY
+   * source of one (#492). A Julian day carries no year; when this is omitted
+   * each perimeter's `date` is null and callers label it by relative day. The
+   * extractor used to sniff `weather.csv` for a year and otherwise substitute
+   * today, which named a 2023 reconstruction with the current year.
    */
   extractDeterministicPerimeters(
     simDir: string,
+    startYear?: number,
   ): Promise<Result<DeterministicPerimeterExtraction, ValidationError | NotFoundError>>;
 
   /**
