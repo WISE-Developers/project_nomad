@@ -1,3 +1,4 @@
+import { serveInTest } from '../../../../test/sharedServer.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
@@ -52,7 +53,7 @@ describe('usage endpoint over the real JSONL log', () => {
   }
 
   it('returns an empty result when no log exists yet', async () => {
-    const res = await request(app)
+    const res = await request(serveInTest(app))
       .get('/usage')
       .set('Authorization', `Bearer ${TOKEN}`)
       .expect(200);
@@ -65,7 +66,7 @@ describe('usage endpoint over the real JSONL log', () => {
     await write('app.started', 'System', '2026-08-10T12:00:00.000Z');
     await write('model.run.started', 'franco@example.ca', '2026-08-10T13:00:00.000Z');
 
-    const res = await request(app)
+    const res = await request(serveInTest(app))
       .get('/usage')
       .set('Authorization', `Bearer ${TOKEN}`)
       .expect(200);
@@ -81,7 +82,7 @@ describe('usage endpoint over the real JSONL log', () => {
     await write('model.run.started', 'a@example.ca', '2026-08-10T10:00:00.000Z');
     await write('model.run.completed', 'a@example.ca', '2026-08-10T11:00:00.000Z');
 
-    const res = await request(app)
+    const res = await request(serveInTest(app))
       .get('/usage?type=model.run.started,model.run.completed')
       .set('Authorization', `Bearer ${TOKEN}`)
       .expect(200);
@@ -94,7 +95,7 @@ describe('usage endpoint over the real JSONL log', () => {
     await write('session.login', 'franco@example.ca', '2026-08-10T10:00:00.000Z');
     await write('model.run.failed', 'franco@example.ca', '2026-08-10T11:00:00.000Z');
 
-    const res = await request(app)
+    const res = await request(serveInTest(app))
       .get('/usage?type=model.run.failed')
       .set('Authorization', `Bearer ${TOKEN}`)
       .expect(200);
@@ -106,7 +107,7 @@ describe('usage endpoint over the real JSONL log', () => {
   it('preserves both timestamps through the round trip', async () => {
     await write('model.run.started', 'franco@example.ca', '2026-08-10T21:14:22.000Z');
 
-    const res = await request(app)
+    const res = await request(serveInTest(app))
       .get('/usage?type=model.run.started')
       .set('Authorization', `Bearer ${TOKEN}`)
       .expect(200);
@@ -120,7 +121,7 @@ describe('usage endpoint over the real JSONL log', () => {
       await write('model.run.started', 'franco@example.ca', '2026-08-10T10:00:00.000Z');
     }
 
-    const res = await request(app)
+    const res = await request(serveInTest(app))
       .get('/usage?limit=3')
       .set('Authorization', `Bearer ${TOKEN}`)
       .expect(200);
@@ -139,7 +140,7 @@ describe('usage endpoint over the real JSONL log', () => {
     await appendFile(logPath, '{"id":"broken","type":"model.run\n');
     await write('model.run.completed', 'franco@example.ca', '2026-08-10T11:00:00.000Z');
 
-    const res = await request(app)
+    const res = await request(serveInTest(app))
       .get('/usage?type=model.run.started,model.run.completed')
       .set('Authorization', `Bearer ${TOKEN}`)
       .expect(200);

@@ -1,28 +1,41 @@
 /**
- * Ratchet guard for #480: no test may hand supertest an express app.
+ * #480: no test may hand supertest an express app.
  *
  * Handing `request()` an express app makes supertest call `app.listen(0)` on
- * every single request, creating a fresh client/server port pair each time.
- * That pair can collide, on its full 4-tuple, with a loopback connection
- * belonging to an unrelated process on the machine — and the request is then
- * answered by that stranger, or not at all. See `src/test/sharedServer.ts` for
- * the measurements.
+ * every request, drawing a port from the OS ephemeral range — the range the OS
+ * hands every other process its client source ports. A collision there sends
+ * the request to an unrelated process on the machine, which rejects our JSON
+ * (400), demands auth (401), lacks the route (404), does not speak HTTP
+ * (`HPE_INVALID_CONSTANT`), or accepts and never answers (a 30s stall). One
+ * fault, five faces — which is why #480, #405 and #491 were the same defect.
+ * See `src/test/sharedServer.ts` for the factorial that established the cause.
  *
- * WHY A RATCHET AND NOT A FLAT ASSERTION. The defect appears roughly once per
- * 2,400 requests, so a test that exercises it directly would itself be flaky —
- * the thing this issue exists to eliminate. And ~180 call sites cannot convert
- * in one change. So this records a per-file BASELINE and fails if any file
- * exceeds it, or if a file not listed here adopts the pattern. Converting a
- * file means dropping its baseline; a file at 0 is removed from the list.
+ * The suite is now fully converted: every call site passes a listening server
+ * from `serveOnce`, `serveKeyed`, `serveForTest` or `serveInTest`, all of which
+ * bind below the ephemeral floor. This guard keeps it that way.
  *
- * The baselines are MEASURED BY THIS FILE'S OWN COUNTER, which matters: a grep
- * written separately disagreed with it (splash.test.ts, 6 by grep vs 8 here),
- * because the grep missed the bare-identifier form. To regenerate, run this
- * test and read the violations it prints — never a second instrument.
+ * WHY THE CONTROL CHANGED, which is the part worth reading.
  *
- * This guard can fail. Verified by mutation: adding one `request(buildApp())`
- * to an at-baseline file turns it red, and removing it turns it green again. A
- * guard nobody has watched fail is not known to work.
+ * The previous version used `total offences > 0` as its control, to catch a
+ * scanner pointed at the wrong directory — such a scanner reports zero
+ * offences, which was indistinguishable from a healthy suite. That control was
+ * correct right up until the suite was fully converted, at which point zero
+ * became the CORRECT answer and the control would have failed for the best
+ * possible reason.
+ *
+ * So the control is now a self-test against fixture strings whose answers are
+ * known, in both directions. That separates "detector works" from "detector
+ * blind" without depending on the repo still containing violations — the shape
+ * it should have had from the start: an instrument verified against a known
+ * positive, not against the thing it is measuring.
+ *
+ * The regex history is worth keeping too. An earlier version pattern-matched
+ * the UNSAFE form and silently missed every parameterised call:
+ * `request(makeApp({ query: q }))` has an object argument and did not match. A
+ * file then DISAPPEARED from the remaining-work list while still holding six
+ * live sites, and a whole 15-site file was never listed at all. Counting every
+ * `request(` and subtracting the known-safe forms is deliberate — an instrument
+ * that under-reports reads exactly like progress.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -31,64 +44,31 @@ import { join, relative, sep } from 'node:path';
 
 const SRC = join(import.meta.dirname, '../..');
 
-/**
- * This guard's own path. Its regex literals match themselves, which is not a
- * defect in anything — but an instrument that reports itself as a violation
- * teaches people to ignore it.
- */
+/** This file's own regex literals and fixtures match themselves. */
 const SELF = 'test/__tests__/noPerRequestServer.test.ts';
 
 /**
- * Files still on the old pattern, with the number of occurrences each. Every
- * entry is a debt to pay down, not an exemption.
- *
- * WHAT IS LEFT IS NOT MECHANICAL, which is why it is still here. Each of these
- * builds a BESPOKE app inside the test — `buildApp({ listInstalled })`,
- * `makeApp({ logger })`, `await buildApp()` with per-test env — and then makes
- * ONE request against it. Sharing a server saves nothing when there is one app
- * per request already; the reduction needs the test redesigned so the app is
- * built once and the varying part injected per request. That is a judgement
- * call about test design, not a find-and-replace, so it is recorded as debt
- * rather than quietly exempted.
- *
- * These sites are still exposed. During this very conversion the suite failed
- * twice at unconverted sites: `results.perimeterDownload` returned a 404 with
- * no error body, and `usage.test.ts:174` -- `request(makeApp({ logger: log }))`
- * -- failed with "Parse Error: Expected HTTP/", then passed 6/6 in isolation.
+ * Files still on the old pattern. EMPTY, and it should stay that way — an entry
+ * here would be a regression, not an exemption.
  */
-const BASELINE: Record<string, number> = {
-  'api/routes/v1/__tests__/usage.integration.test.ts': 7,
-  'api/middleware/__tests__/unhonouredIdentity.test.ts': 6,
-  'api/routes/v1/__tests__/fuelDatasets.test.ts': 6,
-  'api/routes/v1/__tests__/usage.test.ts': 6,
-  'api/routes/v1/__tests__/models.acnIdentity.test.ts': 4,
-  'api/routes/v1/__tests__/models.listScoping.test.ts': 3,
-  'api/routes/v1/__tests__/splash.test.ts': 2,
-  'api/__tests__/modelsPreflight.test.ts': 1,
-};
+const BASELINE: Record<string, number> = {};
 
-/**
- * EVERY `request(` call, with the safe form subtracted — not a pattern for the
- * unsafe form.
- *
- * THIS IS THE SECOND VERSION AND THE FIRST ONE LIED. It matched
- * `request(<identifier>)` and `request(<identifier>())`, which silently missed
- * every parameterised call: `request(makeApp({ query: q }))` has an object
- * argument and did not match. usage.test.ts then DISAPPEARED from the
- * remaining-work list while still holding six sites that create a server per
- * request — and one of them had just failed with "Parse Error: Expected HTTP/".
- * An instrument that under-reports reads exactly like progress.
- *
- * So: count them all, subtract the ones known to pass a listening server. What
- * is left is anything handing supertest something else, whatever its shape.
- */
+/** Every `request(` call. */
 const OFFENDING = /\brequest\(/g;
 
 /**
- * Call sites that pass a listening server: `request(api())` from `serveOnce`
- * and `request(api(<key>))` from `serveKeyed`.
+ * The forms that pass an already-listening server:
+ *   `request(api())`              — serveOnce / serveForTest
+ *   `request(api(<key>))`         — serveKeyed
+ *   `request(serveInTest(<app>))` — an app built inside the test body
  */
-const ALLOWED = /\brequest\(\s*api\([^)]*\)\s*\)/g;
+const ALLOWED = /\brequest\(\s*(?:api\([^)]*\)|serveInTest\([^;]*?\))\s*\)/g;
+
+function countOffences(text: string): number {
+  const all = text.match(OFFENDING)?.length ?? 0;
+  const ok = text.match(ALLOWED)?.length ?? 0;
+  return all - ok;
+}
 
 function testFiles(dir: string, found: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -102,38 +82,43 @@ function testFiles(dir: string, found: string[] = []): string[] {
   return found;
 }
 
-function countOffences(file: string): number {
-  const text = readFileSync(file, 'utf-8');
-  const all = text.match(OFFENDING)?.length ?? 0;
-  const ok = text.match(ALLOWED)?.length ?? 0;
-  return all - ok;
-}
-
 describe('#480 — no test may hand supertest an express app', () => {
-  const files = testFiles(SRC);
+  const files = testFiles(SRC).filter((f) => relative(SRC, f).split(sep).join('/') !== SELF);
 
-  it('the control: the scanner finds test files and sees the pattern at all', () => {
-    // A scanner pointed at the wrong directory returns zero offences, which is
-    // byte-identical to a fully converted suite. This separates them.
-    expect(files.length).toBeGreaterThan(50);
-    const total = files
-      .filter((f) => relative(SRC, f).split(sep).join('/') !== SELF)
-      .reduce((n, f) => n + countOffences(f), 0);
-    expect(total, 'scanner reports zero offences everywhere — it is probably broken').toBeGreaterThan(0);
+  it('CONTROL: the detector flags unsafe calls and clears safe ones', () => {
+    // Known positives — a detector that cannot see these is worthless.
+    expect(countOffences('await request(buildApp()).get("/x")')).toBe(1);
+    expect(countOffences('await request(app).get("/x")')).toBe(1);
+    expect(countOffences('await request(makeApp({ logger: log })).get("/x")')).toBe(1);
+
+    // Known negatives — and a detector that flagged these would block the fix.
+    expect(countOffences('await request(api()).get("/x")')).toBe(0);
+    expect(countOffences("await request(api('dylan')).get('/x')")).toBe(0);
+    expect(countOffences('await request(serveInTest(app)).get("/x")')).toBe(0);
   });
 
-  it('no file exceeds its recorded baseline, and no new file adopts the pattern', () => {
+  it('CONTROL: the scanner is actually reading the suite', () => {
+    // Distinct from the detector self-test: this catches a scanner pointed
+    // somewhere empty, which would otherwise report a spotless suite.
+    expect(files.length).toBeGreaterThan(50);
+    const totalCalls = files.reduce(
+      (n, f) => n + (readFileSync(f, 'utf-8').match(OFFENDING)?.length ?? 0),
+      0,
+    );
+    expect(totalCalls, 'no request() calls found anywhere — the scanner is blind').toBeGreaterThan(100);
+  });
+
+  it('no file hands supertest an express app', () => {
     const violations: string[] = [];
 
     for (const file of files) {
       const key = relative(SRC, file).split(sep).join('/');
-      if (key === SELF) continue;
-      const count = countOffences(file);
+      const count = countOffences(readFileSync(file, 'utf-8'));
       const allowed = BASELINE[key] ?? 0;
       if (count > allowed) {
         violations.push(
-          `${key}: ${count} occurrence(s), baseline ${allowed}` +
-            (allowed === 0 ? ' — use serveOnce() from src/test/sharedServer.ts' : ' — went up'),
+          `${key}: ${count} occurrence(s) — pass a listening server instead ` +
+            '(serveOnce / serveKeyed / serveForTest / serveInTest from src/test/sharedServer.ts)',
         );
       }
     }
@@ -141,16 +126,7 @@ describe('#480 — no test may hand supertest an express app', () => {
     expect(violations, `per-request server creation (#480):\n  ${violations.join('\n  ')}`).toEqual([]);
   });
 
-  it('the baseline does not list files that no longer offend, so the debt stays honest', () => {
-    const stale = Object.keys(BASELINE).filter((key) => {
-      const full = join(SRC, key);
-      try {
-        return countOffences(full) === 0;
-      } catch {
-        return true; // file gone — the entry is stale either way
-      }
-    });
-
-    expect(stale, `these are converted (or absent); remove them from BASELINE:\n  ${stale.join('\n  ')}`).toEqual([]);
+  it('the baseline is empty, so a regression cannot hide behind an allowance', () => {
+    expect(BASELINE).toEqual({});
   });
 });

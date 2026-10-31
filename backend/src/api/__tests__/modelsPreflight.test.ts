@@ -10,6 +10,7 @@
  * It creates nothing — no model, no job, no sim directory.
  */
 
+import { serveInTest } from '../../test/sharedServer.js';
 import { describe, it, expect, beforeAll } from 'vitest';
 import express from 'express';
 import request from 'supertest';
@@ -252,7 +253,7 @@ describe('route registration', () => {
     realApp.use(express.json({ limit: '50mb' }));
     realApp.use('/api/v1', v1Router);
 
-    const res = await request(realApp).post('/api/v1/models/preflight').send(validBody());
+    const res = await request(serveInTest(realApp)).post('/api/v1/models/preflight').send(validBody());
 
     expect(res.status).not.toBe(404);
   });
