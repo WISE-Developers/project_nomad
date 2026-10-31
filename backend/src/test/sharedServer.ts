@@ -86,10 +86,19 @@ import { afterAll } from 'vitest';
  * factory is ours, so a retry builds a FRESH app and there is no such state.
  *
  * The band stays under 32768 so it is below Linux's usual ephemeral floor as
- * well as macOS's 49152: 16 workers x 800 = 20000..32799.
+ * well as macOS's 49152: 16 workers x 800 = 16384..29183.
  */
 const SLICE = 800;
-const BAND_BASE = 20000;
+/**
+ * 16384, not 20000. At 20000 the sixteenth worker's slice is 32000-32799, and
+ * 32799 is ABOVE Linux's usual ephemeral floor of 32768 — so that worker would
+ * have been allocating ports inside the very range this exists to avoid, and
+ * `sharedServerBand.test.ts` would have failed on a 16-worker Linux runner.
+ * CI passed only because it used fewer workers, which is luck rather than
+ * correctness. At 16384 the top of the band is 29183, clear of both floors,
+ * and still above the privileged range and the usual dev ports.
+ */
+const BAND_BASE = 16384;
 const workerId = Number(process.env.VITEST_WORKER_ID ?? 1) || 1;
 const bandLo = BAND_BASE + ((workerId - 1) % 16) * SLICE;
 let cursor = bandLo;
