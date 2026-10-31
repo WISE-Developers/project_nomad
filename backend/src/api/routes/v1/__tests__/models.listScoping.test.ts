@@ -24,6 +24,7 @@
  * see" rather than "nothing of yours".
  */
 
+import { serveInTest } from '../../../../test/sharedServer.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
@@ -118,7 +119,7 @@ describe('#489 — GET /models scopes silently by caller identity', () => {
 
   it('an UNIDENTIFIED caller gets an unfiltered list, including the null-author row', async () => {
     const app = await buildApp();
-    const res = await request(app).get('/api/v1/models');
+    const res = await request(serveInTest(app)).get('/api/v1/models');
 
     expect(res.status).toBe(200);
     expect(find).toHaveBeenCalledWith({});
@@ -130,7 +131,7 @@ describe('#489 — GET /models scopes silently by caller identity', () => {
 
   it('an IDENTIFIED caller gets a filtered list, and the null-author row disappears', async () => {
     const app = await buildApp();
-    const res = await request(app)
+    const res = await request(serveInTest(app))
       .get('/api/v1/models')
       .set('x-nomad-user', 'Test Modeller (00000000-0000-4000-8000-000000000000)');
 
@@ -152,7 +153,7 @@ describe('#489 — GET /models scopes silently by caller identity', () => {
 
   it('an identity matching NOTHING yields an empty list with a 200 and no explanation', async () => {
     const app = await buildApp();
-    const res = await request(app)
+    const res = await request(serveInTest(app))
       .get('/api/v1/models')
       .set('x-nomad-user', 'somebody-with-no-models');
 
