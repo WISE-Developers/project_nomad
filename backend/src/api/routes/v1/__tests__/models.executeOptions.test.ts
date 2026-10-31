@@ -81,6 +81,7 @@ vi.mock('../../../../infrastructure/services/JobQueue.js', () => ({
 import modelsRouter from '../models.js';
 import { errorHandler } from '../../../middleware/errorHandler.js';
 import { FireModel, createFireModelId, ModelStatus, EngineType } from '../../../../domain/entities/index.js';
+import { serveOnce } from '../../../../test/sharedServer.js';
 
 function buildApp() {
   const app = express();
@@ -89,6 +90,14 @@ function buildApp() {
   app.use(errorHandler);
   return app;
 }
+
+/**
+ * One server for this file instead of one per request (#480). Verified safe
+ * here: nothing is read from process.env or mutable state when the app is
+ * BUILT — the router consults those per request — so a single lazily-created
+ * server behaves identically.
+ */
+const api = serveOnce(buildApp);
 
 const MODEL_ID = 'model-435';
 
@@ -139,7 +148,7 @@ describe('POST /models/:id/execute — ExecutionOptions handed to the engine', (
 
   describe('the control: the instrument itself', () => {
     it('observes the argument at all, and the spy is retained', async () => {
-      await request(buildApp())
+      await request(api())
         .post(`/api/v1/models/${MODEL_ID}/execute`)
         .send(validBody())
         .expect(202);
@@ -153,7 +162,7 @@ describe('POST /models/:id/execute — ExecutionOptions handed to the engine', (
 
   describe('issue #435 — modelMode is honoured, not silently dropped', () => {
     it('runs deterministic when asked for deterministic via modelMode', async () => {
-      await request(buildApp())
+      await request(api())
         .post(`/api/v1/models/${MODEL_ID}/execute`)
         .send(validBody({ modelMode: 'deterministic' }))
         .expect(202);
@@ -165,7 +174,7 @@ describe('POST /models/:id/execute — ExecutionOptions handed to the engine', (
       // The defect's real cost: the caller is told the deterministic run they
       // asked for is underway. A refusal would be recoverable; a confident wrong
       // answer is not.
-      const res = await request(buildApp())
+      const res = await request(api())
         .post(`/api/v1/models/${MODEL_ID}/execute`)
         .send(validBody({ modelMode: 'deterministic' }));
 
@@ -201,7 +210,7 @@ describe('POST /models/:id/execute — ExecutionOptions handed to the engine', (
      * them apart.)
      */
     it('keeps the probabilistic path working (regression guard, cannot detect #435)', async () => {
-      await request(buildApp())
+      await request(api())
         .post(`/api/v1/models/${MODEL_ID}/execute`)
         .send(validBody({ modelMode: 'probabilistic' }))
         .expect(202);
@@ -211,7 +220,7 @@ describe('POST /models/:id/execute — ExecutionOptions handed to the engine', (
 
     it('still accepts the legacy outputMode field', async () => {
       // Parity must not be achieved by breaking the field that currently works.
-      await request(buildApp())
+      await request(api())
         .post(`/api/v1/models/${MODEL_ID}/execute`)
         .send(validBody({ outputMode: 'deterministic' }))
         .expect(202);

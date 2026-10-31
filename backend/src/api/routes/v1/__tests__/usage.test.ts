@@ -5,6 +5,7 @@ import { usageRouter, isUsageEndpointEnabled, resolveUsageToken } from '../usage
 import type { IUsageQuery } from '../../../../application/interfaces/IUsageQuery.js';
 import type { IUsageLogger } from '../../../../application/interfaces/IUsageLogger.js';
 import type { UsageEvent } from '../../../../domain/value-objects/UsageEvent.js';
+import { serveOnce } from '../../../../test/sharedServer.js';
 
 const TOKEN = 'a'.repeat(32);
 
@@ -50,6 +51,14 @@ function makeApp(opts: {
   return app;
 }
 
+/**
+ * One server for this file instead of one per request (#480). Verified safe
+ * here: nothing is read from process.env or mutable state when the app is
+ * BUILT — the router consults those per request — so a single lazily-created
+ * server behaves identically.
+ */
+const api = serveOnce(() => makeApp());
+
 describe('usage endpoint: registration is fail-closed', () => {
   // NOMAD_USAGE_API_TOKEN is read straight off process.env by
   // isUsageEndpointEnabled() and resolveUsageToken(). Mutating it with a bare
@@ -86,37 +95,37 @@ describe('usage endpoint: registration is fail-closed', () => {
 
 describe('usage endpoint: authentication', () => {
   it('refuses a request with no Authorization header', async () => {
-    await request(makeApp()).get('/usage').expect(401);
+    await request(api()).get('/usage').expect(401);
   });
 
   it('refuses a wrong token', async () => {
-    await request(makeApp())
+    await request(api())
       .get('/usage')
       .set('Authorization', `Bearer ${'b'.repeat(32)}`)
       .expect(401);
   });
 
   it('refuses a token that is a prefix of the real one', async () => {
-    await request(makeApp())
+    await request(api())
       .get('/usage')
       .set('Authorization', `Bearer ${'a'.repeat(31)}`)
       .expect(401);
   });
 
   it('refuses a non-Bearer scheme', async () => {
-    await request(makeApp()).get('/usage').set('Authorization', TOKEN).expect(401);
+    await request(api()).get('/usage').set('Authorization', TOKEN).expect(401);
   });
 
   it('accepts the correct token', async () => {
-    await request(makeApp())
+    await request(api())
       .get('/usage')
       .set('Authorization', `Bearer ${TOKEN}`)
       .expect(200);
   });
 
   it('does not leak whether the token was wrong or merely absent', async () => {
-    const absent = await request(makeApp()).get('/usage');
-    const wrong = await request(makeApp())
+    const absent = await request(api()).get('/usage');
+    const wrong = await request(api())
       .get('/usage')
       .set('Authorization', 'Bearer nope');
     expect(absent.body).toEqual(wrong.body);
@@ -152,7 +161,7 @@ describe('usage endpoint: responses are bounded', () => {
   });
 
   it('rejects a nonsense limit instead of silently defaulting', async () => {
-    await request(makeApp())
+    await request(api())
       .get('/usage?limit=-1')
       .set('Authorization', `Bearer ${TOKEN}`)
       .expect(400);

@@ -9,9 +9,16 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import modelsRouter from '../routes/v1/models.js';
+import { serveOnce } from '../../test/sharedServer.js';
 
 describe('POST /models/run — timezone fail-fast', () => {
   let app: express.Application;
+    /**
+     * One server for this block instead of one per request (#480). `app` is
+     * built once in beforeAll above and never reconfigured, and serveOnce is
+     * lazy, so the listen happens on the first request — after beforeAll.
+     */
+  const api = serveOnce(() => app);
 
   beforeAll(() => {
     app = express();
@@ -40,7 +47,7 @@ describe('POST /models/run — timezone fail-fast', () => {
   };
 
   it('returns 400 when timezone field is missing', async () => {
-    const res = await request(app)
+    const res = await request(api())
       .post('/api/v1/models/run')
       .send(validBodyMinusTimezone);
 
@@ -49,7 +56,7 @@ describe('POST /models/run — timezone fail-fast', () => {
   });
 
   it('returns 400 when timezone is empty string', async () => {
-    const res = await request(app)
+    const res = await request(api())
       .post('/api/v1/models/run')
       .send({ ...validBodyMinusTimezone, timezone: '' });
 

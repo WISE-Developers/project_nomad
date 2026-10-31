@@ -14,6 +14,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import preflightRouter from '../routes/v1/preflight.js';
+import { serveOnce } from '../../test/sharedServer.js';
 
 const ZONE = 'America/Edmonton';
 
@@ -63,6 +64,12 @@ function validBody(overrides: Record<string, unknown> = {}) {
 
 describe('POST /models/preflight', () => {
   let app: express.Application;
+    /**
+     * One server for this block instead of one per request (#480). `app` is
+     * built once in beforeAll above and never reconfigured, and serveOnce is
+     * lazy, so the listen happens on the first request — after beforeAll.
+     */
+  const api = serveOnce(() => app);
 
   beforeAll(() => {
     app = express();
@@ -81,7 +88,7 @@ describe('POST /models/preflight', () => {
   });
 
   it("finds the codes already in vita's file and reports the daily-only shape", async () => {
-    const res = await request(app).post('/api/v1/models/preflight').send(validBody());
+    const res = await request(api()).post('/api/v1/models/preflight').send(validBody());
 
     expect(res.status).toBe(200);
     expect(res.body.dailyOnlyCffdrs).toBe(true);
@@ -92,19 +99,19 @@ describe('POST /models/preflight', () => {
   });
 
   it('labels the reading so a human can recognise it in their own file', async () => {
-    const res = await request(app).post('/api/v1/models/preflight').send(validBody());
+    const res = await request(api()).post('/api/v1/models/preflight').send(validBody());
     expect(res.body.candidate.localLabel).toBe('2026-08-03, 1900');
   });
 
   it('offers the reading before ignition, not the one after it', async () => {
     // Aug 4's 19:06 reading is later than her noon ignition. Using it would be
     // wrong for every morning fire.
-    const res = await request(app).post('/api/v1/models/preflight').send(validBody());
+    const res = await request(api()).post('/api/v1/models/preflight').send(validBody());
     expect(res.body.candidate.ffmc).not.toBe(88.44);
   });
 
   it('reports nothing to fix for a conforming file', async () => {
-    const res = await request(app)
+    const res = await request(api())
       .post('/api/v1/models/preflight')
       .send(validBody({ weather: { source: 'firestarr_csv', firestarrCsvContent: FULLY_POPULATED_CSV } }));
 
@@ -115,7 +122,7 @@ describe('POST /models/preflight', () => {
 
   it('reports nothing to fix when the source is not a FireSTARR CSV', async () => {
     // raw_weather already carries explicit starting codes. Nothing to detect.
-    const res = await request(app)
+    const res = await request(api())
       .post('/api/v1/models/preflight')
       .send(validBody({ weather: { source: 'raw_weather', rawWeatherContent: 'irrelevant' } }));
 
@@ -126,7 +133,7 @@ describe('POST /models/preflight', () => {
 
   it('reports the shape but offers nothing when no reading precedes ignition', async () => {
     // The caller must not invent codes. It has to refuse.
-    const res = await request(app)
+    const res = await request(api())
       .post('/api/v1/models/preflight')
       .send(validBody({ timeRange: { start: '2026-08-01T12:00:00Z', end: '2026-08-04T12:00:00Z' } }));
 
@@ -138,12 +145,12 @@ describe('POST /models/preflight', () => {
   it('survives a file full of NaN rather than failing on it', async () => {
     // The whole point. This endpoint exists to diagnose exactly the file that
     // breaks everything downstream, so it must not break on it itself.
-    const res = await request(app).post('/api/v1/models/preflight').send(validBody());
+    const res = await request(api()).post('/api/v1/models/preflight').send(validBody());
     expect(res.status).toBe(200);
   });
 
   it('creates no model and no job — it only reads', async () => {
-    const res = await request(app).post('/api/v1/models/preflight').send(validBody());
+    const res = await request(api()).post('/api/v1/models/preflight').send(validBody());
     expect(res.body.modelId).toBeUndefined();
     expect(res.body.jobId).toBeUndefined();
   });
@@ -153,7 +160,7 @@ describe('POST /models/preflight', () => {
       // The Date column is local time in the model's timezone, and daily codes
       // are recorded at noon. Her rows read 19:06 with Edmonton declared —
       // six hours ahead, which is exactly UTC.
-      const res = await request(app).post('/api/v1/models/preflight').send(validBody());
+      const res = await request(api()).post('/api/v1/models/preflight').send(validBody());
 
       expect(res.body.rhythm.dailyHour).toBe(19);
       expect(res.body.rhythm.hoursFromNoon).toBe(6);
@@ -169,7 +176,7 @@ describe('POST /models/preflight', () => {
         dailyRow('2026-08-02 13:00:00', 84.65, 20.72, 424.9),
       ].join('\n');
 
-      const res = await request(app)
+      const res = await request(api())
         .post('/api/v1/models/preflight')
         .send(validBody({ weather: { source: 'firestarr_csv', firestarrCsvContent: onContract } }));
 
@@ -178,7 +185,7 @@ describe('POST /models/preflight', () => {
     });
 
     it('reports no rhythm for a conforming file — every hour has codes, so there is none', async () => {
-      const res = await request(app)
+      const res = await request(api())
         .post('/api/v1/models/preflight')
         .send(validBody({ weather: { source: 'firestarr_csv', firestarrCsvContent: FULLY_POPULATED_CSV } }));
 
@@ -191,13 +198,13 @@ describe('POST /models/preflight', () => {
       const body = validBody();
       delete (body as Record<string, unknown>).timezone;
 
-      const res = await request(app).post('/api/v1/models/preflight').send(body);
+      const res = await request(api()).post('/api/v1/models/preflight').send(body);
       expect(res.status).toBe(400);
       expect(JSON.stringify(res.body)).toMatch(/timezone/i);
     });
 
     it('rejects a missing timeRange.start — there is no ignition without it', async () => {
-      const res = await request(app)
+      const res = await request(api())
         .post('/api/v1/models/preflight')
         .send(validBody({ timeRange: { end: '2026-08-07T18:00:00Z' } }));
 
@@ -206,7 +213,7 @@ describe('POST /models/preflight', () => {
     });
 
     it('rejects an unknown timezone as a client error, not a 500 (#353)', async () => {
-      const res = await request(app)
+      const res = await request(api())
         .post('/api/v1/models/preflight')
         .send(validBody({ timezone: 'Mars/Olympus_Mons' }));
 
@@ -218,13 +225,13 @@ describe('POST /models/preflight', () => {
       const body = validBody();
       delete (body as Record<string, unknown>).weather;
 
-      const res = await request(app).post('/api/v1/models/preflight').send(body);
+      const res = await request(api()).post('/api/v1/models/preflight').send(body);
       expect(res.status).toBe(400);
       expect(JSON.stringify(res.body)).toMatch(/weather/i);
     });
 
     it('rejects an unparseable CSV with a message naming the problem', async () => {
-      const res = await request(app)
+      const res = await request(api())
         .post('/api/v1/models/preflight')
         .send(validBody({ weather: { source: 'firestarr_csv', firestarrCsvContent: 'not,a,weather,file\n1,2,3,4' } }));
 
