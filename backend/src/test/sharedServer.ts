@@ -61,6 +61,70 @@ import type { Application } from 'express';
 import { afterAll } from 'vitest';
 
 /**
+ * Binds OUTSIDE the OS ephemeral port range, which is the variable that
+ * actually matters (#480).
+ *
+ * Measured 2026-10-31, a 3-cell factorial of 19,200 requests each interleaved
+ * with an untouched control in the same session, after an earlier run was
+ * voided by self-inflicted port exhaustion:
+ *
+ *   listen(0)          ephemeral, dual-stack   8 stalls + 3 spurious 400s
+ *   listen(band)       20000+,    dual-stack   0          0
+ *   listen(band, v4)   20000+,    IPv4         0          0
+ *
+ * Address family is NOT the variable -- both out-of-range cells are clean,
+ * which retires an earlier wrong turn where an explicit IPv4 bind alone changed
+ * nothing. The ephemeral range is where the OS hands every other process its
+ * client source ports, so staying out of it removes the thing to collide with.
+ *
+ * WHY THIS LIVES HERE AND NOT IN A GLOBAL listen() SHIM. A shim would fix all
+ * 184 call sites touching none, and it measured 0 stalls in 19,200 in
+ * isolation -- then broke the real suite in 10 of 10 runs, 37 to 136 failures
+ * each. Cause: its retry called listen() a SECOND time on the same server
+ * object, which throws ERR_SERVER_ALREADY_LISTEN when the first bind is still
+ * pending, and that throw escapes through app.listen(0) into the test. Here the
+ * factory is ours, so a retry builds a FRESH app and there is no such state.
+ *
+ * The band stays under 32768 so it is below Linux's usual ephemeral floor as
+ * well as macOS's 49152: 16 workers x 800 = 20000..32799.
+ */
+const SLICE = 800;
+const BAND_BASE = 20000;
+const workerId = Number(process.env.VITEST_WORKER_ID ?? 1) || 1;
+const bandLo = BAND_BASE + ((workerId - 1) % 16) * SLICE;
+let cursor = bandLo;
+
+/** Exposed so the band can be asserted rather than assumed. */
+export const bandInfo = { lo: bandLo, hi: bandLo + SLICE - 1, binds: 0, retries: 0, fellBack: 0 };
+
+/**
+ * Listen on a band port, retrying with a FRESH app on each failure.
+ *
+ * `listen(port)` with no host binds synchronously, so a non-null `address()`
+ * means success and null means the port was taken -- `listen()` never throws on
+ * EADDRINUSE, it emits 'error' later, which is why the result is read from
+ * address() instead of a try/catch.
+ */
+function listenInBand(buildApp: () => Application): Server {
+  for (let attempt = 0; attempt < SLICE; attempt += 1) {
+    const port = (cursor = cursor >= bandInfo.hi ? bandLo : cursor + 1);
+    const candidate = buildApp().listen(port);
+    // Swallow the late EADDRINUSE so an abandoned server cannot surface it.
+    candidate.on('error', (err: NodeJS.ErrnoException) => {
+      if (err?.code !== 'EADDRINUSE') throw err;
+    });
+    if (candidate.address()) {
+      bandInfo.binds += 1;
+      return candidate;
+    }
+    bandInfo.retries += 1;
+    try { candidate.close(); } catch { /* was never listening */ }
+  }
+  bandInfo.fellBack += 1;
+  return buildApp().listen(0); // old behaviour rather than a failed test
+}
+
+/**
  * Creates the server on first use, reuses it for the rest of the file, and
  * closes it afterwards.
  *
@@ -81,7 +145,7 @@ export function serveOnce(buildApp: () => Application): () => Server {
   return () => {
     // `listen(0)` once. Every subsequent request reuses this server, so no new
     // port pair is created and there is nothing to collide.
-    server ??= buildApp().listen(0);
+    server ??= listenInBand(buildApp);
     return server;
   };
 }
@@ -96,6 +160,8 @@ export function serveOnce(buildApp: () => Application): () => Server {
  * exactly.
  */
 export function serveForTest(app: Application): { server: Server; close: () => Promise<void> } {
+  // An app instance, not a factory, so there is nothing to rebuild on a port
+  // clash -- this one takes listen(0) and keeps the old exposure.
   const server = app.listen(0);
   return {
     server,
@@ -132,7 +198,7 @@ export function serveKeyed<K extends string | number | undefined>(
     const id = String(key);
     let server = servers.get(id);
     if (!server) {
-      server = buildApp(key).listen(0);
+      server = listenInBand(() => buildApp(key));
       servers.set(id, server);
     }
     return server;
