@@ -18,6 +18,7 @@
  * both are covered and the test enumerates the members.
  */
 
+import { serveInTest } from '../../../test/sharedServer.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
@@ -63,7 +64,7 @@ describe('#488 criterion 3 — unhonoured identity headers warn instead of passi
         process.env.NOMAD_AUTH_MODE = mode;
         const app = await buildApp();
 
-        const res = await request(app).get('/probe').set('x-nomad-user-id', 'u-123');
+        const res = await request(serveInTest(app)).get('/probe').set('x-nomad-user-id', 'u-123');
 
         // The request still succeeds — this is a warning, not a rejection.
         expect(res.status).toBe(200);
@@ -82,7 +83,7 @@ describe('#488 criterion 3 — unhonoured identity headers warn instead of passi
       process.env.NOMAD_DEPLOYMENT_MODE = 'ACN';
       const app = await buildApp();
 
-      await request(app).get('/probe').set('x-nomad-user', 'someone');
+      await request(serveInTest(app)).get('/probe').set('x-nomad-user', 'someone');
 
       expect(warn).toHaveBeenCalled();
       expect(warnText()).toContain('X-Nomad-User');
@@ -92,7 +93,7 @@ describe('#488 criterion 3 — unhonoured identity headers warn instead of passi
       process.env.NOMAD_AUTH_MODE = 'oauth';
       const app = await buildApp();
 
-      await request(app).get('/probe').set('x-nomad-user', 'someone');
+      await request(serveInTest(app)).get('/probe').set('x-nomad-user', 'someone');
 
       expect(warn).toHaveBeenCalled();
       expect(warnText()).toContain('X-Nomad-User');
@@ -104,7 +105,7 @@ describe('#488 criterion 3 — unhonoured identity headers warn instead of passi
       process.env.NOMAD_DEPLOYMENT_MODE = 'ACN';
       const app = await buildApp();
 
-      await request(app).get('/probe').set('x-nomad-user-id', 'u-123');
+      await request(serveInTest(app)).get('/probe').set('x-nomad-user-id', 'u-123');
 
       expect(warn).not.toHaveBeenCalled();
     });
@@ -113,7 +114,7 @@ describe('#488 criterion 3 — unhonoured identity headers warn instead of passi
       process.env.NOMAD_AUTH_MODE = 'simple';
       const app = await buildApp();
 
-      await request(app).get('/probe').set('x-nomad-user', 'someone');
+      await request(serveInTest(app)).get('/probe').set('x-nomad-user', 'someone');
 
       expect(warn).not.toHaveBeenCalled();
     });
@@ -122,7 +123,7 @@ describe('#488 criterion 3 — unhonoured identity headers warn instead of passi
       process.env.NOMAD_AUTH_MODE = 'simple';
       const app = await buildApp();
 
-      await request(app).get('/probe');
+      await request(serveInTest(app)).get('/probe');
 
       expect(warn).not.toHaveBeenCalled();
     });

@@ -1,3 +1,4 @@
+import { serveInTest } from '../../../../test/sharedServer.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
@@ -135,7 +136,7 @@ describe('usage endpoint: authentication', () => {
 describe('usage endpoint: responses are bounded', () => {
   it('applies a default limit rather than returning everything', async () => {
     const q = fakeQuery(fakeEvents(5000));
-    await request(makeApp({ query: q }))
+    await request(serveInTest(makeApp({ query: q })))
       .get('/usage')
       .set('Authorization', `Bearer ${TOKEN}`)
       .expect(200);
@@ -144,7 +145,7 @@ describe('usage endpoint: responses are bounded', () => {
 
   it('clamps a caller-supplied limit that is too large', async () => {
     const q = fakeQuery(fakeEvents(5000));
-    await request(makeApp({ query: q }))
+    await request(serveInTest(makeApp({ query: q })))
       .get('/usage?limit=99999')
       .set('Authorization', `Bearer ${TOKEN}`)
       .expect(200);
@@ -153,7 +154,7 @@ describe('usage endpoint: responses are bounded', () => {
 
   it('honours a smaller caller-supplied limit', async () => {
     const q = fakeQuery(fakeEvents(100));
-    await request(makeApp({ query: q }))
+    await request(serveInTest(makeApp({ query: q })))
       .get('/usage?limit=5')
       .set('Authorization', `Bearer ${TOKEN}`)
       .expect(200);
@@ -171,7 +172,7 @@ describe('usage endpoint: responses are bounded', () => {
 describe('usage endpoint: reads are themselves recorded', () => {
   it('records a usage.read event on a successful read', async () => {
     const log = collectingLogger();
-    await request(makeApp({ logger: log }))
+    await request(serveInTest(makeApp({ logger: log })))
       .get('/usage')
       .set('Authorization', `Bearer ${TOKEN}`)
       .expect(200);
@@ -182,7 +183,7 @@ describe('usage endpoint: reads are themselves recorded', () => {
 
   it('records a rejected read too — a failed access attempt is the point', async () => {
     const log = collectingLogger();
-    await request(makeApp({ logger: log })).get('/usage').expect(401);
+    await request(serveInTest(makeApp({ logger: log }))).get('/usage').expect(401);
 
     expect(log.events).toHaveLength(1);
     expect(log.events[0].type).toBe('usage.read');
@@ -191,7 +192,7 @@ describe('usage endpoint: reads are themselves recorded', () => {
 
   it('never puts the presented token into the log', async () => {
     const log = collectingLogger();
-    await request(makeApp({ logger: log }))
+    await request(serveInTest(makeApp({ logger: log })))
       .get('/usage')
       .set('Authorization', 'Bearer super-secret-value')
       .expect(401);

@@ -7,6 +7,7 @@
  * back to default/.
  */
 
+import { serveInTest } from '../../../../test/sharedServer.js';
 import { describe, it, expect, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
@@ -45,7 +46,7 @@ describe('GET /api/v1/fuel-datasets', () => {
   it('lists installed vintages with their provenance', async () => {
     const app = buildApp({ listInstalled: async () => installed });
 
-    const res = await request(app).get('/api/v1/fuel-datasets');
+    const res = await request(serveInTest(app)).get('/api/v1/fuel-datasets');
 
     expect(res.status).toBe(200);
     expect(res.body.datasets).toHaveLength(2);
@@ -59,7 +60,7 @@ describe('GET /api/v1/fuel-datasets', () => {
   it('returns an empty list, not an error, when no dataset is installed', async () => {
     const app = buildApp({ listInstalled: async () => [] });
 
-    const res = await request(app).get('/api/v1/fuel-datasets');
+    const res = await request(serveInTest(app)).get('/api/v1/fuel-datasets');
 
     expect(res.status).toBe(200);
     expect(res.body.datasets).toEqual([]);
@@ -75,7 +76,7 @@ describe('GET /api/v1/fuel-datasets', () => {
     };
     const app = buildApp({ listInstalled: async () => installed, resolveForYear: async () => resolved });
 
-    const res = await request(app).get('/api/v1/fuel-datasets?modelYear=2023');
+    const res = await request(serveInTest(app)).get('/api/v1/fuel-datasets?modelYear=2023');
 
     expect(res.status).toBe(200);
     expect(res.body.resolved).toMatchObject({
@@ -96,7 +97,7 @@ describe('GET /api/v1/fuel-datasets', () => {
     };
     const app = buildApp({ listInstalled: async () => installed, resolveForYear: async () => resolved });
 
-    const res = await request(app).get('/api/v1/fuel-datasets?modelYear=2023');
+    const res = await request(serveInTest(app)).get('/api/v1/fuel-datasets?modelYear=2023');
 
     expect(res.body.resolved.usedFallback).toBe(true);
     expect(res.body.resolved.matchedRequestedYear).toBe(false);
@@ -105,7 +106,7 @@ describe('GET /api/v1/fuel-datasets', () => {
   it('omits resolution when no modelYear is asked for', async () => {
     const app = buildApp({ listInstalled: async () => installed });
 
-    const res = await request(app).get('/api/v1/fuel-datasets');
+    const res = await request(serveInTest(app)).get('/api/v1/fuel-datasets');
 
     expect(res.body.resolved).toBeUndefined();
   });
@@ -113,7 +114,7 @@ describe('GET /api/v1/fuel-datasets', () => {
   it('rejects a non-numeric modelYear rather than silently ignoring it', async () => {
     const app = buildApp({ listInstalled: async () => installed });
 
-    const res = await request(app).get('/api/v1/fuel-datasets?modelYear=banana');
+    const res = await request(serveInTest(app)).get('/api/v1/fuel-datasets?modelYear=banana');
 
     expect(res.status).toBe(400);
   });

@@ -2,6 +2,7 @@
  * Tests for GET /api/v1/splash (refs #275).
  */
 
+import { serveInTest } from '../../../../test/sharedServer.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
@@ -131,13 +132,13 @@ describe('GET /api/v1/splash', () => {
     process.env.NOMAD_SPLASH_PATH = splashFile;
 
     const app = buildApp();
-    const r1 = await request(app).get('/api/v1/splash');
+    const r1 = await request(serveInTest(app)).get('/api/v1/splash');
     expect(r1.body.title).toBe('Hello Nomad');
 
     const updated = VALID.replace('Hello Nomad', 'Hello Updated');
     fs.writeFileSync(splashFile, updated);
 
-    const r2 = await request(app).get('/api/v1/splash');
+    const r2 = await request(serveInTest(app)).get('/api/v1/splash');
     expect(r2.body.title).toBe('Hello Updated');
   });
 });

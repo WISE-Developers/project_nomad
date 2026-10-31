@@ -58,7 +58,7 @@ import type { Server } from 'node:http';
  * gates, three answers.
  */
 import type { Application } from 'express';
-import { afterAll } from 'vitest';
+import { afterAll, afterEach, onTestFinished } from 'vitest';
 
 /**
  * Binds OUTSIDE the OS ephemeral port range, which is the variable that
@@ -160,21 +160,39 @@ export function serveOnce(buildApp: () => Application): () => Server {
 }
 
 /**
- * For a file that genuinely needs a differently-configured app per test: one
- * server for THAT test, closed when it ends, rather than one per request.
+ * One server for ONE test, for a file whose app genuinely differs per test.
  *
- * This is a smaller win than `serveOnce` and it is deliberately a separate
- * function rather than a default — a test making a single request gains
- * nothing from it, and calling it per request would reintroduce the defect
- * exactly.
+ * Takes a FACTORY, not an app instance — that is the whole reason this signature
+ * changed. The band retries a port clash by building a fresh app, because
+ * `listen()` cannot be retried on a server that is already listening
+ * (ERR_SERVER_ALREADY_LISTEN), so there must be something to rebuild.
+ *
+ * It was previously `serveForTest(app)` on `listen(0)`, written when the fix was
+ * believed to be SHARING a server — under which a test making one request
+ * against one bespoke app gains nothing, so it was left on the ephemeral range
+ * deliberately. That reasoning died with the factorial: the variable is the port
+ * RANGE, not how many requests share a server, and a single-use server benefits
+ * exactly as much as a shared one.
+ *
+ *   const api = serveForTest(() => buildApp({ catalog }));
+ *   const res = await request(api()).get('/x');
+ *
+ * Closed after each test, so a file using it opens at most one server per test
+ * rather than one per request.
  */
-export function serveForTest(app: Application): { server: Server; close: () => Promise<void> } {
-  // An app instance, not a factory, so there is nothing to rebuild on a port
-  // clash -- this one takes listen(0) and keeps the old exposure.
-  const server = app.listen(0);
-  return {
-    server,
-    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+export function serveForTest(buildApp: () => Application): () => Server {
+  let server: Server | undefined;
+
+  afterEach(async () => {
+    if (!server) return;
+    const s = server;
+    server = undefined;
+    await new Promise<void>((resolve) => s.close(() => resolve()));
+  });
+
+  return () => {
+    server ??= listenInBand(buildApp);
+    return server;
   };
 }
 
@@ -212,4 +230,44 @@ export function serveKeyed<K extends string | number | undefined>(
     }
     return server;
   };
+}
+
+/**
+ * For an app built INSIDE a test body, where no module-scope helper can reach.
+ *
+ * Several files do `const app = await buildApp()` within the test itself —
+ * `unhonouredIdentity`, `models.acnIdentity`, `models.listScoping` — so
+ * `serveForTest` cannot serve them: it registers `afterEach`, and a hook
+ * registered inside a running test is invalid. `onTestFinished` is the
+ * primitive for that case, so cleanup is still automatic.
+ *
+ *   const app = await buildApp();
+ *   const res = await request(serveInTest(app)).get('/probe');
+ *
+ * Retrying a port clash is safe here even though an app INSTANCE is passed
+ * rather than a factory: express's `app.listen()` constructs a NEW
+ * `http.Server` on every call (verified — two calls gave two distinct objects
+ * on different ports), so this is not the `ERR_SERVER_ALREADY_LISTEN` case that
+ * broke the global listen shim. That failure was re-listening a single
+ * `net.Server`, which is a different thing.
+ */
+export function serveInTest(app: Application): Server {
+  for (let attempt = 0; attempt < SLICE; attempt += 1) {
+    const port = (cursor = cursor >= bandInfo.hi ? bandLo : cursor + 1);
+    const candidate = app.listen(port);
+    candidate.on('error', (err: NodeJS.ErrnoException) => {
+      if (err?.code !== 'EADDRINUSE') throw err;
+    });
+    if (candidate.address()) {
+      bandInfo.binds += 1;
+      onTestFinished(() => new Promise<void>((resolve) => candidate.close(() => resolve())));
+      return candidate;
+    }
+    bandInfo.retries += 1;
+    try { candidate.close(); } catch { /* never listened */ }
+  }
+  bandInfo.fellBack += 1;
+  const fallback = app.listen(0);
+  onTestFinished(() => new Promise<void>((resolve) => fallback.close(() => resolve())));
+  return fallback;
 }
