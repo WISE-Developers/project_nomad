@@ -4,10 +4,33 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.48.0
+## v0.49.0
+
+### 2026-11-01
+
+- [`006b5aa`](https://github.com/WISE-Developers/project_nomad/commit/006b5aa63a5cf7e3e14188b69d75695332081f5c) Merge pull request #496 from WISE-Developers/dev — *Franco Nogarin, 05:18*
+
+### 2026-10-31
+
+- [`25dfc7c`](https://github.com/WISE-Developers/project_nomad/commit/25dfc7cef45aa0a525035baa95b32f74b8dc4f43) chore: dev v0.48.4 [release-bot] — *github-actions[bot], 14:23*
+- [`8453ec4`](https://github.com/WISE-Developers/project_nomad/commit/8453ec485546cc82cb621171e18135b31b7a7c44) Merge fix/480-remaining-sites into dev: #480 conversion complete — *Franco Nogarin, 08:21*
+- [`0830109`](https://github.com/WISE-Developers/project_nomad/commit/0830109960ad5fb3b2fed0f095641c92f73f4a3c) fix(#480): convert the last 35 call sites — 185/185, baseline empty — *Franco Nogarin, 08:21*
+- [`d5a33a0`](https://github.com/WISE-Developers/project_nomad/commit/d5a33a08e5ef5c58afd5e970f751a964a1a379c5) chore: dev v0.48.3 [release-bot] — *github-actions[bot], 13:20*
+- [`0a949c5`](https://github.com/WISE-Developers/project_nomad/commit/0a949c583670960f05d5c023c8740b67298d5433) Merge fix/better-auth-range-floor into dev: make vulnerable better-auth versions unreachable by the manifest, not just the lockfile — *Franco Nogarin, 07:20*
+- [`093c541`](https://github.com/WISE-Developers/project_nomad/commit/093c541aeaf574473d8e7efe4fe978ec34e72d76) fix(deps): raise the better-auth floor to ^1.7.7 so vulnerable versions are unreachable — *Franco Nogarin, 07:20*
+- [`6f7e26a`](https://github.com/WISE-Developers/project_nomad/commit/6f7e26aaab29b44a555c92fb8e2e2338a8f0f15f) chore: dev v0.48.2 [release-bot] — *github-actions[bot], 11:05*
+- [`4aae92a`](https://github.com/WISE-Developers/project_nomad/commit/4aae92a1edaba5273ab24c15b7dc1cc5dd7ebcb0) fix(#480): move the test port band below Linux's ephemeral floor — *Franco Nogarin, 05:05*
+- [`b58bf85`](https://github.com/WISE-Developers/project_nomad/commit/b58bf8550462e0968449fa460c338b1e8bb71aeb) chore: dev v0.48.1 [release-bot] — *github-actions[bot], 10:59*
+- [`aa42e92`](https://github.com/WISE-Developers/project_nomad/commit/aa42e92256114b1549662391b3070652be735418) Merge branch 'fix/480-shared-test-server' into dev — *Franco Nogarin, 04:56*
+- [`160a421`](https://github.com/WISE-Developers/project_nomad/commit/160a42109993784f9d0caaf1e05cb1981d80d98e) chore(#480): delete the reverted listen() shim — *Franco Nogarin, 04:55*
+- [`5b2fd12`](https://github.com/WISE-Developers/project_nomad/commit/5b2fd12255b22d0516a5fe7f87e0251e59cedf34) fix(#480): bind test servers OUTSIDE the ephemeral port range — the actual cause — *Franco Nogarin, 04:40*
 
 ### 2026-10-30
 
+- [`119f0d0`](https://github.com/WISE-Developers/project_nomad/commit/119f0d0dce327591b03ffe33a30022666f7d890b) fix(#480): serveKeyed + convert adhocLayers; widen the guard's counter — *Franco Nogarin, 13:31*
+- [`c656b4a`](https://github.com/WISE-Developers/project_nomad/commit/c656b4adf5d68f4fbc3fb8d48879bfc1270b1348) fix(#480): convert 10 more test files to one server per file — *Franco Nogarin, 13:10*
+- [`54be9ed`](https://github.com/WISE-Developers/project_nomad/commit/54be9edd87825c8555a8387e1b54f7918e589d98) fix(#480): shared test server helper + ratchet guard, first file converted — *Franco Nogarin, 12:51*
+- [`0c8da2c`](https://github.com/WISE-Developers/project_nomad/commit/0c8da2c053a57dffe638c5bd43d852dffa2c566c) chore: release v0.48.0 [release-bot] — *github-actions[bot], 17:30*
 - [`b52404b`](https://github.com/WISE-Developers/project_nomad/commit/b52404b0c3b9ab407682c08ef5c944744557e9c7) Merge pull request #495 from WISE-Developers/dev — *Franco Nogarin, 11:30*
 - [`6d2cb75`](https://github.com/WISE-Developers/project_nomad/commit/6d2cb75d0da75c54a534cad1dc005158a6973293) chore: dev v0.47.1 [release-bot] — *github-actions[bot], 17:25*
 - [`566657b`](https://github.com/WISE-Developers/project_nomad/commit/566657b7190035a911ac78ccfd0b2bfee9bcd626) Merge chore/491-arm-stall-watchdog into dev: catch the stall instead of guessing at it — *Franco Nogarin, 11:25*
