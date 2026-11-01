@@ -2,6 +2,7 @@
  * Tests for GET /api/v1/splash (refs #275).
  */
 
+import { serveInTest } from '../../../../test/sharedServer.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
@@ -9,12 +10,21 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import splashRouter from '../splash.js';
+import { serveOnce } from '../../../../test/sharedServer.js';
 
 function buildApp() {
   const app = express();
   app.use('/api/v1', splashRouter);
   return app;
 }
+
+/**
+ * One server for this file instead of one per request (#480). Verified safe
+ * here: nothing is read from process.env or mutable state when the app is
+ * BUILT — the router consults those per request — so a single lazily-created
+ * server behaves identically.
+ */
+const api = serveOnce(buildApp);
 
 const VALID = [
   '---',
@@ -48,7 +58,7 @@ describe('GET /api/v1/splash', () => {
     process.env.NOMAD_SPLASH_ENABLED = 'true';
     process.env.NOMAD_SPLASH_PATH = splashFile;
 
-    const res = await request(buildApp()).get('/api/v1/splash');
+    const res = await request(api()).get('/api/v1/splash');
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
@@ -63,7 +73,7 @@ describe('GET /api/v1/splash', () => {
     fs.writeFileSync(splashFile, VALID);
     process.env.NOMAD_SPLASH_PATH = splashFile;
 
-    const res = await request(buildApp()).get('/api/v1/splash');
+    const res = await request(api()).get('/api/v1/splash');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ enabled: false });
   });
@@ -73,12 +83,12 @@ describe('GET /api/v1/splash', () => {
     process.env.NOMAD_SPLASH_ENABLED = 'false';
     process.env.NOMAD_SPLASH_PATH = splashFile;
 
-    const res = await request(buildApp()).get('/api/v1/splash');
+    const res = await request(api()).get('/api/v1/splash');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ enabled: false });
 
     process.env.NOMAD_SPLASH_ENABLED = '1';
-    const res2 = await request(buildApp()).get('/api/v1/splash');
+    const res2 = await request(api()).get('/api/v1/splash');
     expect(res2.body).toEqual({ enabled: false });
   });
 
@@ -86,7 +96,7 @@ describe('GET /api/v1/splash', () => {
     process.env.NOMAD_SPLASH_ENABLED = 'true';
     process.env.NOMAD_SPLASH_PATH = path.join(tmpDir, 'nonexistent.md');
 
-    const res = await request(buildApp()).get('/api/v1/splash');
+    const res = await request(api()).get('/api/v1/splash');
     expect(res.status).toBe(200);
     expect(res.body.enabled).toBe(true);
     expect(res.body.title).toBe('Welcome to');
@@ -99,7 +109,7 @@ describe('GET /api/v1/splash', () => {
     process.env.NOMAD_SPLASH_ENABLED = 'true';
     process.env.NOMAD_SPLASH_PATH = splashFile;
 
-    const res = await request(buildApp()).get('/api/v1/splash');
+    const res = await request(api()).get('/api/v1/splash');
     expect(res.status).toBe(200);
     expect(res.body.enabled).toBe(true);
     expect(res.body.title).toBe('Welcome to');
@@ -122,13 +132,13 @@ describe('GET /api/v1/splash', () => {
     process.env.NOMAD_SPLASH_PATH = splashFile;
 
     const app = buildApp();
-    const r1 = await request(app).get('/api/v1/splash');
+    const r1 = await request(serveInTest(app)).get('/api/v1/splash');
     expect(r1.body.title).toBe('Hello Nomad');
 
     const updated = VALID.replace('Hello Nomad', 'Hello Updated');
     fs.writeFileSync(splashFile, updated);
 
-    const r2 = await request(app).get('/api/v1/splash');
+    const r2 = await request(serveInTest(app)).get('/api/v1/splash');
     expect(r2.body.title).toBe('Hello Updated');
   });
 });

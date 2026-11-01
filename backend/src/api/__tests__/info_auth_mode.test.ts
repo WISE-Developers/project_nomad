@@ -17,9 +17,17 @@ import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import healthRouter from '../routes/v1/health.js';
+import { serveOnce } from '../../test/sharedServer.js';
 
 describe('GET /api/v1/info — auth mode (#474)', () => {
   let app: express.Application;
+  /**
+   * One server for this file instead of one per request (#480). Verified safe
+   * here: nothing is read from process.env or mutable state when the app is
+   * BUILT — the router consults those per request — so a single lazily-created
+   * server behaves identically.
+   */
+  const api = serveOnce(() => app);
   const original = process.env.NOMAD_AUTH_MODE;
 
   beforeAll(() => {
@@ -36,14 +44,14 @@ describe('GET /api/v1/info — auth mode (#474)', () => {
 
   it('reports the configured auth mode', async () => {
     process.env.NOMAD_AUTH_MODE = 'oauth';
-    const response = await request(app).get('/api/v1/info');
+    const response = await request(api()).get('/api/v1/info');
     expect(response.status).toBe(200);
     expect(response.body.authMode).toBe('oauth');
   });
 
   it('reports simple when that is what is configured', async () => {
     process.env.NOMAD_AUTH_MODE = 'simple';
-    const response = await request(app).get('/api/v1/info');
+    const response = await request(api()).get('/api/v1/info');
     expect(response.body.authMode).toBe('simple');
   });
 
@@ -51,7 +59,7 @@ describe('GET /api/v1/info — auth mode (#474)', () => {
   // leaves the client inferring it from a baked constant, which is the defect.
   it('always includes the field, whatever the mode', async () => {
     delete process.env.NOMAD_AUTH_MODE;
-    const response = await request(app).get('/api/v1/info');
+    const response = await request(api()).get('/api/v1/info');
     expect(response.body).toHaveProperty('authMode');
     expect(['none', 'simple', 'oauth']).toContain(response.body.authMode);
   });

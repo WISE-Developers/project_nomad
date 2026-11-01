@@ -26,6 +26,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import { serveOnce } from '../../../../test/sharedServer.js';
 
 const { default: adhocLayersRouter } = await import('../adhocLayers.js');
 const { errorHandler } = await import('../../../middleware/errorHandler.js');
@@ -41,6 +42,14 @@ function buildApp(asUser = 'dylan') {
   app.use(errorHandler);
   return app;
 }
+
+/**
+ * One server for this file instead of one per request (#480). Verified safe
+ * here: nothing is read from process.env or mutable state when the app is
+ * BUILT — the router consults those per request — so a single lazily-created
+ * server behaves identically.
+ */
+const api = serveOnce(buildApp);
 
 const SERVICE_URL = 'https://openmaps.gov.bc.ca/geo/pub/wms';
 
@@ -111,7 +120,7 @@ describe('GET /adhoc-layers/capabilities', () => {
     it('returns the published layers so the user can choose one', async () => {
       stubFetch(() => textResponse(CAPABILITIES_130));
 
-      const res = await request(buildApp())
+      const res = await request(api())
         .get('/api/v1/adhoc-layers/capabilities')
         .query({ url: SERVICE_URL })
         .expect(200);
@@ -130,7 +139,7 @@ describe('GET /adhoc-layers/capabilities', () => {
       // GetCapabilities and fails against those that do not.
       const spy = stubFetch(() => textResponse(CAPABILITIES_130));
 
-      await request(buildApp())
+      await request(api())
         .get('/api/v1/adhoc-layers/capabilities')
         .query({ url: SERVICE_URL })
         .expect(200);
@@ -146,7 +155,7 @@ describe('GET /adhoc-layers/capabilities', () => {
     it('refuses a link-local address without making a request at all', async () => {
       const spy = stubFetch(() => textResponse(CAPABILITIES_130));
 
-      const res = await request(buildApp())
+      const res = await request(api())
         .get('/api/v1/adhoc-layers/capabilities')
         .query({ url: 'http://169.254.169.254/latest/meta-data/' });
 
@@ -163,7 +172,7 @@ describe('GET /adhoc-layers/capabilities', () => {
         throw new Error('ECONNREFUSED');
       });
 
-      const res = await request(buildApp())
+      const res = await request(api())
         .get('/api/v1/adhoc-layers/capabilities')
         .query({ url: SERVICE_URL });
 
@@ -175,7 +184,7 @@ describe('GET /adhoc-layers/capabilities', () => {
     it('refuses on an HTTP error status, naming the status', async () => {
       stubFetch(() => textResponse('Gone', { status: 404, contentType: 'text/plain' }));
 
-      const res = await request(buildApp())
+      const res = await request(api())
         .get('/api/v1/adhoc-layers/capabilities')
         .query({ url: SERVICE_URL });
 
@@ -187,7 +196,7 @@ describe('GET /adhoc-layers/capabilities', () => {
     it('refuses a catalogue that is readable and genuinely empty — with a DIFFERENT reason', async () => {
       stubFetch(() => textResponse(CAPABILITIES_EMPTY));
 
-      const res = await request(buildApp())
+      const res = await request(api())
         .get('/api/v1/adhoc-layers/capabilities')
         .query({ url: SERVICE_URL });
 
@@ -204,13 +213,13 @@ describe('GET /adhoc-layers/capabilities', () => {
       stubFetch(() => {
         throw new Error('ECONNREFUSED');
       });
-      const unreachable = await request(buildApp())
+      const unreachable = await request(api())
         .get('/api/v1/adhoc-layers/capabilities')
         .query({ url: SERVICE_URL });
 
       vi.unstubAllGlobals();
       stubFetch(() => textResponse(CAPABILITIES_EMPTY));
-      const empty = await request(buildApp())
+      const empty = await request(api())
         .get('/api/v1/adhoc-layers/capabilities')
         .query({ url: SERVICE_URL });
 
@@ -223,7 +232,7 @@ describe('GET /adhoc-layers/capabilities', () => {
     it('refuses an HTML login page BY NAME, not as a parse failure', async () => {
       stubFetch(() => textResponse(LOGIN_PAGE, { contentType: 'text/html' }));
 
-      const res = await request(buildApp())
+      const res = await request(api())
         .get('/api/v1/adhoc-layers/capabilities')
         .query({ url: SERVICE_URL });
 
@@ -236,7 +245,7 @@ describe('GET /adhoc-layers/capabilities', () => {
       // only part of the message that was specific.
       stubFetch(() => textResponse(SERVICE_EXCEPTION));
 
-      const res = await request(buildApp())
+      const res = await request(api())
         .get('/api/v1/adhoc-layers/capabilities')
         .query({ url: SERVICE_URL });
 
@@ -247,7 +256,7 @@ describe('GET /adhoc-layers/capabilities', () => {
 
   describe('the request itself', () => {
     it('requires a url', async () => {
-      const res = await request(buildApp()).get('/api/v1/adhoc-layers/capabilities');
+      const res = await request(api()).get('/api/v1/adhoc-layers/capabilities');
 
       expect(res.status).toBe(400);
       expect(JSON.stringify(res.body)).toMatch(/url/i);

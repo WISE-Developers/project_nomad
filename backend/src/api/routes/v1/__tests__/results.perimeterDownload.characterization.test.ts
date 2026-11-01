@@ -61,6 +61,7 @@ vi.mock('fs/promises', () => ({
 
 import resultsRouter from '../results.js';
 import { errorHandler } from '../../../middleware/errorHandler.js';
+import { serveOnce } from '../../../../test/sharedServer.js';
 
 function buildApp() {
   const app = express();
@@ -68,6 +69,13 @@ function buildApp() {
   app.use(errorHandler);
   return app;
 }
+/**
+ * One server for this file instead of one per request (#480). `buildApp` is
+ * invariant here — express, the router, the error handler, nothing read at
+ * build time — and the beforeEach blocks only reset mocks, which the router
+ * consults per request. So a single server serves every case.
+ */
+const api = serveOnce(buildApp);
 
 beforeEach(() => {
   getResultById.mockReset();
@@ -87,7 +95,7 @@ describe('/results/:id/download — synthetic perimeter (#292)', () => {
     const geojson = JSON.stringify({ type: 'FeatureCollection', features: [] });
     getPerimeterGeoJSON.mockResolvedValue(geojson);
 
-    const res = await request(buildApp()).get(`/api/v1/results/${PERIMETER_ID}/download`);
+    const res = await request(api()).get(`/api/v1/results/${PERIMETER_ID}/download`);
 
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toContain('geo+json');
@@ -102,7 +110,7 @@ describe('/results/:id/download — synthetic arrival-time raster (#292)', () =>
   it('downloads the arrival-time GeoTIFF for an arrival-time result', async () => {
     getArrivalRasterPath.mockResolvedValue('/sims/model-abc/arrival_day172.tif');
 
-    const res = await request(buildApp()).get(`/api/v1/results/${ARRIVAL_ID}/download`);
+    const res = await request(api()).get(`/api/v1/results/${ARRIVAL_ID}/download`);
 
     // Today this is 404 ("Result not found: arrival-time-model-abc") — the bug.
     expect(res.status).toBe(200);
@@ -114,7 +122,7 @@ describe('/results/:id/download — synthetic arrival-time raster (#292)', () =>
 
 describe('/results/:id/download — genuinely missing result', () => {
   it('still returns 404 for a non-synthetic, missing result', async () => {
-    const res = await request(buildApp()).get('/api/v1/results/res-missing/download');
+    const res = await request(api()).get('/api/v1/results/res-missing/download');
     expect(res.status).toBe(404);
     expect(res.body.error).toBeDefined();
   });

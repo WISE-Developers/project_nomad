@@ -7,6 +7,7 @@ import express from 'express';
 import request from 'supertest';
 import perimetersImportRouter from '../perimetersImport.js';
 import { errorHandler } from '../../../middleware/errorHandler.js';
+import { serveOnce } from '../../../../test/sharedServer.js';
 
 const VALID_GEOJSON = JSON.stringify({
   type: 'FeatureCollection',
@@ -32,6 +33,12 @@ const VALID_GEOJSON = JSON.stringify({
 
 describe('POST /api/v1/perimeters/import — GeoJSON', () => {
   let app: express.Application;
+    /**
+     * One server for this block instead of one per request (#480). `app` is
+     * built once in beforeAll above and never reconfigured, and serveOnce is
+     * lazy, so the listen happens on the first request — after beforeAll.
+     */
+  const api = serveOnce(() => app);
 
   beforeAll(() => {
     app = express();
@@ -40,7 +47,7 @@ describe('POST /api/v1/perimeters/import — GeoJSON', () => {
   });
 
   it('returns 201 + normalized FeatureCollection for a valid GeoJSON upload', async () => {
-    const res = await request(app)
+    const res = await request(api())
       .post('/api/v1/perimeters/import')
       .attach('file', Buffer.from(VALID_GEOJSON), 'ignition.geojson');
 
@@ -53,7 +60,7 @@ describe('POST /api/v1/perimeters/import — GeoJSON', () => {
   });
 
   it('returns 400 + structured fieldErrors for malformed GeoJSON', async () => {
-    const res = await request(app)
+    const res = await request(api())
       .post('/api/v1/perimeters/import')
       .attach('file', Buffer.from('not json {'), 'ignition.geojson');
 
@@ -63,7 +70,7 @@ describe('POST /api/v1/perimeters/import — GeoJSON', () => {
   });
 
   it('returns 400 for an unsupported file extension', async () => {
-    const res = await request(app)
+    const res = await request(api())
       .post('/api/v1/perimeters/import')
       .attach('file', Buffer.from(VALID_GEOJSON), 'ignition.xyz');
 
@@ -72,7 +79,7 @@ describe('POST /api/v1/perimeters/import — GeoJSON', () => {
   });
 
   it('returns 400 when no file is uploaded', async () => {
-    const res = await request(app).post('/api/v1/perimeters/import');
+    const res = await request(api()).post('/api/v1/perimeters/import');
     expect(res.status).toBe(400);
   });
 });
@@ -96,6 +103,12 @@ const VALID_KML = `<?xml version="1.0" encoding="UTF-8"?>
 
 describe('POST /api/v1/perimeters/import — KML', () => {
   let app: express.Application;
+    /**
+     * One server for this block instead of one per request (#480). `app` is
+     * built once in beforeAll above and never reconfigured, and serveOnce is
+     * lazy, so the listen happens on the first request — after beforeAll.
+     */
+  const api = serveOnce(() => app);
 
   beforeAll(() => {
     app = express();
@@ -104,7 +117,7 @@ describe('POST /api/v1/perimeters/import — KML', () => {
   });
 
   it('returns 201 + normalized FeatureCollection for a valid KML upload', async () => {
-    const res = await request(app)
+    const res = await request(api())
       .post('/api/v1/perimeters/import')
       .attach('file', Buffer.from(VALID_KML), 'ignition.kml');
 
@@ -117,7 +130,7 @@ describe('POST /api/v1/perimeters/import — KML', () => {
   });
 
   it('returns 400 + structured fieldErrors for malformed KML', async () => {
-    const res = await request(app)
+    const res = await request(api())
       .post('/api/v1/perimeters/import')
       .attach('file', Buffer.from('<<not xml>>'), 'ignition.kml');
 
@@ -128,6 +141,12 @@ describe('POST /api/v1/perimeters/import — KML', () => {
 
 describe('POST /api/v1/perimeters/import — Shapefile (#269)', () => {
   let app: express.Application;
+    /**
+     * One server for this block instead of one per request (#480). `app` is
+     * built once in beforeAll above and never reconfigured, and serveOnce is
+     * lazy, so the listen happens on the first request — after beforeAll.
+     */
+  const api = serveOnce(() => app);
 
   beforeAll(() => {
     app = express();
@@ -141,7 +160,7 @@ describe('POST /api/v1/perimeters/import — Shapefile (#269)', () => {
     );
     const zipBuf = buildShapefileZip();
 
-    const res = await request(app)
+    const res = await request(api())
       .post('/api/v1/perimeters/import')
       .attach('file', zipBuf, 'perimeter.zip');
 
@@ -161,7 +180,7 @@ describe('POST /api/v1/perimeters/import — Shapefile (#269)', () => {
     delete files['fixture.prj'];
     const zipBuf = zipShapefileFiles(files);
 
-    const res = await request(app)
+    const res = await request(api())
       .post('/api/v1/perimeters/import')
       .attach('file', zipBuf, 'perimeter.zip');
 

@@ -48,9 +48,16 @@ vi.mock('../../infrastructure/database/repositories/KnexSettingsRepository.js', 
 });
 
 import settingsRouter from '../routes/v1/settings.js';
+import { serveOnce } from '../../test/sharedServer.js';
 
 describe('Settings API', () => {
   let app: express.Application;
+    /**
+     * One server for this block instead of one per request (#480). `app` is
+     * built once in beforeAll above and never reconfigured, and serveOnce is
+     * lazy, so the listen happens on the first request — after beforeAll.
+     */
+  const api = serveOnce(() => app);
 
   beforeAll(() => {
     app = express();
@@ -65,16 +72,16 @@ describe('Settings API', () => {
 
   describe('GET /api/v1/settings/:key', () => {
     it('returns 404 for unknown key', async () => {
-      const response = await request(app).get('/api/v1/settings/UNKNOWN_KEY_XYZ');
+      const response = await request(api()).get('/api/v1/settings/UNKNOWN_KEY_XYZ');
       expect(response.status).toBe(404);
     });
 
     it('returns stored value after PUT', async () => {
-      await request(app)
+      await request(api())
         .put('/api/v1/settings/MY_TEST_KEY')
         .send({ value: 'hello-world' });
 
-      const response = await request(app).get('/api/v1/settings/MY_TEST_KEY');
+      const response = await request(api()).get('/api/v1/settings/MY_TEST_KEY');
       expect(response.status).toBe(200);
       expect(response.body.key).toBe('MY_TEST_KEY');
       expect(response.body.value).toBe('hello-world');
@@ -83,7 +90,7 @@ describe('Settings API', () => {
     it('env var provides default when no UI setting', async () => {
       process.env['TEST_SETTINGS_KEY'] = 'env-default-value';
 
-      const response = await request(app).get('/api/v1/settings/TEST_SETTINGS_KEY');
+      const response = await request(api()).get('/api/v1/settings/TEST_SETTINGS_KEY');
       expect(response.status).toBe(200);
       expect(response.body.value).toBe('env-default-value');
       expect(response.body.source).toBe('env');
@@ -92,11 +99,11 @@ describe('Settings API', () => {
     it('UI setting overrides env var', async () => {
       process.env['TEST_SETTINGS_KEY'] = 'env-default-value';
 
-      await request(app)
+      await request(api())
         .put('/api/v1/settings/TEST_SETTINGS_KEY')
         .send({ value: 'ui-override-value' });
 
-      const response = await request(app).get('/api/v1/settings/TEST_SETTINGS_KEY');
+      const response = await request(api()).get('/api/v1/settings/TEST_SETTINGS_KEY');
       expect(response.status).toBe(200);
       expect(response.body.value).toBe('ui-override-value');
       expect(response.body.source).toBe('db');
@@ -105,7 +112,7 @@ describe('Settings API', () => {
 
   describe('PUT /api/v1/settings/:key', () => {
     it('sets a value and returns 200', async () => {
-      const response = await request(app)
+      const response = await request(api())
         .put('/api/v1/settings/CFS_FIRESTARR_AUTHKEY')
         .send({ value: 'test-key-123' });
 
@@ -114,7 +121,7 @@ describe('Settings API', () => {
     });
 
     it('returns 400 when value is missing', async () => {
-      const response = await request(app)
+      const response = await request(api())
         .put('/api/v1/settings/CFS_FIRESTARR_AUTHKEY')
         .send({});
 
@@ -124,11 +131,11 @@ describe('Settings API', () => {
 
   describe('DELETE /api/v1/settings/:key', () => {
     it('removes UI override and returns 200', async () => {
-      await request(app)
+      await request(api())
         .put('/api/v1/settings/DELETE_TEST_KEY')
         .send({ value: 'to-be-deleted' });
 
-      const deleteResponse = await request(app).delete('/api/v1/settings/DELETE_TEST_KEY');
+      const deleteResponse = await request(api()).delete('/api/v1/settings/DELETE_TEST_KEY');
       expect(deleteResponse.status).toBe(200);
     });
   });

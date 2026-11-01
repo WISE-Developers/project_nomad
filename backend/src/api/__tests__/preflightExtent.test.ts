@@ -23,6 +23,7 @@ import express from 'express';
 import request from 'supertest';
 import preflightRouter from '../routes/v1/preflight.js';
 import { errorHandler } from '../middleware/errorHandler.js';
+import { serveOnce } from '../../test/sharedServer.js';
 
 const ZONE = 'America/Edmonton';
 const M_PER_DEGREE_LAT = 111_320;
@@ -34,6 +35,16 @@ function buildApp() {
   app.use(errorHandler);
   return app;
 }
+
+/**
+ * One server for the whole file rather than one per request (#480).
+ *
+ * `buildApp` here is invariant — same router, same middleware, no per-test
+ * configuration — so a single server serves every case. Handing supertest the
+ * app instead would make it call `listen(0)` on every request, and those port
+ * pairs are what collide with other processes' loopback connections.
+ */
+const api = serveOnce(buildApp);
 
 /** A square ignition polygon of a given north-south span, at a Canadian latitude. */
 function squareIgnition(spanM: number, lat = 55) {
@@ -68,14 +79,14 @@ describe('POST /models/preflight — extent warning (#432)', () => {
       // Backwards compatibility is the control here. An existing caller that
       // sends no geometry must keep working — if this 400s, every assertion
       // below is about an endpoint nobody can call.
-      const res = await request(buildApp()).post('/api/v1/models/preflight').send(body());
+      const res = await request(api()).post('/api/v1/models/preflight').send(body());
       expect(res.status).toBe(200);
     });
   });
 
   describe('a fire inside the warning band', () => {
     it('reports no extent warning for an ordinary fire', async () => {
-      const res = await request(buildApp())
+      const res = await request(api())
         .post('/api/v1/models/preflight')
         .send(body({ ignition: squareIgnition(50_000) }));
 
@@ -86,7 +97,7 @@ describe('POST /models/preflight — extent warning (#432)', () => {
     });
 
     it('reports no warning at 115 km, the largest span we have measured', async () => {
-      const res = await request(buildApp())
+      const res = await request(api())
         .post('/api/v1/models/preflight')
         .send(body({ ignition: squareIgnition(115_000) }));
 
@@ -96,7 +107,7 @@ describe('POST /models/preflight — extent warning (#432)', () => {
 
   describe('a fire in the warning band', () => {
     it('returns the warning before any job exists', async () => {
-      const res = await request(buildApp())
+      const res = await request(api())
         .post('/api/v1/models/preflight')
         .send(body({ ignition: squareIgnition(200_000) }));
 
@@ -108,7 +119,7 @@ describe('POST /models/preflight — extent warning (#432)', () => {
 
     it('does not block: the warning is advisory and the status stays 200', async () => {
       // The distinction from the weather error. A 200 km fire is legal.
-      const res = await request(buildApp())
+      const res = await request(api())
         .post('/api/v1/models/preflight')
         .send(body({ ignition: squareIgnition(200_000) }));
 
@@ -118,7 +129,7 @@ describe('POST /models/preflight — extent warning (#432)', () => {
 
   describe('a fire over the hard limit', () => {
     it('says the run cannot proceed, distinctly from the advisory warning', async () => {
-      const res = await request(buildApp())
+      const res = await request(api())
         .post('/api/v1/models/preflight')
         .send(body({ ignition: squareIgnition(500_000) }));
 
@@ -144,7 +155,7 @@ describe('POST /models/preflight — extent warning (#432)', () => {
       // was sent and is fine" must not render identically — a wizard that read
       // the second from the first would show a green check for a check that
       // never ran.
-      const res = await request(buildApp()).post('/api/v1/models/preflight').send(body());
+      const res = await request(api()).post('/api/v1/models/preflight').send(body());
 
       expect(res.body.extent).toBeDefined();
       expect(res.body.extent.measured).toBe(false);
@@ -154,7 +165,7 @@ describe('POST /models/preflight — extent warning (#432)', () => {
 
     it('reports measured:true when a geometry WAS measured', async () => {
       // The other direction. Without this, `measured:false` everywhere passes.
-      const res = await request(buildApp())
+      const res = await request(api())
         .post('/api/v1/models/preflight')
         .send(body({ ignition: squareIgnition(50_000) }));
 
@@ -174,7 +185,7 @@ describe('POST /models/preflight — multi-ignition extent (#294 lesson)', () =>
     // cover both. Taking features[0] would report a clean 0 km span — the
     // unsafe direction, because the engine crops in silence.
     const dLon = 250_000 / (M * Math.cos((55 * Math.PI) / 180));
-    const res = await request(buildApp())
+    const res = await request(api())
       .post('/api/v1/models/preflight')
       .send(
         body({
@@ -189,7 +200,7 @@ describe('POST /models/preflight — multi-ignition extent (#294 lesson)', () =>
 
   it('is the control: two NEARBY ignitions stay silent', async () => {
     // Without this, an implementation that always warns on an array passes.
-    const res = await request(buildApp())
+    const res = await request(api())
       .post('/api/v1/models/preflight')
       .send(body({ ignitions: [pointAt(-114, 55), pointAt(-113.9, 55.1)] }));
 

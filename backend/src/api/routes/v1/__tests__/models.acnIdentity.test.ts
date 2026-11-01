@@ -25,6 +25,7 @@
  * (warn, or reject) is a product decision and is deliberately NOT pinned here.
  */
 
+import { serveInTest } from '../../../../test/sharedServer.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
@@ -108,7 +109,7 @@ describe('#488 — ACN identity on POST /models', () => {
     process.env.NOMAD_DEPLOYMENT_MODE = 'ACN';
     const app = await buildApp();
 
-    const res = await request(app)
+    const res = await request(serveInTest(app))
       .post('/api/v1/models')
       .set(ACN_HEADERS)
       .send({ name: 'identity probe', engineType: 'firestarr' });
@@ -130,7 +131,7 @@ describe('#488 — ACN identity on POST /models', () => {
     delete process.env.NOMAD_DEPLOYMENT_MODE;
     const app = await buildApp();
 
-    const res = await request(app)
+    const res = await request(serveInTest(app))
       .post('/api/v1/models')
       .set(ACN_HEADERS)
       .send({ name: 'identity probe', engineType: 'firestarr' });
@@ -186,7 +187,7 @@ describe('#488 — simple-mode identity on POST /models', () => {
   it('persists the X-Nomad-User value as the author', async () => {
     const app = await buildSimpleApp();
 
-    const res = await request(app)
+    const res = await request(serveInTest(app))
       .post('/api/v1/models')
       .set('x-nomad-user', 'fire-analyst-7')
       .send({ name: 'simple mode create', engineType: 'firestarr' });
@@ -203,7 +204,7 @@ describe('#488 — simple-mode identity on POST /models', () => {
   it('records null when no identity header is sent — the pre-fix shape', async () => {
     const app = await buildSimpleApp();
 
-    const res = await request(app)
+    const res = await request(serveInTest(app))
       .post('/api/v1/models')
       .send({ name: 'no identity', engineType: 'firestarr' });
 

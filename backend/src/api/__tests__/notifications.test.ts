@@ -12,11 +12,19 @@ import { up } from '../../infrastructure/database/migrations/005_create_notifica
 import { KnexNotificationPreferencesRepository } from '../../infrastructure/database/knex/KnexNotificationPreferencesRepository.js';
 import { DEFAULT_EVENT_TYPES } from '../../infrastructure/database/migrations/005_create_notification_preferences.js';
 import notificationsRouter from '../routes/v1/notifications.js';
+import { serveOnce } from '../../test/sharedServer.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
 let db: Knex;
 let app: express.Application;
+  /**
+   * One server for this file instead of one per request (#480). Verified safe
+   * here: nothing is read from process.env or mutable state when the app is
+   * BUILT — the router consults those per request — so a single lazily-created
+   * server behaves identically.
+   */
+const api = serveOnce(() => app);
 
 async function createInMemoryDb(): Promise<Knex> {
   const database = knex({
@@ -50,7 +58,7 @@ describe('Notification Preferences API', () => {
 
   describe('GET /api/v1/notifications/preferences', () => {
     it('returns 200 with all default event types for an unknown user', async () => {
-      const response = await request(app)
+      const response = await request(api())
         .get('/api/v1/notifications/preferences')
         .set('X-Nomad-User', userId);
 
@@ -61,7 +69,7 @@ describe('Notification Preferences API', () => {
     });
 
     it('returns all four default event types', async () => {
-      const response = await request(app)
+      const response = await request(api())
         .get('/api/v1/notifications/preferences')
         .set('X-Nomad-User', 'user-event-types');
 
@@ -75,7 +83,7 @@ describe('Notification Preferences API', () => {
     });
 
     it('returns toast_enabled=true and browser_enabled=false by default', async () => {
-      const response = await request(app)
+      const response = await request(api())
         .get('/api/v1/notifications/preferences')
         .set('X-Nomad-User', 'user-default-vals');
 
@@ -86,7 +94,7 @@ describe('Notification Preferences API', () => {
     });
 
     it('uses anonymous user when no X-Nomad-User header is set', async () => {
-      const response = await request(app).get('/api/v1/notifications/preferences');
+      const response = await request(api()).get('/api/v1/notifications/preferences');
       expect(response.status).toBe(200);
       expect(response.body.preferences).toBeDefined();
     });
@@ -101,7 +109,7 @@ describe('Notification Preferences API', () => {
         ],
       };
 
-      const putResponse = await request(app)
+      const putResponse = await request(api())
         .put('/api/v1/notifications/preferences')
         .set('X-Nomad-User', 'user-put')
         .send(body);
@@ -110,7 +118,7 @@ describe('Notification Preferences API', () => {
       expect(putResponse.body.preferences).toBeDefined();
 
       // Verify GET reflects the saved values
-      const getResponse = await request(app)
+      const getResponse = await request(api())
         .get('/api/v1/notifications/preferences')
         .set('X-Nomad-User', 'user-put');
 
@@ -123,7 +131,7 @@ describe('Notification Preferences API', () => {
     });
 
     it('returns 400 when preferences array is missing', async () => {
-      const response = await request(app)
+      const response = await request(api())
         .put('/api/v1/notifications/preferences')
         .set('X-Nomad-User', 'user-bad')
         .send({});
@@ -132,7 +140,7 @@ describe('Notification Preferences API', () => {
     });
 
     it('returns 400 when preferences is not an array', async () => {
-      const response = await request(app)
+      const response = await request(api())
         .put('/api/v1/notifications/preferences')
         .set('X-Nomad-User', 'user-bad2')
         .send({ preferences: 'bad' });
@@ -141,7 +149,7 @@ describe('Notification Preferences API', () => {
     });
 
     it('returns 400 for invalid event type', async () => {
-      const response = await request(app)
+      const response = await request(api())
         .put('/api/v1/notifications/preferences')
         .set('X-Nomad-User', 'user-bad3')
         .send({
@@ -154,7 +162,7 @@ describe('Notification Preferences API', () => {
     });
 
     it('returns 200 for empty preferences array (no-op)', async () => {
-      const response = await request(app)
+      const response = await request(api())
         .put('/api/v1/notifications/preferences')
         .set('X-Nomad-User', 'user-empty')
         .send({ preferences: [] });

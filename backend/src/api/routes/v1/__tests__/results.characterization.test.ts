@@ -54,6 +54,7 @@ vi.mock('../../../../infrastructure/firestarr/FireSTARRInputGenerator.js', () =>
 
 import resultsRouter from '../results.js';
 import { errorHandler } from '../../../middleware/errorHandler.js';
+import { serveOnce } from '../../../../test/sharedServer.js';
 
 function buildApp() {
   const app = express();
@@ -61,6 +62,13 @@ function buildApp() {
   app.use(errorHandler);
   return app;
 }
+/**
+ * One server for this file instead of one per request (#480). `buildApp` is
+ * invariant here — express, the router, the error handler, nothing read at
+ * build time — and the beforeEach blocks only reset mocks, which the router
+ * consults per request. So a single server serves every case.
+ */
+const api = serveOnce(buildApp);
 
 const ROUTES = [
   { name: 'preview', path: '/api/v1/results/res-missing/preview' },
@@ -82,13 +90,13 @@ describe('/results routes — engine-wiring characterization', () => {
 
   for (const route of ROUTES) {
     it(`GET ${route.name}: returns 404 when the result does not exist`, async () => {
-      const res = await request(buildApp()).get(route.path);
+      const res = await request(api()).get(route.path);
       expect(res.status).toBe(404);
       expect(res.body.error).toBeDefined();
     });
 
     it(`GET ${route.name}: wires an engine into the results service`, async () => {
-      await request(buildApp()).get(route.path);
+      await request(api()).get(route.path);
       // Route obtained an engine and passed it to getModelResultsService.
       // Refactor-robust: asserts an engine is supplied, not which factory.
       expect(getModelResultsService).toHaveBeenCalledTimes(1);

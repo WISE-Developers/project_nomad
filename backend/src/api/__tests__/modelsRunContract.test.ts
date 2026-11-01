@@ -14,6 +14,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import modelsRouter from '../routes/v1/models.js';
+import { serveOnce } from '../../test/sharedServer.js';
 
 const ZONE = 'America/Edmonton';
 const HEADER = 'Scenario,Date,PREC,TEMP,RH,WS,WD,FFMC,DMC,DC,ISI,BUI,FWI';
@@ -48,6 +49,12 @@ function body(overrides: Record<string, unknown> = {}) {
 
 describe('POST /models/run — FireSTARR weather contract', () => {
   let app: express.Application;
+    /**
+     * One server for this block instead of one per request (#480). `app` is
+     * built once in beforeAll above and never reconfigured, and serveOnce is
+     * lazy, so the listen happens on the first request — after beforeAll.
+     */
+  const api = serveOnce(() => app);
 
   beforeAll(() => {
     app = express();
@@ -66,7 +73,7 @@ describe('POST /models/run — FireSTARR weather contract', () => {
   });
 
   it("rejects Danny's shape — a first day beginning after noon", async () => {
-    const res = await request(app)
+    const res = await request(api())
       .post('/api/v1/models/run')
       .send(
         body({
@@ -84,7 +91,7 @@ describe('POST /models/run — FireSTARR weather contract', () => {
   });
 
   it('says how to fix it rather than only that it failed', async () => {
-    const res = await request(app)
+    const res = await request(api())
       .post('/api/v1/models/run')
       .send(
         body({
@@ -102,7 +109,7 @@ describe('POST /models/run — FireSTARR weather contract', () => {
 
   it('rejects an ignition before the first noon record (#341)', async () => {
     // 09:00 local, with the first CFFDRS at noon that day.
-    const res = await request(app)
+    const res = await request(api())
       .post('/api/v1/models/run')
       .send(body({ timeRange: { start: '2026-08-04T15:00:00.000Z', end: '2026-08-05T18:00:00.000Z' } }));
 
@@ -111,7 +118,7 @@ describe('POST /models/run — FireSTARR weather contract', () => {
   });
 
   it('rejects an ignition after the weather ends', async () => {
-    const res = await request(app)
+    const res = await request(api())
       .post('/api/v1/models/run')
       .send(body({ timeRange: { start: '2026-08-09T18:00:00.000Z', end: '2026-08-10T18:00:00.000Z' } }));
 
@@ -122,14 +129,14 @@ describe('POST /models/run — FireSTARR weather contract', () => {
   it('lets conforming weather THROUGH — the check must not reject everything', async () => {
     // Every other test here asserts a rejection, so all of them would still
     // pass if the check refused every request. This is the one that would not.
-    const res = await request(app).post('/api/v1/models/run').send(body());
+    const res = await request(api()).post('/api/v1/models/run').send(body());
 
     expect(res.status).not.toBe(400);
     expect(JSON.stringify(res.body)).not.toMatch(/noon|ignition is before/i);
   });
 
   it('reports an unreadable CSV as a client error naming the parser reason', async () => {
-    const res = await request(app)
+    const res = await request(api())
       .post('/api/v1/models/run')
       .send(body({ weather: { source: 'firestarr_csv', firestarrCsvContent: 'not,a,weather,file\n1,2,3,4' } }));
 

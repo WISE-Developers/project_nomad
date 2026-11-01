@@ -1,6 +1,6 @@
 {
   "name": "@nomad/frontend",
-  "version": "0.48.0",
+  "version": "0.48.4",
   "description": "Project Nomad - Fire Modeling GUI",
   "private": false,
   "type": "module",
@@ -33,7 +33,7 @@
   "dependencies": {
     "@sentry/react": "^10.68.0",
     "@turf/turf": "^7.3.1",
-    "better-auth": "^1.7.5",
+    "better-auth": "^1.7.7",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.0",
     "jszip": "^3.10.1",
