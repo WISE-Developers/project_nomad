@@ -30,11 +30,20 @@ import { dirname, join, parse } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * Highest version covered by GHSA-cq3f-vc6p-68fh and GHSA-2vg6-77g8-24mp.
- * Raise this only when a NEW advisory raises the ceiling -- never to turn a
- * red test green.
+ * Highest version covered by any published better-auth advisory. Three cap at
+ * 1.7.7: GHSA-965c-763c-88jm / CVE-2026-114607 (CRITICAL, an OAuth state token
+ * usable as a Magic Link to sign in as another user), GHSA-r4xp-prcw-77qf
+ * (HIGH, OAuth Proxy sign-in as another user) and GHSA-44jh-23m7-hpcf (LOW).
+ *
+ * The previous value of 1.6.21 was set by GHSA-cq3f-vc6p-68fh and
+ * GHSA-2vg6-77g8-24mp and went stale, so this test stayed green through the
+ * CRITICAL -- the failure mode a currency test exists to prevent, happening to
+ * the currency test itself. Audit it against the GitHub advisory API by taking
+ * the highest `first_patched_version` over ALL advisories for the package.
+ * Raise it only when a new advisory raises the ceiling -- never to turn a red
+ * test green.
  */
-const VULNERABLE_AT_OR_BELOW = '1.6.21';
+const VULNERABLE_AT_OR_BELOW = '1.7.6';
 
 /**
  * Read the manifest off disk. better-auth's `exports` map does not expose
