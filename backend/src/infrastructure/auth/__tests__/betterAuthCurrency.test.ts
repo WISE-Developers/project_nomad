@@ -2,13 +2,22 @@
  * better-auth advisory-floor check (refs #375).
  *
  * better-auth is declared as a *runtime* dependency in both
- * `backend/package.json` and `frontend/package.json`. Two advisories apply
- * to every version at or below 1.6.21:
+ * `backend/package.json` and `frontend/package.json`. Three advisories apply
+ * to every version at or below 1.7.6, all first patched in 1.7.7:
  *
- *   GHSA-cq3f-vc6p-68fh (CVSS 7.6) -- device authorization approve and deny
- *     accept any authenticated session while the user code is pending
- *   GHSA-2vg6-77g8-24mp (CVSS 3.8) -- stale sessions persist after user
- *     deletion across admin, anonymous and SCIM flows
+ *   GHSA-965c-763c-88jm / CVE-2026-114607 (CRITICAL) -- an OAuth state token
+ *     is usable as a Magic Link, allowing sign-in as another user
+ *   GHSA-r4xp-prcw-77qf (HIGH) -- OAuth Proxy lets an attacker sign in as
+ *     another user
+ *   GHSA-44jh-23m7-hpcf (LOW)
+ *
+ * The ceiling is whichever advisory has the highest `first_patched_version`
+ * across ALL published advisories for the package -- thirty vulnerability
+ * entries as of this writing -- not whichever CVE arrived in the news. The
+ * previous ceiling of 1.6.21 came from GHSA-cq3f-vc6p-68fh and
+ * GHSA-2vg6-77g8-24mp, and it left this test GREEN for the entire life of
+ * the CRITICAL above. Audit the constant against the GitHub advisory API;
+ * do not hand-maintain it.
  *
  * Nothing in this repository can be wrong in a way this test would catch.
  * Our own auth code is unaffected by the version underneath it. What this
@@ -40,7 +49,7 @@ import { fileURLToPath } from 'node:url';
  * failure. Raise this only when a NEW advisory raises the ceiling -- never to
  * make a red test go green.
  */
-const VULNERABLE_AT_OR_BELOW = '1.6.21';
+const VULNERABLE_AT_OR_BELOW = '1.7.6';
 
 /**
  * Resolve better-auth's manifest from disk rather than through `require`.
@@ -88,7 +97,8 @@ describe('better-auth advisory floor (#375)', () => {
     expect(
       compareSemver(installed, VULNERABLE_AT_OR_BELOW),
       `better-auth ${installed} is within the vulnerable range <=${VULNERABLE_AT_OR_BELOW} ` +
-        '(GHSA-cq3f-vc6p-68fh, GHSA-2vg6-77g8-24mp). This ships to EasyMap 3 ' +
+        '(GHSA-965c-763c-88jm, GHSA-r4xp-prcw-77qf, GHSA-44jh-23m7-hpcf). ' +
+        'This ships to EasyMap 3 ' +
         'via @nomad/frontend and blocks their CRITICAL-gated scan.',
     ).toBeGreaterThan(0);
   });
