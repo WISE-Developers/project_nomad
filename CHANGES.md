@@ -4,10 +4,21 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.50.0
+## v0.51.0
 
 ### 2026-11-02
 
+- [`ff2fcb3`](https://github.com/WISE-Developers/project_nomad/commit/ff2fcb3168dab27a53f796ed0f58be5add4b5e31) Merge pull request #502 from WISE-Developers/dev — *Franco Nogarin, 06:49*
+- [`f305510`](https://github.com/WISE-Developers/project_nomad/commit/f3055101bb58ca3fa7cfc38870dbda34722ba595) chore: dev v0.50.3 [release-bot] — *github-actions[bot], 12:42*
+- [`d424183`](https://github.com/WISE-Developers/project_nomad/commit/d424183f7f43ac65c9b95f103c9b62784c4f46ea) Merge fix/499-npm-update-and-allowlist into dev — *Franco Nogarin, 06:42*
+- [`2721f2d`](https://github.com/WISE-Developers/project_nomad/commit/2721f2d839ba7fe2950846fc1654e7bafc5316a2) fix(#499): patch the shipped tree inside declared ranges, and gate it in CI — *Franco Nogarin, 06:42*
+- [`16c6d91`](https://github.com/WISE-Developers/project_nomad/commit/16c6d91c830a5c79b1c4940ac8c6e8ee64880003) chore: dev v0.50.2 [release-bot] — *github-actions[bot], 12:14*
+- [`a2dd236`](https://github.com/WISE-Developers/project_nomad/commit/a2dd236805990ce4d64faa38583f6ddc542b7192) Merge fix/499-shipped-advisories into dev — *Franco Nogarin, 06:14*
+- [`e053390`](https://github.com/WISE-Developers/project_nomad/commit/e05339083315e23ebd0aa3433d198a25f84e2c01) fix(#499): patch the shipped criticals and highs for the consumers that build the product — *Franco Nogarin, 06:14*
+- [`e64ccd8`](https://github.com/WISE-Developers/project_nomad/commit/e64ccd8083ee0c64f5e8c2dfce6db6d9f53218e6) chore: dev v0.50.1 [release-bot] — *github-actions[bot], 11:57*
+- [`6b5da2f`](https://github.com/WISE-Developers/project_nomad/commit/6b5da2f0909b857a0471269db16eddca10c4c9d2) Merge fix/498-rollback-tag-ref into dev — *Franco Nogarin, 05:57*
+- [`ce0425c`](https://github.com/WISE-Developers/project_nomad/commit/ce0425c866fd26a04838eeb073996151b67bedee) fix(#498): rollback tag must be a valid docker ref, and its failure must be loud — *Franco Nogarin, 05:57*
+- [`3685bf0`](https://github.com/WISE-Developers/project_nomad/commit/3685bf087ed3f99f0f1a266aab5adf5ecdeb85ec) chore: release v0.50.0 [release-bot] — *github-actions[bot], 11:25*
 - [`64942f7`](https://github.com/WISE-Developers/project_nomad/commit/64942f78e71352f159bd7e30548345614d30e213) Merge pull request #500 from WISE-Developers/dev — *Franco Nogarin, 04:25*
 - [`ad9c5fb`](https://github.com/WISE-Developers/project_nomad/commit/ad9c5fb2b1cb5bf1e0338217e191ef59145141a3) chore: dev v0.49.4 [release-bot] — *github-actions[bot], 11:00*
 - [`7093059`](https://github.com/WISE-Developers/project_nomad/commit/70930591e1747dff16ff25c672235ffef4eef03b) Merge docs/419-floor-collapse-shapes into dev — *Franco Nogarin, 05:00*
