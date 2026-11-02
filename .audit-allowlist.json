@@ -1,0 +1,10 @@
+{
+  "_comment": "Exceptions for scripts/audit-shipped-tree.mjs (#499). Every entry needs a reason and a review_by date; the gate rejects entries without them and stops honouring expired ones, so an exception cannot become permanent through inattention. An entry that matches nothing in the audit is reported as stale — an allowlist is a hand-maintained exception, which is the same failure mode as the hand-maintained ceilings this gate replaces.",
+  "allow": [
+    {
+      "package": "tar",
+      "reason": "CRITICAL <=7.5.20, and the copy that reaches the image is bundled inside gdal-async's published tarball: it declares bundleDependencies: [\"@mapbox/node-pre-gyp\"], so npm installs that subtree verbatim and neither `overrides` nor `npm update` can reach it (both measured). gdal-async 3.12.3 is already the latest release, so this is upstream's to fix. The hoisted copy is a separate instance and backend/Dockerfile already deletes it along with node-gyp (#379). Re-check whether gdal-async has published a release carrying a patched node-pre-gyp.",
+      "review_by": "2026-12-15"
+    }
+  ]
+}
