@@ -50,6 +50,12 @@ jobs:
     outputs:
       version: ${{ steps.newversion.outputs.version }}
       tag: ${{ steps.newversion.outputs.tag }}
+      # The bump COMMIT, not the tag (#503). publish-image used to check out
+      # the tag, which forced the tag to exist before the image was built --
+      # and that is why a failed image build could leave a tagged, released
+      # version with no artefact. The image now builds from this sha, which is
+      # the same tree the tag will point at once tag-and-release creates it.
+      sha: ${{ steps.bumpcommit.outputs.sha }}
 
     steps:
       - name: Checkout with full history
@@ -113,43 +119,11 @@ jobs:
           git commit -m "chore: release v${{ steps.newversion.outputs.version }} [release-bot]"
           git push
 
-      - name: Create git tag
+      - name: Record the bump commit
+        id: bumpcommit
         run: |
-          git tag "v${{ steps.newversion.outputs.version }}"
-          git push origin "v${{ steps.newversion.outputs.version }}"
-
-      - name: Install dependencies
-        run: npm ci
-        working-directory: frontend
-
-      - name: Build library and pack tarball
-        run: npm run build:lib && npm pack
-        working-directory: frontend
-
-      - name: Generate SBOM
-        # Software bill of materials for the release (#398). Derived from
-        # package-lock.json at THIS commit by `npm sbom`, so it describes the
-        # tree that was actually tagged — GitHub's dependency-graph export
-        # describes whatever it last indexed, which is not the same thing.
-        #
-        # The version is passed in because `npm sbom` names the document after
-        # the ROOT package.json. Since #442 that file IS bumped, so this is now
-        # belt-and-braces rather than load-bearing — but it stays: the document
-        # must name the release even if the two ever diverge again.
-        run: |
-          chmod +x .github/scripts/generate-sbom.sh
-          .github/scripts/generate-sbom.sh "${{ steps.newversion.outputs.version }}" "nomad-sbom-${{ steps.newversion.outputs.version }}.spdx.json"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ steps.newversion.outputs.tag }}
-          name: "v${{ steps.newversion.outputs.version }}"
-          prerelease: false
-          generate_release_notes: true
-          files: |
-            frontend/nomad-frontend-*.tgz
-            nomad-sbom-*.spdx.json
+          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          echo "Bump commit: $(git rev-parse HEAD)"
 
       - name: Sync released version back to dev
         run: |
@@ -192,14 +166,20 @@ jobs:
       packages: write
 
     steps:
-      # The TAG, not the triggering SHA: this workflow's own release job commits
-      # the version bump, so the push SHA that started the run predates the
-      # thing being released. Checking out the tag publishes the source that was
-      # actually tagged.
-      - name: Checkout the released tag
+      # The BUMP COMMIT, not the triggering SHA and not the tag. This workflow's
+      # own release job commits the version bump, so the push SHA that started
+      # the run predates the thing being released.
+      #
+      # It used to check out the tag, which meant the tag had to be created
+      # BEFORE this job -- and that ordering is precisely what produced
+      # v0.51.0: tagged and released, image build failed, nothing deployable
+      # (#503). The sha is the same tree the tag will point at, so nothing is
+      # lost by not depending on it, and the tag can now be created only after
+      # this job succeeds.
+      - name: Checkout the bump commit
         uses: actions/checkout@v5
         with:
-          ref: ${{ needs.stable-release.outputs.tag }}
+          ref: ${{ needs.stable-release.outputs.sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -226,3 +206,82 @@ jobs:
           tags: |
             ghcr.io/wise-developers/project_nomad/nomad:${{ needs.stable-release.outputs.version }}
             ghcr.io/wise-developers/project_nomad/nomad:latest
+
+  # TAG AND RELEASE -- ONLY ONCE AN IMAGE EXISTS (#503)
+  #
+  # v0.51.0 was tagged and published as a GitHub Release with no image: the
+  # release job created both, publish-image then failed on `npm ci`, and main
+  # claimed a version that could never be deployed while production stayed on
+  # v0.50.0. That was not bad luck, it was the job graph -- publish-image
+  # depended on the release job, so every failed image build produced the same
+  # orphan.
+  #
+  # WHY THIS MATTERS MORE THAN IT LOOKS. The deployment runbook tells an
+  # operator to confirm the TAG rather than trust a green tick. With this
+  # ordering inverted, the tag was the misleading artefact: it existed and the
+  # image did not. Making the tag strictly later means the runbook's check
+  # becomes true again -- a tag now implies a pullable image.
+  #
+  # The tarball and SBOM are built here rather than in stable-release so the
+  # release's attachments and the release itself are created in one place, by
+  # the job that is allowed to speak for a version that actually shipped.
+  tag-and-release:
+    needs: [gate, stable-release, publish-image]
+    if: needs.gate.outputs.release == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the bump commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.stable-release.outputs.sha }}
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Identify as the release bot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create git tag
+        run: |
+          git tag "v${{ needs.stable-release.outputs.version }}"
+          git push origin "v${{ needs.stable-release.outputs.version }}"
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build library and pack tarball
+        run: npm run build:lib && npm pack
+        working-directory: frontend
+
+      - name: Generate SBOM
+        # Software bill of materials for the release (#398). Derived from
+        # package-lock.json at THIS commit by `npm sbom`, so it describes the
+        # tree that was actually tagged — GitHub's dependency-graph export
+        # describes whatever it last indexed, which is not the same thing.
+        #
+        # The version is passed in because `npm sbom` names the document after
+        # the ROOT package.json. Since #442 that file IS bumped, so this is now
+        # belt-and-braces rather than load-bearing — but it stays: the document
+        # must name the release even if the two ever diverge again.
+        run: |
+          chmod +x .github/scripts/generate-sbom.sh
+          .github/scripts/generate-sbom.sh "${{ needs.stable-release.outputs.version }}" "nomad-sbom-${{ needs.stable-release.outputs.version }}.spdx.json"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.stable-release.outputs.tag }}
+          name: "v${{ needs.stable-release.outputs.version }}"
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            frontend/nomad-frontend-*.tgz
+            nomad-sbom-*.spdx.json

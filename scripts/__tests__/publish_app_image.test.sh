@@ -76,10 +76,24 @@ if [ -n "$app_wf" ]; then
     # The release job commits the version bump, so the SHA that triggered the
     # run predates the release. Publishing that SHA would ship the previous
     # tree under the new version's tag.
-    if grep -qE "ref: \\\$\{\{ needs\.stable-release\.outputs\.tag \}\}" "$app_wf"; then
-        ok "it checks out the released tag, not the triggering SHA"
+    #
+    # Either stable-release output satisfies that: the tag, or the bump COMMIT
+    # it points at. Since #503 it is the commit, deliberately -- checking out
+    # the tag required the tag to exist before the image was built, and that
+    # ordering is what produced v0.51.0, tagged and released with no image.
+    # Widened rather than relaxed: the proposition under test is still "not the
+    # triggering SHA", and the second check below now states that directly
+    # instead of leaving it implied by the first.
+    if grep -qE "ref: \\\$\{\{ needs\.stable-release\.outputs\.(tag|sha) \}\}" "$app_wf"; then
+        ok "it checks out a stable-release output (the released tag or its bump commit)"
     else
-        bad "it does not check out the released tag — the image would predate the release"
+        bad "it checks out neither the released tag nor the bump commit — the image would predate the release"
+    fi
+
+    if grep -qE "ref: \\\$\{\{ github\.sha \}\}" "$app_wf"; then
+        bad "it checks out github.sha — that is the SHA that TRIGGERED the run, which predates the version bump"
+    else
+        ok "it does not check out the triggering SHA"
     fi
 fi
 
