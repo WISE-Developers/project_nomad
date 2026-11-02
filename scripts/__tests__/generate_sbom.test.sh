@@ -243,14 +243,36 @@ for wf in stable-release lts-release dev-release; do
   fi
 
   # The expression it passes, against the outputs that file declares.
+  #
+  # TWO FORMS ARE VALID, and the second arrived with #503. A step-local
+  # `steps.<id>.outputs.<name>` is declared by an `echo "<name>=..."` in the
+  # same job. A cross-job `needs.<job>.outputs.<name>` is declared in that
+  # job's `outputs:` block instead -- which is now the case for stable-release,
+  # because the SBOM and the GitHub Release moved into a tag-and-release job
+  # that runs only after an image exists.
+  #
+  # The proposition is unchanged: whatever expression is passed must be one the
+  # workflow actually declares, because an undeclared expression expands to
+  # EMPTY and the SBOM is silently named after nothing.
   ref="$(grep -o 'generate-sbom\.sh "\${{ steps\.[a-zA-Z_]*\.outputs\.[a-zA-Z_]* }}"' "$f" \
          | head -1 | sed 's/.*outputs\.\([a-zA-Z_]*\).*/\1/')"
-  if [ -z "$ref" ]; then
-    bad "$wf: could not find the version expression passed to generate-sbom.sh"
-  elif grep -q "echo \"$ref=" "$f"; then
-    ok "$wf passes '$ref', which that workflow declares"
+  needs_ref="$(grep -o 'generate-sbom\.sh "\${{ needs\.[a-zA-Z_-]*\.outputs\.[a-zA-Z_]* }}"' "$f" \
+         | head -1 | sed 's/.*outputs\.\([a-zA-Z_]*\).*/\1/')"
+  if [ -n "$ref" ]; then
+    if grep -q "echo \"$ref=" "$f"; then
+      ok "$wf passes step-local '$ref', which that workflow declares"
+    else
+      bad "$wf passes '$ref' but never declares it — it would expand to empty"
+    fi
+  elif [ -n "$needs_ref" ]; then
+    # Declared in a job's `outputs:` block as `<name>: ${{ ... }}`.
+    if grep -qE "^ +$needs_ref: \\\$\{\{" "$f"; then
+      ok "$wf passes cross-job '$needs_ref', which a job declares as an output"
+    else
+      bad "$wf passes '$needs_ref' but no job declares it as an output — it would expand to empty"
+    fi
   else
-    bad "$wf passes '$ref' but never declares it — it would expand to empty"
+    bad "$wf: could not find the version expression passed to generate-sbom.sh"
   fi
 done
 
