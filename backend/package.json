@@ -1,6 +1,6 @@
 {
   "name": "@nomad/backend",
-  "version": "0.50.0",
+  "version": "0.50.3",
   "description": "Project Nomad - Fire Modeling Backend API",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
     "copy:assets": "node -e \"const fs=require('fs'),path=require('path');const src='src/services/splash/assets';const dest='dist/services/splash/assets';fs.mkdirSync(dest,{recursive:true});for(const f of fs.readdirSync(src))fs.copyFileSync(path.join(src,f),path.join(dest,f));\""
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@sentry/node": "^10.68.0",
     "@types/archiver": "^7.0.0",
     "@types/pngjs": "^6.0.5",
@@ -40,7 +40,7 @@
     "uuid": "^13.0.0",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0",
-    "zod": "^4.3.6"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

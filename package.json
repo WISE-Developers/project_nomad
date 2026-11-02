@@ -1,6 +1,6 @@
 {
   "name": "project_nomad",
-  "version": "0.50.0",
+  "version": "0.50.3",
   "description": "Project Nomad - Fire Modeling System",
   "private": true,
   "workspaces": [
@@ -28,5 +28,8 @@
   "devDependencies": {
     "cross-env": "^7.0.3",
     "protobufjs": "^8.8.0"
+  },
+  "overrides": {
+    "tar": "^7.5.22"
   }
 }
