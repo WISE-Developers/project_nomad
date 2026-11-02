@@ -1371,8 +1371,15 @@ router.get(
     // Dual-match during the #346 transition: newer models are keyed by email,
     // older ones by display name. Matching both keeps a user's earlier work
     // visible without a data migration.
+    //
+    // #489: unowned rows (`userId: null`) stay visible to everyone. Identity scoping
+    // remains the default, so an identified caller sees their own work plus the
+    // unowned history — not their own work alone. Every model created before #488
+    // was fixed is unowned, so without this a consumer that starts sending an
+    // identity header loses sight of the entire history in the same moment (measured:
+    // 5 models to 0).
     const userIds = resolveUserIdCandidates(req);
-    const filter = userIds.length > 0 ? { userId: userIds } : {};
+    const filter = userIds.length > 0 ? { userId: userIds, includeUnowned: true } : {};
     const result = await modelRepo.find(filter);
 
     // Get the workspace-aware engine for working directory lookup
@@ -1413,6 +1420,13 @@ router.get(
     res.json({
       models,
       total: result.totalCount,
+      // #489 criterion 1: say whether identity narrowed this, so a caller can tell
+      // "none exist" from "none of yours". Always present, because an absent marker
+      // is itself ambiguous. Deliberately does NOT echo the identities back.
+      filtered: {
+        byIdentity: userIds.length > 0,
+        includesUnowned: true,
+      },
     });
   })
 );

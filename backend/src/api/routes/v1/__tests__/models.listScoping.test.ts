@@ -1,27 +1,26 @@
 /**
- * CHARACTERIZATION: `GET /models` silently scopes the list by caller identity (#489).
+ * `GET /models` scoping by caller identity (#489).
  *
- * A downstream consumer measured, against a deployed instance: no identity header returned
- * 5 models, `X-Nomad-User` present returned 0, both 200. The cause is one line in the
- * handler —
+ * THIS FILE WAS A CHARACTERIZATION TEST AND HAS BEEN DELIBERATELY REWRITTEN.
  *
- *   const userIds = resolveUserIdCandidates(req);
- *   const filter = userIds.length > 0 ? { userId: userIds } : {};
+ * Its previous version pinned the defect: an identified caller's list excluded every
+ * row whose `userId` was null, so a consumer that started sending `X-Nomad-User`
+ * went from 5 models to 0 against a deployed instance. It carried an explicit note
+ * that when the decision landed these tests "must change deliberately rather than
+ * quietly going green on new behaviour". The decision has landed, so this is that
+ * deliberate change rather than an edit-until-green.
  *
- * — so identity resolving at all turns an unfiltered list into a filtered one, and the
- * response carries nothing saying it was filtered.
+ * DECIDED (#489, owner, 2026-11-02): identity scoping stays the DEFAULT, and
+ * `userId: null` means **unowned and visible to everyone**. The rejected alternative
+ * was scoping only on an explicit `?mine=true`, which is cleaner API design but would
+ * silently widen what existing consumers see with no code change on their side.
  *
- * These tests pin that behaviour at the boundary that matters: the FILTER handed to the
- * repository, plus the consequence for rows whose `userId` is null (which is #488 — every
- * model created through a proxy). They DO NOT endorse it. #489's acceptance criteria leave
- * open whether scoping should be the default at all, or opt-in via a query parameter, so
- * no remedy is asserted here. When that is decided, these tests must change deliberately
- * rather than quietly going green on new behaviour.
+ * Criterion 1 is also covered here: a response says whether identity narrowed it, so a
+ * caller can tell "none exist" from "none of yours".
  *
- * The null-author case is the dangerous one and the reason this file exists: those rows are
- * invisible to every identified caller and visible to every unidentified one, which is the
- * inverse of what an audit-sensitive default should be. An empty list reads as "nothing to
- * see" rather than "nothing of yours".
+ * SCOPE: visibility only. Whether an unowned row may be DELETED is #501 and is still
+ * open — the two endpoints deliberately disagree until that is answered, and nothing
+ * here asserts anything about DELETE.
  */
 
 import { serveInTest } from '../../../../test/sharedServer.js';
@@ -39,7 +38,11 @@ interface Row {
   notes?: string;
 }
 
-/** Two rows: one authored, one with a null author — the #488 shape. */
+/**
+ * Three rows: the caller's own, another operator's, and one with no recorded author
+ * (the #488 shape). The second row is what makes this a test rather than a tautology —
+ * without it, "shows everything" and "shows mine plus unowned" are indistinguishable.
+ */
 const ROWS: Row[] = [
   {
     id: 'm-authored',
@@ -48,6 +51,14 @@ const ROWS: Row[] = [
     status: 'draft',
     createdAt: new Date('2026-10-01T00:00:00Z'),
     userId: 'Test Modeller (00000000-0000-4000-8000-000000000000)',
+  },
+  {
+    id: 'm-other',
+    name: 'another operator run',
+    engineType: 'firestarr',
+    status: 'draft',
+    createdAt: new Date('2026-10-02T00:00:00Z'),
+    userId: 'Someone Else (11111111-1111-4111-8111-111111111111)',
   },
   {
     id: 'm-nullauthor',
@@ -59,17 +70,25 @@ const ROWS: Row[] = [
   },
 ];
 
+const ME = 'Test Modeller (00000000-0000-4000-8000-000000000000)';
+
 const { getModelRepository, find } = vi.hoisted(() => {
   /**
-   * Applies the filter the way a repository would, so the test shows the CONSEQUENCE of
-   * the filter rather than only its shape. A mock that ignored the filter would pass
-   * whatever the handler did, which is the failure mode this file is about.
+   * Applies the filter the way the Knex repository does, including `includeUnowned`
+   * (which becomes a grouped `orWhereNull('user_id')`), so these tests show the
+   * CONSEQUENCE of the filter rather than only its shape. A mock that ignored the
+   * filter would pass whatever the handler did, which is the failure mode this file
+   * exists to catch.
    */
-  const find = vi.fn(async (filter: { userId?: string | string[] }) => {
+  const find = vi.fn(async (filter: { userId?: string | string[]; includeUnowned?: boolean }) => {
     const rows = (globalThis as { __rows?: Row[] }).__rows ?? [];
     if (!filter || filter.userId === undefined) return { models: rows, total: rows.length };
     const wanted = Array.isArray(filter.userId) ? filter.userId : [filter.userId];
-    const matched = rows.filter((r) => r.userId !== undefined && wanted.includes(r.userId));
+    const matched = rows.filter(
+      (r) =>
+        (r.userId !== undefined && wanted.includes(r.userId)) ||
+        (filter.includeUnowned === true && r.userId === undefined)
+    );
     return { models: matched, total: matched.length };
   });
   return { find, getModelRepository: vi.fn(() => ({ find })) };
@@ -102,7 +121,9 @@ async function buildApp() {
   return app;
 }
 
-describe('#489 — GET /models scopes silently by caller identity', () => {
+const idsOf = (res: { body: { models: { id: string }[] } }) => res.body.models.map((m) => m.id);
+
+describe('#489 — GET /models: scoping stays the default, unowned rows stay visible', () => {
   const envBefore = { ...process.env };
 
   beforeEach(() => {
@@ -117,48 +138,63 @@ describe('#489 — GET /models scopes silently by caller identity', () => {
     delete (globalThis as { __rows?: Row[] }).__rows;
   });
 
-  it('an UNIDENTIFIED caller gets an unfiltered list, including the null-author row', async () => {
+  it('an UNIDENTIFIED caller gets every row, and the response says it was not narrowed', async () => {
     const app = await buildApp();
     const res = await request(serveInTest(app)).get('/api/v1/models');
 
     expect(res.status).toBe(200);
     expect(find).toHaveBeenCalledWith({});
-    expect(res.body.models.map((m: { id: string }) => m.id)).toEqual([
-      'm-authored',
-      'm-nullauthor',
-    ]);
+    expect(idsOf(res)).toEqual(['m-authored', 'm-other', 'm-nullauthor']);
+    expect(res.body.filtered).toEqual({ byIdentity: false, includesUnowned: true });
   });
 
-  it('an IDENTIFIED caller gets a filtered list, and the null-author row disappears', async () => {
+  it('an IDENTIFIED caller sees their own rows AND the unowned row, but not another operator\'s', async () => {
+    // This is the behaviour change. Previously the null-author row was absent here.
     const app = await buildApp();
-    const res = await request(serveInTest(app))
-      .get('/api/v1/models')
-      .set('x-nomad-user', 'Test Modeller (00000000-0000-4000-8000-000000000000)');
+    const res = await request(serveInTest(app)).get('/api/v1/models').set('x-nomad-user', ME);
 
     expect(res.status).toBe(200);
 
-    // The filter is the defect's mechanism: identity present => scoped query.
+    const ids = idsOf(res);
+    expect(ids).toContain('m-authored');
+    expect(ids).toContain('m-nullauthor');
+    // Scoping is still the default: this is NOT an unfiltered list.
+    expect(ids).not.toContain('m-other');
+
     const filterUsed = find.mock.calls[0][0];
-    expect(filterUsed).not.toEqual({});
-    expect(JSON.stringify(filterUsed)).toContain('Test Modeller');
-
-    // And the consequence: the row with no recorded author is gone.
-    const ids = res.body.models.map((m: { id: string }) => m.id);
-    expect(ids).not.toContain('m-nullauthor');
-
-    // Still 200, and nothing in the payload says the result set was narrowed. This is
-    // what makes "no models" and "none of yours" indistinguishable to a caller.
-    expect(res.body).not.toHaveProperty('filtered');
+    expect(filterUsed.includeUnowned).toBe(true);
+    expect(JSON.stringify(filterUsed.userId)).toContain('Test Modeller');
   });
 
-  it('an identity matching NOTHING yields an empty list with a 200 and no explanation', async () => {
+  it('an identity matching NO owned rows still sees the unowned row, not an empty list', async () => {
+    // The measured symptom: a consumer went 5 -> 0 because every row was null-author.
+    // The whole point of the decision is that this case stops returning nothing.
     const app = await buildApp();
     const res = await request(serveInTest(app))
       .get('/api/v1/models')
       .set('x-nomad-user', 'somebody-with-no-models');
 
     expect(res.status).toBe(200);
-    expect(res.body.models).toEqual([]);
-    expect(res.body).not.toHaveProperty('filtered');
+    expect(idsOf(res)).toEqual(['m-nullauthor']);
+  });
+
+  it('says it was narrowed by identity, so a caller can tell "none exist" from "none of yours"', async () => {
+    const app = await buildApp();
+    const res = await request(serveInTest(app))
+      .get('/api/v1/models')
+      .set('x-nomad-user', 'somebody-with-no-models');
+
+    expect(res.body.filtered).toEqual({ byIdentity: true, includesUnowned: true });
+  });
+
+  it('CONTROL — with no unowned rows present, an identified caller still sees only their own', async () => {
+    // Without this, "includesUnowned" could be masking a filter that had stopped
+    // scoping at all, and every expectation above would still pass.
+    (globalThis as { __rows?: Row[] }).__rows = ROWS.filter((r) => r.userId !== undefined);
+
+    const app = await buildApp();
+    const res = await request(serveInTest(app)).get('/api/v1/models').set('x-nomad-user', ME);
+
+    expect(idsOf(res)).toEqual(['m-authored']);
   });
 });

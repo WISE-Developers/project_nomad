@@ -27,6 +27,21 @@ export interface ModelFilter {
    * data migration.
    */
   readonly userId?: string | string[];
+  /**
+   * Also match rows with NO recorded owner (#489).
+   *
+   * `userId: null` means **unowned**, and the decision on #489 is that unowned rows
+   * are visible to everyone: an identified caller sees their own work plus the
+   * unowned history, rather than their own work alone. Without this, every model
+   * created before #488 was fixed is invisible to any caller that sends an identity
+   * header — a downstream consumer measured a list going from 5 models to 0.
+   *
+   * Only meaningful alongside `userId`; an unscoped query already returns everything.
+   *
+   * VISIBILITY ONLY. Whether an unowned row may be DELETED is #501 and is a separate
+   * decision — do not reuse this flag to answer it.
+   */
+  readonly includeUnowned?: boolean;
   /** Filter by name (partial match) */
   readonly nameContains?: string;
 }
