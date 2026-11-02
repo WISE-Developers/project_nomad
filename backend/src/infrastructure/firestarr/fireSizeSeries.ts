@@ -84,9 +84,20 @@ export interface ParsedSizes {
  *
  * THE FLOOR, which the same formulas force rather than taste:
  *
- *   n in {1, 2}  ->  the median IS the maximum
- *   n <= 10      ->  p90 and p95 are the same index (both the maximum)
+ *   n in {1, 2}  ->  ALL THREE collapse. p50, p90 and p95 are the same index,
+ *                    and that index is the LAST one -- FireSTARR's median IS
+ *                    the maximum here. This is the degenerate case, and it is
+ *                    also the common one: 17 of the 18 sub-floor runs below.
+ *   n in 3..10   ->  p50 has separated, but p90 == p95, both the maximum
  *   n >= 11      ->  p50, p90 and p95 are mutually distinct
+ *
+ * The bands are disjoint on purpose. There are exactly TWO collapse shapes
+ * below the floor, not one, and saying only "p90 == p95" rounds the n in {1, 2}
+ * case off -- which matters because it is the case the data actually contains.
+ * Swept independently over n = 1..5000 by Meridian against this file's own
+ * `firestarrPercentileIndex`, with interpolated p95 as a control to prove the
+ * sweep can tell nearest-rank from interpolation rather than agreeing with
+ * whatever it is handed.
  *
  * Below 11 the table would print four labels over one or two values, which is
  * the shape #419 already forbids at N=1 ("never a one-sample distribution").

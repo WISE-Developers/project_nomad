@@ -6,13 +6,28 @@
  *   api/routes/v1/import.ts          model import
  *   api/routes/v1/perimetersImport.ts perimeter shapefile import
  *
- * Every version at or below 2.2.0 carries five advisories:
+ * Every version at or below 2.4.0 is covered by at least one advisory. The
+ * ceiling is set by the newest of them, which patches in 2.5.0:
+ *
+ *   GHSA-q7qp-rjg7-q26m / CVE-2026-113872 (HIGH) range >= 2.0.0, < 2.5.0
+ *
+ * The five that set the previous 2.2.0 ceiling all patch at 2.3.0 or 2.4.0 and
+ * are already covered by the installed version:
  *
  *   GHSA-72gw-mp4g-v24j (7.5) DoS via deeply nested field names
  *   GHSA-wc9g-mqfw-jrwm (7.5) DoS via crafted multipart field names
  *   GHSA-535w-7cp7-47q4 (7.5) DoS via oversized array index in field names
  *   GHSA-3p4h-7m6x-2hcm (5.3) DoS via incomplete cleanup of aborted uploads
  *   GHSA-qvfw-j98x-7q72 (3.7) file size limit bypass via async fileFilter race
+ *   GHSA-3pph-fpjx-jg34 (MEDIUM) range >= 2.2.0, < 2.4.0
+ *   GHSA-qfvm-cv95-jqjf (HIGH)   range == 2.2.0
+ *
+ * THIS CEILING WAS STALE AT 2.2.0 AND THAT HID A LIVE HIGH (#497). The
+ * installed version was 2.4.0 -- ABOVE the stale ceiling, so both assertions
+ * passed -- while CVE-2026-113872 covered it. A hand-maintained ceiling stops
+ * guarding silently. Derive it as the highest `first_patched_version` across
+ * ALL published advisories for the package, from the GitHub advisory API, not
+ * from whichever advisory arrived most recently.
  *
  * All five are triggered by the multipart request itself -- field names,
  * aborted transfers, fileFilter timing -- so they fire BEFORE any validation
@@ -21,8 +36,10 @@
  *
  * The size-limit bypass deserves separate mention: both routes configure
  * `limits` on the multer instance, and GHSA-qvfw-j98x-7q72 says that control
- * can be defeated. Any reasoning that treats those limits as a guarantee is
- * wrong until this floor is raised.
+ * can be defeated. That advisory patches in 2.3.0, so the installed version
+ * now clears it and `limits` can be relied on again -- but only because this
+ * assertion is what keeps the version there. The guarantee is the floor, not
+ * the config.
  *
  * Same shape as betterAuthCurrency.test.ts (#375) and tzdataCurrency (#366),
  * and for the same reason: a dependency can regress below an advisory floor on
@@ -42,7 +59,7 @@ import { fileURLToPath } from 'node:url';
  * Highest version covered by the advisories. Raise only when a NEW advisory
  * raises the ceiling -- never to turn a red test green.
  */
-const VULNERABLE_AT_OR_BELOW = '2.2.0';
+const VULNERABLE_AT_OR_BELOW = '2.4.0';
 
 /** Walk up to find the package, which may be hoisted above this workspace. */
 function resolveInstalledVersion(pkg: string): string {
