@@ -27,6 +27,8 @@ export interface ModelListProps {
   onAddToMap?: (model: Model) => void;
   /** Called when user wants to create a new model */
   onCreateNew?: () => void;
+  /** Called when export is clicked on a model (#490) */
+  onExport?: (model: Model) => void;
   /** CSS class */
   className?: string;
 }
@@ -61,6 +63,7 @@ export function ModelList({
   onViewResults,
   onAddToMap: _onAddToMap,
   onCreateNew,
+  onExport,
   className = '',
 }: ModelListProps) {
   const {
@@ -443,6 +446,7 @@ export function ModelList({
               onViewResults={onViewResults}
               onDelete={handleDelete}
               onRerun={handleRerun}
+              onExport={onExport}
             />
           ))}
         </div>
