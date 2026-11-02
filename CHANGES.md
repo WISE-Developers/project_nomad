@@ -4,10 +4,26 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.49.0
+## v0.50.0
+
+### 2026-11-02
+
+- [`64942f7`](https://github.com/WISE-Developers/project_nomad/commit/64942f78e71352f159bd7e30548345614d30e213) Merge pull request #500 from WISE-Developers/dev — *Franco Nogarin, 04:25*
+- [`ad9c5fb`](https://github.com/WISE-Developers/project_nomad/commit/ad9c5fb2b1cb5bf1e0338217e191ef59145141a3) chore: dev v0.49.4 [release-bot] — *github-actions[bot], 11:00*
+- [`7093059`](https://github.com/WISE-Developers/project_nomad/commit/70930591e1747dff16ff25c672235ffef4eef03b) Merge docs/419-floor-collapse-shapes into dev — *Franco Nogarin, 05:00*
+- [`5305582`](https://github.com/WISE-Developers/project_nomad/commit/53055822a0a260c308fbf6bfcea706116bb84ee4) docs(#419): the N floor has TWO collapse shapes below it, not one — *Franco Nogarin, 05:00*
 
 ### 2026-11-01
 
+- [`7355abb`](https://github.com/WISE-Developers/project_nomad/commit/7355abb12577a6c59ef50dcb05a4d0b3d662e1f1) chore: dev v0.49.3 [release-bot] — *github-actions[bot], 14:56*
+- [`f66b007`](https://github.com/WISE-Developers/project_nomad/commit/f66b007e2ef78f29cd4944e1b7def66b8aea02f5) Merge fix/497-multer-advisory-ceiling into dev — *Franco Nogarin, 08:56*
+- [`fdf592e`](https://github.com/WISE-Developers/project_nomad/commit/fdf592e8bf3807b261814fb81de70f098fb907ad) fix(#497): multer 2.4.0 -> 2.5.0, and raise the stale ceiling that hid the HIGH — *Franco Nogarin, 08:56*
+- [`ca33979`](https://github.com/WISE-Developers/project_nomad/commit/ca339790da22b4de93e17f4606c55eef6251d87c) chore: dev v0.49.2 [release-bot] — *github-actions[bot], 14:33*
+- [`62f59af`](https://github.com/WISE-Developers/project_nomad/commit/62f59afe722d83bfa7ab9cf31c73b17a44ccca54) docs: currency-test ceiling audit, all seven members against the live advisory API — *Franco Nogarin, 08:33*
+- [`8a08061`](https://github.com/WISE-Developers/project_nomad/commit/8a08061e19ab0675e70290ad4b3beee6bd35fc9f) chore: dev v0.49.1 [release-bot] — *github-actions[bot], 14:30*
+- [`3a90495`](https://github.com/WISE-Developers/project_nomad/commit/3a904951763af4d250917bd57d112b6a95c7fda2) Merge fix/375-stale-advisory-ceiling into dev — *Franco Nogarin, 08:29*
+- [`f213d54`](https://github.com/WISE-Developers/project_nomad/commit/f213d54afb7981747fed48f1fbc65c88402483ba) fix(#375): raise better-auth advisory ceiling 1.6.21 -> 1.7.6 in BOTH currency tests — *Franco Nogarin, 08:29*
+- [`4dc03be`](https://github.com/WISE-Developers/project_nomad/commit/4dc03be4b371aa4ea3b50cacfa87fc1429defbb2) chore: release v0.49.0 [release-bot] — *github-actions[bot], 12:18*
 - [`006b5aa`](https://github.com/WISE-Developers/project_nomad/commit/006b5aa63a5cf7e3e14188b69d75695332081f5c) Merge pull request #496 from WISE-Developers/dev — *Franco Nogarin, 05:18*
 
 ### 2026-10-31
