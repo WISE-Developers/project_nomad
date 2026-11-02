@@ -329,10 +329,41 @@ jobs:
 
   # Single required check to point branch protection at, so adding or renaming
   # a job later does not silently leave the gate unprotected.
+  image-frontend-stage:
+    name: Image build (frontend stage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # WHY THIS JOB EXISTS (#503). v0.51.0 was tagged and released with no
+      # image: every test job here was green, and publish-image then failed on
+      # `npm ci` in backend/Dockerfile's frontend-builder stage. The test jobs
+      # install at the workspace root, where the lockfile is consistent; only
+      # the image build exercised the stage's own manifest/lock pairing. The
+      # repo had two definitions of "installable" and CI validated the easier
+      # one, so a broken image build could not turn this workflow red.
+      #
+      # scripts/__tests__/dockerfile_frontend_install.test.sh replays that
+      # install cheaply and catches the same defect, but a replay is a model of
+      # the build. This builds the real stage, so the instrument and the thing
+      # being measured are the same.
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the frontend-builder stage
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          target: frontend-builder
+          push: false
+          load: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   all-tests:
     name: All tests
     runs-on: ubuntu-latest
-    needs: [backend, frontend, frontend-react19, scripts, lint]
+    needs: [backend, frontend, frontend-react19, scripts, lint, image-frontend-stage]
     if: always()
     steps:
       - name: Verify every suite passed
