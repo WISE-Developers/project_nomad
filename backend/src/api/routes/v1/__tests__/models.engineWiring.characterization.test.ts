@@ -247,7 +247,11 @@ describe('/models DELETE engine wiring — characterization', () => {
   });
 
   it('DELETE /models/:id acquires the engine and deletes an existing model', async () => {
-    findById.mockResolvedValue({ ...completedModel('m-del-1') });
+    // #501: the fixture is OWNED on purpose. `completedModel` sets `userId: null`,
+    // and an unowned model is no longer deletable through the API — so with the
+    // shared fixture this now asserts the refusal rather than the engine wiring it
+    // exists to pin. Giving it an owner keeps the test about what it is named for.
+    findById.mockResolvedValue({ ...completedModel('m-del-1'), userId: 'owner@example.test' });
     // model repo needs delete()
     getModelRepository.mockReturnValue({ findById, find, delete: vi.fn(async () => undefined) });
     const res = await request(api()).delete('/api/v1/models/m-del-1');
