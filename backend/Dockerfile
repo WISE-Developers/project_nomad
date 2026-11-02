@@ -15,12 +15,25 @@ ENV VITE_AUTH_MODE=$VITE_AUTH_MODE
 
 WORKDIR /app
 
-COPY frontend/package*.json ./
-COPY package-lock.json ./
-RUN npm ci
+# Install in WORKSPACE context, mirroring backend-builder below (#503).
+#
+# This stage used to copy frontend/package*.json alongside the ROOT lockfile and
+# run a bare `npm ci`, which installs with no workspace context. The lockfile
+# correctly holds frontend/node_modules/dompurify (the version frontend
+# declares) AND a hoisted node_modules/dompurify (jspdf's optionalDependency).
+# Stripped of workspace context npm only sees the hoisted one, so the install
+# resolved only while nothing in the frontend manifest conflicted with a hoisted
+# copy. v0.51.0 was tagged and released with NO IMAGE when that stopped holding.
+COPY package.json package-lock.json ./
+COPY frontend/package.json ./frontend/
 
-COPY frontend/ .
-RUN npm run build
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --workspace=@nomad/frontend
+
+# Copy frontend source (changes here don't bust npm ci cache above)
+COPY frontend/ ./frontend/
+
+RUN npm run build --workspace=@nomad/frontend
 
 # ---- Stage 2: Build backend ----
 FROM node:22-slim AS backend-builder
@@ -197,7 +210,7 @@ COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=backend-builder /app/backend/package.json ./backend/
 
 # Copy built frontend into workspace-relative location
-COPY --from=frontend-builder /app/dist ./frontend/dist
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Bake the release version into the image.
 #
@@ -208,7 +221,7 @@ COPY --from=frontend-builder /app/dist ./frontend/dist
 # npm_package_version is NOT usable here: it is only set when a process starts
 # via npm, and this image runs `node dist/index.js` directly. Relying on it is
 # what made /api/v1/info report "1.0.0" from a box running v0.12.1.
-COPY --from=frontend-builder /app/package.json /tmp/frontend-package.json
+COPY --from=frontend-builder /app/frontend/package.json /tmp/frontend-package.json
 RUN node -p "require('/tmp/frontend-package.json').version" > /app/VERSION \
     && rm /tmp/frontend-package.json \
     && cat /app/VERSION
