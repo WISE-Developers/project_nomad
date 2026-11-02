@@ -29,6 +29,9 @@ export function DeploymentModeProvider({ children }: DeploymentModeProviderProps
   });
 
   useEffect(() => {
+    // #505: this effect sets state from an await, so it must stop at unmount.
+    let cancelled = false;
+
     async function fetchDeploymentMode() {
       try {
         const response = await fetch('/api/v1/health');
@@ -38,6 +41,7 @@ export function DeploymentModeProvider({ children }: DeploymentModeProviderProps
         const data = await response.json();
         const mode = (data.deploymentMode as DeploymentMode) || 'SAN';
 
+        if (cancelled) return;
         setState({
           mode,
           isLoading: false,
@@ -45,6 +49,7 @@ export function DeploymentModeProvider({ children }: DeploymentModeProviderProps
         });
       } catch (err) {
         console.error('Failed to fetch deployment mode:', err);
+        if (cancelled) return;
         setState({
           mode: 'SAN', // Default to SAN on error
           isLoading: false,
@@ -54,6 +59,9 @@ export function DeploymentModeProvider({ children }: DeploymentModeProviderProps
     }
 
     fetchDeploymentMode();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (

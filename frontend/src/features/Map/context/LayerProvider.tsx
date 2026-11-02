@@ -330,6 +330,12 @@ export function LayerProvider({ children }: { children: ReactNode }) {
     if (hasRestoredRef.current || !isLoaded) return;
     hasRestoredRef.current = true;
 
+    // #505: the per-layer restore awaits a fetch and then calls setState, so it
+    // must stop at unmount. Declared before the early return below so the
+    // cleanup registered at the end of this effect closes over it; the early
+    // returns above start no async work, so they need no cleanup.
+    let cancelled = false;
+
     const saved = localStorage.getItem(LAYERS_STORAGE_KEY);
     if (!saved) return;
 
@@ -405,6 +411,7 @@ export function LayerProvider({ children }: { children: ReactNode }) {
             });
 
             // Update state
+            if (cancelled) return;
             setState((prev) => ({
               ...prev,
               layers: [
@@ -431,6 +438,10 @@ export function LayerProvider({ children }: { children: ReactNode }) {
       console.warn('[LayerContext] Failed to parse stored layers:', err);
       localStorage.removeItem(LAYERS_STORAGE_KEY);
     }
+
+    return () => {
+      cancelled = true;
+    };
     // `api` is deliberately not a dependency. This restores persisted layers
     // ONCE, when the map finishes loading. Re-running it because the api
     // object changed identity would add every stored layer to the map a

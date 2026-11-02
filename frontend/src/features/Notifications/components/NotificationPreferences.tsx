@@ -93,16 +93,24 @@ export function NotificationPreferences({
 
   // Fetch preferences on mount
   useEffect(() => {
+    // #505: do not set state after unmount.
+    let cancelled = false;
     getNotificationPreferences()
       .then(({ preferences: prefs }) => {
+        if (cancelled) return;
         setPreferences(prefs);
       })
       .catch((err) => {
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to load preferences');
       })
       .finally(() => {
+        if (cancelled) return;
         setIsLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Request browser notification permission

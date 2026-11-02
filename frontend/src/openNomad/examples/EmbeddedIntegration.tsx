@@ -176,28 +176,44 @@ export function TokenRefreshDashboard({
 
   // Get initial token
   React.useEffect(() => {
+    // #505: this is exported from openNomad/index.ts, so it ships to embedding
+    // hosts and must not set state after unmount.
+    let cancelled = false;
     const loadToken = async () => {
       const currentToken = await getAuthToken();
+      if (cancelled) return;
       setToken(currentToken);
       setLoading(false);
     };
     loadToken();
+    return () => {
+      cancelled = true;
+    };
   }, [getAuthToken]);
 
   // Set up token refresh (example: refresh every 10 minutes)
   React.useEffect(() => {
     if (!onTokenRefresh) return;
 
+    // #505: clearInterval stops FUTURE ticks, but a tick already awaiting
+    // onTokenRefresh() when the component unmounts still runs its continuation
+    // and would call setToken on a gone component. The interval needs BOTH.
+    let cancelled = false;
+
     const refreshInterval = setInterval(async () => {
       try {
         const newToken = await onTokenRefresh();
+        if (cancelled) return;
         setToken(newToken);
       } catch (error) {
         console.error('Token refresh failed:', error);
       }
     }, 10 * 60 * 1000); // 10 minutes
 
-    return () => clearInterval(refreshInterval);
+    return () => {
+      cancelled = true;
+      clearInterval(refreshInterval);
+    };
   }, [onTokenRefresh]);
 
   if (loading) {

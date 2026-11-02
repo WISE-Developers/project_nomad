@@ -60,6 +60,9 @@ export function OutputPreviewModal({
   // Use output.previewUrl from API response - backend returns correct URL for each output type
   // (regular results use /results/{id}/preview, perimeters use /models/{id}/perimeters)
   useEffect(() => {
+    // #505: this effect awaits a fetch and then sets three pieces of state.
+    let cancelled = false;
+
     async function fetchPreview() {
       setIsLoading(true);
       setError(null);
@@ -78,6 +81,7 @@ export function OutputPreviewModal({
 
         // Handle both Feature and FeatureCollection
         // Perimeters may return a single Feature, not a FeatureCollection
+        if (cancelled) return;
         if (data.type === 'Feature') {
           // Convert single Feature to FeatureCollection
           setGeoJsonData({
@@ -90,14 +94,18 @@ export function OutputPreviewModal({
           throw new Error(`Invalid GeoJSON type: ${data.type}`);
         }
       } catch (err) {
+        if (cancelled) return;
         const message = err instanceof Error ? err.message : 'Unknown error';
         setError(message);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
 
     fetchPreview();
+    return () => {
+      cancelled = true;
+    };
     // Keyed on `output.id`, not `output.previewUrl`, deliberately. The backend
     // derives previewUrl FROM the output -- regular results get
     // /results/{id}/preview, perimeters get /models/{id}/perimeters -- so for
