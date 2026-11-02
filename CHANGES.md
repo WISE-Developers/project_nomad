@@ -4,10 +4,23 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.51.0
+## v0.52.0
 
 ### 2026-11-02
 
+- [`fb50a3e`](https://github.com/WISE-Developers/project_nomad/commit/fb50a3e269571619839e8cd2424372079ef595f1) Merge pull request #504 from WISE-Developers/dev — *Franco Nogarin, 08:02*
+- [`8c350b0`](https://github.com/WISE-Developers/project_nomad/commit/8c350b06ca3ed1161f9c9a1cbb7d75685935de88) chore: dev v0.51.3 [release-bot] — *github-actions[bot], 14:57*
+- [`80b65e7`](https://github.com/WISE-Developers/project_nomad/commit/80b65e7c8cfb01bee85e33fd5a45f5c283ee6bf1) Merge fix/503-release-after-image into dev — *Franco Nogarin, 08:56*
+- [`bdbe9d8`](https://github.com/WISE-Developers/project_nomad/commit/bdbe9d8ecc2cf1ba13346a033d364a8fbe7e9cb1) fix(#503): tag and release only once an image exists — *Franco Nogarin, 08:55*
+- [`809e155`](https://github.com/WISE-Developers/project_nomad/commit/809e155b02766f9e99ed5c186ec95df31180d13a) chore: dev v0.51.2 [release-bot] — *github-actions[bot], 14:34*
+- [`cf1f483`](https://github.com/WISE-Developers/project_nomad/commit/cf1f483e93c74504bbe549caa86180f079e20131) Merge fix/505-async-effect-unmount-guards into dev — *Franco Nogarin, 08:33*
+- [`ccfcafc`](https://github.com/WISE-Developers/project_nomad/commit/ccfcafc37d34fc009043d1807fe48a3cacb62707) fix(#505): guard the remaining async effects, and pin the CLASS not the instance — *Franco Nogarin, 08:33*
+- [`5202081`](https://github.com/WISE-Developers/project_nomad/commit/5202081b818487caa41b38164ed956b84f0f8429) fix(#505): stop SplashScreen's OAuth effect setting state after unmount — *Franco Nogarin, 08:27*
+- [`70f9c10`](https://github.com/WISE-Developers/project_nomad/commit/70f9c1047488c4dad89878c514ca2a4628326a7d) chore: dev v0.51.1 [release-bot] — *github-actions[bot], 14:07*
+- [`0eda203`](https://github.com/WISE-Developers/project_nomad/commit/0eda203fcf7e2cfa00f15c54a2eb5a31343a4a3e) Merge origin/dev (v0.51.0) into dev — *Franco Nogarin, 08:06*
+- [`b81de53`](https://github.com/WISE-Developers/project_nomad/commit/b81de5394e0aca16a21422ddcb46d1047739722b) Merge fix/503-frontend-workspace-install into dev — *Franco Nogarin, 08:06*
+- [`c7b789b`](https://github.com/WISE-Developers/project_nomad/commit/c7b789b8acac1239b0a31c3677ff9a521961cd84) fix(#503): install the frontend in workspace context, and let CI see the image build — *Franco Nogarin, 08:06*
+- [`9f6ec66`](https://github.com/WISE-Developers/project_nomad/commit/9f6ec663add3c4c11b692a329e529da7c0e80cf0) chore: release v0.51.0 [release-bot] — *github-actions[bot], 13:49*
 - [`ff2fcb3`](https://github.com/WISE-Developers/project_nomad/commit/ff2fcb3168dab27a53f796ed0f58be5add4b5e31) Merge pull request #502 from WISE-Developers/dev — *Franco Nogarin, 06:49*
 - [`f305510`](https://github.com/WISE-Developers/project_nomad/commit/f3055101bb58ca3fa7cfc38870dbda34722ba595) chore: dev v0.50.3 [release-bot] — *github-actions[bot], 12:42*
 - [`d424183`](https://github.com/WISE-Developers/project_nomad/commit/d424183f7f43ac65c9b95f103c9b62784c4f46ea) Merge fix/499-npm-update-and-allowlist into dev — *Franco Nogarin, 06:42*
