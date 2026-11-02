@@ -208,6 +208,34 @@ outgoing_image_version() {
     printf '%s\n' "$raw"
 }
 
+# Build a rollback tag from an image reference (#498).
+#
+# A docker reference is <name>[:tag][@digest], and <name> may itself carry a
+# registry host:port followed by a slash path. So the colon that introduces a
+# TAG is only ever the one in the FINAL path segment; a colon before a slash is
+# a port.
+#
+# Appending to the reference whole was the defect. Before #465 the deploy built
+# locally, Config.Image was the untagged local name, and appending gave a valid
+# ref. Since #465 it PULLS a tagged image, so Config.Image already has a tag and
+# the result had two — docker rejected it and the error was redirected away, so
+# no deploy from #465 to 2026-11-01 produced a rollback tag at all.
+#
+# `${ref%:*}` is not the fix either: it eats the port on `localhost:5000/nomad`.
+# Split the registry prefix off first, then strip a tag only from what is left.
+rollback_tag_for() {
+    local ref="$1" suffix="$2"
+    local name prefix last
+    name="${ref%%@*}"                 # drop any digest pin
+    prefix=""
+    last="$name"
+    case "$name" in
+        */*) prefix="${name%/*}/"; last="${name##*/}" ;;
+    esac
+    last="${last%%:*}"                # a tag here only; ports live in $prefix
+    printf '%s%s:%s\n' "$prefix" "$last" "$suffix"
+}
+
 frontend_host_port() {
     local env_file="${1:-.env}"
     [ -f "$env_file" ] || return 1
@@ -349,22 +377,29 @@ main() {
     # incoming version from the freshly pulled frontend/package.json, so every
     # rollback-X on the demo held X-1. The rollback path worked; the name lied,
     # and it is read in an outage by whoever is on hand.
-    local running outgoing rollback_tag
+    local running outgoing rollback_tag config_image
     running="$(docker inspect "$SERVICE" --format '{{.Image}}' 2>/dev/null || true)"
     if [ -n "$running" ]; then
+        config_image="$(docker inspect "$SERVICE" --format '{{.Config.Image}}')"
         if outgoing="$(outgoing_image_version "$running")"; then
-            rollback_tag="$(docker inspect "$SERVICE" --format '{{.Config.Image}}'):rollback-$outgoing"
-            docker tag "$running" "$rollback_tag" 2>/dev/null \
-              && print_success "Previous image tagged rollback-$outgoing (the version it contains)"
+            rollback_tag="$(rollback_tag_for "$config_image" "rollback-$outgoing")"
         else
             # Loud, and still tagged. Guessing the name would rebuild #437; but
             # dropping the tag in silence costs the rollback itself, which is
             # worse. The image id makes the name unique and obviously not a
             # version, so nobody reads it as one.
-            rollback_tag="$(docker inspect "$SERVICE" --format '{{.Config.Image}}'):rollback-unknown-$(printf '%s' "${running#sha256:}" | cut -c1-12)"
+            rollback_tag="$(rollback_tag_for "$config_image" "rollback-unknown-$(printf '%s' "${running#sha256:}" | cut -c1-12)")"
             print_warning "Could not read /app/VERSION from the outgoing image — tagging $rollback_tag rather than guessing a version"
-            docker tag "$running" "$rollback_tag" 2>/dev/null \
-              && print_success "Previous image tagged ${rollback_tag##*:}"
+        fi
+        # stderr is NOT discarded. A rollback tag that cannot be created is the
+        # single most important thing to say out loud here, and hiding it is how
+        # #498 stayed invisible for seven releases: the failure was silent and
+        # the success line simply never printed, so the output looked clean.
+        if docker tag "$running" "$rollback_tag"; then
+            print_success "Previous image tagged ${rollback_tag##*:} (the version it contains)"
+        else
+            print_warning "Could not tag the outgoing image as $rollback_tag — THIS DEPLOY HAS NO ROLLBACK TAG."
+            print_warning "To roll back, pin the previous version explicitly instead: NOMAD_APP_IMAGE=<repo>:<previous> docker compose up -d $SERVICE"
         fi
     fi
 
