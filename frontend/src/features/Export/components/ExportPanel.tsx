@@ -178,9 +178,12 @@ export function ExportPanel({
 
   // Fetch manifest on mount
   useEffect(() => {
+    // #505: do not set state after unmount.
+    let cancelled = false;
     fetch(`${window.location.origin}/api/v1/models/${modelId}/export-manifest`, { credentials: 'include' })
       .then(res => res.json())
       .then((data: ExportManifest) => {
+        if (cancelled) return;
         setManifest(data);
         // Select all by default
         const allFiles = new Set<string>();
@@ -192,7 +195,13 @@ export function ExportPanel({
         setSelectedFiles(allFiles);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [modelId]);
 
   const toggleFile = useCallback((filename: string) => {

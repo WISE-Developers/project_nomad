@@ -81,8 +81,17 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
   useEffect(() => {
     if (AUTH_MODE !== 'oauth') return;
 
+    // Both chains below must stop at unmount, the same way the authMode effect
+    // above already does (#505). Without this, a providers fetch that settles
+    // after the component is gone calls setLoadingProviders, and react-dom's
+    // resolveUpdatePriority reads `window` — which under vitest teardown no
+    // longer exists. That failed `Frontend on React 19` at random, on a tree
+    // where all 806 tests passed, and the same commit both failed and passed.
+    let cancelled = false;
+
     // Check if user already has a valid session (e.g., returning from OAuth redirect)
     authClient.getSession().then((session) => {
+      if (cancelled) return;
       if (session?.data?.user) {
         // Already authenticated — save username and enter
         const name = session.data.user.name || session.data.user.email || 'OAuth User';
@@ -97,12 +106,17 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
     fetch(`${window.location.origin}/api/v1/auth/providers`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
+        if (cancelled) return;
         setProviders(data.providers ?? []);
         setLoadingProviders(false);
       })
       .catch(() => {
+        if (cancelled) return;
         setLoadingProviders(false);
       });
+    return () => {
+      cancelled = true;
+    };
     // AUTH_MODE arrives asynchronously now (#474), so it MUST be a dependency:
     // without it this effect runs once while the mode is still null and never
     // again, and the OAuth provider buttons never load.

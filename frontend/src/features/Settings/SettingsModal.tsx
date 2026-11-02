@@ -145,9 +145,12 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
 
   // Load existing value on mount
   useEffect(() => {
+    // #505: guarded the same way the authMode effect above already is.
+    let cancelled = false;
     fetch(`/api/v1/settings/${CFS_KEY}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
+        if (cancelled) return;
         if (data?.value) {
           setApiKey(data.value);
         }
@@ -155,6 +158,9 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
       .catch(() => {
         // No existing key — leave blank
       });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleSave = async () => {
