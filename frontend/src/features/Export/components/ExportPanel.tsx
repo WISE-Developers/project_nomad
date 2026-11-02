@@ -79,6 +79,25 @@ const titleStyle: React.CSSProperties = {
   margin: 0,
 };
 
+// #490: matches OutputList's empty state, so a model with nothing to export
+// reads the same wherever the user meets it.
+const emptyStateStyle: React.CSSProperties = {
+  padding: '32px 20px',
+  textAlign: 'center',
+};
+
+const emptyStateTitleStyle: React.CSSProperties = {
+  fontSize: '15px',
+  fontWeight: 600,
+  color: '#555',
+  marginBottom: '6px',
+};
+
+const emptyStateSubtextStyle: React.CSSProperties = {
+  fontSize: '13px',
+  color: '#888',
+};
+
 const closeButtonStyle: React.CSSProperties = {
   background: 'none',
   border: 'none',
@@ -166,6 +185,7 @@ export function ExportPanel({
   onClose,
 }: ExportPanelProps) {
   const [manifest, setManifest] = useState<ExportManifest | null>(null);
+  const [manifestError, setManifestError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [delivery, setDelivery] = useState<DeliveryMethod>('download');
@@ -175,6 +195,14 @@ export function ExportPanel({
 
   // Keep legacy hook for share link flow
   const legacyExport = useExportGeneration();
+
+  // #490: counted, not read from `totalFiles` — the server omits that field on
+  // exactly the response this needs to detect.
+  const fileCount = manifest
+    ? manifest.categories.inputs.length +
+      manifest.categories.aggregated.length +
+      manifest.categories.final.length
+    : 0;
 
   // Fetch manifest on mount
   useEffect(() => {
@@ -197,6 +225,9 @@ export function ExportPanel({
       })
       .catch(() => {
         if (cancelled) return;
+        // #490: without this the panel renders a header and nothing else, which
+        // is indistinguishable from a model that simply has no files.
+        setManifestError(true);
         setLoading(false);
       });
     return () => {
@@ -345,7 +376,31 @@ export function ExportPanel({
         <div style={{ padding: '40px', textAlign: 'center', color: '#666' }}>Loading available files...</div>
       )}
 
-      {!loading && (exportState === 'idle' || exportState === 'generating') && manifest && (
+      {/*
+        #490: a COMPLETED model whose outputs are absent returns 200 with empty
+        categories and no `totalFiles`, which rendered "0 of  files selected"
+        with a gap in it. Counted from the categories rather than read from
+        `totalFiles`, because that field is exactly the one the server omits.
+      */}
+      {!loading && !manifestError && manifest && fileCount === 0 && (
+        <div style={emptyStateStyle}>
+          <div style={emptyStateTitleStyle}>No files available to export</div>
+          <div style={emptyStateSubtextStyle}>
+            This model has no output files on the server, so there is nothing to bundle.
+          </div>
+        </div>
+      )}
+
+      {!loading && manifestError && (
+        <div style={emptyStateStyle}>
+          <div style={emptyStateTitleStyle}>Could not load the file list</div>
+          <div style={emptyStateSubtextStyle}>
+            The export manifest for this model could not be retrieved. Close this panel and try again.
+          </div>
+        </div>
+      )}
+
+      {!loading && !manifestError && (exportState === 'idle' || exportState === 'generating') && manifest && fileCount > 0 && (
         <>
           <div style={{ fontSize: '13px', color: '#666', marginBottom: '8px', flexShrink: 0 }}>
             {selectedFiles.size} of {manifest.totalFiles} files selected

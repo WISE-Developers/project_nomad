@@ -28,6 +28,12 @@ export interface ModelCardProps {
   onDelete?: (model: Model) => void;
   /** Called when re-run is clicked */
   onRerun?: (model: Model) => void;
+  /**
+   * Called when export is clicked (#490). Receives the whole model, not just the
+   * id: `ExportPanel` needs `modelName` as well, and the list is the only surface
+   * that already holds it.
+   */
+  onExport?: (model: Model) => void;
 }
 
 // =============================================================================
@@ -143,6 +149,7 @@ export function ModelCard({
   onAddToMap,
   onDelete,
   onRerun,
+  onExport,
 }: ModelCardProps) {
   const handleCheckboxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
@@ -172,6 +179,11 @@ export function ModelCard({
     e.stopPropagation();
     onRerun?.(model);
   }, [model, onRerun]);
+
+  const handleExport = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onExport?.(model);
+  }, [model, onExport]);
 
   const handleDelete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -297,6 +309,15 @@ export function ModelCard({
                 aria-label="Re-run model"
               >
                 Re-run
+              </button>
+            )}
+            {onExport && (
+              <button
+                onClick={handleExport}
+                style={secondaryButtonStyle}
+                aria-label="Export model"
+              >
+                Export
               </button>
             )}
           </>
