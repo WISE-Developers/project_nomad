@@ -7,6 +7,58 @@ required key added in one release still applies if you skip past it.
 
 ---
 
+## BREAKING for `@nomad/frontend` consumers: three map packages are now peer dependencies (#485)
+
+**If you embed `@nomad/frontend` and render the map, you must declare these yourself.**
+Consumers that embed only the Dashboard are unaffected.
+
+```
+maplibre-gl                      ^6.10.0
+terra-draw                       ^1.26.0
+terra-draw-maplibre-gl-adapter   ^1.4.1
+```
+
+They moved from `dependencies` to `peerDependencies`, marked
+`peerDependenciesMeta.optional` so an install that does not need a map does not
+fail. Add them to your own `package.json` on upgrade.
+
+### What was wrong
+
+`vite.lib.config.ts` externalised seven entries under the comment *"Externalize
+peer dependencies - consumers must provide these"* — but only `react` and
+`react-dom` were declared as peers. An externalised module is **not in the
+bundle**, so your resolver has to find it, and `dependencies` is the wrong field
+for that contract: resolution rested on hoisting, which strict layouts (pnpm's
+default, Yarn PnP) do not guarantee. `maplibre-gl` also carries module-level
+state, so a consumer on a different major could load two copies — the failure
+`peerDependencies` exists to prevent, and the hardest to read back from the
+symptom.
+
+### What you gain for the one-time cost
+
+**You can now upgrade these yourself.** Carried transitively, a CVE in
+`maplibre-gl` was clearable only by waiting for a Nomad release and
+re-vendoring the tarball — which has already cost a downstream consumer a
+forced re-vendor. As a declared peer you bump it on your own schedule.
+
+Note this does **not** add a package to your tree that was not already there:
+`@nomad/frontend` installed `maplibre-gl` transitively on every prior line. The
+change moves *who controls the version*, not whether it is present.
+
+### `@turf/turf` went the other way
+
+It is no longer externalised at all — it is bundled. It is stateless functions,
+so a duplicate copy is harmless, and bundling removes the contract rather than
+documenting it. **Measured cost: +6,071 bytes on `openNomad.umd.cjs`, +0.5%** —
+tree-shaking means only the functions NOMAD imports land in the bundle, not all
+of turf. Nothing for you to declare.
+
+Pinned by `frontend/src/__tests__/libExternalsPeerContract.convention.test.ts`,
+which reddens if an entry is externalised without a peer declaration, or if a
+`globals` entry survives for a package that is no longer external.
+
+---
+
 ## If you build from a 0.19 tag, move to `v0.19.0-react19.2` (#487)
 
 **Only affects builds made FROM a 0.19 git tag.** Installing a published

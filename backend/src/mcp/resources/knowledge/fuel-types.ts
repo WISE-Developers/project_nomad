@@ -1,7 +1,27 @@
 /**
  * MCP Knowledge Resource — FBP Fuel Type Catalog
  *
- * Provides AI agents with reference data on all Canadian FBP fuel types.
+ * A VOCABULARY, not a lookup. This lets an agent recognise and describe a fuel
+ * type a user names ("what is M-3?", "C-2 is the dense black spruce one"). It
+ * CANNOT tell an agent which fuel a given fire is burning in: that needs the
+ * FBP grid sampled at the ignition coordinate, and NOMAD has no point-sampling
+ * capability — see #508, where `ISpatialRepository` is recorded as a
+ * declaration nothing implements.
+ *
+ * The earlier wording here and in MCP_README.md claimed the resource existed
+ * "so the AI can interpret what fuel the fire is burning in", which promised
+ * exactly the query that does not exist (#167).
+ *
+ * Source — Forestry Canada. (1992). Development and Structure of the Canadian
+ * Forest Fire Behaviour Prediction System (ST-X-3).
+ * https://cfs.nrcan.gc.ca/pubwarehouse/pdfs/10068.pdf
+ *
+ * Codes and parameter requirements below follow ST-X-3: M-1/M-2 take percent
+ * conifer (PC), M-3/M-4 take percent dead fir (PDF), and D-2 is BUI-gated.
+ * FireSTARR itself implements ST-X-3 (see
+ * Documentation/Research/Onboarding/firestarr_tech_summary.md), so this
+ * catalogue and the engine name the same system rather than two vocabularies
+ * that happen to agree.
  */
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';

@@ -60,13 +60,17 @@ export default defineConfig({
       fileName: 'openNomad',
     },
     rollupOptions: {
-      // Externalize peer dependencies - consumers must provide these
+      // Externalised = NOT in the bundle, so the consumer's resolver must find
+      // it. Every entry here is therefore declared in `peerDependencies`; the
+      // map packages are `optional` so embedding only the Dashboard does not
+      // force a map stack. `@turf/turf` is deliberately NOT here -- it is
+      // stateless, so it is bundled rather than made a contract (#485).
+      // src/__tests__/libExternalsPeerContract.convention.test.ts pins this.
       external: [
         'react',
         'react-dom',
         'react/jsx-runtime',
         'maplibre-gl',
-        '@turf/turf',
         'terra-draw',
         'terra-draw-maplibre-gl-adapter',
       ],
@@ -79,7 +83,6 @@ export default defineConfig({
           'react-dom': 'ReactDOM',
           'react/jsx-runtime': 'jsxRuntime',
           'maplibre-gl': 'maplibregl',
-          '@turf/turf': 'turf',
           'terra-draw': 'TerraDraw',
           'terra-draw-maplibre-gl-adapter': 'TerraDrawMapLibreGLAdapter',
         },
