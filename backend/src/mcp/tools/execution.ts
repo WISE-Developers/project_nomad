@@ -71,162 +71,8 @@ export function registerExecutionTools(server: McpServer): void {
           ),
       },
     },
-    async ({ modelId, modelMode, scenarios }): Promise<CallToolResult> => {
-      const repo = getModelRepository();
-      const model = await repo.findById(createFireModelId(modelId));
-      if (!model) return modelNotFound(modelId);
-
-      // Check model can be executed
-      if (model.status === ModelStatus.Running || model.status === ModelStatus.Queued) {
-        return modelAlreadyRunning(modelId);
-      }
-
-      // Read config_json and check completeness
-      const config = await repo.getConfigJson(createFireModelId(modelId));
-      const missing: string[] = [];
-      if (!config?.ignition) missing.push('ignition');
-      if (!config?.weather) missing.push('weather');
-      if (!config?.timeRange) missing.push('simulation-time');
-      if (!config?.timezone) missing.push('timezone');
-
-      if (missing.length > 0) {
-        return modelNotReady(modelId, missing);
-      }
-
-      // Build ExecutionOptions from config
-      let ignitionGeometry: SpatialGeometry;
-      try {
-        const ignitionCfg = config!.ignition as { type: string; coordinates: unknown };
-        // Exhaustive by construction. The previous form was
-        // `if (type === 'point') … else → Polygon`, which SILENTLY RAN a
-        // linestring ignition as a polygon and reported success — the same
-        // missing-else shape as #432, which existed in three copies. An
-        // unrecognised type must refuse, never fall through.
-        switch (ignitionCfg.type) {
-          case 'point':
-            ignitionGeometry = new SpatialGeometry({
-              type: GeometryType.Point,
-              coordinates: ignitionCfg.coordinates as [number, number],
-            });
-            break;
-          case 'linestring':
-            ignitionGeometry = new SpatialGeometry({
-              type: GeometryType.LineString,
-              coordinates: ignitionCfg.coordinates as [number, number][],
-            });
-            break;
-          case 'polygon':
-            ignitionGeometry = new SpatialGeometry({
-              type: GeometryType.Polygon,
-              coordinates: ignitionCfg.coordinates as [number, number][][],
-            });
-            break;
-          default:
-            return engineFailed(
-              `Unsupported ignition type in config: '${ignitionCfg.type}'. ` +
-                `Expected one of: point, linestring, polygon.`,
-            );
-        }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        return engineFailed(`Invalid ignition geometry in config: ${msg}`);
-      }
-
-      let timeRange: TimeRange;
-      try {
-        const tr = config!.timeRange as { start: string; end: string };
-        timeRange = TimeRange.fromISO(tr.start, tr.end);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        return engineFailed(`Invalid time range in config: ${msg}`);
-      }
-
-      const weatherConfig = config!.weather as WeatherConfig;
-      const timezone = config!.timezone as string;
-
-      // Single shared derivation — the same builder both HTTP endpoints use.
-      // This literal previously omitted simulationCount and outputMode entirely,
-      // so every MCP run silently took the probabilistic default. It was not a
-      // type error because every parity-relevant field on ExecutionOptions is
-      // optional; `ExecutionRequest` below requires each key, so a future option
-      // cannot reach the engine from one caller and not another.
-      const executionOptions: ExecutionOptions = buildExecutionOptions({
-        ignitionGeometry,
-        timeRange,
-        timezone,
-        weatherConfig,
-        modelMode,
-        scenarios,
-      });
-
-      // Get the engine and initialize
-      const engine = getEngine(EngineType.FireSTARR);
-      try {
-        await engine.initialize(model, executionOptions);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        return engineFailed(`Engine initialization failed: ${msg}`);
-      }
-
-      // Enqueue a job
-      const jobQueue = getJobQueue();
-      const jobResult = await jobQueue.enqueue(createFireModelId(modelId));
-      if (!jobResult.success) {
-        return engineFailed('Failed to create execution job.');
-      }
-      const job = jobResult.value;
-
-      // Start execution in background with lifecycle management
-      jobQueue.updateStatus(job.id, JobStatus.Running).catch(() => {});
-
-      // The engine's reported state decides the outcome, not whether the
-      // promise resolved. This previously treated execute() resolving as
-      // success without ever calling getStatus(), so a run that finished in a
-      // failed state was reported as completed; and it harvested before
-      // completing, so a getResults() throw marked a successful simulation as
-      // failed. Both now go through the same finalizer as the HTTP routes.
-      void executeAndFinalizeModel({
-        execute: async () => {
-          await engine.execute(createFireModelId(modelId));
-        },
-        getStatus: () => engine.getStatus(createFireModelId(modelId)),
-        completeJob: async () => {
-          await jobQueue.complete(job.id);
-        },
-        failJob: async (reason) => {
-          await jobQueue.fail(job.id, reason);
-        },
-        markModelCompleted: async () => {
-          await repo.updateStatus(createFireModelId(modelId), ModelStatus.Completed);
-        },
-        markModelFailed: async () => {
-          await repo.updateStatus(createFireModelId(modelId), ModelStatus.Failed);
-        },
-        harvestResults: async () => {
-          const results = await engine.getResults(createFireModelId(modelId));
-          const resultRepo = getResultRepository();
-          for (const result of results) {
-            await resultRepo.save(result);
-          }
-        },
-        warn: (message) => console.warn(`[MCP] ${message} (model ${modelId})`),
-      });
-
-      // Update model status to queued
-      await repo.updateStatus(createFireModelId(modelId), ModelStatus.Queued);
-
-      return {
-        content: [{
-          type: 'text',
-          text: JSON.stringify({
-            modelId,
-            jobId: job.id,
-            status: 'queued',
-            message: `Model '${model.name}' submitted for execution on FireSTARR. Use get-job-status to track progress.`,
-          }, null, 2),
-        }],
-      };
-    }
+    async ({ modelId, modelMode, scenarios }): Promise<CallToolResult> =>
+      submitModelForExecution({ modelId, modelMode, scenarios })
   );
 
   // ─── get-job-status ────────────────────────────────────────────
@@ -413,4 +259,178 @@ export function registerExecutionTools(server: McpServer): void {
       };
     }
   );
+}
+
+
+/**
+ * Submits one configured model for execution and returns the tool result.
+ *
+ * Extracted from the `execute-model` handler so `batch-execute` (#167 phase 4)
+ * drives the SAME path rather than a second copy of it. A sibling copy is the
+ * shape that let an unsupported ignition type run as a polygon in three places
+ * at once; there is one implementation here on purpose.
+ */
+export async function submitModelForExecution({
+  modelId,
+  modelMode,
+  scenarios,
+}: {
+  modelId: string;
+  modelMode?: 'probabilistic' | 'deterministic';
+  scenarios?: number;
+}): Promise<CallToolResult> {
+      const repo = getModelRepository();
+      const model = await repo.findById(createFireModelId(modelId));
+      if (!model) return modelNotFound(modelId);
+
+      // Check model can be executed
+      if (model.status === ModelStatus.Running || model.status === ModelStatus.Queued) {
+        return modelAlreadyRunning(modelId);
+      }
+
+      // Read config_json and check completeness
+      const config = await repo.getConfigJson(createFireModelId(modelId));
+      const missing: string[] = [];
+      if (!config?.ignition) missing.push('ignition');
+      if (!config?.weather) missing.push('weather');
+      if (!config?.timeRange) missing.push('simulation-time');
+      if (!config?.timezone) missing.push('timezone');
+
+      if (missing.length > 0) {
+        return modelNotReady(modelId, missing);
+      }
+
+      // Build ExecutionOptions from config
+      let ignitionGeometry: SpatialGeometry;
+      try {
+        const ignitionCfg = config!.ignition as { type: string; coordinates: unknown };
+        // Exhaustive by construction. The previous form was
+        // `if (type === 'point') … else → Polygon`, which SILENTLY RAN a
+        // linestring ignition as a polygon and reported success — the same
+        // missing-else shape as #432, which existed in three copies. An
+        // unrecognised type must refuse, never fall through.
+        switch (ignitionCfg.type) {
+          case 'point':
+            ignitionGeometry = new SpatialGeometry({
+              type: GeometryType.Point,
+              coordinates: ignitionCfg.coordinates as [number, number],
+            });
+            break;
+          case 'linestring':
+            ignitionGeometry = new SpatialGeometry({
+              type: GeometryType.LineString,
+              coordinates: ignitionCfg.coordinates as [number, number][],
+            });
+            break;
+          case 'polygon':
+            ignitionGeometry = new SpatialGeometry({
+              type: GeometryType.Polygon,
+              coordinates: ignitionCfg.coordinates as [number, number][][],
+            });
+            break;
+          default:
+            return engineFailed(
+              `Unsupported ignition type in config: '${ignitionCfg.type}'. ` +
+                `Expected one of: point, linestring, polygon.`,
+            );
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return engineFailed(`Invalid ignition geometry in config: ${msg}`);
+      }
+
+      let timeRange: TimeRange;
+      try {
+        const tr = config!.timeRange as { start: string; end: string };
+        timeRange = TimeRange.fromISO(tr.start, tr.end);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return engineFailed(`Invalid time range in config: ${msg}`);
+      }
+
+      const weatherConfig = config!.weather as WeatherConfig;
+      const timezone = config!.timezone as string;
+
+      // Single shared derivation — the same builder both HTTP endpoints use.
+      // This literal previously omitted simulationCount and outputMode entirely,
+      // so every MCP run silently took the probabilistic default. It was not a
+      // type error because every parity-relevant field on ExecutionOptions is
+      // optional; `ExecutionRequest` below requires each key, so a future option
+      // cannot reach the engine from one caller and not another.
+      const executionOptions: ExecutionOptions = buildExecutionOptions({
+        ignitionGeometry,
+        timeRange,
+        timezone,
+        weatherConfig,
+        modelMode,
+        scenarios,
+      });
+
+      // Get the engine and initialize
+      const engine = getEngine(EngineType.FireSTARR);
+      try {
+        await engine.initialize(model, executionOptions);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return engineFailed(`Engine initialization failed: ${msg}`);
+      }
+
+      // Enqueue a job
+      const jobQueue = getJobQueue();
+      const jobResult = await jobQueue.enqueue(createFireModelId(modelId));
+      if (!jobResult.success) {
+        return engineFailed('Failed to create execution job.');
+      }
+      const job = jobResult.value;
+
+      // Start execution in background with lifecycle management
+      jobQueue.updateStatus(job.id, JobStatus.Running).catch(() => {});
+
+      // The engine's reported state decides the outcome, not whether the
+      // promise resolved. This previously treated execute() resolving as
+      // success without ever calling getStatus(), so a run that finished in a
+      // failed state was reported as completed; and it harvested before
+      // completing, so a getResults() throw marked a successful simulation as
+      // failed. Both now go through the same finalizer as the HTTP routes.
+      void executeAndFinalizeModel({
+        execute: async () => {
+          await engine.execute(createFireModelId(modelId));
+        },
+        getStatus: () => engine.getStatus(createFireModelId(modelId)),
+        completeJob: async () => {
+          await jobQueue.complete(job.id);
+        },
+        failJob: async (reason) => {
+          await jobQueue.fail(job.id, reason);
+        },
+        markModelCompleted: async () => {
+          await repo.updateStatus(createFireModelId(modelId), ModelStatus.Completed);
+        },
+        markModelFailed: async () => {
+          await repo.updateStatus(createFireModelId(modelId), ModelStatus.Failed);
+        },
+        harvestResults: async () => {
+          const results = await engine.getResults(createFireModelId(modelId));
+          const resultRepo = getResultRepository();
+          for (const result of results) {
+            await resultRepo.save(result);
+          }
+        },
+        warn: (message) => console.warn(`[MCP] ${message} (model ${modelId})`),
+      });
+
+      // Update model status to queued
+      await repo.updateStatus(createFireModelId(modelId), ModelStatus.Queued);
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            modelId,
+            jobId: job.id,
+            status: 'queued',
+            message: `Model '${model.name}' submitted for execution on FireSTARR. Use get-job-status to track progress.`,
+          }, null, 2),
+        }],
+      };
 }

@@ -113,11 +113,17 @@ describe('MCP Server Integration', () => {
 
   // ─── Tool Discovery ──────────────────────────────────────────
   describe('tool discovery', () => {
-    it('lists all 9 tools', async () => {
+    it('lists all 12 tools', async () => {
       const tools = await client.listTools();
 
+      // An EXACT set, deliberately. A `toContain` per tool would still pass if
+      // a tool were registered twice or an unintended one appeared, and the
+      // catalogue is the server's contract with an agent.
       const toolNames = tools.tools.map(t => t.name).sort();
       expect(toolNames).toEqual([
+        'batch-execute',
+        'clone-model',
+        'compare-models',
         'create-model',
         'execute-model',
         'get-job-status',

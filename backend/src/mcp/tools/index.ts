@@ -6,8 +6,10 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerModelTools } from './models.js';
 import { registerExecutionTools } from './execution.js';
+import { registerBatchTools } from './batch.js';
 
 export function registerAllTools(server: McpServer): void {
   registerModelTools(server);
   registerExecutionTools(server);
+  registerBatchTools(server);
 }
