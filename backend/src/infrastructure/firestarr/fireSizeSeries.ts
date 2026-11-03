@@ -110,7 +110,10 @@ export interface ParsedSizes {
  * silent default is a lie, and the UI has to be able to say why there is no
  * median instead of simply not showing one.
  *
- * Working: `Documentation/plans/nomad-429-sizes-csv-population.md`.
+ * Working: #429, answered in its closing comment. The analysis was drafted in
+ * `Documentation/plans/nomad-429-sizes-csv-population.md`, which is NOT a path in
+ * this repository -- it lived in an author's workspace, so the old citation here
+ * was unresolvable for every other reader.
  */
 export const FIRE_SIZE_PERCENTILE_FLOOR = 11;
 
