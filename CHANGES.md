@@ -4,10 +4,44 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.52.0
+## v0.53.0
+
+### 2026-11-03
+
+- [`17cbfe5`](https://github.com/WISE-Developers/project_nomad/commit/17cbfe5f898cd67cd9559ae76ae3ae1edc6c0983) Merge pull request #509 from WISE-Developers/dev — *Franco Nogarin, 08:33*
+- [`73a3deb`](https://github.com/WISE-Developers/project_nomad/commit/73a3debbac2eb7ed60564166e2412fc086e43439) chore: dev v0.52.9 [release-bot] — *github-actions[bot], 14:26*
+- [`6ad793b`](https://github.com/WISE-Developers/project_nomad/commit/6ad793b838d8060d975df788a557a29cbe960b9c) Merge fix/485-peers-must-be-required into dev — *Franco Nogarin, 08:25*
+- [`3ac5922`](https://github.com/WISE-Developers/project_nomad/commit/3ac59223a79d466bb9ba5017d5f84bc73befe89a) #485 correction: the three map peers are REQUIRED, not optional — *Franco Nogarin, 08:25*
+- [`3046fc5`](https://github.com/WISE-Developers/project_nomad/commit/3046fc52c2f50d61cf0f4700eeb4d75971a1b94e) chore: dev v0.52.8 [release-bot] — *github-actions[bot], 14:17*
+- [`6b5fc7c`](https://github.com/WISE-Developers/project_nomad/commit/6b5fc7c7ae7d829e2ac40844a20c47afcb5b46b7) Merge fix/485-peer-contract into dev — *Franco Nogarin, 08:17*
+- [`150a569`](https://github.com/WISE-Developers/project_nomad/commit/150a56934e2ba8099805ff92bd2bda9af0c956e1) #485: three map packages become optional peers, @turf/turf stops being externalised — *Franco Nogarin, 08:17*
+- [`4f41073`](https://github.com/WISE-Developers/project_nomad/commit/4f41073210b432f9a6113cb9861d8b8dfeaebd94) chore: dev v0.52.7 [release-bot] — *github-actions[bot], 13:40*
+- [`d66dcc0`](https://github.com/WISE-Developers/project_nomad/commit/d66dcc0c0f372663b5c1c0291d47f8c1af419432) Merge origin/dev (v0.52.6) into dev — *Franco Nogarin, 07:39*
+- [`9241a21`](https://github.com/WISE-Developers/project_nomad/commit/9241a2186a6aec935f1a0824422903b06f53d674) Merge feat/167-phase4-batch-tools into dev — *Franco Nogarin, 07:38*
+- [`1a4c358`](https://github.com/WISE-Developers/project_nomad/commit/1a4c35870a85a86b7a32fa48eabf2d359a6aae69) #167 phase 4: clone-model, batch-execute and compare-models — *Franco Nogarin, 07:37*
+- [`3e34979`](https://github.com/WISE-Developers/project_nomad/commit/3e34979bed0e35bfe64a6d2af23f634d744efa47) chore: dev v0.52.6 [release-bot] — *github-actions[bot], 13:18*
+- [`a9f393f`](https://github.com/WISE-Developers/project_nomad/commit/a9f393fe219180b3496299ad60f8a3af0f855b39) Merge chore/429-fix-dead-referent into dev — *Franco Nogarin, 07:18*
+- [`e11525b`](https://github.com/WISE-Developers/project_nomad/commit/e11525bf7944d72aacccdb9ede5689f10180794b) docs(fireSizeSeries): the working-document citation named a path this repo does not have (#429) — *Franco Nogarin, 07:18*
+- [`b0c9d13`](https://github.com/WISE-Developers/project_nomad/commit/b0c9d13fabefc89d873f6f55b54f77cd504ed548) chore: dev v0.52.5 [release-bot] — *github-actions[bot], 12:29*
+- [`1a286a8`](https://github.com/WISE-Developers/project_nomad/commit/1a286a84b60ffef546850db587cfd5bea48c423e) Merge chore/487-backport-advisory-note into dev — *Franco Nogarin, 06:29*
+- [`0d94310`](https://github.com/WISE-Developers/project_nomad/commit/0d943108b27eaaa5ca0e3d8c82428343f8509e88) docs(upgrading): ten 0.19 tags pin better-auth 1.7.5; point builds at v0.19.0-react19.2 (#487) — *Franco Nogarin, 06:29*
 
 ### 2026-11-02
 
+- [`2ea6c6d`](https://github.com/WISE-Developers/project_nomad/commit/2ea6c6df6fca3224b8f88720f40ec4820f07e084) chore: dev v0.52.4 [release-bot] — *github-actions[bot], 18:12*
+- [`e01ffd9`](https://github.com/WISE-Developers/project_nomad/commit/e01ffd9772ddabd42d3ac656e438b17e1a6f60d9) Merge #501: an unowned model is not deletable through the API until it is owned — *Franco Nogarin, 12:11*
+- [`7440dca`](https://github.com/WISE-Developers/project_nomad/commit/7440dcabb00b4513569aad3e1d5f1dad3d7c2271) #501: an unowned model is not deletable through the API until it is owned — *Franco Nogarin, 12:10*
+- [`11bd3aa`](https://github.com/WISE-Developers/project_nomad/commit/11bd3aa19729c620d132357098842932302b614a) chore: dev v0.52.3 [release-bot] — *github-actions[bot], 17:55*
+- [`a8801db`](https://github.com/WISE-Developers/project_nomad/commit/a8801dbd11806be157ad6de6c8b4ea785c92f5fc) Merge #489: unowned models stay visible, and a filtered list says so — *Franco Nogarin, 11:54*
+- [`ee3df8a`](https://github.com/WISE-Developers/project_nomad/commit/ee3df8a5db438ac6b06a1d850063a7cc60b1f8d6) #489: unowned models stay visible, and a filtered list says it was filtered — *Franco Nogarin, 11:54*
+- [`587e5a2`](https://github.com/WISE-Developers/project_nomad/commit/587e5a2d19b30d812eaf139d8c502b134f95b317) chore: dev v0.52.2 [release-bot] — *github-actions[bot], 17:38*
+- [`b83ddd4`](https://github.com/WISE-Developers/project_nomad/commit/b83ddd4001730e7960fd61ffb521530e0b1be768) Merge #490: export from the dashboard model list — *Franco Nogarin, 11:37*
+- [`87a81fe`](https://github.com/WISE-Developers/project_nomad/commit/87a81feacfa5eea23e634b533ab7ed493bc662cc) #490: ExportPanel must explain an empty manifest instead of printing a gap — *Franco Nogarin, 11:27*
+- [`92dadd7`](https://github.com/WISE-Developers/project_nomad/commit/92dadd79cfee7dd5f4473c9e71452e1d0a2626e1) #490: export from the dashboard model list, as a new surface for the existing ExportPanel — *Franco Nogarin, 10:18*
+- [`44c3f3b`](https://github.com/WISE-Developers/project_nomad/commit/44c3f3b92a232e1672ea100f317bd215a610409d) chore: dev v0.52.1 [release-bot] — *github-actions[bot], 15:48*
+- [`0449a79`](https://github.com/WISE-Developers/project_nomad/commit/0449a7995041e60378ddb88d6ae7330887838801) Merge test/490-export-availability-characterization into dev — *Franco Nogarin, 09:48*
+- [`cc4ce9e`](https://github.com/WISE-Developers/project_nomad/commit/cc4ce9ed47f33ec923ad736277cdd843a579c4c5) test(#490): pin that export is withheld WITH A REASON, condition 3 needs no code — *Franco Nogarin, 09:48*
+- [`53daf5b`](https://github.com/WISE-Developers/project_nomad/commit/53daf5b7fd7d0e9ebd1dc313da3faf9309d2ac1a) chore: release v0.52.0 [release-bot] — *github-actions[bot], 15:03*
 - [`fb50a3e`](https://github.com/WISE-Developers/project_nomad/commit/fb50a3e269571619839e8cd2424372079ef595f1) Merge pull request #504 from WISE-Developers/dev — *Franco Nogarin, 08:02*
 - [`8c350b0`](https://github.com/WISE-Developers/project_nomad/commit/8c350b06ca3ed1161f9c9a1cbb7d75685935de88) chore: dev v0.51.3 [release-bot] — *github-actions[bot], 14:57*
 - [`80b65e7`](https://github.com/WISE-Developers/project_nomad/commit/80b65e7c8cfb01bee85e33fd5a45f5c283ee6bf1) Merge fix/503-release-after-image into dev — *Franco Nogarin, 08:56*
