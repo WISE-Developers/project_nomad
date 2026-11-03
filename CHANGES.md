@@ -4,10 +4,15 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.53.0
+## v0.54.0
 
 ### 2026-11-03
 
+- [`0a2f022`](https://github.com/WISE-Developers/project_nomad/commit/0a2f02221e6872af862489db6676238455188609) Merge pull request #510 from WISE-Developers/dev — *Franco Nogarin, 09:12*
+- [`f0d7700`](https://github.com/WISE-Developers/project_nomad/commit/f0d770054fd3c4bc808cf1e733932005f6d4139a) chore: dev v0.53.1 [release-bot] — *github-actions[bot], 14:44*
+- [`046dcc0`](https://github.com/WISE-Developers/project_nomad/commit/046dcc05d1ce7bf4338e6eea7cdfd3f9b1a4160d) Merge fix/507-require-identity-on-writes into dev — *Franco Nogarin, 08:43*
+- [`511aed6`](https://github.com/WISE-Developers/project_nomad/commit/511aed603971404dddb4b104cd85f71df4df8620) #507: require an identity before a mutating request reaches a route — *Franco Nogarin, 08:43*
+- [`8bb7c6a`](https://github.com/WISE-Developers/project_nomad/commit/8bb7c6ad33b14f74597105f564f4df3c39976e47) chore: release v0.53.0 [release-bot] — *github-actions[bot], 14:33*
 - [`17cbfe5`](https://github.com/WISE-Developers/project_nomad/commit/17cbfe5f898cd67cd9559ae76ae3ae1edc6c0983) Merge pull request #509 from WISE-Developers/dev — *Franco Nogarin, 08:33*
 - [`73a3deb`](https://github.com/WISE-Developers/project_nomad/commit/73a3debbac2eb7ed60564166e2412fc086e43439) chore: dev v0.52.9 [release-bot] — *github-actions[bot], 14:26*
 - [`6ad793b`](https://github.com/WISE-Developers/project_nomad/commit/6ad793b838d8060d975df788a557a29cbe960b9c) Merge fix/485-peers-must-be-required into dev — *Franco Nogarin, 08:25*
