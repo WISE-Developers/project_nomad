@@ -155,12 +155,31 @@ export class KnexModelRepository implements IModelRepository {
     // display name, newer ones by email, and a user should not open Nomad to
     // find their earlier work missing. An empty array is treated as no filter,
     // never as "match everything".
-    if (Array.isArray(filter.userId)) {
-      if (filter.userId.length > 0) {
-        query = query.whereIn('user_id', filter.userId);
+    //
+    // `includeUnowned` additionally matches rows with no recorded owner (#489).
+    // These are grouped, so the OR cannot leak past the other filters above — an
+    // ungrouped `orWhereNull` would turn `status = 'draft' AND user_id IN (...)`
+    // into `(status = 'draft' AND user_id IN (...)) OR user_id IS NULL` and return
+    // unowned rows of every status.
+    const matchOwner = (builder: Knex.QueryBuilder, ids: string[]): void => {
+      if (ids.length === 1) {
+        void builder.where('user_id', ids[0]);
+      } else {
+        void builder.whereIn('user_id', ids);
       }
-    } else if (filter.userId) {
-      query = query.where('user_id', filter.userId);
+      if (filter.includeUnowned) {
+        void builder.orWhereNull('user_id');
+      }
+    };
+
+    const requestedIds = Array.isArray(filter.userId)
+      ? filter.userId
+      : filter.userId
+        ? [filter.userId]
+        : [];
+
+    if (requestedIds.length > 0) {
+      query = query.where((builder) => matchOwner(builder, requestedIds));
     }
 
     // Get total count (clone query before pagination)

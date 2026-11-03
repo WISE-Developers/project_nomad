@@ -60,13 +60,22 @@ export default defineConfig({
       fileName: 'openNomad',
     },
     rollupOptions: {
-      // Externalize peer dependencies - consumers must provide these
+      // Externalised = NOT in the bundle, so the consumer's resolver must find
+      // it. Every entry here is therefore a REQUIRED `peerDependencies` entry.
+      // None is `optional`: the built library imports all of these statically
+      // and unconditionally (the UMD bundle requires them at top level), and a
+      // required peer is auto-installed by npm while an optional one is not --
+      // both measured. `optional` here would guarantee an unresolved module for
+      // a consumer who just runs `npm install`, failing at runtime where no
+      // install, typecheck or test gate can see it (#485).
+      // `@turf/turf` is deliberately NOT here -- it is stateless, so it is
+      // bundled rather than made a contract.
+      // src/__tests__/libExternalsPeerContract.convention.test.ts pins this.
       external: [
         'react',
         'react-dom',
         'react/jsx-runtime',
         'maplibre-gl',
-        '@turf/turf',
         'terra-draw',
         'terra-draw-maplibre-gl-adapter',
       ],
@@ -79,7 +88,6 @@ export default defineConfig({
           'react-dom': 'ReactDOM',
           'react/jsx-runtime': 'jsxRuntime',
           'maplibre-gl': 'maplibregl',
-          '@turf/turf': 'turf',
           'terra-draw': 'TerraDraw',
           'terra-draw-maplibre-gl-adapter': 'TerraDrawMapLibreGLAdapter',
         },

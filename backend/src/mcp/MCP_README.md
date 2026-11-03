@@ -37,7 +37,7 @@ Both deployment modes are supported:
 
 Sessions are stateful. Each client gets an isolated MCP server instance with its own session ID.
 
-## Tools (9)
+## Tools (12)
 
 ### Model Setup
 
@@ -54,7 +54,11 @@ Sessions are stateful. Each client gets an isolated MCP server instance with its
 | `set-weather` | Set weather data. Three sources: `firestarr_csv` (pre-computed FWI), `raw_weather` (needs CFFDRS calc + starting codes), or `spotwx` (auto-fetch). |
 | `set-simulation-time` | Set `startTime` and `endTime` as ISO 8601 strings. |
 
-There is no `set-fuel-type` tool. FireSTARR reads fuel from the FBP raster grid at the ignition location. The `nomad://knowledge/fuel-types` resource exists so the AI can interpret what fuel the fire is burning in — not set it.
+There is no `set-fuel-type` tool. FireSTARR reads fuel from the FBP raster grid at the ignition location, so there is nothing for a caller to set.
+
+`nomad://knowledge/fuel-types` is a **vocabulary**, not a lookup: it lets an agent recognise and describe a fuel type a user names. It cannot tell the agent which fuel a given fire is burning in — that needs the FBP grid sampled at a coordinate, which NOMAD does not have (#508). The resource previously claimed it existed "so the AI can interpret what fuel the fire is burning in", which promised exactly that missing query.
+
+Source for the catalogue: Forestry Canada (1992), *Development and Structure of the Canadian Forest Fire Behaviour Prediction System* (ST-X-3) — the same system FireSTARR implements.
 
 All configuration is stored in the `config_json` column on `fire_models` (database-backed, survives restarts).
 
@@ -73,6 +77,21 @@ All configuration is stored in the `config_json` column on `fire_models` (databa
 | `get-results-data` | Structured JSON inventory of result files with paths, output types, formats, and metadata. |
 
 Result summaries are deliberately deterministic. Fire management decisions affect lives and property. The chain of evidence is: engine computed, server formatted, AI presented. No generative step in between.
+
+### Batch and Comparison (#167 phase 4)
+
+| Tool | What it does |
+|---|---|
+| `clone-model` | Copy a model into a new **draft** carrying the same configuration. The source is not modified and the config is copied by value, so editing the clone cannot rewrite the original. Status is always reset to `draft` -- carrying a `completed` status over would describe results the clone has not produced. |
+| `batch-execute` | Submit up to 25 models in one call. Each goes through `submitModelForExecution`, the **same** path `execute-model` uses, not a second copy of it. A model that cannot be submitted is named in `results` with its error code and does not stop the others; `submitted` and `failed` are both reported. |
+| `compare-models` | Side-by-side name, engine, status and result count for 2+ models. Fewer than two is refused as `INVALID_PARAMETER` rather than answered with a one-row comparison, and a model that cannot be read is named in the output rather than dropped from it. |
+
+**Why these three and not the spatial queries.** The MCP server surfaces
+functionality NOMAD and FireSTARR actually have. These compose
+`/models/:id/config`, `/models/:id/execute` and `/models/:id/results`, all of
+which ship. The phase-5 spatial tools (fuel/elevation/weather at a coordinate)
+have no foundation underneath -- `ISpatialRepository` is a declaration nothing
+implements -- and are tracked on #508 instead of sitting here looking imminent.
 
 ## Resources (7)
 

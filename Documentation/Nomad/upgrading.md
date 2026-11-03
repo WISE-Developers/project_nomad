@@ -7,6 +7,123 @@ required key added in one release still applies if you skip past it.
 
 ---
 
+## BREAKING for `@nomad/frontend` consumers: three map packages are now peer dependencies (#485)
+
+**If you embed `@nomad/frontend`, you must declare these yourself. Every consumer,
+not only the ones that render a map.**
+
+```
+maplibre-gl                      ^6.10.0
+terra-draw                       ^1.26.0
+terra-draw-maplibre-gl-adapter   ^1.4.1
+```
+
+They moved from `dependencies` to `peerDependencies`, **required, not optional.**
+Add them to your own `package.json` on upgrade.
+
+### Why not optional, which is what this note said first
+
+An earlier version of this entry said the three were optional peers and that a
+consumer embedding only the Dashboard was unaffected. **Both halves were wrong,
+and the correction came from a downstream consumer measuring it rather than from
+us.** Two measurements settle it:
+
+1. **The built library imports all three unconditionally.** `openNomad.umd.cjs`
+   carries `require("maplibre-gl")`, `require("terra-draw")` and
+   `require("terra-draw-maplibre-gl-adapter")` at top level, and the ES entry
+   statically imports the single chunk that holds them. There is no dynamic
+   import, so no surface avoids them -- mounting only the Dashboard still loads
+   the module that imports maplibre.
+2. **npm treats the two declarations differently.** Installed from a tarball,
+   which is how a vendoring consumer actually consumes this package: a
+   **required** peer is installed, an **optional** peer is not.
+
+Together those mean `optional` would have guaranteed an unresolved module for
+anyone who simply ran `npm install` -- and nothing would have caught it. The
+install succeeds, no typecheck looks inside a vendored `dist`, and the test
+suite passes. It would have failed at runtime, during a deploy.
+
+### What was wrong
+
+`vite.lib.config.ts` externalised seven entries under the comment *"Externalize
+peer dependencies - consumers must provide these"* — but only `react` and
+`react-dom` were declared as peers. An externalised module is **not in the
+bundle**, so your resolver has to find it, and `dependencies` is the wrong field
+for that contract: resolution rested on hoisting, which strict layouts (pnpm's
+default, Yarn PnP) do not guarantee. `maplibre-gl` also carries module-level
+state, so a consumer on a different major could load two copies — the failure
+`peerDependencies` exists to prevent, and the hardest to read back from the
+symptom.
+
+### What you gain for the one-time cost
+
+**You can now upgrade these yourself.** Carried transitively, a CVE in
+`maplibre-gl` was clearable only by waiting for a Nomad release and
+re-vendoring the tarball — which has already cost a downstream consumer a
+forced re-vendor. As a declared peer you bump it on your own schedule.
+
+Note this does **not** add a package to your tree that was not already there:
+`@nomad/frontend` installed `maplibre-gl` transitively on every prior line. The
+change moves *who controls the version*, not whether it is present.
+
+### `@turf/turf` went the other way
+
+It is no longer externalised at all — it is bundled. It is stateless functions,
+so a duplicate copy is harmless, and bundling removes the contract rather than
+documenting it. **Measured cost: +6,071 bytes on `openNomad.umd.cjs`, +0.5%** —
+tree-shaking means only the functions NOMAD imports land in the bundle, not all
+of turf. Nothing for you to declare.
+
+Pinned by `frontend/src/__tests__/libExternalsPeerContract.convention.test.ts`,
+which reddens if an entry is externalised without a peer declaration, or if a
+`globals` entry survives for a package that is no longer external.
+
+---
+
+## If you build from a 0.19 tag, move to `v0.19.0-react19.2` (#487)
+
+**Only affects builds made FROM a 0.19 git tag.** Installing a published
+`@nomad/frontend` tarball is not affected — npm excludes the lockfile from a
+published package, so the pin below has no path into a consumer's tree.
+
+Ten 0.19 tags pin `better-auth` at **1.7.5**, which sits inside the vulnerable
+range of a critical advisory on its OAuth path:
+
+- **GHSA-965c-763c-88jm / CVE-2026-114607**, critical — OAuth state usable as a
+  magic link to sign in as another user. Vulnerable `>= 1.4.0-beta.18, < 1.7.7`.
+- **GHSA-r4xp-prcw-77qf**, high — OAuth Proxy lets an attacker sign in as
+  another user.
+
+Measured across every 0.19 tag rather than inferred from the release order:
+
+```
+v0.19.0, v0.19.0-react19.1, v0.19.1 .. v0.19.8   better-auth 1.7.5   affected
+v0.19.0-react19.2                                better-auth 1.7.14  fixed
+```
+
+**Released tags are not re-cut**, so these ten stay as they are — retagging
+would invalidate anything already citing them. `v0.19.0-react19.2` is the 0.19
+release carrying the fix; `backport/react19-0.19.0` is also at 1.7.14, so a
+build from the branch tip is fine.
+
+### Whether it reaches you
+
+`better-auth` implements only the `oauth` authentication mode, mounted
+exclusively when `NOMAD_AUTH_MODE=oauth` and the deployment mode is not `ACN`.
+The `none` (default) and `simple` modes never load it, so the vulnerable path
+requires `oauth` with social providers configured. That narrows the exposure —
+it does not remove it, and no deployment was audited for its actual mode.
+
+### To check your own build
+
+```bash
+npm ls better-auth
+```
+
+Anything below 1.7.7 is inside the range.
+
+---
+
 ## Rollback image tags now name the version they CONTAIN (#437)
 
 **Nothing to do. This changes what a tag means, and tags made before this

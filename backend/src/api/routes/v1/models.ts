@@ -1371,8 +1371,15 @@ router.get(
     // Dual-match during the #346 transition: newer models are keyed by email,
     // older ones by display name. Matching both keeps a user's earlier work
     // visible without a data migration.
+    //
+    // #489: unowned rows (`userId: null`) stay visible to everyone. Identity scoping
+    // remains the default, so an identified caller sees their own work plus the
+    // unowned history — not their own work alone. Every model created before #488
+    // was fixed is unowned, so without this a consumer that starts sending an
+    // identity header loses sight of the entire history in the same moment (measured:
+    // 5 models to 0).
     const userIds = resolveUserIdCandidates(req);
-    const filter = userIds.length > 0 ? { userId: userIds } : {};
+    const filter = userIds.length > 0 ? { userId: userIds, includeUnowned: true } : {};
     const result = await modelRepo.find(filter);
 
     // Get the workspace-aware engine for working directory lookup
@@ -1413,6 +1420,13 @@ router.get(
     res.json({
       models,
       total: result.totalCount,
+      // #489 criterion 1: say whether identity narrowed this, so a caller can tell
+      // "none exist" from "none of yours". Always present, because an absent marker
+      // is itself ambiguous. Deliberately does NOT echo the identities back.
+      filtered: {
+        byIdentity: userIds.length > 0,
+        includesUnowned: true,
+      },
     });
   })
 );
@@ -1458,10 +1472,40 @@ router.delete(
       throw new NotFoundError('Model', id);
     }
 
+    // #501: an UNOWNED model is not deletable through the API until it is owned.
+    //
+    // Because of #488 every model created before that fix stores `userId: null`, so
+    // unowned is not an edge case — on a measured instance it was the entire history,
+    // and the previous guard let it be deleted one row at a time.
+    //
+    // This refuses EVERY caller, not only identified ones, and that is forced rather
+    // than chosen: `simpleAuthMiddleware` sets `req.user` only when the header is
+    // present, so an unidentified caller resolves to no identity at all. A guard
+    // phrased as "identified callers may not delete unowned rows" would be bypassed
+    // by omitting one header.
+    //
+    // Ownership of historical rows is assigned by migration or an operator-run script.
+    // THERE IS DELIBERATELY NO CLAIM ENDPOINT: a self-service claim would let any
+    // caller take a row and then delete it, at the cost of one extra request, which
+    // would make this guard decorative.
+    //
+    // #489 decided the same `null` means visible to everyone. Visible and deletable
+    // are different questions and were answered separately.
+    if (!model.userId) {
+      throw new ValidationError('Permission denied', [
+        {
+          field: 'userId',
+          message:
+            'This model has no recorded owner and cannot be deleted through the API. ' +
+            'Ownership of historical models is assigned by migration or an operator-run script.',
+        },
+      ]);
+    }
+
     // Dual-match as above: a user must still be able to delete a model they
     // created before ownership moved from display name to email (#346).
     const userIds = resolveUserIdCandidates(req);
-    if (userIds.length > 0 && model.userId && !userIds.includes(model.userId)) {
+    if (userIds.length > 0 && !userIds.includes(model.userId)) {
       throw new ValidationError('Permission denied', [
         { field: 'userId', message: 'You can only delete your own models' },
       ]);
