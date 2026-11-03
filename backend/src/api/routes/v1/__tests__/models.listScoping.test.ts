@@ -121,6 +121,36 @@ async function buildApp() {
   return app;
 }
 
+/**
+ * A harness in `oauth` shape. #489 had NO oauth coverage until 2026-11-03, while the
+ * CIFFC demo has run `oauth` throughout — so the scoping this issue decided had never
+ * executed in the mode it actually ships in.
+ *
+ * Stands in for `betterAuthSessionMiddleware`, whose Better Auth session cookie cannot
+ * be manufactured here. It sets EXACTLY the two fields that middleware sets
+ * (`betterAuthSession.ts:49-51`) and nothing else:
+ *
+ *   req.user      = session.user.name || session.user.email
+ *   req.userEmail = session.user.email
+ *
+ * What is under test is `resolveUserIdCandidates` and the repository filter downstream,
+ * which read only those two fields.
+ */
+async function buildOauthApp(session?: { email: string; name?: string }) {
+  const modelsRouter = (await import('../models.js')).default;
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => {
+    if (session) {
+      (req as express.Request).user = session.name || session.email;
+      (req as express.Request & { userEmail?: string }).userEmail = session.email;
+    }
+    next();
+  });
+  app.use('/api/v1', modelsRouter);
+  return app;
+}
+
 const idsOf = (res: { body: { models: { id: string }[] } }) => res.body.models.map((m) => m.id);
 
 describe('#489 — GET /models: scoping stays the default, unowned rows stay visible', () => {
@@ -196,5 +226,75 @@ describe('#489 — GET /models: scoping stays the default, unowned rows stay vis
     const res = await request(serveInTest(app)).get('/api/v1/models').set('x-nomad-user', ME);
 
     expect(idsOf(res)).toEqual(['m-authored']);
+  });
+});
+
+describe('#489 under OAUTH — the mode the demo actually runs', () => {
+  const envBefore = { ...process.env };
+  const EMAIL = 'modeller@example.test';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    (globalThis as { __rows?: Row[] }).__rows = ROWS;
+    process.env.NOMAD_AUTH_MODE = 'oauth';
+  });
+
+  afterEach(() => {
+    process.env = { ...envBefore };
+    delete (globalThis as { __rows?: Row[] }).__rows;
+  });
+
+  it('CONTROL — no session means unidentified, and reads are NOT gated (#507 covers writes only)', async () => {
+    // Establishes that the harness can produce the unidentified case at all; without
+    // it, a stub that always applied a session would make every test below vacuous.
+    const app = await buildOauthApp(undefined);
+    const res = await request(serveInTest(app)).get('/api/v1/models');
+
+    expect(res.status).toBe(200);
+    expect(idsOf(res)).toEqual(['m-authored', 'm-other', 'm-nullauthor']);
+    expect(res.body.filtered).toEqual({ byIdentity: false, includesUnowned: true });
+  });
+
+  it('an oauth caller identified by EMAIL sees their own rows and the unowned row', async () => {
+    // In oauth the stored identity is req.userEmail, not the header `simple` supplies.
+    (globalThis as { __rows?: Row[] }).__rows = [
+      { ...ROWS[0], userId: EMAIL },
+      ROWS[1],
+      ROWS[2],
+    ];
+
+    const app = await buildOauthApp({ email: EMAIL, name: 'Test Modeller' });
+    const res = await request(serveInTest(app)).get('/api/v1/models');
+
+    expect(res.status).toBe(200);
+    const ids = idsOf(res);
+    expect(ids).toContain('m-authored');
+    expect(ids).toContain('m-nullauthor');
+    expect(ids).not.toContain('m-other');
+    expect(res.body.filtered).toEqual({ byIdentity: true, includesUnowned: true });
+  });
+
+  it('an oauth caller still sees rows keyed by their PRE-#346 DISPLAY NAME', async () => {
+    // Why resolveUserIdCandidates returns two candidates. A row written before #346
+    // carries the display value while the session resolves to the email. This path
+    // had never run under oauth.
+    const app = await buildOauthApp({ email: EMAIL, name: ME });
+    const res = await request(serveInTest(app)).get('/api/v1/models');
+
+    expect(res.status).toBe(200);
+    const ids = idsOf(res);
+    expect(ids).toContain('m-authored');   // keyed by ME, the display value
+    expect(ids).toContain('m-nullauthor');
+    expect(ids).not.toContain('m-other');
+  });
+
+  it('CONTROL — a session matching nothing still sees the unowned row, not an empty list', async () => {
+    // Otherwise the test above could pass for a candidate list that matches anything.
+    const app = await buildOauthApp({ email: 'nobody@example.test', name: 'Nobody At All' });
+    const res = await request(serveInTest(app)).get('/api/v1/models');
+
+    expect(idsOf(res)).toEqual(['m-nullauthor']);
+    expect(res.body.filtered).toEqual({ byIdentity: true, includesUnowned: true });
   });
 });

@@ -102,6 +102,42 @@ async function buildApp() {
   return app;
 }
 
+/**
+ * A harness in `oauth` shape (#489/#501 had NO oauth coverage until 2026-11-03).
+ *
+ * `betterAuthSessionMiddleware` resolves a Better Auth session cookie, which cannot be
+ * manufactured here, so this stands in for it. It sets EXACTLY the two fields that
+ * middleware sets, and nothing else:
+ *
+ *   req.user      = session.user.name || session.user.email   (display)
+ *   req.userEmail = session.user.email                        (stable identity)
+ *
+ * See `src/api/middleware/betterAuthSession.ts:49-51`. The stub is deliberately dumb:
+ * if it did anything cleverer than copy those two fields it would be testing itself.
+ * What is under test is `resolveUserIdCandidates` and the ownership guard downstream,
+ * which only ever read those fields.
+ */
+async function buildOauthApp(session?: { email: string; name?: string }) {
+  const { requireIdentityOnWrites } = await import(
+    '../../../middleware/requireIdentityOnWrites.js'
+  );
+  const { errorHandler } = await import('../../../middleware/errorHandler.js');
+  const modelsRouter = (await import('../models.js')).default;
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => {
+    if (session) {
+      (req as express.Request).user = session.name || session.email;
+      (req as express.Request & { userEmail?: string }).userEmail = session.email;
+    }
+    next();
+  });
+  app.use('/api/v1', requireIdentityOnWrites);
+  app.use('/api/v1', modelsRouter);
+  app.use(errorHandler);
+  return app;
+}
+
 function del(app: express.Express, id: string, as?: string) {
   const r = request(serveInTest(app)).delete(`/api/v1/models/${id}`);
   return as ? r.set('x-nomad-user', as) : r;
@@ -202,5 +238,94 @@ describe('#501 — DELETE /models/:id and unowned rows', () => {
 
     expect(res.status).toBe(200);
     expect(deleteModel).toHaveBeenCalled();
+  });
+});
+
+describe('#489/#501 under OAUTH — the mode the demo actually runs', () => {
+  const envBefore = { ...process.env };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    (globalThis as { __rows?: Row[] }).__rows = ROWS;
+    process.env.NOMAD_AUTH_MODE = 'oauth';
+  });
+
+  afterEach(() => {
+    process.env = { ...envBefore };
+    delete (globalThis as { __rows?: Row[] }).__rows;
+  });
+
+  it('CONTROL — with no session the write is refused, so these tests cannot pass unauthenticated', async () => {
+    // Without this, every assertion below could be satisfied by a harness that
+    // never applies the session at all.
+    const app = await buildOauthApp(undefined);
+    const res = await request(serveInTest(app)).delete(`/api/v1/models/theirs`);
+
+    expect(res.status).toBe(401);
+    expect(deleteModel).not.toHaveBeenCalled();
+  });
+
+  it('an oauth caller deletes their OWN model, identified by the session EMAIL', async () => {
+    // In oauth the stored identity is req.userEmail, NOT the header req.user that
+    // `simple` supplies. This is the branch of resolveUserId that no #501 test reached.
+    const app = await buildOauthApp({ email: ME, name: 'Test Modeller' });
+    const res = await request(serveInTest(app)).delete(`/api/v1/models/mine`);
+
+    expect(res.status).toBe(200);
+    expect(deleteModel).toHaveBeenCalled();
+  });
+
+  it("an oauth caller cannot delete SOMEONE ELSE's model", async () => {
+    const app = await buildOauthApp({ email: ME, name: 'Test Modeller' });
+    const res = await request(serveInTest(app)).delete(`/api/v1/models/theirs`);
+
+    // 400, not 403: the guard raises ValidationError('Permission denied'), which
+    // errorHandler maps to 400. The simple-mode tests above use >= 400 for the same
+    // reason. Asserting 403 was MY expectation, not the application's contract.
+    expect(res.status).toBe(400);
+    expect(JSON.stringify(res.body)).toMatch(/permission/i);
+    expect(deleteModel).not.toHaveBeenCalled();
+  });
+
+  it('an oauth caller cannot delete an UNOWNED model either — #501 holds in this mode too', async () => {
+    const app = await buildOauthApp({ email: ME, name: 'Test Modeller' });
+    const res = await request(serveInTest(app)).delete(`/api/v1/models/legacy-row`);
+
+    expect(res.status).toBe(400);
+    expect(JSON.stringify(res.body)).toMatch(/own|permission/i);
+    expect(deleteModel).not.toHaveBeenCalled();
+  });
+
+  it('an oauth caller still owns a row keyed by their PRE-#346 DISPLAY NAME', async () => {
+    // The reason resolveUserIdCandidates returns two candidates rather than one.
+    // A row written before #346 carries the display value; the session now resolves
+    // to the email. Nothing before today executed this path under oauth, and it is
+    // the one most likely to have been wrong.
+    const DISPLAY = 'Test Modeller';
+    (globalThis as { __rows?: Row[] }).__rows = [
+      { id: 'legacy-display', name: 'legacy display row', engineType: 'firestarr',
+        status: 'draft', createdAt: new Date(), userId: DISPLAY },
+    ];
+
+    const app = await buildOauthApp({ email: ME, name: DISPLAY });
+    const res = await request(serveInTest(app)).delete(`/api/v1/models/legacy-display`);
+
+    expect(res.status).toBe(200);
+    expect(deleteModel).toHaveBeenCalled();
+  });
+
+  it('CONTROL — a DIFFERENT display name does not grant ownership of that row', async () => {
+    // Otherwise the test above would pass for a candidate list that matches anything.
+    (globalThis as { __rows?: Row[] }).__rows = [
+      { id: 'legacy-display', name: 'legacy display row', engineType: 'firestarr',
+        status: 'draft', createdAt: new Date(), userId: 'Someone Entirely Else' },
+    ];
+
+    const app = await buildOauthApp({ email: ME, name: 'Test Modeller' });
+    const res = await request(serveInTest(app)).delete(`/api/v1/models/legacy-display`);
+
+    expect(res.status).toBe(400);
+    expect(deleteModel).not.toHaveBeenCalled();
   });
 });
