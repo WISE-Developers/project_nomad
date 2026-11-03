@@ -54,7 +54,11 @@ Sessions are stateful. Each client gets an isolated MCP server instance with its
 | `set-weather` | Set weather data. Three sources: `firestarr_csv` (pre-computed FWI), `raw_weather` (needs CFFDRS calc + starting codes), or `spotwx` (auto-fetch). |
 | `set-simulation-time` | Set `startTime` and `endTime` as ISO 8601 strings. |
 
-There is no `set-fuel-type` tool. FireSTARR reads fuel from the FBP raster grid at the ignition location. The `nomad://knowledge/fuel-types` resource exists so the AI can interpret what fuel the fire is burning in — not set it.
+There is no `set-fuel-type` tool. FireSTARR reads fuel from the FBP raster grid at the ignition location, so there is nothing for a caller to set.
+
+`nomad://knowledge/fuel-types` is a **vocabulary**, not a lookup: it lets an agent recognise and describe a fuel type a user names. It cannot tell the agent which fuel a given fire is burning in — that needs the FBP grid sampled at a coordinate, which NOMAD does not have (#508). The resource previously claimed it existed "so the AI can interpret what fuel the fire is burning in", which promised exactly that missing query.
+
+Source for the catalogue: Forestry Canada (1992), *Development and Structure of the Canadian Forest Fire Behaviour Prediction System* (ST-X-3) — the same system FireSTARR implements.
 
 All configuration is stored in the `config_json` column on `fire_models` (database-backed, survives restarts).
 
