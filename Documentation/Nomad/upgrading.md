@@ -7,6 +7,50 @@ required key added in one release still applies if you skip past it.
 
 ---
 
+## If you build from a 0.19 tag, move to `v0.19.0-react19.2` (#487)
+
+**Only affects builds made FROM a 0.19 git tag.** Installing a published
+`@nomad/frontend` tarball is not affected — npm excludes the lockfile from a
+published package, so the pin below has no path into a consumer's tree.
+
+Ten 0.19 tags pin `better-auth` at **1.7.5**, which sits inside the vulnerable
+range of a critical advisory on its OAuth path:
+
+- **GHSA-965c-763c-88jm / CVE-2026-114607**, critical — OAuth state usable as a
+  magic link to sign in as another user. Vulnerable `>= 1.4.0-beta.18, < 1.7.7`.
+- **GHSA-r4xp-prcw-77qf**, high — OAuth Proxy lets an attacker sign in as
+  another user.
+
+Measured across every 0.19 tag rather than inferred from the release order:
+
+```
+v0.19.0, v0.19.0-react19.1, v0.19.1 .. v0.19.8   better-auth 1.7.5   affected
+v0.19.0-react19.2                                better-auth 1.7.14  fixed
+```
+
+**Released tags are not re-cut**, so these ten stay as they are — retagging
+would invalidate anything already citing them. `v0.19.0-react19.2` is the 0.19
+release carrying the fix; `backport/react19-0.19.0` is also at 1.7.14, so a
+build from the branch tip is fine.
+
+### Whether it reaches you
+
+`better-auth` implements only the `oauth` authentication mode, mounted
+exclusively when `NOMAD_AUTH_MODE=oauth` and the deployment mode is not `ACN`.
+The `none` (default) and `simple` modes never load it, so the vulnerable path
+requires `oauth` with social providers configured. That narrows the exposure —
+it does not remove it, and no deployment was audited for its actual mode.
+
+### To check your own build
+
+```bash
+npm ls better-auth
+```
+
+Anything below 1.7.7 is inside the range.
+
+---
+
 ## Rollback image tags now name the version they CONTAIN (#437)
 
 **Nothing to do. This changes what a tag means, and tags made before this
