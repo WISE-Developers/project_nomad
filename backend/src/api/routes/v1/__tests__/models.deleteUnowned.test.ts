@@ -81,11 +81,19 @@ const ROWS: Row[] = [
 
 async function buildApp() {
   const { simpleAuthMiddleware } = await import('../../../middleware/simpleAuth.js');
+  const { requireIdentityOnWrites } = await import(
+    '../../../middleware/requireIdentityOnWrites.js'
+  );
   const { errorHandler } = await import('../../../middleware/errorHandler.js');
   const modelsRouter = (await import('../models.js')).default;
   const app = express();
   app.use(express.json());
   app.use(simpleAuthMiddleware);
+  // #507's gate, in the same position index.ts mounts it: after the mode-specific
+  // auth and BEFORE the router. Without it this harness would still answer 200 to
+  // an unidentified delete and the assertion below would be measuring the harness
+  // rather than the application.
+  app.use('/api/v1', requireIdentityOnWrites);
   app.use('/api/v1', modelsRouter);
   // The REAL error handler, as index.ts mounts it. Without it express's default
   // returns the right status with an empty body, so "the refusal explains itself"
@@ -160,15 +168,35 @@ describe('#501 — DELETE /models/:id and unowned rows', () => {
     expect(deleteModel).not.toHaveBeenCalled();
   });
 
-  it('CHARACTERIZATION — an UNIDENTIFIED caller can still delete someone else\'s OWNED model', async () => {
-    // NOT a remedy, and not in #501's scope. There is no route-level auth anywhere on
-    // /api/v1: betterAuthSession annotates and calls next() rather than rejecting, and
-    // models.ts mounts no auth gate, so an unidentified caller reaches this handler in
-    // every auth mode with an empty identity set.
+  it('#507 — an UNIDENTIFIED caller is now REFUSED before reaching the handler', async () => {
+    // Replaces the characterization test that pinned a 200 here. The decision, per
+    // auth mode, is recorded on #507: `simple` and `oauth` require an identity for a
+    // mutating request; `none` stays open because that is what the mode means.
     //
-    // This is strictly worse than #501 and is filed separately, because "open access" may
-    // be intentional in `none` mode and the remedy is a decision, not an implementation
-    // detail. Pinned here so it cannot change silently in either direction.
+    // This case runs in `simple` mode (set in beforeEach), so the refusal is a 401
+    // from the gate rather than the ownership error from the handler -- and
+    // deleteModel must never be reached at all.
+    const app = await buildApp();
+    const res = await del(app, 'theirs');
+
+    expect(res.status).toBe(401);
+    expect(deleteModel).not.toHaveBeenCalled();
+    expect(res.body.message).toMatch(/x-nomad-user/i);
+  });
+
+  it('#507 CONTROL — the same delete SUCCEEDS once the owner identifies themselves', async () => {
+    // Without this, the test above is satisfied by a gate that refuses everything.
+    const app = await buildApp();
+    const res = await del(app, 'theirs', SOMEONE_ELSE);
+
+    expect(res.status).toBe(200);
+    expect(deleteModel).toHaveBeenCalled();
+  });
+
+  it('#507 — `none` mode keeps the unidentified delete open, by decision', async () => {
+    // The mode means open access. A blanket "identity required" would have changed
+    // what `none` does, which is why the ruling is per mode rather than global.
+    process.env.NOMAD_AUTH_MODE = 'none';
     const app = await buildApp();
     const res = await del(app, 'theirs');
 

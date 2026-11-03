@@ -16,6 +16,7 @@ export {
   resolveAuthMode,
   betterAuthSessionMiddleware,
   unhonouredIdentityMiddleware,
+  requireIdentityOnWrites,
   requireRoles,
   type ApiErrorResponse,
   type AuthMode,
