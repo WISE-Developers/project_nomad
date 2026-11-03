@@ -118,16 +118,32 @@ describe('convention: externalised packages are declared peers (#485)', () => {
     expect(orphans).toEqual([]);
   });
 
-  it('marks the map peers optional and keeps them installable for our own build', () => {
+  it('does NOT mark a statically-required package as an optional peer', () => {
     const { peerDependencies, peerDependenciesMeta, devDependencies } = manifest();
 
     for (const name of ['maplibre-gl', 'terra-draw', 'terra-draw-maplibre-gl-adapter']) {
       expect(peerDependencies).toHaveProperty(name);
-      // Optional, so a consumer embedding only the Dashboard is not forced to
-      // install a map stack it never renders.
-      expect(peerDependenciesMeta[name]?.optional).toBe(true);
-      // And present as a devDependency, or this repo cannot build or test the
-      // code that imports them.
+
+      // These were briefly `optional: true`, on the premise that a consumer
+      // embedding only the Dashboard never needs a map stack. MEASURED FALSE:
+      // the built library requires all three unconditionally -- the UMD bundle
+      // carries `require("maplibre-gl")`, `require("terra-draw")` and
+      // `require("terra-draw-maplibre-gl-adapter")` at the top level, and the
+      // ES entry statically imports the one chunk that holds them. There is no
+      // dynamic import anywhere, so no surface avoids them.
+      //
+      // And the two install behaviours differ, measured from a tarball, which
+      // is how our one known consumer actually installs this package:
+      //   required peer -> npm installs it
+      //   optional peer -> npm does NOT
+      // So `optional` on a static import guarantees an unresolved module for
+      // anyone who simply runs `npm install`, and no gate catches it: the
+      // install succeeds, nothing typechecks a vendored dist, and the suite
+      // passes. It fails at runtime, in a deploy.
+      expect(peerDependenciesMeta[name]?.optional).toBeUndefined();
+
+      // Still a devDependency, or this repo cannot build or test the code that
+      // imports them.
       expect(devDependencies).toHaveProperty(name);
     }
   });

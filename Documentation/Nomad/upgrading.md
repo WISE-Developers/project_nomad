@@ -9,8 +9,8 @@ required key added in one release still applies if you skip past it.
 
 ## BREAKING for `@nomad/frontend` consumers: three map packages are now peer dependencies (#485)
 
-**If you embed `@nomad/frontend` and render the map, you must declare these yourself.**
-Consumers that embed only the Dashboard are unaffected.
+**If you embed `@nomad/frontend`, you must declare these yourself. Every consumer,
+not only the ones that render a map.**
 
 ```
 maplibre-gl                      ^6.10.0
@@ -18,9 +18,30 @@ terra-draw                       ^1.26.0
 terra-draw-maplibre-gl-adapter   ^1.4.1
 ```
 
-They moved from `dependencies` to `peerDependencies`, marked
-`peerDependenciesMeta.optional` so an install that does not need a map does not
-fail. Add them to your own `package.json` on upgrade.
+They moved from `dependencies` to `peerDependencies`, **required, not optional.**
+Add them to your own `package.json` on upgrade.
+
+### Why not optional, which is what this note said first
+
+An earlier version of this entry said the three were optional peers and that a
+consumer embedding only the Dashboard was unaffected. **Both halves were wrong,
+and the correction came from a downstream consumer measuring it rather than from
+us.** Two measurements settle it:
+
+1. **The built library imports all three unconditionally.** `openNomad.umd.cjs`
+   carries `require("maplibre-gl")`, `require("terra-draw")` and
+   `require("terra-draw-maplibre-gl-adapter")` at top level, and the ES entry
+   statically imports the single chunk that holds them. There is no dynamic
+   import, so no surface avoids them -- mounting only the Dashboard still loads
+   the module that imports maplibre.
+2. **npm treats the two declarations differently.** Installed from a tarball,
+   which is how a vendoring consumer actually consumes this package: a
+   **required** peer is installed, an **optional** peer is not.
+
+Together those mean `optional` would have guaranteed an unresolved module for
+anyone who simply ran `npm install` -- and nothing would have caught it. The
+install succeeds, no typecheck looks inside a vendored `dist`, and the test
+suite passes. It would have failed at runtime, during a deploy.
 
 ### What was wrong
 
