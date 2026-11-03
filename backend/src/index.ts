@@ -15,6 +15,7 @@ import {
   resolveAuthMode,
   betterAuthSessionMiddleware,
   unhonouredIdentityMiddleware,
+  requireIdentityOnWrites,
 } from './api/index.js';
 import { initDatabase, initializeRepositories, getJobRepository } from './infrastructure/database/index.js';
 import { getBundleStore } from './infrastructure/export/index.js';
@@ -218,6 +219,15 @@ if (process.env.NOMAD_DEPLOYMENT_MODE === 'ACN') {
 // ============================================
 // Routes
 // ============================================
+
+// 5. Identity gate on mutating requests (#507)
+//
+// Mounted here rather than per route: there are 18 mutating routes across ten
+// files, and a decision applied by editing each one is a decision a nineteenth
+// route silently opts out of. It is a no-op in `none` mode and in ACN, where
+// acnAuthMiddleware has already decided. See the middleware for the per-mode
+// reasoning, and for why `simple` mode is attribution rather than authentication.
+app.use('/api', requireIdentityOnWrites);
 
 // API routes (versioned)
 app.use('/api', apiRouter);

@@ -12,6 +12,7 @@ export { simpleAuthMiddleware } from './simpleAuth.js';
 export { resolveAuthMode, type AuthMode } from './authMode.js';
 export { betterAuthSessionMiddleware } from './betterAuthSession.js';
 export { unhonouredIdentityMiddleware } from './unhonouredIdentity.js';
+export { requireIdentityOnWrites } from './requireIdentityOnWrites.js';
 export { resolveUserId, resolveUserIdCandidates } from './resolveUserId.js';
 export {
   acnAuthMiddleware,
