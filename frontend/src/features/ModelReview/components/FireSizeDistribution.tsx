@@ -141,6 +141,7 @@ export function FireSizeDistribution({ resolution }: Props) {
  */
 function Statistics({ summary }: { summary: FireSizeDay['summary'] }) {
   return (
+    <>
     <table
       className="fire-size-distribution__stats"
       style={{ color: INK, borderCollapse: 'collapse', margin: '6px 0' }}
@@ -188,6 +189,27 @@ function Statistics({ summary }: { summary: FireSizeDay['summary'] }) {
         </tr>
       </tbody>
     </table>
+    {/* The method, where the person reading the number can see it. Boychuk,
+        2026-10-30: under nearest-rank the figure labelled P90 was really
+        P92/P93 in his worked example and P95 was really P96 — "the 'p95' label
+        is misleading". The direction is stated because it only runs one way:
+        nearest-rank takes the next simulated size AT OR ABOVE the rank, so the
+        reported figure can answer a higher percentile than its label, never a
+        lower one. Rendered only in the `available` branch: below N=11 there are
+        no percentiles on screen to explain. */}
+    {summary.percentileStats.kind === 'available' && (
+      <p
+        className="fire-size-distribution__method"
+        data-testid="percentile-method-note"
+        style={{ color: MUTED, fontSize: '0.85em', margin: '2px 0 6px', maxWidth: '52ch' }}
+      >
+        Median and percentiles use FireSTARR's nearest-rank definition, with no
+        interpolation, so every figure is a size the ensemble actually produced. A
+        reported value may therefore correspond to a slightly higher percentile
+        than its label.
+      </p>
+    )}
+    </>
   );
 }
 
