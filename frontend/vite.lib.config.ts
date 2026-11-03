@@ -61,10 +61,15 @@ export default defineConfig({
     },
     rollupOptions: {
       // Externalised = NOT in the bundle, so the consumer's resolver must find
-      // it. Every entry here is therefore declared in `peerDependencies`; the
-      // map packages are `optional` so embedding only the Dashboard does not
-      // force a map stack. `@turf/turf` is deliberately NOT here -- it is
-      // stateless, so it is bundled rather than made a contract (#485).
+      // it. Every entry here is therefore a REQUIRED `peerDependencies` entry.
+      // None is `optional`: the built library imports all of these statically
+      // and unconditionally (the UMD bundle requires them at top level), and a
+      // required peer is auto-installed by npm while an optional one is not --
+      // both measured. `optional` here would guarantee an unresolved module for
+      // a consumer who just runs `npm install`, failing at runtime where no
+      // install, typecheck or test gate can see it (#485).
+      // `@turf/turf` is deliberately NOT here -- it is stateless, so it is
+      // bundled rather than made a contract.
       // src/__tests__/libExternalsPeerContract.convention.test.ts pins this.
       external: [
         'react',
