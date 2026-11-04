@@ -92,9 +92,19 @@ describe('assertClassDomainPreserved', () => {
 
 describe.skipIf(!HAVE_GDAL)('reprojecting a real fuel grid with GDAL', () => {
   function census(path: string): number[] {
-    const asc = `${path}.asc`;
-    execFileSync('gdal_translate', ['-q', '-of', 'AAIGrid', path, asc], { stdio: 'ignore' });
-    const text = readFileSync(asc, 'utf8');
+    // The .asc goes to a scratch directory, NEVER beside `path`. Writing it next
+    // to the source littered the repository with gdal_translate byproducts
+    // (.asc, .asc.aux.xml, .prj) - I committed three of them before noticing -
+    // and dirtied the working tree on every single test run.
+    const scratch = mkdtempSync(join(tmpdir(), 'fuelcensus-'));
+    const asc = join(scratch, 'census.asc');
+    let text: string;
+    try {
+      execFileSync('gdal_translate', ['-q', '-of', 'AAIGrid', path, asc], { stdio: 'ignore' });
+      text = readFileSync(asc, 'utf8');
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
     const values = new Set<number>();
     for (const line of text.split('\n')) {
       const tokens = line.trim().split(/\s+/);
