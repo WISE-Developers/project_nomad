@@ -21,7 +21,7 @@ import {
  * that some movement occurs — which is correct for MODELLING and wrong for
  * display. These two jobs never share a table.
  */
-const LUT_CSV = readFileSync(join(__dirname, 'fixtures', 'fuel_updated.csv'), 'utf8');
+const LUT_CSV = readFileSync(join(__dirname, '..', 'fuel_updated.csv'), 'utf8');
 
 describe('fuel grid LUT', () => {
   it('parses the real canonical table', () => {
