@@ -6,6 +6,7 @@
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpToolContext } from './context.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -28,7 +29,7 @@ import {
 /**
  * Registers all model configuration tools on the MCP server.
  */
-export function registerModelTools(server: McpServer): void {
+export function registerModelTools(server: McpServer, context?: McpToolContext): void {
 
   // ─── list-models ───────────────────────────────────────────────
   server.registerTool(
@@ -91,6 +92,9 @@ export function registerModelTools(server: McpServer): void {
         name,
         engineType: EngineType.FireSTARR,
         status: ModelStatus.Draft,
+        // Attribution, in the same terms the HTTP path uses (`resolveUserId`), so an
+        // MCP-created model is owned like any other. See mcp/tools/context.ts.
+        userId: context?.userId,
       });
 
       await repo.save(model);

@@ -178,15 +178,58 @@ app.use(express.json({ limit: '10mb' }));
 app.use(requestLogger);
 
 // ============================================
-// MCP Server (optional, behind feature flag)
-// Mounted BEFORE auth middleware — MCP uses its own session-based auth.
-// The MCP endpoint only exists when explicitly opted in via NOMAD_ENABLE_MCP=true.
+// MCP Server (optional, behind a feature flag AND a key)
+//
+// MCP carries its own guard, in `mcp/auth.ts`, and `mountMcpChain` is the only
+// supported way to mount it. Note that `requireIdentityOnWrites` further down does not
+// cover this endpoint: that is scoped to `/api`, and MCP is not under `/api`.
+//
+// Two gates, and the flag alone is not sufficient:
+//   NOMAD_ENABLE_MCP=true   opts in
+//   NOMAD_MCP_AUTH_KEY      + NOMAD_MCP_IDENTITY make it actually mount
+//
+// With the flag set and no key, `resolveMcpConfig` returns null and `mountMcpChain`
+// mounts NOTHING — the route is absent (404), not present-and-open. With exactly one
+// of the two set, this throws and the process does not start. Partial configuration
+// is a mistake someone made, and the only safe reading of a mistake is to stop.
 // ============================================
 
-if (process.env.NOMAD_ENABLE_MCP === 'true') {
-  const { mountMcpServer } = await import('./mcp/index.js');
-  mountMcpServer(app);
-}
+// MCP is NOT mounted on `app`. It gets its own loopback listener, started further down
+// with the other servers — see `mcp/listener.ts` for why it is a separate listener
+// rather than a route here. Configuration is resolved at this point, so an incomplete
+// one stops the process before anything binds.
+const mcpSetup = await (async () => {
+  if (process.env.NOMAD_ENABLE_MCP !== 'true') return null;
+
+  const { resolveMcpConfig } = await import('./mcp/auth.js');
+  const mcpConfig = resolveMcpConfig(process.env);
+
+  if (!mcpConfig) {
+    logger.startup('MCP flag is set but NOMAD_MCP_AUTH_KEY is not — MCP will NOT start');
+    return null;
+  }
+
+  // The identity is resolved BEFORE anything listens: a configured identity matching no
+  // account would attribute records to an account that does not exist, so a failure to
+  // resolve stops the process here.
+  const { resolveMcpIdentity, createAuthUserStore } = await import('./mcp/identity.js');
+  const { resolveMcpPort } = await import('./mcp/listener.js');
+
+  const mcpAuthMode = process.env.NOMAD_DEPLOYMENT_MODE === 'ACN' ? 'acn' : resolveAuthMode();
+  const identity = await resolveMcpIdentity(
+    mcpConfig.identity,
+    mcpAuthMode,
+    mcpAuthMode === 'oauth' ? createAuthUserStore() : undefined,
+  );
+
+  return {
+    config: mcpConfig,
+    port: resolveMcpPort(process.env),
+    toolContext: { userId: identity.userId },
+    authMode: mcpAuthMode,
+    verified: identity.verified,
+  };
+})();
 
 // 3.5. Warn when a request names a user the active mode cannot honour (#488).
 // Mounted unconditionally and BEFORE the mode-specific auth: acnAuth's own
@@ -317,6 +360,24 @@ async function startServer(): Promise<void> {
 ╚════════════════════════════════════════════╝
       `);
     });
+
+    // MCP gets its OWN loopback listener, never a route on the app above. Started
+    // after the app so that a failure to bind it is reported against MCP rather than
+    // looking like the application failed to start.
+    if (mcpSetup) {
+      const { startMcpListener } = await import('./mcp/listener.js');
+      await startMcpListener({
+        config: mcpSetup.config,
+        port: mcpSetup.port,
+        toolContext: mcpSetup.toolContext,
+      });
+      logger.startup(
+        `MCP enabled behind key authentication, writing as ${mcpSetup.toolContext.userId}` +
+          (mcpSetup.verified
+            ? ' (verified against the account store)'
+            : ` (UNVERIFIED — ${mcpSetup.authMode} mode has no account store to check against)`),
+      );
+    }
   } catch (error) {
     logger.error(`Failed to start server: ${error}`, 'Startup');
     process.exit(1);
