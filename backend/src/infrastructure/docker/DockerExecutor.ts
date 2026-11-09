@@ -249,45 +249,7 @@ export class DockerExecutor implements IContainerExecutor {
    * Builds docker-compose run arguments
    */
   private buildDockerArgs(options: ContainerRunOptions): string[] {
-    const args: string[] = ['run', '--rm'];
-
-    // Add volume mounts
-    if (options.volumes) {
-      for (const vol of options.volumes) {
-        const mount = vol.readOnly
-          ? `${vol.hostPath}:${vol.containerPath}:ro`
-          : `${vol.hostPath}:${vol.containerPath}`;
-        args.push('-v', mount);
-      }
-    }
-
-    // Add environment variables
-    if (options.env) {
-      for (const [key, value] of Object.entries(options.env)) {
-        args.push('-e', `${key}=${value}`);
-      }
-    }
-
-    // Add working directory
-    if (options.workingDir) {
-      args.push('-w', options.workingDir);
-    }
-
-    // Add service name
-    if (options.service) {
-      args.push(options.service);
-    } else if (options.image) {
-      // If using raw image, we need to create a temporary service
-      // For now, require service name for docker-compose
-      throw new Error('DockerExecutor requires service name for docker-compose');
-    } else {
-      throw new Error('Either service or image must be specified');
-    }
-
-    // Add command
-    args.push(...options.command);
-
-    return args;
+    return buildComposeRunArgs(options);
   }
 
   /**
@@ -337,6 +299,76 @@ export class DockerExecutor implements IContainerExecutor {
  * Singleton instance
  */
 let instance: DockerExecutor | null = null;
+
+/**
+ * Builds the `docker compose` argument vector for a one-shot service run.
+ *
+ * Extracted from the class so it can be asserted on directly. The argument
+ * vector is the whole contract between Nomad and the engine image, and until
+ * #520 nothing tested it: the suite mocks the executor, so the vector was never
+ * handed to a real entrypoint.
+ */
+export function buildComposeRunArgs(options: ContainerRunOptions): string[] {
+  const args: string[] = ['run', '--rm'];
+
+  // Add volume mounts
+  if (options.volumes) {
+    for (const vol of options.volumes) {
+      const mount = vol.readOnly
+        ? `${vol.hostPath}:${vol.containerPath}:ro`
+        : `${vol.hostPath}:${vol.containerPath}`;
+      args.push('-v', mount);
+    }
+  }
+
+  // Add environment variables
+  if (options.env) {
+    for (const [key, value] of Object.entries(options.env)) {
+      args.push('-e', `${key}=${value}`);
+    }
+  }
+
+  // Add working directory
+  if (options.workingDir) {
+    args.push('-w', options.workingDir);
+  }
+
+  // Add service name
+  if (options.service) {
+    args.push(options.service);
+  } else if (options.image) {
+    // If using raw image, we need to create a temporary service
+    // For now, require service name for docker-compose
+    throw new Error('DockerExecutor requires service name for docker-compose');
+  } else {
+    throw new Error('Either service or image must be specified');
+  }
+
+  // Add command.
+  //
+  // `ContainerRunOptions.command` carries the executable as command[0] by
+  // convention — `FireSTARREngine.buildCommand` emits `[binaryPath, ...arguments]`
+  // and `NativeBinaryExecutor` destructures it that way to spawn the binary.
+  //
+  // A compose service runs an IMAGE, and the FireSTARR image declares that same
+  // binary as its ENTRYPOINT (`ENTRYPOINT=["/appl/firestarr/firestarr"]`, CMD null).
+  // Passing command[0] through as well delivers the binary path as the image's FIRST
+  // POSITIONAL ARGUMENT, shifting every real argument by one; the engine then aborts
+  // with `std::invalid_argument: stoi` and exit 133, which reads as a broken engine
+  // rather than a malformed command (#520).
+  //
+  // This was masked until #515 by a `/bin/sh -c "... exec \"$@\""` entrypoint override
+  // in docker-compose.yaml, which consumed the duplicate. Removing the shell — correct
+  // in itself, since it required a shell inside an operator-supplied image — exposed it.
+  //
+  // An absolute first element is the executable and is dropped. A command that opens
+  // with a flag (`['--version']`) carries no executable and is passed through intact.
+  const [first, ...rest] = options.command;
+  const commandForImage = first !== undefined && first.startsWith('/') ? rest : options.command;
+  args.push(...commandForImage);
+
+  return args;
+}
 
 export function getDockerExecutor(projectDir?: string): IContainerExecutor {
   if (!instance) {
