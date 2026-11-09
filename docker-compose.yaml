@@ -51,8 +51,19 @@ services:
   firestarr-app:
     image: ${FIRESTARR_IMAGE:?FIRESTARR_IMAGE must be set in .env - run the installer}
     profiles: ["modeling"]  # Prevents auto-start with `docker compose up`
-    # Update settings.ini RASTER_ROOT to match our mount point before running
-    entrypoint: ["/bin/sh", "-c", "sed -i 's|RASTER_ROOT.*|RASTER_ROOT = /appl/data/generated/grid/100m|' /appl/firestarr/settings.ini && exec \"$$@\"", "--"]
+    # No entrypoint override (#515). RASTER_ROOT is baked into settings.ini when the image
+    # is built (build-firestarr.yml), so nothing needs rewriting per run and the image's own
+    # ENTRYPOINT — the firestarr binary — is used directly.
+    #
+    # This previously wrapped the entrypoint in /bin/sh to run one sed. That made docker mode
+    # require a shell inside whatever FIRESTARR_IMAGE names, and that image is
+    # operator-supplied with no default, so an image built on a minimal base failed at run
+    # time with an exec error that reads like a broken container.
+    #
+    # NOTE for an image NOT built by build-firestarr.yml: it carries its own settings.ini,
+    # whose RASTER_ROOT is relative in the upstream tarball. If you point FIRESTARR_IMAGE at
+    # such an image, mount a prepared settings.ini over /appl/firestarr/settings.ini rather
+    # than reinstating a shell here.
     volumes:
       - /etc/ssl/certs:/etc/ssl/certs
       - ${FIRESTARR_DATASET_PATH}:/appl/data

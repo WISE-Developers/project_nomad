@@ -40,6 +40,26 @@ jobs:
           chmod +x firestarr
           echo "$VERSION" > VERSION
 
+          # Bake the raster root into the image (#515). The upstream tarball ships a
+          # RELATIVE RASTER_ROOT, and this used to be rewritten per run by a /bin/sh
+          # entrypoint in docker-compose.yaml — which made docker mode require a shell
+          # inside whatever FIRESTARR_IMAGE names. Writing it at build time removes that
+          # requirement and the per-run sed with it.
+          #
+          # Fails loudly rather than silently shipping a relative path: an image whose
+          # raster root is wrong finds no fuel or elevation data at run time, and that is
+          # far harder to diagnose than a failed build.
+          if [ ! -f settings.ini ]; then
+            echo "::error::settings.ini missing from the FireSTARR tarball — cannot bake RASTER_ROOT"
+            exit 1
+          fi
+          sed -i 's|RASTER_ROOT.*|RASTER_ROOT = /appl/data/generated/grid/100m|' settings.ini
+          grep -q '^RASTER_ROOT = /appl/data/generated/grid/100m$' settings.ini || {
+            echo "::error::RASTER_ROOT was not baked into settings.ini"
+            exit 1
+          }
+          echo "baked: $(grep '^RASTER_ROOT' settings.ini)"
+
           echo "=== Contents ==="
           ls -la
 
@@ -105,6 +125,21 @@ jobs:
           tar -xzf firestarr.tar.gz
           chmod +x firestarr
           echo "$VERSION" > VERSION
+
+          # Same bake as the amd64 job above (#515). Both jobs build an image that compose
+          # no longer rewrites at run time, so both must bake it — a fix applied to one
+          # architecture is not applied to the other.
+          if [ ! -f settings.ini ]; then
+            echo "::error::settings.ini missing from the FireSTARR tarball — cannot bake RASTER_ROOT"
+            exit 1
+          fi
+          sed -i 's|RASTER_ROOT.*|RASTER_ROOT = /appl/data/generated/grid/100m|' settings.ini
+          grep -q '^RASTER_ROOT = /appl/data/generated/grid/100m$' settings.ini || {
+            echo "::error::RASTER_ROOT was not baked into settings.ini"
+            exit 1
+          }
+          echo "baked: $(grep '^RASTER_ROOT' settings.ini)"
+
           ls -la
 
       - name: Set up QEMU
