@@ -233,8 +233,8 @@ export class ModelExecutionService implements IModelExecutionService {
     return Result.ok(undefined);
   }
 
-  async isEngineAvailable(engineType: string): Promise<boolean> {
-    const strategy = ENGINE_EXEC_REGISTRY[engineType as EngineType];
+  async isEngineAvailable(engineType: EngineType): Promise<boolean> {
+    const strategy = ENGINE_EXEC_REGISTRY[engineType];
     if (!strategy) {
       return false;
     }

@@ -7,6 +7,7 @@ import {
 import { getModelExecutionService } from '../../../infrastructure/services/index.js';
 import { resolveAppVersion } from '../../../infrastructure/config/appVersion.js';
 import { resolveAuthMode } from '../../middleware/authMode.js';
+import { EngineType } from '../../../domain/entities/index.js';
 
 const router = Router();
 const startTime = Date.now();
@@ -49,8 +50,8 @@ router.get('/health', async (_req, res) => {
   // Engine availability checks
   const executionService = getModelExecutionService();
   const [firestarrAvailable, wiseAvailable] = await Promise.all([
-    executionService.isEngineAvailable('FireSTARR'),
-    executionService.isEngineAvailable('WISE'),
+    executionService.isEngineAvailable(EngineType.FireSTARR),
+    executionService.isEngineAvailable(EngineType.WISE),
   ]);
 
   // Determine overall status

@@ -1,4 +1,4 @@
-import { FireModel, JobId, JobStatus } from '../../domain/entities/index.js';
+import { EngineType, FireModel, JobId, JobStatus } from '../../domain/entities/index.js';
 import { DomainError, EngineError, NotFoundError } from '../../domain/errors/index.js';
 import { Result } from '../common/index.js';
 
@@ -68,8 +68,14 @@ export interface IModelExecutionService {
   /**
    * Checks if a specific engine type is available for execution.
    *
+   * Takes `EngineType` rather than `string` on purpose (#513). The implementation looks
+   * the argument up in a registry keyed by the enum, so a `string` parameter let a caller
+   * pass a display name — `'FireSTARR'` against the value `'firestarr'` — and the lookup
+   * missed silently while type-checking cleanly. The narrow type is what makes that a
+   * compile error instead of a health endpoint that lies.
+   *
    * @param engineType - The engine to check
    * @returns true if the engine is available
    */
-  isEngineAvailable(engineType: string): Promise<boolean>;
+  isEngineAvailable(engineType: EngineType): Promise<boolean>;
 }
