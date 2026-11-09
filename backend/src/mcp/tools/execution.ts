@@ -386,6 +386,13 @@ export async function submitModelForExecution({
       // Start execution in background with lifecycle management
       jobQueue.updateStatus(job.id, JobStatus.Running).catch(() => {});
 
+      // The MODEL is running too, not only the job (#514), and it is recorded BEFORE the
+      // execution is launched. This replaces a `ModelStatus.Queued` write that used to sit
+      // after the `void executeAndFinalizeModel(...)` call below — which was both the wrong
+      // value once execution had begun and a race, since nothing ordered it against the
+      // finalizer's own Completed/Failed write.
+      await repo.updateStatus(createFireModelId(modelId), ModelStatus.Running);
+
       // The engine's reported state decides the outcome, not whether the
       // promise resolved. This previously treated execute() resolving as
       // success without ever calling getStatus(), so a run that finished in a
@@ -418,9 +425,6 @@ export async function submitModelForExecution({
         },
         warn: (message) => console.warn(`[MCP] ${message} (model ${modelId})`),
       });
-
-      // Update model status to queued
-      await repo.updateStatus(createFireModelId(modelId), ModelStatus.Queued);
 
       return {
         content: [{
