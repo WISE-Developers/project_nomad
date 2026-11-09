@@ -207,15 +207,6 @@ export interface IModelRepository {
   exists(id: FireModelId): Promise<boolean>;
 
   /**
-   * Gets models that have been in a non-terminal state for too long.
-   * Used for cleanup and retry logic.
-   *
-   * @param maxAgeMinutes - Maximum age in minutes
-   * @returns Stale models
-   */
-  findStaleModels(maxAgeMinutes: number): Promise<FireModel[]>;
-
-  /**
    * Gets the MCP configuration JSON for a model.
    */
   getConfigJson(id: FireModelId): Promise<Record<string, unknown> | null>;
