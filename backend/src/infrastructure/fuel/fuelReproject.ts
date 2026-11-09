@@ -2,6 +2,15 @@
  * Reprojects a fuel grid into the run's UTM zone, locally. #282 task 4,
  * and #282's sixth checkbox ("re-project to local UTM central meridian").
  *
+ * NOT YET WIRED, AND THAT IS THE CORRECT STATE. #282 is what connects it, and #282 is
+ * parked upstream on NFIS declaring a NoData value. `buildFuelWarpArgs` has no
+ * production caller today: every reference is in this file's own test.
+ *
+ * Said here because the test below is the ONLY test in the repository that runs real
+ * GDAL binaries rather than mocking them, against a real GeoTIFF fixture. That makes the
+ * fuel path look verified end to end to anyone auditing GDAL coverage, and it was filed
+ * as dead code on exactly that reading (#523). It is not dead; it is early.
+ *
  * WHY NOT ASK THE SERVICE. `outputCrs` on the WCS works and is itself
  * nearest-neighbour, so it invents no classes - but it returns the same pixel
  * COUNT stretched over the reprojected extent. A 10 km request in EPSG:3978 came
