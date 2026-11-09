@@ -52,6 +52,7 @@ jobs:
           echo "Dev version: v${PREVIOUS} -> v${NEW_VERSION}"
 
       - name: Commit version bump
+        id: bumpcommit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -65,6 +66,14 @@ jobs:
           git add package.json backend/package.json frontend/package.json package-lock.json
           git commit -m "chore: dev v${{ steps.version.outputs.current }} [release-bot]"
           git push
+
+          # The BUMP commit, captured for the tag to point at (#512). github.sha is the
+          # commit that TRIGGERED this run, which is the one before this bump — tagging
+          # that would move the tag off the default branch and still miss the tree the
+          # tarball is built from. stable-release.yml captures its bump commit for the
+          # same reason.
+          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          echo "Bump commit: $(git rev-parse HEAD)"
 
       - name: Install dependencies
         run: npm ci
@@ -96,6 +105,12 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.tag }}
+          # Create the tag at the BUMP COMMIT (#512). Without this the action creates a tag
+          # that does not yet exist against the repository's DEFAULT branch — main — so every
+          # dev pre-release tag resolved to main's tip while its tarball was built from dev.
+          # Measured before the fix: all eleven v0.54.* tags pointed at one commit, e180088,
+          # with differently-sized artifacts attached. `git checkout v0.54.10` gave main.
+          target_commitish: ${{ steps.bumpcommit.outputs.sha }}
           name: "${{ steps.version.outputs.tag }} (unstable)"
           prerelease: true
           generate_release_notes: true
@@ -107,4 +122,4 @@ jobs:
 
             Branch: `dev`
             Version: `v${{ steps.version.outputs.current }}` (was `v${{ steps.version.outputs.previous }}`)
-            Commit: `${{ github.sha }}`
+            Commit: `${{ steps.bumpcommit.outputs.sha }}`
