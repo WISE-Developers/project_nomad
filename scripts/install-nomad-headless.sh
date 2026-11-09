@@ -1,7 +1,10 @@
 #!/bin/bash
 #
-# Project Nomad Setup Wizard
-# Menu-driven installer supporting multiple deployment configurations
+# Project Nomad Unattended Installer
+#
+# Takes every value from the environment and never reads stdin (#335). Set the
+# NOMAD_* / FIRESTARR_* variables it reports as missing and re-run. For an
+# interactive, menu-driven install use install_nomad_setup.sh instead.
 #
 # Usage:
 #   ./scripts/install-nomad-headless.sh [--dry-run]
@@ -193,7 +196,10 @@ get_selection() {
     local choice
 
     while true; do
-        read -p "Select an option [1-$max] (default: $default): " choice
+        # Unattended (#335): the generic menu returns its caller-supplied default.
+        # A single env key here would apply to every menu that uses this helper,
+        # so per-menu overrides live at the call sites instead.
+        choice="$default"
         choice="${choice:-$default}"
 
         if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "$max" ]; then
@@ -544,7 +550,7 @@ prompt_dataset_source() {
     echo ""
 
     local choice
-    read -p "Select an option [1-3] (default: 2): " choice
+    choice="$(prompt_or_env NOMAD_DATASET_SETUP_CHOICE "dataset location option (1-3)" optional "2")"
     choice="${choice:-2}"
 
     case "$choice" in
@@ -580,7 +586,7 @@ prompt_existing_dataset() {
     echo ""
 
     local default_dataset="${FIRESTARR_DATASET_PATH:-$HOME/firestarr_data}"
-    read -p "Dataset path [$default_dataset]: " input_dataset
+    input_dataset="$(prompt_or_env FIRESTARR_DATASET_PATH "where the FireSTARR dataset lives — ~11GB of rasters land here, so this is never defaulted" required)" || exit 1
     input_dataset="${input_dataset:-$default_dataset}"
 
     # Expand ~ if present
@@ -600,7 +606,7 @@ prompt_existing_dataset() {
         print_warning "Dataset structure not found at: $input_dataset"
         echo "    Expected: $input_dataset/generated/grid/"
         echo ""
-        read -p "Use this path anyway and download later? [Y/n] " -n 1 -r
+        REPLY="$(prompt_or_env NOMAD_USE_DATASET_PATH_ANYWAY "use the given dataset path even though its structure is absent (Y/n)" optional "Y")"
         echo ""
         if [[ ! $REPLY =~ ^[Nn]$ ]]; then
             FIRESTARR_DATASET_PATH="$input_dataset"
@@ -622,7 +628,7 @@ prompt_new_dataset_path() {
     echo ""
 
     local default_download="${FIRESTARR_DOWNLOAD_DIR:-$HOME/Downloads}"
-    read -p "Download folder [$default_download]: " input_download
+    input_download="$(prompt_or_env NOMAD_DATASET_DOWNLOAD_DIR "folder the ~11GB dataset archive downloads into" required)" || exit 1
     input_download="${input_download:-$default_download}"
 
     # Expand ~ if present
@@ -642,7 +648,7 @@ prompt_new_dataset_path() {
     echo ""
 
     local default_dataset="${FIRESTARR_DATASET_PATH:-$HOME/firestarr_data}"
-    read -p "Install path [$default_dataset]: " input_dataset
+    input_dataset="$(prompt_or_env FIRESTARR_DATASET_PATH "where to install the FireSTARR dataset — ~11GB, never defaulted" required)" || exit 1
     input_dataset="${input_dataset:-$default_dataset}"
 
     # Expand ~ if present
@@ -673,7 +679,7 @@ step3_paths() {
     echo "    Where FireSTARR writes simulation results."
     echo ""
     local default_sims="$FIRESTARR_DATASET_PATH/sims"
-    read -p "Sims output [$default_sims]: " input_sims
+    input_sims="$(prompt_or_env SIMS_OUTPUT_PATH "where simulation output is written" optional)" || exit 1
     SIMS_OUTPUT_PATH="${input_sims:-$default_sims}"
     print_success "Sims output: $SIMS_OUTPUT_PATH"
     echo ""
@@ -684,7 +690,7 @@ step3_paths() {
         echo "    Where the Nomad database file (nomad.db) will be stored."
         echo ""
         local default_db="$FIRESTARR_DATASET_PATH"
-        read -p "Database location [$default_db]: " input_db
+        input_db="$(prompt_or_env NOMAD_DATA_PATH "database location" optional)" || exit 1
         NOMAD_DATA_PATH="${input_db:-$default_db}"
         print_success "Database location: $NOMAD_DATA_PATH/nomad.db"
         echo ""
@@ -696,7 +702,7 @@ step3_paths() {
         echo "    Your agency's configuration folder name."
         echo "    Configuration will be loaded from: /configuration/{agency_id}/config.json"
         echo ""
-        read -p "Agency ID [generic]: " input_agency
+        input_agency="$(prompt_or_env NOMAD_AGENCY_ID "agency identifier" optional)" || exit 1
         NOMAD_AGENCY_ID="${input_agency:-generic}"
         print_success "Agency ID: $NOMAD_AGENCY_ID"
         echo ""
@@ -704,10 +710,10 @@ step3_paths() {
         echo -e "${CYAN}Database Configuration${NC}"
         echo "    ACN mode requires an external database."
         echo ""
-        read -p "Database type (pg/mysql/mssql/oracledb) [pg]: " input_db_client
+        input_db_client="$(prompt_or_env NOMAD_DB_CLIENT "database type (pg/mysql/mssql/oracledb)" optional)" || exit 1
         NOMAD_DB_CLIENT="${input_db_client:-pg}"
 
-        read -p "Database host [localhost]: " input_db_host
+        input_db_host="$(prompt_or_env NOMAD_DB_HOST "database host" optional)" || exit 1
         NOMAD_DB_HOST="${input_db_host:-localhost}"
 
         local default_port="5432"
@@ -716,16 +722,16 @@ step3_paths() {
             mssql) default_port="1433" ;;
             oracledb) default_port="1521" ;;
         esac
-        read -p "Database port [$default_port]: " input_db_port
+        input_db_port="$(prompt_or_env NOMAD_DB_PORT "database port" optional)" || exit 1
         NOMAD_DB_PORT="${input_db_port:-$default_port}"
 
-        read -p "Database name [nomad]: " input_db_name
+        input_db_name="$(prompt_or_env NOMAD_DB_NAME "database name" optional)" || exit 1
         NOMAD_DB_NAME="${input_db_name:-nomad}"
 
-        read -p "Database user [nomad]: " input_db_user
+        input_db_user="$(prompt_or_env NOMAD_DB_USER "database user" optional)" || exit 1
         NOMAD_DB_USER="${input_db_user:-nomad}"
 
-        read -sp "Database password: " input_db_password
+        input_db_password="$(prompt_or_env NOMAD_DB_PASSWORD "database password" required)" || exit 1
         echo ""
         NOMAD_DB_PASSWORD="$input_db_password"
 
@@ -738,7 +744,7 @@ step3_paths() {
         echo -e "${CYAN}Server Port Configuration${NC}"
         echo "    Port for the Nomad server (serves both API and UI in production)."
         echo ""
-        read -p "Server port [4901]: " input_port
+        input_port="$(prompt_or_env NOMAD_PORT "server port" optional)" || exit 1
         NOMAD_PORT="${input_port:-4901}"
         print_success "Server port: $NOMAD_PORT"
         echo ""
@@ -750,7 +756,7 @@ step3_paths() {
         echo ""
         local detected_hostname
         detected_hostname=$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "localhost")
-        read -p "Server hostname [$detected_hostname]: " input_hostname
+        input_hostname="$(prompt_or_env NOMAD_SERVER_HOSTNAME "server hostname" optional)" || exit 1
         NOMAD_SERVER_HOSTNAME="${input_hostname:-$detected_hostname}"
         print_success "Server hostname: $NOMAD_SERVER_HOSTNAME"
         echo ""
@@ -761,11 +767,11 @@ step3_paths() {
         echo -e "${CYAN}Docker Port Configuration${NC}"
         echo "    Host ports for accessing Nomad containers."
         echo ""
-        read -p "Frontend port (web UI) [3901]: " input_frontend_port
+        input_frontend_port="$(prompt_or_env NOMAD_FRONTEND_HOST_PORT "frontend (web UI) port" optional)" || exit 1
         NOMAD_FRONTEND_HOST_PORT="${input_frontend_port:-3901}"
         print_success "Frontend port: $NOMAD_FRONTEND_HOST_PORT"
         echo ""
-        read -p "Backend port (API) [4901]: " input_backend_port
+        input_backend_port="$(prompt_or_env NOMAD_BACKEND_HOST_PORT "backend (API) port" optional)" || exit 1
         NOMAD_BACKEND_HOST_PORT="${input_backend_port:-4901}"
         print_success "Backend port: $NOMAD_BACKEND_HOST_PORT"
         echo ""
@@ -778,7 +784,7 @@ step3_paths() {
         # Try to detect hostname
         local detected_hostname
         detected_hostname=$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "localhost")
-        read -p "Server hostname [$detected_hostname]: " input_hostname
+        input_hostname="$(prompt_or_env NOMAD_SERVER_HOSTNAME "server hostname" optional)" || exit 1
         NOMAD_SERVER_HOSTNAME="${input_hostname:-$detected_hostname}"
         print_success "Server hostname: $NOMAD_SERVER_HOSTNAME"
         echo ""
@@ -814,7 +820,7 @@ validate_gdal() {
             if command -v apt-get &> /dev/null; then
                 echo "    Install with: sudo apt-get install gdal-bin libgdal-dev"
                 echo ""
-                read -p "Would you like to install GDAL now? [y/N]: " install_gdal
+                install_gdal="$(prompt_or_env NOMAD_INSTALL_GDAL "install GDAL with apt-get (y/N)" optional "N")"
                 if [[ "$install_gdal" =~ ^[Yy] ]]; then
                     print_step "Installing GDAL..."
                     if sudo apt-get update && sudo apt-get install -y gdal-bin libgdal-dev; then
@@ -1222,7 +1228,7 @@ configure_firestarr_image() {
     echo "    3) ARM64 (Apple Silicon):    $image_arm64"
     echo "    4) Enter custom image"
     echo ""
-    read -p "Select an option [1-4] (default: 1): " choice
+    choice="$(prompt_or_env NOMAD_FIRESTARR_IMAGE_CHOICE "FireSTARR image option (1-4)" optional "1")"
 
     case "${choice:-1}" in
         1)
@@ -1235,7 +1241,7 @@ configure_firestarr_image() {
             FIRESTARR_IMAGE="$image_arm64"
             ;;
         4)
-            read -p "Enter custom image: " custom_image
+            custom_image="$(prompt_or_env FIRESTARR_IMAGE "FireSTARR container image" optional)" || exit 1
             FIRESTARR_IMAGE="${custom_image:-$expanded_image}"
             ;;
         *)
@@ -1325,7 +1331,7 @@ prompt_firestarr_binary_source() {
     echo ""
 
     local choice
-    read -p "Select an option [1-3] (default: 2): " choice
+    choice="$(prompt_or_env NOMAD_FIRESTARR_SETUP_CHOICE "FireSTARR setup option (1-3)" optional "2")"
     choice="${choice:-2}"
 
     case "$choice" in
@@ -1356,7 +1362,7 @@ prompt_existing_firestarr() {
     echo ""
     echo -e "${CYAN}Existing FireSTARR Installation${NC}"
     echo ""
-    read -p "Path to FireSTARR binary: " binary_path
+    binary_path="$(prompt_or_env FIRESTARR_BINARY_PATH "path to the FireSTARR binary" required)" || exit 1
 
     # Expand ~ if present
     binary_path="${binary_path/#\~/$HOME}"
@@ -1384,7 +1390,7 @@ prompt_existing_firestarr() {
         print_warning "Existing settings.ini found at: $settings_file"
         echo "    Nomad will update RASTER_ROOT and FUEL_LOOKUP_TABLE to point to the Nomad dataset."
         echo ""
-        read -p "Continue? [Y/n] " -n 1 -r
+        REPLY="$(prompt_or_env NOMAD_UPDATE_FIRESTARR_SETTINGS "let Nomad rewrite an existing settings.ini (Y/n)" optional "Y")"
         echo ""
         if [[ $REPLY =~ ^[Nn]$ ]]; then
             return 1
@@ -1413,7 +1419,7 @@ prompt_firestarr_archive() {
         echo ""
         echo "    Default: $default_url"
         echo ""
-        read -p "Archive location [Enter for default]: " archive_source
+        archive_source="$(prompt_or_env NOMAD_OFFLINE_ARCHIVE "offline archive location" optional)" || exit 1
 
         # Use default if empty
         if [ -z "$archive_source" ]; then
@@ -1424,7 +1430,7 @@ prompt_firestarr_archive() {
         echo "    Provide a FireSTARR distribution archive (.tar.gz or .zip)"
         echo "    This can be a local file path or a URL"
         echo ""
-        read -p "Archive location: " archive_source
+        archive_source="$(prompt_or_env NOMAD_OFFLINE_ARCHIVE "offline archive location" required)" || exit 1
 
         if [ -z "$archive_source" ]; then
             print_warning "No archive provided"
@@ -1448,7 +1454,7 @@ prompt_firestarr_archive() {
     # Ask for installation directory
     echo ""
     local default_install_dir="$HOME/.local/share/nomad/firestarr"
-    read -p "Installation directory [$default_install_dir]: " install_dir
+    install_dir="$(prompt_or_env NOMAD_INSTALL_DIR "installation directory" optional)" || exit 1
     install_dir="${install_dir:-$default_install_dir}"
 
     # Expand ~ if present
@@ -1655,6 +1661,55 @@ EOF
 }
 
 # Update settings.ini for existing FireSTARR installation
+
+# ---------------------------------------------------------------------------
+# Unattended value resolution (#335).
+#
+# This script's name promises an unattended install. It used to contain 34
+# interactive `read` prompts, so automating it produced a wizard blocked on stdin
+# — and it hung rather than erroring, which is the least useful way to fail.
+# `install_nomad_setup.sh` is the interactive wizard; this one takes every value
+# from the environment.
+#
+# Usage:
+#   value="$(prompt_or_env KEY "what it is" required)"
+#   value="$(prompt_or_env KEY "what it is" optional)"            # empty if unset
+#   value="$(prompt_or_env KEY "what it is" optional "fallback")"  # stated default
+#
+# `required` with nothing set EXITS, naming the variable. It does not prompt and
+# it does not invent a default: a silent default would let the install proceed on
+# an assumption and look fine until it did not.
+#
+# Values the caller leaves optional come back empty, and the existing
+# `${var:-default}` logic at each call site supplies the default exactly as it did
+# when the value came from a prompt. That keeps this change to WHERE the value
+# comes from, not what the installer does with it.
+prompt_or_env() {
+    local key="$1"
+    local description="$2"
+    local requirement="${3:-optional}"
+    local fallback="${4:-}"
+    local value
+
+    # Indirect expansion: the caller passes the variable NAME.
+    eval "value=\${$key:-}"
+
+    if [ -n "$value" ]; then
+        printf '%s' "$value"
+        return 0
+    fi
+
+    if [ "$requirement" = "required" ]; then
+        print_error "$key is not set — $description"
+        print_error "This installer is unattended: set $key in the environment and re-run."
+        print_error "For an interactive install, use install_nomad_setup.sh instead."
+        return 1
+    fi
+
+    printf '%s' "$fallback"
+    return 0
+}
+
 update_existing_firestarr_settings() {
     local binary_path="$1"
     local dataset_path="$2"
@@ -1740,7 +1795,7 @@ check_git_autocrlf() {
         echo "    This can break shell scripts with 'bad interpreter' errors."
         echo "    To fix: git rm --cached -r . && git reset --hard"
         echo ""
-        read -p "Continue anyway? [y/N] " -n 1 -r
+        REPLY="$(prompt_or_env NOMAD_CONTINUE_ON_CRLF "continue despite CRLF line endings in the checkout (y/N)" optional "N")"
         echo ""
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
             return 1
@@ -1930,7 +1985,7 @@ generate_env_file() {
         echo "  Crash & error reporting"
         echo "  Nomad can report crashes and errors to the development team to help fix"
         echo "  bugs. Reports are scrubbed of personal data. Optional; off by default."
-        read -p "  Allow Nomad to report crashes and errors? [y/N] " -n 1 -r
+        REPLY="$(prompt_or_env NOMAD_SENTRY_OPT_IN "opt in to crash and error reporting (y/N)" optional "N")"
         echo ""
         if [[ "$REPLY" =~ ^[Yy]$ ]]; then
             SENTRY_OPT_IN="yes"
@@ -2045,7 +2100,7 @@ install_all_docker() {
             ;;
         download)
             echo ""
-            read -p "Install FireSTARR dataset now? [Y/n] " -n 1 -r
+            REPLY="$(prompt_or_env NOMAD_INSTALL_DATASET_NOW "install the FireSTARR dataset now (Y/n)" optional "Y")"
             echo ""
             if [[ ! $REPLY =~ ^[Nn]$ ]]; then
                 install_dataset
@@ -2099,7 +2154,7 @@ install_all_metal() {
             ;;
         download)
             echo ""
-            read -p "Install FireSTARR dataset now? [Y/n] " -n 1 -r
+            REPLY="$(prompt_or_env NOMAD_INSTALL_DATASET_NOW "install the FireSTARR dataset now (Y/n)" optional "Y")"
             echo ""
             if [[ ! $REPLY =~ ^[Nn]$ ]]; then
                 install_dataset
@@ -2335,7 +2390,7 @@ main() {
     print_summary
 
     echo ""
-    read -p "Proceed with installation? [Y/n] " -n 1 -r
+    REPLY="$(prompt_or_env NOMAD_PROCEED_WITH_INSTALL "proceed with the installation (Y/n)" optional "Y")"
     echo ""
     if [[ $REPLY =~ ^[Nn]$ ]]; then
         print_info "Installation cancelled"
