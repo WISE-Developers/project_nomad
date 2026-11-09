@@ -280,6 +280,10 @@ router.post(
         try {
           // Mark job as running (sets startedAt timestamp)
           await jobQueue.updateStatus(jobId, JobStatus.Running);
+          // And the MODEL, not only the job (#514). Without this a model stayed Queued for
+          // the whole run, so an executing model and one that had not started were
+          // indistinguishable on the dashboard.
+          await modelRepo.save(model.withStatus(ModelStatus.Running));
 
           await engine.initialize(model, executionOptions);
           await engine.execute(modelId);
@@ -744,6 +748,9 @@ router.post(
 
           // Mark job as running (sets startedAt timestamp)
           await jobQueue.updateStatus(jobId, JobStatus.Running);
+          // And the MODEL, not only the job (#514). Same fix as the /models/run path above
+          // — both execution paths had it, so fixing one would have left this one broken.
+          await modelRepo.save(queuedModel.withStatus(ModelStatus.Running));
 
           logger.engine(`Starting execution`, 'FireSTARR', id);
           await engine.execute(id as FireModelId);
