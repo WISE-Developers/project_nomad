@@ -73,12 +73,29 @@ function extractInfoFromFilename(filename: string): FilenameInfo | null {
 }
 
 /**
- * Checks if GDAL tools are available
+ * Checks if GDAL tools are available — by running them (#521).
+ *
+ * This used to probe with `which`, which answers a question about the filesystem rather
+ * than about the binary. A GDAL install can be present and unloadable: on a host where
+ * homebrew's x265 moved 4.1 -> 4.3 while libheif still linked `libx265.215.dylib`,
+ * `which gdalwarp` exits 0 and `gdalwarp --version` aborts under dyld with rc=134. The
+ * guard reported available and every call that trusted it then died on a C++ abort,
+ * instead of taking the "GDAL is not available" path this function exists to provide.
+ *
+ * Invoking costs the same three spawns and answers the question actually being asked.
+ * `fuel/__tests__/fuelReproject.test.ts` has always done it this way.
  */
 export function isGDALAvailable(): boolean {
+  // gdal_calc.py and gdal_polygonize.py are Python entry points and have no --version;
+  // --help exits 0 on a working install. ogr2ogr has no --help and takes --version.
+  const probes: ReadonlyArray<readonly [string, string]> = [
+    ['gdal_calc.py', '--help'],
+    ['gdal_polygonize.py', '--help'],
+    ['ogr2ogr', '--version'],
+  ];
   try {
-    for (const tool of ['gdal_calc.py', 'gdal_polygonize.py', 'ogr2ogr']) {
-      execFileSync('which', [tool], { stdio: 'pipe' });
+    for (const [tool, flag] of probes) {
+      execFileSync(tool, [flag], { stdio: 'pipe' });
     }
     return true;
   } catch {
