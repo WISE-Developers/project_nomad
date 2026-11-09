@@ -5,7 +5,7 @@
  * Supports multiple confidence intervals and optional smoothing.
  */
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { existsSync, mkdtempSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -77,9 +77,9 @@ function extractInfoFromFilename(filename: string): FilenameInfo | null {
  */
 export function isGDALAvailable(): boolean {
   try {
-    execSync('which gdal_calc.py', { stdio: 'pipe' });
-    execSync('which gdal_polygonize.py', { stdio: 'pipe' });
-    execSync('which ogr2ogr', { stdio: 'pipe' });
+    for (const tool of ['gdal_calc.py', 'gdal_polygonize.py', 'ogr2ogr']) {
+      execFileSync('which', [tool], { stdio: 'pipe' });
+    }
     return true;
   } catch {
     return false;
@@ -214,10 +214,11 @@ async function generateSinglePerimeter(
   try {
     // Step 1: Threshold the raster
     const thresholdPath = join(tempDir, `threshold_day${day}.tif`);
-    const calcCmd = `gdal_calc.py -A "${inputPath}" --outfile="${thresholdPath}" --calc="A>=${threshold}" --type=Byte --quiet --overwrite`;
 
     console.log(`[PerimeterGenerator] Thresholding day ${day} at ${threshold}`);
-    execSync(calcCmd, { encoding: 'utf8', stdio: 'pipe' });
+    execFileSync('gdal_calc.py',
+      ['-A', inputPath, `--outfile=${thresholdPath}`, `--calc=A>=${Number(threshold)}`, '--type=Byte', '--quiet', '--overwrite'],
+      { encoding: 'utf8', stdio: 'pipe' });
 
     if (!existsSync(thresholdPath)) {
       console.warn(`[PerimeterGenerator] Threshold step produced no output for day ${day}`);
@@ -226,10 +227,9 @@ async function generateSinglePerimeter(
 
     // Step 2: Polygonize to GeoJSON (in source CRS - likely UTM)
     const polyPath = join(tempDir, `poly_day${day}.geojson`);
-    const polygonizeCmd = `gdal_polygonize.py "${thresholdPath}" -f GeoJSON "${polyPath}" -q`;
 
     console.log(`[PerimeterGenerator] Polygonizing day ${day}`);
-    execSync(polygonizeCmd, { encoding: 'utf8', stdio: 'pipe' });
+    execFileSync('gdal_polygonize.py', [thresholdPath, '-f', 'GeoJSON', polyPath, '-q'], { encoding: 'utf8', stdio: 'pipe' });
 
     if (!existsSync(polyPath)) {
       console.warn(`[PerimeterGenerator] Polygonize step produced no output for day ${day}`);
@@ -239,7 +239,7 @@ async function generateSinglePerimeter(
     // Step 3: Detect source CRS from the input raster
     let sourceCRS: string | null = null;
     try {
-      const gdalInfoOutput = execSync(`gdalinfo "${inputPath}"`, { encoding: 'utf8', stdio: 'pipe' });
+      const gdalInfoOutput = execFileSync('gdalinfo', [inputPath], { encoding: 'utf8', stdio: 'pipe' });
 
       // Try to extract EPSG code if available
       const epsgMatch = gdalInfoOutput.match(/AUTHORITY\["EPSG","(\d+)"\]/);
@@ -272,14 +272,11 @@ async function generateSinglePerimeter(
     // Step 4: Reproject to WGS84 (EPSG:4326) for MapBox compatibility
     const wgs84Path = join(tempDir, `wgs84_day${day}.geojson`);
 
-    // Build reprojection command with explicit source CRS if detected
-    // PROJ4 strings need quotes since they contain spaces
-    const reprojectCmd = sourceCRS
-      ? `ogr2ogr -f GeoJSON -s_srs "${sourceCRS}" -t_srs EPSG:4326 "${wgs84Path}" "${polyPath}"`
-      : `ogr2ogr -f GeoJSON -t_srs EPSG:4326 "${wgs84Path}" "${polyPath}"`;
+    // Pass the source CRS explicitly when detected (a PROJ4 string is one argument)
+    const reprojectArgs = ['-f', 'GeoJSON', ...(sourceCRS ? ['-s_srs', sourceCRS] : []), '-t_srs', 'EPSG:4326', wgs84Path, polyPath];
 
     console.log(`[PerimeterGenerator] Reprojecting day ${day} to WGS84${sourceCRS ? ` from ${sourceCRS.substring(0, 50)}...` : ''}`);
-    execSync(reprojectCmd, { encoding: 'utf8', stdio: 'pipe' });
+    execFileSync('ogr2ogr', reprojectArgs, { encoding: 'utf8', stdio: 'pipe' });
 
     if (!existsSync(wgs84Path)) {
       console.warn(`[PerimeterGenerator] Reprojection failed for day ${day}, using original projection`);
@@ -290,10 +287,9 @@ async function generateSinglePerimeter(
     let finalPath = existsSync(wgs84Path) ? wgs84Path : polyPath;
     if (smoothPerimeter) {
       const smoothPath = join(tempDir, `smooth_day${day}.geojson`);
-      const simplifyCmd = `ogr2ogr -f GeoJSON "${smoothPath}" "${finalPath}" -simplify ${simplifyTolerance}`;
 
       console.log(`[PerimeterGenerator] Simplifying day ${day} (tolerance=${simplifyTolerance})`);
-      execSync(simplifyCmd, { encoding: 'utf8', stdio: 'pipe' });
+      execFileSync('ogr2ogr', ['-f', 'GeoJSON', smoothPath, finalPath, '-simplify', String(simplifyTolerance)], { encoding: 'utf8', stdio: 'pipe' });
 
       if (existsSync(smoothPath)) {
         finalPath = smoothPath;

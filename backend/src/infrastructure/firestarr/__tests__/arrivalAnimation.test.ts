@@ -259,8 +259,8 @@ describe('extractArrivalAnimation (orchestrator)', () => {
     const execCalls: string[] = [];
     const rmrfCalls: string[] = [];
     const deps = {
-      exec: (cmd: string) => {
-        execCalls.push(cmd);
+      exec: (file: string, args: string[]) => {
+        execCalls.push([file, ...args].join(' '));
       },
       mkdtemp: (prefix: string) => `/tmp/${prefix}test`,
       readJSON: () => readJSONResult,
