@@ -99,7 +99,14 @@ describe('ModelExecutionService.isEngineAvailable (current behavior)', () => {
 
     it('returns false for an unknown engine type', async () => {
       const svc = makeService();
-      await expect(svc.isEngineAvailable('not-a-real-engine')).resolves.toBe(false);
+      // The cast is deliberate and is the ONLY one left (#513). isEngineAvailable now takes
+      // EngineType, so this value cannot arrive from a typed caller — but it can still
+      // arrive from a persisted row or a JSON body, which is exactly what the runtime guard
+      // in the implementation is for. Casting here keeps that guard under test without
+      // reopening the hole at the call sites. The assertion is unchanged.
+      await expect(
+        svc.isEngineAvailable('not-a-real-engine' as EngineType)
+      ).resolves.toBe(false);
     });
   });
 });
