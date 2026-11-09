@@ -28,7 +28,7 @@ import { getJobQueue } from '../../../infrastructure/services/JobQueue.js';
 import { getModelRepository, getResultRepository } from '../../../infrastructure/database/index.js';
 import { finalizeModelExecution } from '../../../application/services/finalizeModelExecution.js';
 import type { ExecutionOptions, ModelMode } from '../../../application/interfaces/IFireModelingEngine.js';
-import { buildExecutionOptions, deriveOutputMode } from '../../../application/execution/buildExecutionOptions.js';
+import { buildExecutionOptions, deriveOutputMode, resolveModelMode } from '../../../application/execution/buildExecutionOptions.js';
 import type { WeatherConfig } from '../../../infrastructure/weather/types.js';
 import { parseIsoToDate } from '../../../shared/dateParsing.js';
 import { assertWeatherMeetsEngineContract } from '../../../application/services/WeatherContractCheck.js';
@@ -166,8 +166,13 @@ router.post(
       ]);
     }
 
-    // Validate and resolve modelMode (default: probabilistic)
-    const modelMode: ModelMode = body.modelMode ?? 'probabilistic';
+    // Validate and resolve modelMode (default: probabilistic).
+    //
+    // #522: this route declared `outputMode` in RunModelRequestBody and never read it,
+    // so a deterministic request made with the legacy field silently ran probabilistic.
+    // `resolveModelMode` is the same resolution /models/:id/execute uses, so the two
+    // routes cannot disagree about which field is authoritative.
+    const modelMode: ModelMode = resolveModelMode(body) ?? 'probabilistic';
     if (!VALID_MODEL_MODES.includes(modelMode)) {
       throw new ValidationError('Invalid model mode', [
         { field: 'modelMode', message: `Must be one of: ${VALID_MODEL_MODES.join(', ')}` },
@@ -690,8 +695,7 @@ router.post(
      * Both are honoured, `modelMode` wins, and the derivation itself lives in
      * exactly one place now.
      */
-    const requestedModelMode: ModelMode | undefined =
-      body.modelMode ?? (body.outputMode === 'deterministic' ? 'deterministic' : undefined);
+    const requestedModelMode: ModelMode | undefined = resolveModelMode(body);
 
     // Build execution options — single shared derivation (see buildExecutionOptions)
     const executionOptions: ExecutionOptions = buildExecutionOptions({

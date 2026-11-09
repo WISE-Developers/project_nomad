@@ -56,6 +56,26 @@ export function deriveOutputMode(modelMode: ModelMode | undefined): OutputMode {
 }
 
 /**
+ * Resolves the requested mode from a request body that may carry either field (#522).
+ *
+ * `modelMode` is what the GUI sends; `outputMode` is the legacy name. #435 made
+ * `POST /models/:id/execute` honour both with `modelMode` winning, but
+ * `POST /models/run` kept declaring `outputMode` in its request type while never
+ * reading it — so a deterministic request there was silently run probabilistic. That
+ * produces output of the wrong kind rather than an error: no arrival grids, and the
+ * failure surfaces downstream, far from the request.
+ *
+ * Both routes call this, so they cannot disagree again. Returns undefined when neither
+ * field is given; the default belongs to the caller, stated once where it applies.
+ */
+export function resolveModelMode(body: {
+  modelMode?: ModelMode;
+  outputMode?: OutputMode;
+}): ModelMode | undefined {
+  return body.modelMode ?? (body.outputMode === 'deterministic' ? 'deterministic' : undefined);
+}
+
+/**
  * The simulation count the GUI would have sent for this mode
  * (`frontend/src/App.tsx:314`): 100 probabilistic, 1 otherwise.
  *
