@@ -96,7 +96,7 @@ case "$NOMAD_HOME_TIMEZONE" in
 esac
 
 # FireSTARR binary source
-FIRESTARR_BINARY_RELEASE_REPO="https://github.com/CWFMF/firestarr-cpp/releases/download"
+FIRESTARR_BINARY_RELEASE_REPO="https://github.com/CWFMF/firestarr/releases/download"
 FIRESTARR_BINARY_RELEASE_TAG="${FIRESTARR_BINARY_RELEASE_TAG:-unstable-latest}"
 
 # GitHub

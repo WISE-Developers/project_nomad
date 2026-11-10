@@ -34,7 +34,7 @@ INSTALLER_VERSION="2.1.1"
 # ten weeks.
 #
 # See: https://github.com/WISE-Developers/project_nomad/issues/184
-FIRESTARR_REGISTRY="ghcr.io/cwfmf/firestarr-cpp"
+FIRESTARR_REGISTRY="ghcr.io/cwfmf/firestarr"
 FIRESTARR_IMAGE_NAME="firestarr"
 FIRESTARR_IMAGE_TAG="${FIRESTARR_IMAGE_TAG:-main-latest}"
 FIRESTARR_IMAGE_TAG_ARM64="${FIRESTARR_IMAGE_TAG_ARM64:-main-latest}"
@@ -102,7 +102,7 @@ verify_firestarr_image() {
     echo ""
     return 1
 }
-FIRESTARR_BINARY_RELEASE_REPO="https://github.com/CWFMF/firestarr-cpp/releases/download"
+FIRESTARR_BINARY_RELEASE_REPO="https://github.com/CWFMF/firestarr/releases/download"
 FIRESTARR_BINARY_ASSET_MACOS="firestarr-macos-arm64-clang-Release.tar.gz"
 FIRESTARR_BINARY_ASSET_LINUX="firestarr-ubuntu-x64-gcc-Release.tar.gz"
 FIRESTARR_BINARY_ASSET_WINDOWS="firestarr-windows-x64-cl-Release.zip"

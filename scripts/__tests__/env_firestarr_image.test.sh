@@ -8,6 +8,11 @@
 # repository moved to `cwfmf/firestarr-cpp/firestarr`, and the version scheme
 # went from four parts (`0.9.5.4`) to three (`0.9.20`) with no `v` prefix.
 #
+# IT MOVED AGAIN (#529, 2026-11-10): `cwfmf/firestarr-cpp` was renamed to
+# `cwfmf/firestarr`, so the current package is `cwfmf/firestarr/firestarr`. The
+# version scheme did NOT change a second time -- still three parts, still no `v`.
+# The assertion below is unaffected and deliberately NOT flipped; see its comment.
+#
 # This bites harder than a stale comment normally would, because
 # `docker-compose.yaml:47` makes the variable mandatory:
 #
@@ -57,14 +62,30 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Every FireSTARR image reference must use the current repository.
+# The pre-move single-level package must never be used as an image.
+#
+# THE TRAILING COLON IS THE WHOLE ASSERTION, and it is why this check did NOT
+# need to flip when `firestarr-cpp` was renamed to `firestarr` (#529). Three
+# paths exist and two of them start with the same 23 characters:
+#
+#   ghcr.io/cwfmf/firestarr/firestarr:TAG   CURRENT -- `firestarr` then `/`
+#   ghcr.io/cwfmf/firestarr:TAG             NEVER VALID -- `firestarr` then `:`
+#
+# The second is the original pre-move package, which used the retired four-part
+# version scheme. Matching on `firestarr:` catches it and leaves the current
+# three-segment path alone, so this guard kept working across the rename
+# untouched. Widening it to `firestarr` without the colon would forbid the
+# correct path -- which is the mistake the #529 handoff expected to be necessary.
+#
+# Repository naming is enforced separately and for the whole tree by
+# firestarr_registry_current.test.sh; this file owns only .env.example's shapes.
 # ---------------------------------------------------------------------------
 wrong_repo="$(grep -nE "ghcr\.io/cwfmf/firestarr:" "$ENV_EXAMPLE" || true)"
 if [ -z "$wrong_repo" ]; then
-  ok "image references use the current cwfmf/firestarr-cpp repository"
+  ok "no image reference uses the pre-move single-level cwfmf/firestarr package"
 else
-  bad "image references use the current cwfmf/firestarr-cpp repository" \
-      "the old cwfmf/firestarr repository uses the retired four-part scheme"
+  bad "no image reference uses the pre-move single-level cwfmf/firestarr package" \
+      "cwfmf/firestarr:TAG is the retired pre-move package; the current one is cwfmf/firestarr/firestarr:TAG"
 fi
 
 # ---------------------------------------------------------------------------
