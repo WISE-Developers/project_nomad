@@ -45,7 +45,7 @@ LUT_SRC="${LUT_SRC:-}"          # override; defaults to the master at $OUT_DIR/f
 #
 # Reproducibility comes from dataset.json's lutSha256, not from a pin: to
 # rebuild an old vintage, check upstream out at the hash its manifest records.
-LUT_URL="${LUT_URL:-https://raw.githubusercontent.com/CWFMF/firestarr-cpp/main/fuel.lut}"
+LUT_URL="${LUT_URL:-https://raw.githubusercontent.com/CWFMF/firestarr/main/fuel.lut}"
 
 # Resolved ONCE per run and reused, so every vintage in a build carries the
 # byte-identical file. Fetching per year would risk two vintages built minutes
@@ -234,7 +234,7 @@ dataset_json() {
   "lutSha256": "$lut_sha",
   "demPixelFingerprint": "$dem_fp",
   "demPixelNote": "sha256 over the per-tile GDAL pixel checksums (#477). Survives re-encoding, so two vintages sharing this value carry the SAME elevation however the files were written.",
-  "lutNote": "canonical CWFMF/firestarr-cpp fuel.lut, verified by sha256 at build time; identical in every vintage"
+  "lutNote": "canonical CWFMF/firestarr fuel.lut, verified by sha256 at build time; identical in every vintage"
 }
 JSON
 }
@@ -282,7 +282,7 @@ fetch_lut() {
     rm -f "$part"
     if ! curl -fsSL "$LUT_URL" -o "$part" 2>/dev/null; then
         print_error "Could not fetch fuel.lut from $LUT_URL"
-        print_error "  Upstream CWFMF/firestarr-cpp is the source of truth and there is no fallback."
+        print_error "  Upstream CWFMF/firestarr is the source of truth and there is no fallback."
         print_error "  Fix the network, or pass LUT_SRC=<path> to use a local copy DELIBERATELY."
         rm -f "$part"
         return 1

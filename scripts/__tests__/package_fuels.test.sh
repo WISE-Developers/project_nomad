@@ -186,8 +186,15 @@ STUB
 expect_eq "the sha256 pin is gone" "no" \
   "$(grep -q 'LUT_SHA256' "$SCRIPT" && echo yes || echo no)"
 
+# The repository was renamed firestarr-cpp -> firestarr (#529), so this assertion's
+# expected value moved with it. raw.githubusercontent.com serves the renamed
+# repository under BOTH names -- fuel.lut is byte-identical through each, sha256
+# 468eed481e553712, measured 2026-11-10 -- so this is not a break being papered
+# over: the fetch worked before and after. It is pinned to the current name because
+# the old one is retired permanently and must not be re-created, and a test that
+# keeps asserting the retired name is a test that will accept it coming back.
 expect_eq "the script names the upstream lut URL" "yes" \
-  "$(grep -q 'raw.githubusercontent.com/CWFMF/firestarr-cpp' "$SCRIPT" && echo yes || echo no)"
+  "$(grep -q 'raw.githubusercontent.com/CWFMF/firestarr/' "$SCRIPT" && echo yes || echo no)"
 
 mk_curl ok
 expect_eq "a good fetch succeeds" "0" \

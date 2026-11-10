@@ -3,7 +3,7 @@
  *
  * FireSTARR's environment grid is fixed:
  *
- *     static constexpr Idx MAX_COLUMNS = 4096;      // firestarr-cpp stdafx.h
+ *     static constexpr Idx MAX_COLUMNS = 4096;      // firestarr stdafx.h
  *     static constexpr Idx MAX_ROWS    = MAX_COLUMNS;
  *
  * At the 100 m fuel resolution that is a 409.6 km square.

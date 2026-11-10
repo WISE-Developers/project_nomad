@@ -23,7 +23,7 @@ INSTALLER_VERSION="2.1.1"
 # Both architectures track `main-latest`, the house convention.
 #
 # x86_64 was temporarily pinned by digest to dodge the v0.9.12-alpha-2 x/y
-# transpose regression (CWFMF/firestarr-cpp#17). That issue was closed fixed
+# transpose regression (CWFMF/firestarr#17). That issue was closed fixed
 # on 2026-05-28, and the pin was verified obsolete on 2026-08-05: v0.9.14
 # (main-latest) produced byte-identical model output to the known-good
 # v0.9.11 build on identical inputs — 47 simulations, all three days.
@@ -34,7 +34,7 @@ INSTALLER_VERSION="2.1.1"
 # ten weeks.
 #
 # See: https://github.com/WISE-Developers/project_nomad/issues/184
-FIRESTARR_REGISTRY="ghcr.io/cwfmf/firestarr-cpp"
+FIRESTARR_REGISTRY="ghcr.io/cwfmf/firestarr"
 FIRESTARR_IMAGE_NAME="firestarr"
 FIRESTARR_IMAGE_TAG="${FIRESTARR_IMAGE_TAG:-main-latest}"
 FIRESTARR_IMAGE_TAG_ARM64="${FIRESTARR_IMAGE_TAG_ARM64:-main-latest}"
@@ -50,7 +50,59 @@ firestarr_image_ref() {
         echo "${FIRESTARR_REGISTRY}/${FIRESTARR_IMAGE_NAME}:${ref}"
     fi
 }
-FIRESTARR_BINARY_RELEASE_REPO="https://github.com/CWFMF/firestarr-cpp/releases/download"
+
+# Confirm a FireSTARR image reference actually resolves, BEFORE the install completes
+# (#326's open follow-up; made urgent by the CWFMF repository rename, #529).
+#
+# WHY THIS EXISTS. #326: four installers pinned a FireSTARR digest that had stopped
+# existing in the registry. The install completed cleanly and then EVERY MODEL RUN DIED
+# with exit 1, reproduced on a fresh Ubuntu 24.04 box. Its own follow-up named the gap
+# and nothing closed it: "the installer does not verify the configured image resolves ...
+# the first sign of trouble is a failed model run, a long way from the cause."
+#
+# A floating tag can 404 just as easily as a digest: a renamed channel, a pruned package,
+# a typo'd FIRESTARR_IMAGE_TAG override. CWFMF has just renamed the source repository, and
+# the GHCR packages did NOT follow the rename — so the registry path is about to change
+# and this is exactly when a wrong one gets shipped.
+#
+# WHAT IT DOES NOT DO. `manifest inspect` answers "can this be pulled", never "is this the
+# build we meant". FIRESTARR_IMAGE_TAG defaults to `main-latest`, which floats, so this is
+# not version pinning and must not be mistaken for it.
+#
+# Returns 0 when the reference resolves, 1 when it does not.
+verify_firestarr_image() {
+    local ref="$1"
+
+    # No docker, no question to answer — metal installs never pull this.
+    command -v docker >/dev/null 2>&1 || return 0
+
+    if docker manifest inspect "$ref" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    # Distinguish "the registry says no" from "we could not ask", because a down
+    # daemon and a missing image look identical from the caller's side.
+    if ! docker info >/dev/null 2>&1; then
+        print_warning "Could not reach the Docker daemon to verify $ref — skipping the image check"
+        return 0
+    fi
+
+    print_error "The configured FireSTARR image does not resolve: $ref"
+    echo ""
+    echo "    The install would finish and then every model run would fail, which is"
+    echo "    what happened in #326 — the failure appears a long way from this cause."
+    echo ""
+    echo "    Likely reasons:"
+    echo "      1. The registry path has moved (CWFMF renamed the source repository)"
+    echo "      2. FIRESTARR_IMAGE_TAG names a tag that does not exist in that package"
+    echo "      3. The package is private, or this host is not logged in to the registry"
+    echo ""
+    echo "    Check what the registry actually serves:"
+    echo "      docker manifest inspect $ref"
+    echo ""
+    return 1
+}
+FIRESTARR_BINARY_RELEASE_REPO="https://github.com/CWFMF/firestarr/releases/download"
 FIRESTARR_BINARY_ASSET_MACOS="firestarr-macos-arm64-clang-Release.tar.gz"
 FIRESTARR_BINARY_ASSET_LINUX="firestarr-ubuntu-x64-gcc-Release.tar.gz"
 FIRESTARR_BINARY_ASSET_WINDOWS="firestarr-windows-x64-cl-Release.zip"
@@ -1192,6 +1244,16 @@ configure_firestarr_image() {
     local image_arm64
     image_x64="$(firestarr_image_ref "$FIRESTARR_IMAGE_TAG")"
     image_arm64="$(firestarr_image_ref "$FIRESTARR_IMAGE_TAG_ARM64")"
+
+    # Confirm the reference this host will actually pull resolves, before the install
+    # reports success (#326, #529). Only the ref for THIS architecture is checked —
+    # verifying the other one would fail on every single-arch registry and turn a
+    # correct install into a refusal.
+    case "$(uname -m)" in
+        aarch64|arm64) _fs_ref="$image_arm64" ;;
+        *)             _fs_ref="$image_x64" ;;
+    esac
+    verify_firestarr_image "$_fs_ref" || exit 1
 
     echo "Available FireSTARR images:"
     echo ""
