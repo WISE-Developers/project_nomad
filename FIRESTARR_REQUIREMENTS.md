@@ -50,11 +50,23 @@ installs on different days can get different builds. It is what the installers u
 three-part version instead if you need a reproducible deployment.
 
 > **Corrected 2026-11-10.** This table previously named `v0.9.7`, which was wrong twice.
-> There is no `v` prefix on any tag in that registry — all 51 are unprefixed, so
+> No tag in the container registry carries a `v` prefix — all 51 are unprefixed, so
 > `v0.9.7` returns 404 and an operator following this table got a pull failure. And
 > `0.9.7` was never the default; the installers have defaulted to `main-latest`
 > throughout. The repository also moved from `cwfmf/firestarr-cpp` to `cwfmf/firestarr`
 > (#529); the old package still resolves but is frozen and receives no new builds.
+>
+> **The two tag namespaces use opposite conventions — do not "fix" one to match the
+> other.** Measured the same day:
+>
+> | namespace | example | `v` prefix |
+> |---|---|---|
+> | GHCR image tags (`FIRESTARR_IMAGE`) | `firestarr:0.9.7` | **no** — `v0.9.7` is a 404 |
+> | GitHub release tags (`FIRESTARR_VERSION`) | `v0.9.20` | **yes** — `0.9.7` is a 404 |
+>
+> So `scripts/build-offline-bundle.sh`'s `FIRESTARR_VERSION="v0.9.20"` is correct as
+> written, and the bare `0.9.7` above is correct as written. They disagree because the
+> upstream registry and the upstream release tags disagree, not because one is stale.
 
 ### Bare Metal
 

@@ -44,7 +44,7 @@ set -eu
 # Node 22 LTS ("Jod"), matching the node:22 base the Dockerfiles already use.
 readonly NODE_VERSION="v22.23.2"
 
-# CWFMF/firestarr-cpp publishes a native Windows binary on every release. That
+# CWFMF/firestarr publishes a native Windows binary on every release. That
 # was the load-bearing unknown for this whole ticket: the Linux container is
 # A path, not THE path.
 readonly FIRESTARR_VERSION="v0.9.20"
@@ -738,7 +738,7 @@ if [ -z "$FIRESTARR_EXPECTED" ]; then
     || die "gh is required to read the published digest for $FIRESTARR_ASSET,
        or record the hash yourself in $CHECKSUM_FILE_NAME as:
          <sha256>  $FIRESTARR_KEY"
-  FIRESTARR_EXPECTED="$(gh api "repos/CWFMF/firestarr-cpp/releases/tags/${FIRESTARR_VERSION}" \
+  FIRESTARR_EXPECTED="$(gh api "repos/CWFMF/firestarr/releases/tags/${FIRESTARR_VERSION}" \
     --jq ".assets[] | select(.name==\"${FIRESTARR_ASSET}\") | .digest" 2>/dev/null | sed 's/^sha256://')"
 fi
 
@@ -749,7 +749,7 @@ fi
        truncated upstream asset would otherwise reach a field laptop unnoticed,
        where there is no network to re-download it and no way to tell."
 
-FIRESTARR_URL="https://github.com/CWFMF/firestarr-cpp/releases/download/${FIRESTARR_VERSION}/${FIRESTARR_ASSET}"
+FIRESTARR_URL="https://github.com/CWFMF/firestarr/releases/download/${FIRESTARR_VERSION}/${FIRESTARR_ASSET}"
 info "fetching $FIRESTARR_ASSET"
 curl -fsSL -o "$WORK/$FIRESTARR_ASSET" "$FIRESTARR_URL" \
   || die "could not download $FIRESTARR_ASSET from $FIRESTARR_URL"

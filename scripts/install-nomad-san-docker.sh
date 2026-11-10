@@ -65,7 +65,7 @@ NOMAD_HOME_TIMEZONE="${NOMAD_HOME_TIMEZONE:-America/Edmonton}"
 # Both architectures track `main-latest`, the house convention.
 #
 # x86_64 was temporarily pinned by digest to dodge the v0.9.12-alpha-2 x/y
-# transpose regression (CWFMF/firestarr-cpp#17). That issue was closed fixed
+# transpose regression (CWFMF/firestarr#17). That issue was closed fixed
 # on 2026-05-28, and the pin was verified obsolete on 2026-08-05: v0.9.14
 # (main-latest) produced byte-identical model output to the known-good
 # v0.9.11 build on identical inputs — 47 simulations, all three days.
