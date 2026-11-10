@@ -4,10 +4,24 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.56.0
+## v0.57.0
 
 ### 2026-11-10
 
+- [`dd7afac`](https://github.com/WISE-Developers/project_nomad/commit/dd7afacea32ee91cc27f25b794b14b0b7f3be1d4) Merge pull request #530 from WISE-Developers/dev — *Franco Nogarin, 11:49*
+- [`f7071f8`](https://github.com/WISE-Developers/project_nomad/commit/f7071f8aa80330dae48aa442dd2aca6ddf2c1eb6) chore: dev v0.56.4 [release-bot] — *github-actions[bot], 17:27*
+- [`060ab87`](https://github.com/WISE-Developers/project_nomad/commit/060ab87f623715f9187abbda9bb4441f290cb905) Merge fix/529-firestarr-registry-repoint: the rest of the class — HTTP references and a fourth spelling — *Franco Nogarin, 11:26*
+- [`4365435`](https://github.com/WISE-Developers/project_nomad/commit/43654354aeff73cdb5de96e6160380159d089687) #529 the rest of the class: HTTP references, and the spelling my own patterns missed — *Franco Nogarin, 11:26*
+- [`53575fb`](https://github.com/WISE-Developers/project_nomad/commit/53575fb4b57a508a4711b3b5f13238f5294ee0b1) chore: dev v0.56.3 [release-bot] — *github-actions[bot], 17:19*
+- [`afb11fa`](https://github.com/WISE-Developers/project_nomad/commit/afb11fa814c40e65987587aa75f6d923302047c6) Merge fix/529-firestarr-registry-repoint: the renamed FireSTARR package is a frozen copy, not a redirect — *Franco Nogarin, 11:18*
+- [`b914c12`](https://github.com/WISE-Developers/project_nomad/commit/b914c12e994652e2edab5cab20ee5b5f20f93ed1) #529 FireSTARR registry repoint: the old package resolves but is frozen — *Franco Nogarin, 11:18*
+- [`66e92c0`](https://github.com/WISE-Developers/project_nomad/commit/66e92c0ff54029e377798c1e6fd19ff838cb5ee8) chore: dev v0.56.2 [release-bot] — *github-actions[bot], 15:50*
+- [`4047544`](https://github.com/WISE-Developers/project_nomad/commit/40475448ab753a885c73fec1009a7265285f8c50) Merge feat/529-preflight-and-safe-repoint: install-time image resolve check, and repoint only the redirect-safe references — *Franco Nogarin, 09:49*
+- [`ddccd26`](https://github.com/WISE-Developers/project_nomad/commit/ddccd2610b4a530b8e357a7ea8e4c938b3e45e13) #529: verify the FireSTARR image resolves at install time, and repoint only what the redirect covers — *Franco Nogarin, 09:49*
+- [`e78b895`](https://github.com/WISE-Developers/project_nomad/commit/e78b895b3b61ccb25cb268e389f5aa6b92d10c7f) chore: dev v0.56.1 [release-bot] — *github-actions[bot], 15:09*
+- [`7c99cfe`](https://github.com/WISE-Developers/project_nomad/commit/7c99cfeca46c60f66c3f87a7f95c54a195a38696) Merge fix/528-verify-firestarr-download: pin upstream identity and asset digest before baking the binary — *Franco Nogarin, 09:09*
+- [`97bc30d`](https://github.com/WISE-Developers/project_nomad/commit/97bc30d60a9aef769f5f9d2c98e79d4033e7ac6a) #528: verify the FireSTARR download before baking it into the image, on both architectures — *Franco Nogarin, 09:08*
+- [`0942849`](https://github.com/WISE-Developers/project_nomad/commit/09428493ede6da829351781631f04ca75186cf64) chore: release v0.56.0 [release-bot] — *github-actions[bot], 14:50*
 - [`a062e75`](https://github.com/WISE-Developers/project_nomad/commit/a062e75fef8ce2f28401abeb3ace4e0018b8ae42) Merge pull request #527 from WISE-Developers/dev — *Franco Nogarin, 08:50*
 - [`33ade7e`](https://github.com/WISE-Developers/project_nomad/commit/33ade7e6efdb0a1039de610f42a0575f1f036627) chore: dev v0.55.4 [release-bot] — *github-actions[bot], 14:27*
 - [`66c7dc4`](https://github.com/WISE-Developers/project_nomad/commit/66c7dc411f90597c76ef80a496884c48bf22f629) Merge feat/281-splash-assumptions: state the model's assumptions before sign-in — *Franco Nogarin, 08:27*
