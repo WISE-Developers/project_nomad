@@ -340,61 +340,6 @@ check_metal_deps_early() {
     return 0
 }
 
-# Check Node.js version early - exits if Node is missing or too old
-check_node_early() {
-    local required_major=20
-
-    if ! command -v node &> /dev/null; then
-        echo ""
-        print_error "Node.js is not installed"
-        echo ""
-        echo "    Node.js >= $required_major is required for native installation."
-        echo ""
-        echo "    To install Node.js:"
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            echo "      brew install node@$required_major"
-        elif [[ "$OSTYPE" == "linux"* ]]; then
-            echo "      # Using NodeSource (recommended):"
-            echo "      curl -fsSL https://deb.nodesource.com/setup_$required_major.x | sudo -E bash -"
-            echo "      sudo apt-get install -y nodejs"
-            echo ""
-            echo "      # Or using nvm:"
-            echo "      curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash"
-            echo "      nvm install $required_major"
-        else
-            echo "      Visit: https://nodejs.org/en/download/"
-        fi
-        echo ""
-        exit 1
-    fi
-
-    local node_version
-    node_version=$(node -v | sed 's/v//')
-    local major_version
-    major_version=$(echo "$node_version" | cut -d. -f1)
-
-    if [ "$major_version" -lt "$required_major" ]; then
-        echo ""
-        print_error "Node.js $node_version is installed, but >= $required_major is required"
-        echo ""
-        echo "    To upgrade Node.js:"
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            echo "      brew install node@$required_major"
-        elif [[ "$OSTYPE" == "linux"* ]]; then
-            echo "      # Using NodeSource:"
-            echo "      curl -fsSL https://deb.nodesource.com/setup_$required_major.x | sudo -E bash -"
-            echo "      sudo apt-get install -y nodejs"
-            echo ""
-            echo "      # Or using nvm:"
-            echo "      nvm install $required_major && nvm use $required_major"
-        else
-            echo "      Visit: https://nodejs.org/en/download/"
-        fi
-        echo ""
-        exit 1
-    fi
-}
-
 # Resolve the host floors the metal path must satisfy (#336).
 #
 # These come from gdal-async's PREBUILT native addon, which is what metal mode actually
