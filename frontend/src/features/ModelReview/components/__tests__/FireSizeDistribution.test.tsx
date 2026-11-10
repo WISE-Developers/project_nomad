@@ -164,4 +164,39 @@ describe('FireSizeDistribution painting', () => {
     expect(rects.length).toBeGreaterThan(0);
     rects.forEach(r => expect(r.getAttribute('fill')).toBeTruthy());
   });
+
+  it('DISCLOSES the nearest-rank definition wherever percentiles are shown (#419, Boychuk 2026-10-30)', () => {
+    // Boychuk's point on the shipped product: under FireSTARR's nearest-rank
+    // index the value labelled P90 was really P92/P93 in his worked example and
+    // P95 was really P96 — "the 'p95' label is misleading". The definition was
+    // documented at length in this file's source header and NOWHERE a user
+    // could see it, so the table claimed more precision than the method gives.
+    const twelve = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120];
+    const { unmount } = render(
+      <FireSizeDistribution resolution={{ hasEnsemble: true, series: series([day(twelve)]), reason: null }} />,
+    );
+
+    // The percentiles ARE shown at N=12 — the control, since a note asserted on
+    // a table that rendered nothing would pass for the wrong reason.
+    expect(screen.getByTestId('stat-p90Ha')).not.toBeNull();
+
+    const note = screen.getByTestId('percentile-method-note');
+    expect(note.textContent).toMatch(/nearest.rank/i);
+    // It must say which DIRECTION the error runs: the reported figure can
+    // correspond to a HIGHER percentile than its label, never a lower one.
+    expect(note.textContent).toMatch(/higher percentile/i);
+    // And that every figure is a size the ensemble actually produced, which is
+    // the thing the method buys in exchange.
+    expect(note.textContent).toMatch(/actually produced|no interpolation/i);
+    unmount();
+
+    // DISCRIMINATING HALF: below N=11 there are no percentiles on screen, so a
+    // note explaining them must not appear either. Without this the assertions
+    // above are satisfied by a note that always renders.
+    render(
+      <FireSizeDistribution resolution={{ hasEnsemble: true, series: series([day([100, 200, 300])]), reason: null }} />,
+    );
+    expect(screen.queryByTestId('stat-p90Ha')).toBeNull();
+    expect(screen.queryByTestId('percentile-method-note')).toBeNull();
+  });
 });

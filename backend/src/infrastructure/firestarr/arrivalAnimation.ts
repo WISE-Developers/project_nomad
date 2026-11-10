@@ -1,5 +1,5 @@
-import { execSync } from 'child_process';
-import { mkdtempSync, readFileSync } from 'fs';
+import { execFileSync } from 'child_process';
+import { mkdtempSync, readFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { parseIsoToDate } from '../../shared/dateParsing.js';
@@ -66,11 +66,11 @@ export interface AnimationFeatureCollection {
 /**
  * Dependencies injected into extractArrivalAnimation so the orchestrator can
  * be unit-tested without spawning real GDAL processes. Production wires
- * these to execSync, mkdtempSync, fs.readFileSync + JSON.parse, and rm -rf.
+ * these to execFileSync, mkdtempSync, fs.readFileSync + JSON.parse, and rmSync.
  */
 export interface AnimationExtractorDeps {
-  /** Runs a shell command synchronously; throws on non-zero exit. */
-  exec: (command: string) => void;
+  /** Runs a program with an argument list (no shell); throws on non-zero exit. */
+  exec: (file: string, args: string[]) => void;
   /** Creates a unique temp directory with the given prefix; returns path. */
   mkdtemp: (prefix: string) => string;
   /** Reads a JSON file from disk and parses it. */
@@ -121,14 +121,12 @@ export async function extractArrivalAnimation(
     const simStartJulian = toFireSTARRRasterJulianDay(params.simStart);
     const expression = buildReclassifyExpression(simStartJulian, capFrames);
 
-    deps.exec(
-      `gdal_calc.py -A "${params.arrivalPath}" --outfile="${classifiedPath}" ` +
-        `--calc="${expression}" --type=Int32 --NoDataValue=0 --quiet`,
-    );
+    deps.exec('gdal_calc.py', [
+      '-A', params.arrivalPath, `--outfile=${classifiedPath}`,
+      `--calc=${expression}`, '--type=Int32', '--NoDataValue=0', '--quiet',
+    ]);
 
-    deps.exec(
-      `gdal_polygonize.py "${classifiedPath}" -f GPKG "${vectorPath}" frames DN`,
-    );
+    deps.exec('gdal_polygonize.py', [classifiedPath, '-f', 'GPKG', vectorPath, 'frames', 'DN']);
 
     // gdal_polygonize writes the source raster's SRS into the GPKG, so
     // ogr2ogr reads it from the file directly. Earlier versions passed
@@ -136,9 +134,7 @@ export async function extractArrivalAnimation(
     // emitted multi-line WKT (Apr 27 2026 staging regression — PR #255 +
     // follow-up): shell-arg splitting mangled the WKT and ogr2ogr aborted
     // with "Failed to process SRS definition", producing a 0-byte GeoJSON.
-    deps.exec(
-      `ogr2ogr -f GeoJSON "${geojsonPath}" "${vectorPath}" -t_srs EPSG:4326`,
-    );
+    deps.exec('ogr2ogr', ['-f', 'GeoJSON', geojsonPath, vectorPath, '-t_srs', 'EPSG:4326']);
 
     const raw = deps.readJSON(geojsonPath) as RawPolygonizedFeatureCollection;
     return toAnimationFeatureCollection(raw, params.simStart);
@@ -153,14 +149,14 @@ export async function extractArrivalAnimation(
  */
 export function defaultAnimationExtractorDeps(): AnimationExtractorDeps {
   return {
-    exec: (command) => {
-      execSync(command, { encoding: 'utf8', stdio: 'pipe' });
+    exec: (file, args) => {
+      execFileSync(file, args, { encoding: 'utf8', stdio: 'pipe' });
     },
     mkdtemp: (prefix) => mkdtempSync(join(tmpdir(), prefix)),
     readJSON: (path) => JSON.parse(readFileSync(path, 'utf-8')),
     rmrf: (path) => {
       try {
-        execSync(`rm -rf "${path}"`, { stdio: 'pipe' });
+        rmSync(path, { recursive: true, force: true });
       } catch {
         /* best-effort cleanup */
       }

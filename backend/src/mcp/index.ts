@@ -1,30 +1,38 @@
 /**
  * MCP Server for AI-Driven Fire Modeling
  *
- * Mounts a Model Context Protocol (MCP) server on the existing Express app,
- * enabling AI agents to create, configure, execute, and interpret fire simulations.
+ * Mounts a Model Context Protocol (MCP) server on an Express app, enabling an agent
+ * to create, configure, execute and interpret fire simulations.
  *
- * Transport: Streamable HTTP (MCP spec 2025-03-26)
- * Session: Stateful — one transport per client session, managed via session map.
+ * Transport: Streamable HTTP (MCP spec 2025-03-26), STATELESS — server and transport
+ * are built per request and discarded with the response.
+ *
+ * WHY STATELESS.
+ *
+ * `sessionIdGenerator: undefined` is the line that makes it so. With no session state
+ * there is no session map to keep, no lifetime to manage across requests, and no
+ * per-session cleanup to get right: each request is self-contained, and authorisation
+ * is therefore decided per request by the guard in `auth.ts` rather than once per
+ * session. `mcpAuth.test.ts` asserts against this file's own source that it stays that
+ * way.
+ *
+ * Mount this ONLY through `mountMcpChain` in `auth.ts`, never directly: that is where
+ * the guard-then-identity ordering lives.
  *
  * @see Documentation/Nomad/design/mcp-fire-modeling-server.md
  */
-import { randomUUID } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import type { Express, Request, Response } from 'express';
 import { registerAllTools } from './tools/index.js';
 import { registerAllResources } from './resources/index.js';
+import type { McpToolContext } from './tools/context.js';
 import { logger } from '../infrastructure/logging/index.js';
-
-/** Active transport sessions indexed by session ID */
-const transports = new Map<string, StreamableHTTPServerTransport>();
 
 /**
  * Creates a fully configured McpServer with all tools and resources registered.
  */
-function createMcpServer(): McpServer {
+function createMcpServer(context?: McpToolContext): McpServer {
   const server = new McpServer(
     { name: 'nomad-fire-modeling', version: '1.0.0' },
     {
@@ -34,106 +42,84 @@ function createMcpServer(): McpServer {
     }
   );
 
-  registerAllTools(server);
+  registerAllTools(server, context);
   registerAllResources(server);
 
   return server;
 }
 
 /**
- * Mounts the MCP server on an Express app.
+ * A verb the stateless transport does not serve.
  *
- * Registers POST, GET, and DELETE handlers at the given path.
- * Must be called after middleware setup but before error handlers.
+ * `GET /mcp` opens an SSE stream for server-initiated notifications and `DELETE /mcp`
+ * terminates a session; neither is meaningful without session state.
  *
- * @param app - Express application
- * @param path - Mount path (default: '/mcp')
+ * They stay registered for the sake of the authorised caller. Left unregistered, a
+ * valid request on either verb would fall through to a 404 and report that the endpoint
+ * does not exist, when it does. A 405 says it is here and does not serve that verb,
+ * which is both true and useful. Asserted in `mcpAuth.test.ts`.
  */
-export function mountMcpServer(app: Express, path: string = '/mcp'): void {
-
-  // ─── POST /mcp ─────────────────────────────────────────────────
-  // Handles: session initialization (initialize request) and all subsequent JSON-RPC messages
-  app.post(path, async (req: Request, res: Response) => {
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
-
-    // Route to existing session
-    if (sessionId && transports.has(sessionId)) {
-      const transport = transports.get(sessionId)!;
-      await transport.handleRequest(req, res, req.body);
-      return;
-    }
-
-    // New session — must be an initialize request
-    if (!sessionId && isInitializeRequest(req.body)) {
-      const transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => randomUUID(),
-        onsessioninitialized: (sid: string) => {
-          transports.set(sid, transport);
-          logger.info(`MCP session started: ${sid}`, 'MCP');
-        },
-      });
-
-      transport.onclose = () => {
-        if (transport.sessionId) {
-          transports.delete(transport.sessionId);
-          logger.info(`MCP session closed: ${transport.sessionId}`, 'MCP');
-        }
-      };
-
-      const server = createMcpServer();
-      await server.connect(transport);
-      await transport.handleRequest(req, res, req.body);
-      return;
-    }
-
-    // Invalid request
-    res.status(400).json({
-      jsonrpc: '2.0',
-      error: { code: -32000, message: 'Bad Request: missing or invalid session' },
-      id: null,
-    });
+function methodNotAllowed(_req: Request, res: Response): void {
+  res.status(405).json({
+    jsonrpc: '2.0',
+    error: {
+      code: -32000,
+      message: 'Method Not Allowed: this MCP endpoint is stateless and serves POST only',
+    },
+    id: null,
   });
-
-  // ─── GET /mcp ──────────────────────────────────────────────────
-  // Opens SSE stream for server-initiated notifications (progress, resource changes)
-  app.get(path, async (req: Request, res: Response) => {
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
-    if (!sessionId || !transports.has(sessionId)) {
-      res.status(400).json({
-        jsonrpc: '2.0',
-        error: { code: -32000, message: 'Invalid or missing session ID' },
-        id: null,
-      });
-      return;
-    }
-
-    const transport = transports.get(sessionId)!;
-    await transport.handleRequest(req, res);
-  });
-
-  // ─── DELETE /mcp ───────────────────────────────────────────────
-  // Terminates a session
-  app.delete(path, async (req: Request, res: Response) => {
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
-    if (!sessionId || !transports.has(sessionId)) {
-      res.status(400).json({
-        jsonrpc: '2.0',
-        error: { code: -32000, message: 'Invalid or missing session ID' },
-        id: null,
-      });
-      return;
-    }
-
-    const transport = transports.get(sessionId)!;
-    await transport.handleRequest(req, res);
-  });
-
-  logger.startup(`MCP server mounted at ${path}`);
 }
 
 /**
- * Returns count of active MCP sessions. Useful for health checks.
+ * Mounts the MCP server on an Express app.
+ *
+ * @param app - Express application
+ * @param path - Mount path (default: '/mcp')
+ * @param context - identity everything MCP creates is attributed to
  */
-export function getActiveSessionCount(): number {
-  return transports.size;
+export function mountMcpServer(
+  app: Express,
+  path: string = '/mcp',
+  context?: McpToolContext,
+): void {
+
+  // ─── POST /mcp ─────────────────────────────────────────────────
+  // Every request gets its own server and transport. `sessionIdGenerator: undefined`
+  // is what makes the transport stateless — see the note at the top of this file.
+  app.post(path, async (req: Request, res: Response) => {
+    const server = createMcpServer(context);
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+    });
+
+    // Tie both lifetimes to the response, so a client that disconnects mid-request
+    // does not leave a server and transport behind on every attempt.
+    res.on('close', () => {
+      void transport.close();
+      void server.close();
+    });
+
+    try {
+      await server.connect(transport);
+      await transport.handleRequest(req, res, req.body);
+    } catch (error) {
+      logger.error(
+        `MCP request failed: ${error instanceof Error ? error.message : String(error)}`,
+        'MCP',
+      );
+      if (!res.headersSent) {
+        res.status(500).json({
+          jsonrpc: '2.0',
+          error: { code: -32603, message: 'Internal error' },
+          id: null,
+        });
+      }
+    }
+  });
+
+  // ─── GET / DELETE /mcp ─────────────────────────────────────────
+  app.get(path, methodNotAllowed);
+  app.delete(path, methodNotAllowed);
+
+  logger.startup(`MCP server mounted at ${path}`);
 }

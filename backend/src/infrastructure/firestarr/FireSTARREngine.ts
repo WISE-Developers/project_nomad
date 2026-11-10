@@ -727,6 +727,32 @@ export class FireSTARREngine implements IFireModelingEngine, IWorkspaceAwareEngi
       '--dc', params.previousDC.toString(),
     ];
 
+    // Tell the engine where the rasters are (#520).
+    //
+    // FireSTARR otherwise takes RASTER_ROOT from its own settings.ini, and every
+    // published image ships `RASTER_ROOT = ./grid` -> /appl/firestarr/grid, where
+    // nothing is mounted; the grids are under the dataset mount. Until #515 a sed in a
+    // /bin/sh entrypoint wrapper rewrote that per run. Removing the shell was correct
+    // and the rewrite went with it, so runs failed with "Could not find an environment
+    // to use for (lat, lon)".
+    //
+    // `--raster-root` is the binary's own flag for this. It needs no shell inside an
+    // operator-supplied image, no settings file mounted over the image's own, and no
+    // rebuild, so it also works on every image published before now.
+    // `IInputGenerator` does not declare grid-root resolution, so this is a capability
+    // check and not a cast. Casting to the concrete class would typecheck and then
+    // throw at run time against any other implementation — `tsc` passed on exactly
+    // that mistake here, and the full suite caught it where the focused tests did not.
+    // Putting grid-root resolution on the port is the better fix and is a wider change
+    // than #520 should carry.
+    const generator = this.inputGenerator as Partial<FireSTARRInputGenerator>;
+    const gridRootForEngine = isBinaryMode()
+      ? generator.getGridRoot?.()
+      : generator.getContainerGridRoot?.();
+    if (gridRootForEngine) {
+      args.push('--raster-root', gridRootForEngine);
+    }
+
     // Optional parameters
     if (params.previousPrecip !== undefined) {
       args.push('--apcp_prev', params.previousPrecip.toString());

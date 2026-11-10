@@ -207,10 +207,39 @@ ENV ICU_TIMEZONE_FILES_DIR=/opt/icu-tzdata
 # __dirname = /app/backend/dist → ../../frontend/dist = /app/frontend/dist
 COPY --from=backend-builder /app/backend/dist ./backend/dist
 COPY --from=prod-deps /app/node_modules ./node_modules
+# The workspace's NESTED tree, which is not optional (#519).
+#
+# npm hoists what it can, but a dependency whose own requirements conflict with the root
+# tree is installed under the workspace instead. @modelcontextprotocol/sdk wants
+# express@5 while the root holds express@4, so npm placed it — and the 16 packages of
+# express@5's subtree — at backend/node_modules. The lockfile marks none of them dev,
+# peer or optional; they are plain production dependencies.
+#
+# Copying only the hoisted tree dropped all 17 silently. Nothing failed at build time and
+# nothing failed at startup with MCP disabled, because dist/index.js reaches the MCP code
+# through a guarded dynamic import. With MCP enabled the backend crashlooped on
+# ERR_MODULE_NOT_FOUND. Measured: 17 entries in prod-deps, 0 in the final image, while
+# express and gdal-async were present at the root — so it was specific to this tree.
+COPY --from=prod-deps /app/backend/node_modules ./backend/node_modules
 COPY --from=backend-builder /app/backend/package.json ./backend/
 
 # Copy built frontend into workspace-relative location
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+
+# The MCP entry must actually LOAD, not merely be present (#519).
+#
+# dist/index.js reaches the MCP code through a guarded dynamic import, so a missing
+# dependency there is invisible until somebody sets NOMAD_ENABLE_MCP=true — at which
+# point the backend crashlooped on ERR_MODULE_NOT_FOUND. Both existing checks passed on
+# that image: assert-prod-tree-clean.mjs inspects top-level entries only and asks whether
+# anything dev-flagged is PRESENT, never whether what is required is present; and the
+# native-module check exercises gdal-async and better-sqlite3, which live in the hoisted
+# tree.
+#
+# So this imports the two SDK entry points dist/mcp/index.js imports, which pulls the
+# nested express@5 subtree with them. Importing rather than resolving is deliberate: a
+# resolve would pass with the SDK present and its 16 subtree packages missing.
+RUN cd /app/backend && node --input-type=module -e "    await import('@modelcontextprotocol/sdk/server/mcp.js');     await import('@modelcontextprotocol/sdk/server/streamableHttp.js');     console.log('MCP SDK entry points load from the production tree');   "
 
 # Bake the release version into the image.
 #

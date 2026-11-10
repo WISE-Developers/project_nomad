@@ -12,7 +12,7 @@
  * Issue #226.
  */
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { existsSync, mkdtempSync, mkdirSync, renameSync, rmSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -403,11 +403,12 @@ export async function generateArrivalTile(
     if (!existsSync(warpedPath)) {
       mkdirSync(WARP_CACHE_DIR, { recursive: true });
       const warpTmp = join(workDir, 'warped.tif');
-      execSync(
-        `gdalwarp -t_srs EPSG:4326 ` +
-          `-te ${west - lonBuffer} ${south - latBuffer} ${east + lonBuffer} ${north + latBuffer} ` +
-          `-ts ${TILE_SIZE} ${TILE_SIZE} -r near -srcnodata 0 -dstnodata 0 -of GTiff ` +
-          `"${filePath}" "${warpTmp}"`,
+      execFileSync(
+        'gdalwarp',
+        ['-t_srs', 'EPSG:4326',
+          '-te', String(west - lonBuffer), String(south - latBuffer), String(east + lonBuffer), String(north + latBuffer),
+          '-ts', String(TILE_SIZE), String(TILE_SIZE), '-r', 'near', '-srcnodata', '0', '-dstnodata', '0', '-of', 'GTiff',
+          filePath, warpTmp],
         { stdio: 'pipe' },
       );
       if (!existsSync(warpTmp)) {

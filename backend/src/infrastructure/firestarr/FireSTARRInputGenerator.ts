@@ -483,6 +483,48 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
     const sanitizedId = modelId.replace(/[^a-zA-Z0-9_-]/g, '_');
     return `/appl/data/sims/${sanitizedId}`;
   }
+
+  /**
+   * Gets the container-side fuel grid root, or undefined if there is none to map.
+   */
+  getContainerGridRoot(): string | undefined {
+    return containerGridRootFrom(this.config.gridRoot);
+  }
+
+  /**
+   * Gets the host-side fuel grid root as configured, or undefined if unset.
+   * Binary mode runs on host paths, so it needs this rather than the container form.
+   */
+  getGridRoot(): string | undefined {
+    return this.config.gridRoot || undefined;
+  }
+}
+
+/** The fixed mount point for the dataset inside the engine container. */
+const CONTAINER_DATASET_ROOT = '/appl/data';
+
+/**
+ * Maps a host fuel-grid root onto the container dataset mount (#520).
+ *
+ * The dataset's own layout is `{dataset}/generated/grid/{resolution}`, so the segment
+ * from `generated/` onwards is the part that is identical inside the container. The
+ * host prefix is operator-supplied (`FIRESTARR_DATASET_PATH`) and varies; the mount
+ * point does not.
+ *
+ * Returns undefined rather than guessing when the path carries no recognisable dataset
+ * layout — a guessed path would point the engine at a directory that does not exist and
+ * reproduce the original failure with a different directory in the message.
+ */
+export function containerGridRootFrom(gridRoot: string | undefined): string | undefined {
+  if (!gridRoot) {
+    return undefined;
+  }
+  const marker = '/generated/';
+  const index = gridRoot.indexOf(marker);
+  if (index === -1) {
+    return undefined;
+  }
+  return `${CONTAINER_DATASET_ROOT}${gridRoot.slice(index)}`;
 }
 
 /**

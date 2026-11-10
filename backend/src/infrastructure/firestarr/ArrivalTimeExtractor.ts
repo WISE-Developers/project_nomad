@@ -8,10 +8,10 @@
  * Uses GDAL command-line tools (gdal_calc.py, gdal_polygonize.py, ogr2ogr).
  */
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { mkdtempSync } from 'fs';
+import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import type { Feature, FeatureCollection, Polygon, MultiPolygon } from 'geojson';
 import { Result } from '../../application/common/index.js';
@@ -157,15 +157,17 @@ export async function extractDeterministicPerimeters(
     try {
       // Step 1: Create binary mask (value > 0 → 1, else 0)
       const maskPath = join(tmpDir, 'mask.tif');
-      execSync(
-        `gdal_calc.py -A "${inputPath}" --outfile="${maskPath}" --calc="(A>0)*1" --type=Byte --NoDataValue=0 --quiet`,
+      execFileSync(
+        'gdal_calc.py',
+        ['-A', inputPath, `--outfile=${maskPath}`, '--calc=(A>0)*1', '--type=Byte', '--NoDataValue=0', '--quiet'],
         { stdio: 'pipe', timeout: 30000 }
       );
 
       // Step 2: Polygonalize the mask
       const vectorPath = join(tmpDir, 'perimeter.geojson');
-      execSync(
-        `gdal_polygonize.py "${maskPath}" -f GeoJSON "${vectorPath}" perimeter DN`,
+      execFileSync(
+        'gdal_polygonize.py',
+        [maskPath, '-f', 'GeoJSON', vectorPath, 'perimeter', 'DN'],
         { stdio: 'pipe', timeout: 30000 }
       );
 
@@ -181,14 +183,15 @@ export async function extractDeterministicPerimeters(
       }
 
       // Step 3: Get source CRS from the arrival raster (gdal_polygonize doesn't embed it in GeoJSON)
-      let sourceSrs = '';
+      let sourceSrs: string[] = [];
       try {
-        const srsInfo = execSync(
-          `gdalsrsinfo "${inputPath}" -o proj4`,
+        const srsInfo = execFileSync(
+          'gdalsrsinfo',
+          [inputPath, '-o', 'proj4'],
           { stdio: 'pipe', timeout: 10000 }
         ).toString().trim();
         if (srsInfo && srsInfo.includes('+proj')) {
-          sourceSrs = `-s_srs "${srsInfo}"`;
+          sourceSrs = ['-s_srs', srsInfo];
         }
       } catch {
         console.warn(`[ArrivalTimeExtractor] Could not read CRS from ${filename}, reprojection may fail`);
@@ -196,8 +199,10 @@ export async function extractDeterministicPerimeters(
 
       // Step 4: Reproject to WGS84 and dissolve
       const outputPath = join(tmpDir, 'perimeter_4326.geojson');
-      execSync(
-        `ogr2ogr -f GeoJSON "${outputPath}" "${vectorPath}" ${sourceSrs} -t_srs EPSG:4326 -dialect sqlite -sql "SELECT ST_Union(geometry) as geometry FROM perimeter WHERE DN=1"`,
+      execFileSync(
+        'ogr2ogr',
+        ['-f', 'GeoJSON', outputPath, vectorPath, ...sourceSrs, '-t_srs', 'EPSG:4326',
+          '-dialect', 'sqlite', '-sql', 'SELECT ST_Union(geometry) as geometry FROM perimeter WHERE DN=1'],
         { stdio: 'pipe', timeout: 30000 }
       );
 
@@ -221,7 +226,7 @@ export async function extractDeterministicPerimeters(
     } finally {
       // Cleanup temp dir
       try {
-        execSync(`rm -rf "${tmpDir}"`, { stdio: 'pipe' });
+        rmSync(tmpDir, { recursive: true, force: true });
       } catch { /* best effort */ }
     }
   }

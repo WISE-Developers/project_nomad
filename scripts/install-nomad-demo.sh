@@ -168,14 +168,80 @@ ok "FIRESTARR_IMAGE = $FIRESTARR_IMAGE"
 # ---- Step 7: generate_env_file (line-for-line equivalent) -------------
 step "Writing .env (in place, preserves unrelated keys)"
 
+is_placeholder_value() {
+    # True when a value is one of OUR shipped placeholders rather than something
+    # an operator chose (#343).
+    #
+    # .env.example ships non-empty placeholders, and the installer copies it to
+    # .env before writing any key. The #292 rule ("never overwrite an existing
+    # non-empty value") could not tell the two apart, so it preserved the
+    # placeholder and discarded the answer given at the prompt. 5.5 GB of fuel
+    # rasters landed in a literal /absolute/path/to/firestarr_data.
+    #
+    # Anchored patterns only: a genuine path like /home/yourname/data or an
+    # agency id like changeme-inc must NOT be mistaken for a placeholder.
+    local value="$1"
+
+    case "$value" in
+        /absolute/path/to/*)      return 0 ;;
+        /path/to/*)               return 0 ;;
+        your-*)                   return 0 ;;
+        changeme|CHANGEME)        return 0 ;;
+        yourdomain.com|example.com) return 0 ;;
+        xxx|XXX|TODO|TBD)         return 0 ;;
+    esac
+
+    return 1
+}
+
 update_env_value() {
-    local key="$1" value="$2"
-    if [ "$DRY_RUN" = true ]; then dry "Would set $key=$value"; return 0; fi
-    if grep -q "^${key}=" "$ENV_FILE" 2>/dev/null; then
-        sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
-    elif grep -q "^#.*${key}=" "$ENV_FILE" 2>/dev/null; then
-        sed -i "s|^#.*${key}=.*|${key}=${value}|" "$ENV_FILE"
+    local key="$1"
+    local value="$2"
+    local existing_value
+
+    if [ "$DRY_RUN" = true ]; then
+        dry "Would set $key=$value"
+        return 0
+    fi
+
+    # Preserve an existing, non-empty value — never overwrite a user's .env.
+    # (#292 demo lesson: the installer clobbered a manually-set host port on
+    # re-run, which broke the Cloudflare tunnel. Set-if-absent only.)
+    #
+    # EXCEPT a placeholder we shipped ourselves (#343): that is not an operator
+    # value, and preserving it silently discards the answer they just gave.
+    #
+    # Ported from install_nomad_setup.sh for #336. The fix had been applied to
+    # one copy of this wizard and not the others, so the outage it was written
+    # for stayed reachable through whichever script someone happened to run.
+    # #334 tracks removing the duplication; until then every copy carries it.
+    if grep -qE "^${key}=.+" "$ENV_FILE" 2>/dev/null; then
+        existing_value="$(grep -m1 -E "^${key}=" "$ENV_FILE" | cut -d= -f2-)"
+
+        if is_placeholder_value "$existing_value"; then
+            warn "Replacing placeholder ${key}=${existing_value}"
+        else
+            info "Keeping existing ${key} (not overwriting)"
+            return 0
+        fi
+    fi
+
+    if grep -qE "^${key}=" "$ENV_FILE" 2>/dev/null; then
+        # Present but empty -> fill in the value
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
+        else
+            sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
+        fi
+    elif grep -qE "^#.*${key}=" "$ENV_FILE" 2>/dev/null; then
+        # Uncomment and set
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s|^#.*${key}=.*|${key}=${value}|" "$ENV_FILE"
+        else
+            sed -i "s|^#.*${key}=.*|${key}=${value}|" "$ENV_FILE"
+        fi
     else
+        # Append
         echo "${key}=${value}" >> "$ENV_FILE"
     fi
 }

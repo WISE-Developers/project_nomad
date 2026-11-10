@@ -17,6 +17,7 @@ import multer from 'multer';
 import AdmZip from 'adm-zip';
 import { asyncHandler } from '../../middleware/index.js';
 import { ValidationError } from '../../../domain/errors/index.js';
+import { assertArchiveEntriesSafe } from '../../../application/services/archiveEntryGuard.js';
 import {
   FireModel,
   createFireModelId,
@@ -132,6 +133,17 @@ router.post(
     const zip = new AdmZip(req.file.buffer);
     const entries = zip.getEntries();
 
+    // Judge every entry name BEFORE anything is written and before the model row is saved
+    // (#517). Placed here rather than inside the extraction loop on purpose: `modelRepo.save`
+    // happens before that loop, so validating later would leave a model row behind for an
+    // archive that was refused. Decided entirely from declared headers, so nothing is
+    // inflated to reach the decision.
+    // The sims root is enough to judge containment: the import writes the FINAL segment of
+    // each name, which cannot itself contain a separator, so the per-model subdirectory does
+    // not change the answer. Resolved here so the check runs before the model row exists.
+    const dataPath = process.env.FIRESTARR_DATASET_PATH || process.env.NOMAD_DATA_DIR || './firestarr_data';
+    assertArchiveEntriesSafe(entries, join(dataPath, 'sims'));
+
     // Look for model.json first (full config), fall back to metadata.txt
     const modelJsonEntry = entries.find(e => e.entryName.endsWith('model.json'));
     const metadataEntry = entries.find(e => e.entryName.endsWith('metadata.txt'));
@@ -182,7 +194,6 @@ router.post(
     await modelRepo.save(model);
 
     // Create sim directory and extract files
-    const dataPath = process.env.FIRESTARR_DATASET_PATH || process.env.NOMAD_DATA_DIR || './firestarr_data';
     const simDir = join(dataPath, 'sims', String(newModelId));
     mkdirSync(simDir, { recursive: true });
 

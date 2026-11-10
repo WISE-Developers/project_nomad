@@ -5,7 +5,7 @@
  * Uses gdal_polygonize for raster-to-vector conversion and ogr2ogr for simplification.
  */
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -175,9 +175,9 @@ async function generatePolygonsForThreshold(
     await createBinaryMask(gdal, data, width, height, geoTransform, threshold, maskPath, originalPath);
 
     // 2. Run gdal_polygonize to GeoPackage (preserves CRS)
-    const polygonizeCmd = `gdal_polygonize.py "${maskPath}" -f GPKG "${polyPath}" -q`;
+
     try {
-      execSync(polygonizeCmd, { encoding: 'utf8', stdio: 'pipe' });
+      execFileSync('gdal_polygonize.py', [maskPath, '-f', 'GPKG', polyPath, '-q'], { encoding: 'utf8', stdio: 'pipe' });
     } catch (err) {
       const stderr = (err as { stderr?: string }).stderr || '';
       throw new ContourError(`gdal_polygonize failed for threshold ${threshold}: ${stderr}`, { cause: err });
@@ -191,9 +191,9 @@ async function generatePolygonsForThreshold(
     // 3. Simplify and reproject to WGS84
     // Write WKT to temp file for ogr2ogr -s_srs
     writeFileSync(wktPath, sourceWkt);
-    const simplifyCmd = `ogr2ogr -f GeoJSON -simplify ${pixelSize} -s_srs "${wktPath}" -t_srs EPSG:4326 "${smoothPath}" "${polyPath}"`;
+
     try {
-      execSync(simplifyCmd, { encoding: 'utf8', stdio: 'pipe' });
+      execFileSync('ogr2ogr', ['-f', 'GeoJSON', '-simplify', String(pixelSize), '-s_srs', wktPath, '-t_srs', 'EPSG:4326', smoothPath, polyPath], { encoding: 'utf8', stdio: 'pipe' });
     } catch (err) {
       const stderr = (err as { stderr?: string }).stderr || '';
       throw new ContourError(`ogr2ogr simplify/reproject failed for threshold ${threshold}: ${stderr}`, { cause: err });
@@ -302,8 +302,7 @@ export function clearTileCache(): void {
 export async function getRasterBounds(filePath: string): Promise<[number, number, number, number]> {
   // Use gdalinfo to get bounds in WGS84
   try {
-    const cmd = `gdalinfo -json "${filePath}"`;
-    const output = execSync(cmd, { encoding: 'utf8', maxBuffer: 1024 * 1024 });
+    const output = execFileSync('gdalinfo', ['-json', filePath], { encoding: 'utf8', maxBuffer: 1024 * 1024 });
     const info = JSON.parse(output);
 
     // Try to get wgs84Extent first (most accurate for reprojected bounds)
@@ -357,8 +356,7 @@ async function getRasterValueRange(filePath: string): Promise<{ min: number; max
 
   try {
     // Use gdalinfo to get statistics
-    const cmd = `gdalinfo -json -stats "${filePath}"`;
-    const output = execSync(cmd, { encoding: 'utf8', maxBuffer: 1024 * 1024 });
+    const output = execFileSync('gdalinfo', ['-json', '-stats', filePath], { encoding: 'utf8', maxBuffer: 1024 * 1024 });
     const info = JSON.parse(output);
 
     if (info.bands && info.bands[0]) {
@@ -492,10 +490,14 @@ nv 0 0 0 0
     // Using bilinear interpolation for smoother results
     // -srcnodata 0 -dstnodata 0 ensures zeros are treated as nodata and stay transparent
     // Use buffered bounds to eliminate seams at tile edges
-    const warpCmd = `gdalwarp -t_srs EPSG:4326 -te ${westBuf} ${southBuf} ${eastBuf} ${northBuf} -ts ${tileSize} ${tileSize} -r bilinear -srcnodata 0 -dstnodata 0 -of VRT "${filePath}" "${vrtPath}" 2>/dev/null`;
-
     try {
-      execSync(warpCmd, { encoding: 'utf8', stdio: 'pipe' });
+      execFileSync('gdalwarp', [
+        '-t_srs', 'EPSG:4326',
+        '-te', String(westBuf), String(southBuf), String(eastBuf), String(northBuf),
+        '-ts', String(tileSize), String(tileSize),
+        '-r', 'bilinear', '-srcnodata', '0', '-dstnodata', '0', '-of', 'VRT',
+        filePath, vrtPath,
+      ], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     } catch {
       // Warp failed - tile may be entirely outside raster
       return null;
@@ -507,10 +509,9 @@ nv 0 0 0 0
 
     // Apply color relief - using exact band boundaries so interpolation creates flat bands
     // Each 10% band has same color at start and end, so gdaldem produces discrete classes
-    const colorCmd = `gdaldem color-relief "${vrtPath}" "${colorTablePath}" "${tilePath}" -of PNG -alpha 2>/dev/null`;
-
     try {
-      execSync(colorCmd, { encoding: 'utf8', stdio: 'pipe' });
+      execFileSync('gdaldem', ['color-relief', vrtPath, colorTablePath, tilePath, '-of', 'PNG', '-alpha'],
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     } catch {
       // Colorize failed
       return null;

@@ -281,18 +281,6 @@ export class KnexModelRepository implements IModelRepository {
     return row !== undefined;
   }
 
-  async findStaleModels(maxAgeMinutes: number): Promise<FireModel[]> {
-    const cutoff = new Date(Date.now() - maxAgeMinutes * 60 * 1000);
-
-    const rows = await this.knex(this.tableName)
-      .whereIn('status', [ModelStatus.Queued, ModelStatus.Running])
-      .where('updated_at', '<', cutoff.toISOString())
-      .orderBy('updated_at', 'asc')
-      .select<ModelRow[]>('*');
-
-    return rows.map(rowToModel);
-  }
-
   async getConfigJson(id: FireModelId): Promise<Record<string, unknown> | null> {
     const row = await this.knex(this.tableName).where({ id }).select('config_json').first();
     if (!row || !row.config_json) return null;
