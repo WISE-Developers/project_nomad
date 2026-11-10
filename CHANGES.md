@@ -4,10 +4,23 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.55.0
+## v0.56.0
 
 ### 2026-11-10
 
+- [`a062e75`](https://github.com/WISE-Developers/project_nomad/commit/a062e75fef8ce2f28401abeb3ace4e0018b8ae42) Merge pull request #527 from WISE-Developers/dev — *Franco Nogarin, 08:50*
+- [`33ade7e`](https://github.com/WISE-Developers/project_nomad/commit/33ade7e6efdb0a1039de610f42a0575f1f036627) chore: dev v0.55.4 [release-bot] — *github-actions[bot], 14:27*
+- [`66c7dc4`](https://github.com/WISE-Developers/project_nomad/commit/66c7dc411f90597c76ef80a496884c48bf22f629) Merge feat/281-splash-assumptions: state the model's assumptions before sign-in — *Franco Nogarin, 08:27*
+- [`6c58517`](https://github.com/WISE-Developers/project_nomad/commit/6c585174ef93e06d9d7b0e785b66ea8573f30f79) #281: state the model's assumptions on the splash screen, before sign-in — *Franco Nogarin, 08:27*
+- [`fde045c`](https://github.com/WISE-Developers/project_nomad/commit/fde045cb073a62d00e5a144e65a13a16232ceb2b) chore: dev v0.55.3 [release-bot] — *github-actions[bot], 14:14*
+- [`8d93294`](https://github.com/WISE-Developers/project_nomad/commit/8d93294006505339aeda232790f8c204bccde948) Merge fix/526-wcs-not-wired: the WCS fuel source is documented as unwired, with a bidirectional guard — *Franco Nogarin, 08:14*
+- [`644c3fc`](https://github.com/WISE-Developers/project_nomad/commit/644c3fc59b73779292a114634e91e6cc423e5076) Correct #526: the WCS fuel source is NOT wired, and my upgrading.md entry said it was — *Franco Nogarin, 08:14*
+- [`a8b2a0e`](https://github.com/WISE-Developers/project_nomad/commit/a8b2a0e136b40cfb062a1429953505ef2784cbae) chore: dev v0.55.2 [release-bot] — *github-actions[bot], 14:08*
+- [`925dae9`](https://github.com/WISE-Developers/project_nomad/commit/925dae994b96d6cfa320d90de44b6c16a275313b) #524: delete the dead check_node_early() from both wizards, and guard the whole class — *Franco Nogarin, 08:08*
+- [`4de52b4`](https://github.com/WISE-Developers/project_nomad/commit/4de52b443416c39b9b77e41b5dc13fca5e63e7f7) chore: dev v0.55.1 [release-bot] — *github-actions[bot], 13:49*
+- [`fb2dc7c`](https://github.com/WISE-Developers/project_nomad/commit/fb2dc7c84d9828af9abbe3cf845b6bfaf21f23cc) Merge docs/526-upgrading-v0.55.0-env-keys: document the MCP and WCS fuel keys, with a guard against doc/code drift — *Franco Nogarin, 07:49*
+- [`518a087`](https://github.com/WISE-Developers/project_nomad/commit/518a087b6fc2e5b8e0f1481531e4c70bf92e908e) #526: document v0.55.0's eight new env keys, and guard the doc against drifting from the code — *Franco Nogarin, 07:49*
+- [`41d9df0`](https://github.com/WISE-Developers/project_nomad/commit/41d9df04db5afcad93ffa9aa4ed35194a5629bde) chore: release v0.55.0 [release-bot] — *github-actions[bot], 13:02*
 - [`434f620`](https://github.com/WISE-Developers/project_nomad/commit/434f620cb5c99ce7f69c14f1279f2b54ff7b61d8) Merge pull request #525 from WISE-Developers/dev — *Franco Nogarin, 07:02*
 - [`da4df87`](https://github.com/WISE-Developers/project_nomad/commit/da4df873d2aea326cd720d15038569264b91f49d) chore: dev v0.54.20 [release-bot] — *github-actions[bot], 12:31*
 - [`5c49213`](https://github.com/WISE-Developers/project_nomad/commit/5c49213e42e3e8b1a663be71f9539a5817c7db4a) Merge fix/336-glibc-thresholds: arch-aware native-addon floors replacing the FireSTARR-attributed glibc thresholds — *Franco Nogarin, 06:30*
