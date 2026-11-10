@@ -69,10 +69,26 @@ recreated.
 
 ---
 
-### WCS fuel source — opt-in, and misconfiguration fails rather than falling back
+### WCS fuel source — **the keys exist; the feature is NOT yet wired in (#282)**
 
-`NOMAD_FUEL_SOURCE` accepts `local` (the default) or `wcs`. **Unset means `local`**, which
-is why every existing deployment keeps working untouched.
+**Do not set these yet.** `NOMAD_FUEL_SOURCE` and the three `NOMAD_FUEL_WCS_*` keys appear
+in `.env.example` as of v0.55.0, and the module that validates them is written and tested —
+but **nothing in the running backend calls it.** Setting `NOMAD_FUEL_SOURCE=wcs` today has
+no effect at all: it does not switch fuel sources, and it does not fail either, because the
+resolver never runs.
+
+Measured, not assumed: `NOMAD_FUEL_SOURCE` is read in exactly one file,
+`backend/src/infrastructure/fuel/fuelSource.ts`, and that file has no caller outside its own
+directory. The same check finds 1 caller for `ArrivalTimeExtractor` and 2 for
+`ContourGenerator`, so it is capable of finding wired code.
+
+**#282 is the issue that wires it.** Until it lands, a deployment behaves exactly as v0.54.0
+did: local installed fuel tiles, always.
+
+The rest of this section describes the behaviour the module already implements, so it is
+accurate about what WILL happen rather than what happens now. It is recorded here because an
+operator who finds these keys in `.env.example` deserves to know both that they are inert and
+what they are for.
 
 | key | required when | notes |
 |---|---|---|
@@ -101,10 +117,11 @@ the cause. This is the same class of mistake as pointing `NOMAD_USAGE_LOG_PATH` 
 docker inspect nomad --format '{{range .Mounts}}{{.Destination}} {{end}}'
 ```
 
-**Which source a run used is recorded, not inferred.** Completed models carry a producer
-label of either `CFS FBP WCS coverage <id>` or `local installed fuel dataset` (#431), so a
-past run can be attributed after the fact rather than reconstructed from what the `.env`
-happens to say today.
+**Which source a run used is INTENDED to be recorded, not inferred** — `fuelProducerLabel()`
+returns either `CFS FBP WCS coverage <id>` or `local installed fuel dataset` (#431). Like the
+resolver above, **it currently has no caller outside the fuel directory**, so no run records a
+fuel-source producer yet. Fuel *vintage* is a separate thing and IS recorded and displayed
+today, in model setup and in results.
 
 ---
 
