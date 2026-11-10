@@ -145,6 +145,53 @@ else
   bad "fuelSource.ts not found — cannot confirm the property the doc describes"
 fi
 
+# ---------------------------------------------------------------------------
+# 4. THE DOC MUST NOT PROMISE A FEATURE THAT IS NOT WIRED — AND MUST STOP
+#    DISCLAIMING ONE THAT IS. This fires in BOTH directions on purpose.
+#
+#    WHY IT EXISTS. v0.55.0 added NOMAD_FUEL_SOURCE and three NOMAD_FUEL_WCS_* keys to
+#    .env.example, with a module that validates them, tests that exercise them — and NO
+#    CALLER anywhere in the running backend. The first version of this document described
+#    them as operator-facing behaviour, including a promise that a misconfiguration
+#    "fails rather than falling back". It cannot fail: the resolver never runs.
+#
+#    That is #523's point aimed at documentation instead of tests — written and tested
+#    makes a path look covered; only a caller makes it real.
+#
+#    So: while resolveFuelSource has no external caller, the doc MUST say it is not
+#    wired. Once #282 wires it, this assertion flips and the stale disclaimer becomes
+#    the failure — which is the half a one-directional check would miss.
+# ---------------------------------------------------------------------------
+FUELSRC="$REPO/backend/src/infrastructure/fuel/fuelSource.ts"
+if [ ! -f "$FUELSRC" ]; then
+  bad "fuelSource.ts not found — cannot tell whether the doc's claim is current"
+else
+  callers="$(grep -rl "resolveFuelSource" "$REPO/backend/src" --include=*.ts 2>/dev/null \
+             | grep -v "/infrastructure/fuel/" | grep -vc "__tests__" || true)"
+  # CONTROL: the same method must report a caller for something known to be wired.
+  wired_control="$(grep -rl "ArrivalTimeExtractor" "$REPO/backend/src" --include=*.ts 2>/dev/null \
+                   | grep -v "/ArrivalTimeExtractor.ts" | grep -vc "__tests__" || true)"
+  if [ "$wired_control" -eq 0 ]; then
+    bad "CONTROL FAILED — the caller detector finds nothing for a module known to be wired"
+  else
+    ok "control: the caller detector finds $wired_control caller(s) for a wired module"
+
+    if [ "$callers" -eq 0 ]; then
+      if grep -q "NOT yet wired" "$DOC"; then
+        ok "resolveFuelSource has no caller, and upgrading.md says the feature is not wired"
+      else
+        bad "resolveFuelSource has NO caller but upgrading.md describes it as working — #282 wires it"
+      fi
+    else
+      if grep -q "NOT yet wired" "$DOC"; then
+        bad "resolveFuelSource now HAS $callers caller(s) — upgrading.md's 'NOT yet wired' is stale"
+      else
+        ok "resolveFuelSource is wired ($callers caller(s)) and the doc no longer disclaims it"
+      fi
+    fi
+  fi
+fi
+
 echo ""
 echo "passed: $pass   failed: $fail"
 [ "$fail" -eq 0 ]
