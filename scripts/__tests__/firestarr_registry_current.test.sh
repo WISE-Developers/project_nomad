@@ -138,6 +138,67 @@ for f in "${release_files[@]}"; do
 done
 
 # ---------------------------------------------------------------------------
+# CLASS 2b: every HTTP reference to the upstream repository, by URL host.
+#
+# WHY THIS CLASS EXISTS, and it is the one that caught me. Classes 1 and 2 above
+# discover by VARIABLE NAME -- FIRESTARR_REGISTRY, FirestarrRegistry,
+# FIRESTARR_BINARY_RELEASE_REPO. That set looked complete and was not:
+#
+#   install-nomad-san-metal.ps1 holds `$FirestarrRepo = "CWFMF/firestarr-cpp"`.
+#
+# A fourth spelling, in the metal installer, invisible to all three patterns. Naming
+# the members of a class by the names I happened to know is the failure those
+# patterns were supposed to prevent. So this class discovers by what the reference
+# IS -- a URL or API path naming the repository -- not by what someone called it.
+#
+# These are live functional dependencies, not links in prose:
+#   - package_fuels.sh fetches the canonical fuel.lut from raw.githubusercontent.com
+#   - build-offline-bundle.sh queries the release API and downloads an asset
+#   - install-nomad-san-metal.ps1 builds a release URL from its repo constant
+#
+# MEASURED 2026-11-10, because "the redirect covers it" is a claim and not all of
+# these hosts behave alike: raw.githubusercontent.com DOES serve the renamed
+# repository under both names (fuel.lut byte-identical, sha256 468eed481e553712 via
+# each), and api.github.com answers repos/CWFMF/firestarr-cpp with a 301 to
+# repositories/1029186458 -- the same numeric id #528 pinned. So nothing is broken
+# today. It is one re-created `firestarr-cpp` away from breaking, which is precisely
+# why the retirement has to be permanent and why these must not be left to a redirect.
+# ---------------------------------------------------------------------------
+http_files=()
+for f in "$SCRIPTS_DIR"/*.sh "$SCRIPTS_DIR"/*.ps1; do
+    [ -f "$f" ] || continue
+    # Discover on the OWNER/REPO pair in any form, not on a URL host. Narrowing to
+    # hosts missed install-nomad-san-docker.sh, whose only reference is a bare
+    # `(CWFMF/firestarr-cpp#17)` issue citation with no scheme -- a third shape
+    # after the URL and the quoted constant. The pair is the thing that goes stale,
+    # so the pair is what to look for.
+    if grep -qiE '[Cc][Ww][Ff][Mm][Ff]/firestarr' "$f" 2>/dev/null; then
+        http_files+=("$f")
+    fi
+done
+
+if [ "${#http_files[@]}" -lt 3 ]; then
+    echo "  FAIL   discovery: expected at least 3 scripts referencing the upstream repo by URL, found ${#http_files[@]}"
+    printf '         %s\n' "${http_files[@]:-(none)}"
+    exit 1
+fi
+ok "discovery found ${#http_files[@]} scripts referencing the upstream repo over HTTP"
+
+for f in "${http_files[@]}"; do
+    n="$(basename "$f")"
+    # A reference is stale if the repository name is the retired one. Comments that
+    # merely cite the upstream ISSUE TRACKER by old name are caught here too, and
+    # that is intended: an issue link is what the next reader clicks.
+    hits="$(grep -nE "[Cc][Ww][Ff][Mm][Ff]/$RETIRED_REPO_NAME" "$f" || true)"
+    if [ -z "$hits" ]; then
+        ok "$n names the current upstream repository in every HTTP reference"
+    else
+        bad "$n names the current upstream repository in every HTTP reference" \
+            "$(echo "$hits" | head -2 | cut -c1-120 | tr '\n' ' ')"
+    fi
+done
+
+# ---------------------------------------------------------------------------
 # CLASS 3: no ghcr.io path anywhere in the tree may name the retired package.
 #
 # The two classes above check assignments. This sweeps for a reference that is

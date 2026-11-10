@@ -53,7 +53,7 @@ ENV_EXAMPLE="$PROJECT_DIR/.env.example"
 # ---- Same FireSTARR image defaults as the main installer ---------------
 # Docker default is pinned by digest to a verified-working build (v0.9.11,
 # revision 7070574b46). FireSTARR v0.9.12-alpha-2 introduced an x/y
-# transpose regression — see https://github.com/CWFMF/firestarr-cpp/issues/17.
+# transpose regression — see https://github.com/CWFMF/firestarr/issues/17.
 # Keep these in sync with scripts/install_nomad_setup.sh.
 FIRESTARR_REGISTRY="ghcr.io/cwfmf/firestarr"
 FIRESTARR_IMAGE_NAME="firestarr"
