@@ -204,6 +204,68 @@ export function SplashScreen({ onEnter }: SplashScreenProps) {
         SAN Mode (Stand Alone Nomad)
       </p>
 
+      {/* Model assumptions (#281).
+       *
+       * These are the things a user cannot see from the interface and which
+       * change either what they should do or how they should read a result.
+       * Stated before sign-in on purpose: the first two decide whether a run
+       * works at all, and finding that out after a failed run is finding out
+       * too late.
+       *
+       * The two numbers are the backend's, not design copy —
+       * buildExecutionOptions.ts returns 100/1, health.ts advertises a
+       * 240-minute cap. SplashScreen.assumptions.test.tsx pins them.
+       *
+       * The WCS fuel source is deliberately absent: its keys ship in
+       * .env.example but nothing calls resolveFuelSource, so naming it here
+       * would announce a feature that cannot run (#282).
+       */}
+      <div
+        data-testid="model-assumptions"
+        aria-label="Model assumptions"
+        style={{
+          maxWidth: '520px',
+          margin: '0 0 28px 0',
+          padding: '16px 20px',
+          background: 'rgba(148, 163, 184, 0.08)',
+          border: '1px solid rgba(148, 163, 184, 0.25)',
+          borderRadius: '8px',
+          color: '#cbd5e1',
+          fontSize: '13px',
+          lineHeight: 1.6,
+          textAlign: 'left',
+        }}
+      >
+        <p style={{ margin: '0 0 10px 0', fontWeight: 600, color: '#e2e8f0' }}>
+          Before you model — what this system assumes
+        </p>
+        <ul style={{ margin: 0, paddingLeft: '18px' }}>
+          <li style={{ marginBottom: '6px' }}>
+            <strong>Weather needs a noon record on its first day.</strong> Daily fire
+            weather is built from noon observations, so a run whose first day begins
+            after noon has no daily entry to start from and will fail.
+          </li>
+          <li style={{ marginBottom: '6px' }}>
+            <strong>Runs are probabilistic unless you choose otherwise.</strong> That is
+            100 simulations; deterministic mode is a single one. The default is the
+            slower, broader answer.
+          </li>
+          <li style={{ marginBottom: '6px' }}>
+            <strong>Fuel comes from a dataset with its own vintage</strong>, which need
+            not match the year you are modelling. The vintage in use is shown in setup
+            and with your results — modelling an older fire on newer fuel is a valid
+            thing to do deliberately, and only you can tell whether it was.
+          </li>
+          <li style={{ marginBottom: '6px' }}>
+            <strong>Times are shown in this deployment&apos;s home time zone</strong>,
+            not yours and not the fire&apos;s, unless they happen to be the same.
+          </li>
+          <li>
+            <strong>A single run is capped at 4 hours.</strong>
+          </li>
+        </ul>
+      </div>
+
       {/* Username input (when simple auth enabled) */}
       {/* The server could not tell us its auth mode (#474). Say so rather than
           rendering a login that may be the wrong one — guessing is the defect
