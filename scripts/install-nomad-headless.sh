@@ -289,20 +289,26 @@ check_metal_deps_early() {
         fi
     fi
 
-    # Linux-specific: check glibc version
+    # Linux-specific: the host must satisfy the native-addon floors (#336).
+    # Both floors come from gdal-async's prebuild for THIS architecture, and both are
+    # checked — a host can clear glibc and still die at require() on libstdc++.
     if [[ "$OSTYPE" == "linux"* ]]; then
-        local glibc_version
-        glibc_version=$(ldd --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+$' || echo "")
-        if [ -n "$glibc_version" ]; then
-            local glibc_major glibc_minor
-            glibc_major=$(echo "$glibc_version" | cut -d. -f1)
-            glibc_minor=$(echo "$glibc_version" | cut -d. -f2)
-            if [ "$glibc_major" -lt 2 ] || { [ "$glibc_major" -eq 2 ] && [ "$glibc_minor" -lt 34 ]; }; then
-                missing+=("glibc >= 2.34 (found: $glibc_version) - need Ubuntu 22.04+")
-            fi
+        resolve_native_floors
+
+        local glibc_version glibcxx_version
+        glibc_version=$(host_glibc_version)
+        if [ -n "$glibc_version" ] && version_lt "$glibc_version" "$REQUIRED_GLIBC"; then
+            missing+=("glibc >= $REQUIRED_GLIBC (found: $glibc_version) - required by gdal-async's $(uname -m) prebuild")
         fi
 
-        # NOTE: FireSTARR is statically linked - no libproj/libtiff needed
+        glibcxx_version=$(host_max_glibcxx)
+        if [ -n "$glibcxx_version" ] && version_lt "$glibcxx_version" "$REQUIRED_GLIBCXX"; then
+            missing+=("libstdc++ with GLIBCXX_$REQUIRED_GLIBCXX (found: GLIBCXX_$glibcxx_version) - required by gdal-async's $(uname -m) prebuild")
+        fi
+
+        # NOTE: FireSTARR is statically linked - no libproj/libtiff needed, and it
+        # contributes nothing to the floors above (measured: 0 NEEDED entries, 0
+        # versioned GLIBC_ symbols, no .interp section).
     fi
 
     # Report all missing deps at once
@@ -389,46 +395,67 @@ check_node_early() {
     fi
 }
 
-# Check glibc version for FireSTARR binary compatibility (Linux only)
-check_glibc_early() {
-    # Only check on Linux
-    [[ "$OSTYPE" != "linux"* ]] && return 0
-
-    local required_version="2.34"
-    local glibc_version
-
-    # Get glibc version from ldd
-    glibc_version=$(ldd --version 2>/dev/null | head -n1 | grep -oE '[0-9]+\.[0-9]+$')
-
-    if [ -z "$glibc_version" ]; then
-        print_warning "Could not detect glibc version"
-        return 0
-    fi
-
-    # Compare versions using major.minor integer split
-    local required_major required_minor current_major current_minor
-    required_major=$(echo "$required_version" | cut -d. -f1)
-    required_minor=$(echo "$required_version" | cut -d. -f2)
-    current_major=$(echo "$glibc_version" | cut -d. -f1)
-    current_minor=$(echo "$glibc_version" | cut -d. -f2)
-
-    if [ "$current_major" -lt "$required_major" ] || { [ "$current_major" -eq "$required_major" ] && [ "$current_minor" -lt "$required_minor" ]; }; then
-        echo ""
-        print_error "glibc $glibc_version is installed, but >= $required_version is required for FireSTARR"
-        echo ""
-        echo "    The FireSTARR binary requires glibc >= $required_version."
-        echo "    Your system has glibc $glibc_version."
-        echo ""
-        echo "    Options:"
-        echo "      1. Upgrade to Ubuntu 22.04+ or a distro with glibc >= $required_version"
-        echo "      2. Use Docker mode instead (recommended for older systems)"
-        echo ""
-        exit 1
-    fi
+# Resolve the host floors the metal path must satisfy (#336).
+#
+# These come from gdal-async's PREBUILT native addon, which is what metal mode actually
+# installs: its package.json runs `node-pre-gyp install --fallback-to-build`, the prebuild
+# exists for Nomad's ABI, and it is bit-for-bit the artifact inside the published image
+# (identical sha256). They do NOT come from FireSTARR, which is statically linked and
+# imposes no floor at all — 0 NEEDED entries, 0 versioned GLIBC_ symbols, no .interp.
+#
+# Six minor versions separate the two prebuilds, so one number cannot serve both:
+#   x86_64   GLIBC 2.29   GLIBCXX 3.4.26
+#   aarch64  GLIBC 2.35   GLIBCXX 3.4.30
+#
+# Measurements and their controls: Documentation/plans/336-glibc-floor.md (sage_workspace).
+# If a gdal-async bump moves these, scripts/__tests__/glibc_floor_matches_measurement.test.sh
+# is what fails.
+resolve_native_floors() {
+    case "$(uname -m)" in
+        aarch64|arm64)
+            REQUIRED_GLIBC="2.35"
+            REQUIRED_GLIBCXX="3.4.30"
+            ;;
+        *)
+            REQUIRED_GLIBC="2.29"
+            REQUIRED_GLIBCXX="3.4.26"
+            ;;
+    esac
 }
 
-# NOTE: FireSTARR binary is fully self-contained (statically linked)
-# No external library dependencies beyond base system (libc, libstdc++, libgcc_s)
+# The host's glibc, or empty if it cannot be read. Empty means UNKNOWN, never OK —
+# callers must treat it as "no answer" rather than as a pass.
+host_glibc_version() {
+    ldd --version 2>/dev/null | head -n1 | grep -oE '[0-9]+\.[0-9]+$'
+}
+
+# The highest GLIBCXX_ version the host's libstdc++ actually exports. `strings` is absent
+# from some base images, so this reads the symbols with grep -a instead — using a tool that
+# is not installed returns empty, and an empty result here is indistinguishable from a
+# library exporting nothing.
+host_max_glibcxx() {
+    local so
+    for so in /usr/lib/x86_64-linux-gnu/libstdc++.so.6 \
+              /usr/lib/aarch64-linux-gnu/libstdc++.so.6 \
+              /usr/lib64/libstdc++.so.6; do
+        [ -f "$so" ] || continue
+        grep -aoE 'GLIBCXX_[0-9]+\.[0-9]+\.[0-9]+' "$so" 2>/dev/null \
+            | sed 's/GLIBCXX_//' \
+            | sort -t. -k1,1n -k2,2n -k3,3n \
+            | tail -1
+        return 0
+    done
+}
+
+# version_lt A B -> true when dotted-numeric A is strictly below B.
+# Field-wise numeric sort, because `sort -V` is not available everywhere and a
+# lexicographic compare puts 3.4.9 above 3.4.26.
+version_lt() {
+    [ "$1" = "$2" ] && return 1
+    local lowest
+    lowest=$(printf '%s\n%s\n' "$1" "$2" | sort -t. -k1,1n -k2,2n -k3,3n | head -1)
+    [ "$lowest" = "$1" ]
+}
 
 # ============================================
 # Step 1: Deployment Mode
