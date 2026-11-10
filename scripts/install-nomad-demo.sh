@@ -71,6 +71,58 @@ firestarr_image_ref() {
     fi
 }
 
+# Confirm a FireSTARR image reference actually resolves, BEFORE the install completes
+# (#326's open follow-up; made urgent by the CWFMF repository rename, #529).
+#
+# WHY THIS EXISTS. #326: four installers pinned a FireSTARR digest that had stopped
+# existing in the registry. The install completed cleanly and then EVERY MODEL RUN DIED
+# with exit 1, reproduced on a fresh Ubuntu 24.04 box. Its own follow-up named the gap
+# and nothing closed it: "the installer does not verify the configured image resolves ...
+# the first sign of trouble is a failed model run, a long way from the cause."
+#
+# A floating tag can 404 just as easily as a digest: a renamed channel, a pruned package,
+# a typo'd FIRESTARR_IMAGE_TAG override. CWFMF has just renamed the source repository, and
+# the GHCR packages did NOT follow the rename — so the registry path is about to change
+# and this is exactly when a wrong one gets shipped.
+#
+# WHAT IT DOES NOT DO. `manifest inspect` answers "can this be pulled", never "is this the
+# build we meant". FIRESTARR_IMAGE_TAG defaults to `main-latest`, which floats, so this is
+# not version pinning and must not be mistaken for it.
+#
+# Returns 0 when the reference resolves, 1 when it does not.
+verify_firestarr_image() {
+    local ref="$1"
+
+    # No docker, no question to answer — metal installs never pull this.
+    command -v docker >/dev/null 2>&1 || return 0
+
+    if docker manifest inspect "$ref" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    # Distinguish "the registry says no" from "we could not ask", because a down
+    # daemon and a missing image look identical from the caller's side.
+    if ! docker info >/dev/null 2>&1; then
+        print_warning "Could not reach the Docker daemon to verify $ref — skipping the image check"
+        return 0
+    fi
+
+    print_error "The configured FireSTARR image does not resolve: $ref"
+    echo ""
+    echo "    The install would finish and then every model run would fail, which is"
+    echo "    what happened in #326 — the failure appears a long way from this cause."
+    echo ""
+    echo "    Likely reasons:"
+    echo "      1. The registry path has moved (CWFMF renamed the source repository)"
+    echo "      2. FIRESTARR_IMAGE_TAG names a tag that does not exist in that package"
+    echo "      3. The package is private, or this host is not logged in to the registry"
+    echo ""
+    echo "    Check what the registry actually serves:"
+    echo "      docker manifest inspect $ref"
+    echo ""
+    return 1
+}
+
 # ---- Printing ----------------------------------------------------------
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; MAGENTA='\033[0;35m'; NC='\033[0m'
 hr()    { echo -e "${CYAN}══════════════════════════════════════════════════════════════${NC}"; }
@@ -163,6 +215,10 @@ case "$arch" in
         FIRESTARR_IMAGE="$(firestarr_image_ref "$FIRESTARR_IMAGE_TAG")" ;;
     *) FIRESTARR_IMAGE="$(firestarr_image_ref "$FIRESTARR_IMAGE_TAG")" ;;
 esac
+# Confirm it resolves BEFORE writing it into .env (#326, #529): a reference that
+# cannot be pulled produces a clean install and then a dead model run.
+verify_firestarr_image "$FIRESTARR_IMAGE" || fail "FireSTARR image does not resolve: $FIRESTARR_IMAGE"
+
 ok "FIRESTARR_IMAGE = $FIRESTARR_IMAGE"
 
 # ---- Step 7: generate_env_file (line-for-line equivalent) -------------
