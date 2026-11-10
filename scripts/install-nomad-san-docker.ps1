@@ -62,7 +62,7 @@ $NomadDataPath = if ($env:NOMAD_DATA_PATH) { $env:NOMAD_DATA_PATH } else { $Data
 $SimsPath = if ($env:SIMS_OUTPUT_PATH) { $env:SIMS_OUTPUT_PATH } else { "$DatasetPath\sims" }
 
 # FireSTARR image config
-$FirestarrRegistry = "ghcr.io/cwfmf/firestarr-cpp"
+$FirestarrRegistry = "ghcr.io/cwfmf/firestarr"
 $FirestarrImageName = "firestarr"
 $FirestarrImageTag = "unstable-latest"
 

@@ -74,7 +74,7 @@ NOMAD_HOME_TIMEZONE="${NOMAD_HOME_TIMEZONE:-America/Edmonton}"
 # Docker install could not pull an engine at all and every model run failed
 # with exit 1. Temporary pins need an expiry; this one outlived its cause by
 # ten weeks.
-FIRESTARR_REGISTRY="${FIRESTARR_REGISTRY:-ghcr.io/cwfmf/firestarr-cpp}"
+FIRESTARR_REGISTRY="${FIRESTARR_REGISTRY:-ghcr.io/cwfmf/firestarr}"
 FIRESTARR_IMAGE_NAME="${FIRESTARR_IMAGE_NAME:-firestarr}"
 FIRESTARR_IMAGE_TAG="${FIRESTARR_IMAGE_TAG:-main-latest}"
 FIRESTARR_IMAGE_TAG_ARM64="${FIRESTARR_IMAGE_TAG_ARM64:-main-latest}"

@@ -55,7 +55,7 @@ ENV_EXAMPLE="$PROJECT_DIR/.env.example"
 # revision 7070574b46). FireSTARR v0.9.12-alpha-2 introduced an x/y
 # transpose regression — see https://github.com/CWFMF/firestarr-cpp/issues/17.
 # Keep these in sync with scripts/install_nomad_setup.sh.
-FIRESTARR_REGISTRY="ghcr.io/cwfmf/firestarr-cpp"
+FIRESTARR_REGISTRY="ghcr.io/cwfmf/firestarr"
 FIRESTARR_IMAGE_NAME="firestarr"
 FIRESTARR_IMAGE_TAG="${FIRESTARR_IMAGE_TAG:-main-latest}"
 FIRESTARR_IMAGE_TAG_ARM64="${FIRESTARR_IMAGE_TAG_ARM64:-main-latest}"
