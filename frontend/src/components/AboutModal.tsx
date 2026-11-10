@@ -128,7 +128,7 @@ function FireSTARRPopover() {
       {/* Links */}
       <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '16px' }}>
         <a
-          href="https://github.com/CWFMF/firestarr-cpp"
+          href="https://github.com/CWFMF/firestarr"
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: '#60a5fa', fontSize: '13px', textDecoration: 'none' }}
@@ -137,7 +137,7 @@ function FireSTARRPopover() {
           GitHub
         </a>
         <a
-          href="https://github.com/CWFMF/firestarr-cpp/issues"
+          href="https://github.com/CWFMF/firestarr/issues"
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: '#60a5fa', fontSize: '13px', textDecoration: 'none' }}
@@ -210,7 +210,7 @@ export function AboutModal({ onClose }: AboutModalProps) {
           A map-based fire modeling GUI supporting{' '}
           <a
             ref={linkRef}
-            href="https://github.com/CWFMF/firestarr-cpp"
+            href="https://github.com/CWFMF/firestarr"
             target="_blank"
             rel="noopener noreferrer"
             onMouseEnter={handleFireSTARREnter}

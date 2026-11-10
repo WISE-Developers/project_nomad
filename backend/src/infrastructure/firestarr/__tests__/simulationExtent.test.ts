@@ -1,7 +1,7 @@
 /**
  * FireSTARR cannot simulate an area larger than its grid, and does not say so (#432).
  *
- * `MAX_COLUMNS = MAX_ROWS = 4096` (firestarr-cpp/src/cpp/stdafx.h) at a 100 m
+ * `MAX_COLUMNS = MAX_ROWS = 4096` (firestarr/src/cpp/stdafx.h) at a 100 m
  * fuel resolution is a 409.6 km square. Over-size input is NOT rejected by the
  * engine: ConstantGrid.h centres a 4096-cell window on the ignition and clamps
  * it, so everything outside simply does not exist for the simulation — and the

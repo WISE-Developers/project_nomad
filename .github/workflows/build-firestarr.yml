@@ -39,13 +39,13 @@ jobs:
           # Download Linux x64 binary from CWFMF release
           ASSET="firestarr-ubuntu-x64-gcc-Release.tar.gz"
           curl -f -L -o firestarr.tar.gz \
-            "https://github.com/CWFMF/firestarr-cpp/releases/download/${VERSION}/${ASSET}"
+            "https://github.com/CWFMF/firestarr/releases/download/${VERSION}/${ASSET}"
 
           # --- #528: verify the upstream before trusting it -----------------
           #
           # TWO different properties, and a digest alone does not give both.
           #
-          # IDENTITY. CWFMF is renaming firestarr-cpp -> firestarr, and GitHub leaves a
+          # IDENTITY. CWFMF renamed firestarr-cpp -> firestarr on 2026-11-10. GitHub leaves a
           # permanent redirect that `curl -L` follows in silence. That redirect DIES the
           # moment anything new occupies the old name, and the plain name is currently
           # taken, so this is a two-step shuffle. A digest check cannot see through it:
@@ -58,13 +58,13 @@ jobs:
           # whatever arrives down the wire — the same reasoning, and the same refusal,
           # that scripts/build-offline-bundle.sh already applies to this exact asset.
           EXPECTED_REPO_ID=1029186458
-          ACTUAL_REPO_ID="$(gh api repos/CWFMF/firestarr-cpp --jq .id)"
+          ACTUAL_REPO_ID="$(gh api repos/CWFMF/firestarr --jq .id)"
           if [ "$ACTUAL_REPO_ID" != "$EXPECTED_REPO_ID" ]; then
-            echo "::error::CWFMF/firestarr-cpp resolves to repository id $ACTUAL_REPO_ID, expected $EXPECTED_REPO_ID. Refusing to download an executable from a repository this workflow does not recognise."
+            echo "::error::CWFMF/firestarr resolves to repository id $ACTUAL_REPO_ID, expected $EXPECTED_REPO_ID. Refusing to download an executable from a repository this workflow does not recognise."
             exit 1
           fi
 
-          EXPECTED_DIGEST="$(gh api "repos/CWFMF/firestarr-cpp/releases/tags/${VERSION}" \
+          EXPECTED_DIGEST="$(gh api "repos/CWFMF/firestarr/releases/tags/${VERSION}" \
             --jq ".assets[] | select(.name == \"${ASSET}\") | .digest" | sed 's/^sha256://')"
           if [ -z "$EXPECTED_DIGEST" ]; then
             echo "::error::Release ${VERSION} publishes no digest for ${ASSET}. Refusing to bake an unverified executable into the image."
@@ -159,7 +159,7 @@ jobs:
         run: |
           VERSION="${{ inputs.firestarr_version }}"
           ASSET="firestarr-ubuntu-arm64-gcc-Release.tar.gz"
-          URL="https://github.com/CWFMF/firestarr-cpp/releases/download/${VERSION}/${ASSET}"
+          URL="https://github.com/CWFMF/firestarr/releases/download/${VERSION}/${ASSET}"
           echo "Downloading FireSTARR ARM64 $VERSION from $URL"
 
           mkdir -p docker-context
@@ -174,7 +174,7 @@ jobs:
           #
           # TWO different properties, and a digest alone does not give both.
           #
-          # IDENTITY. CWFMF is renaming firestarr-cpp -> firestarr, and GitHub leaves a
+          # IDENTITY. CWFMF renamed firestarr-cpp -> firestarr on 2026-11-10. GitHub leaves a
           # permanent redirect that `curl -L` follows in silence. That redirect DIES the
           # moment anything new occupies the old name, and the plain name is currently
           # taken, so this is a two-step shuffle. A digest check cannot see through it:
@@ -187,13 +187,13 @@ jobs:
           # whatever arrives down the wire — the same reasoning, and the same refusal,
           # that scripts/build-offline-bundle.sh already applies to this exact asset.
           EXPECTED_REPO_ID=1029186458
-          ACTUAL_REPO_ID="$(gh api repos/CWFMF/firestarr-cpp --jq .id)"
+          ACTUAL_REPO_ID="$(gh api repos/CWFMF/firestarr --jq .id)"
           if [ "$ACTUAL_REPO_ID" != "$EXPECTED_REPO_ID" ]; then
-            echo "::error::CWFMF/firestarr-cpp resolves to repository id $ACTUAL_REPO_ID, expected $EXPECTED_REPO_ID. Refusing to download an executable from a repository this workflow does not recognise."
+            echo "::error::CWFMF/firestarr resolves to repository id $ACTUAL_REPO_ID, expected $EXPECTED_REPO_ID. Refusing to download an executable from a repository this workflow does not recognise."
             exit 1
           fi
 
-          EXPECTED_DIGEST="$(gh api "repos/CWFMF/firestarr-cpp/releases/tags/${VERSION}" \
+          EXPECTED_DIGEST="$(gh api "repos/CWFMF/firestarr/releases/tags/${VERSION}" \
             --jq ".assets[] | select(.name == \"${ASSET}\") | .digest" | sed 's/^sha256://')"
           if [ -z "$EXPECTED_DIGEST" ]; then
             echo "::error::Release ${VERSION} publishes no digest for ${ASSET}. Refusing to bake an unverified executable into the image."

@@ -126,7 +126,7 @@ Imagine running 1,000 slightly different versions of a fire, each with small var
 - Developed under the **Canadian Wildland Fire Modelling Framework (CWFMF)**
 - Used operationally by the **Government of Northwest Territories**
 - Published: [Burn Probability and Fire Management Applications (MDPI Fire, 2020)](https://www.mdpi.com/2571-6255/3/2/16)
-- Open source: [github.com/CWFMF/firestarr-cpp](https://github.com/CWFMF/firestarr-cpp)
+- Open source: [github.com/CWFMF/firestarr](https://github.com/CWFMF/firestarr)
 
 ---
 
@@ -279,7 +279,7 @@ A screenshot of the MVP is available at: `assets/screenshots/Screenshot_mvp_v0.p
 | Resource | URL |
 |----------|-----|
 | Project Nomad (GitHub) | [github.com/WISE-Developers/project_nomad](https://github.com/WISE-Developers/project_nomad) |
-| FireSTARR Engine (GitHub) | [github.com/CWFMF/firestarr-cpp](https://github.com/CWFMF/firestarr-cpp) |
+| FireSTARR Engine (GitHub) | [github.com/CWFMF/firestarr](https://github.com/CWFMF/firestarr) |
 | FireSTARR Science Paper | [MDPI Fire (2020)](https://www.mdpi.com/2571-6255/3/2/16) |
 | Canadian FBP System (ST-X-3) | National fire behavior prediction standard |
 | CWFMF | Canadian Wildland Fire Modelling Framework |
