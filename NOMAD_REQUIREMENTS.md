@@ -61,9 +61,30 @@ Container mode is the simplest path. The installer handles everything else.
 
 | Platform | Status | Notes |
 |----------|--------|-------|
-| Ubuntu 22.04+ | Supported | glibc >= 2.34 required |
+| Ubuntu 22.04+ | Supported | see the host library floors below |
 | macOS 14+ | Supported | Homebrew for dependencies |
 | Windows 10/11 | Supported | Manual dependency installation |
+
+#### Host library floors (bare metal / Metal mode only)
+
+These are set by the prebuilt `gdal-async` native addon that a Metal install compiles
+against, and they differ by architecture. **Both** must be satisfied — a host that clears
+the glibc floor but not the libstdc++ one installs cleanly and then fails when the backend
+loads the addon.
+
+| Architecture | glibc | libstdc++ |
+|---|---|---|
+| x86_64 | >= 2.29 | exports `GLIBCXX_3.4.26` |
+| aarch64 / arm64 | >= 2.35 | exports `GLIBCXX_3.4.30` |
+
+Ubuntu 22.04 (glibc 2.35, `GLIBCXX_3.4.30`) satisfies both on either architecture, which is
+why it is the recommended minimum. Ubuntu 20.04 (glibc 2.31, `GLIBCXX_3.4.28`) also meets
+the x86_64 floors, but is past its standard support window and is not recommended.
+
+**FireSTARR itself imposes no host library requirement.** The published release binary is
+statically linked, so it does not constrain the floors above. Docker deployments are not
+affected by any of this: the addon is loaded inside the container against the image's own
+libraries, so the host's versions do not apply.
 
 ## Network Requirements
 

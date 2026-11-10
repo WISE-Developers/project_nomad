@@ -106,6 +106,68 @@ VERSION="${VERSION:-latest}"
 
 # ============================================
 # Prerequisites
+# Resolve the host floors the metal path must satisfy (#336).
+#
+# These come from gdal-async's PREBUILT native addon, which is what metal mode actually
+# installs: its package.json runs `node-pre-gyp install --fallback-to-build`, the prebuild
+# exists for Nomad's ABI, and it is bit-for-bit the artifact inside the published image
+# (identical sha256). They do NOT come from FireSTARR, which is statically linked and
+# imposes no floor at all — 0 NEEDED entries, 0 versioned GLIBC_ symbols, no .interp.
+#
+# Six minor versions separate the two prebuilds, so one number cannot serve both:
+#   x86_64   GLIBC 2.29   GLIBCXX 3.4.26
+#   aarch64  GLIBC 2.35   GLIBCXX 3.4.30
+#
+# Measurements and their controls: Documentation/plans/336-glibc-floor.md (sage_workspace).
+# If a gdal-async bump moves these, scripts/__tests__/glibc_floor_matches_measurement.test.sh
+# is what fails.
+resolve_native_floors() {
+    case "$(uname -m)" in
+        aarch64|arm64)
+            REQUIRED_GLIBC="2.35"
+            REQUIRED_GLIBCXX="3.4.30"
+            ;;
+        *)
+            REQUIRED_GLIBC="2.29"
+            REQUIRED_GLIBCXX="3.4.26"
+            ;;
+    esac
+}
+
+# The host's glibc, or empty if it cannot be read. Empty means UNKNOWN, never OK —
+# callers must treat it as "no answer" rather than as a pass.
+host_glibc_version() {
+    ldd --version 2>/dev/null | head -n1 | grep -oE '[0-9]+\.[0-9]+$'
+}
+
+# The highest GLIBCXX_ version the host's libstdc++ actually exports. `strings` is absent
+# from some base images, so this reads the symbols with grep -a instead — using a tool that
+# is not installed returns empty, and an empty result here is indistinguishable from a
+# library exporting nothing.
+host_max_glibcxx() {
+    local so
+    for so in /usr/lib/x86_64-linux-gnu/libstdc++.so.6 \
+              /usr/lib/aarch64-linux-gnu/libstdc++.so.6 \
+              /usr/lib64/libstdc++.so.6; do
+        [ -f "$so" ] || continue
+        grep -aoE 'GLIBCXX_[0-9]+\.[0-9]+\.[0-9]+' "$so" 2>/dev/null \
+            | sed 's/GLIBCXX_//' \
+            | sort -t. -k1,1n -k2,2n -k3,3n \
+            | tail -1
+        return 0
+    done
+}
+
+# version_lt A B -> true when dotted-numeric A is strictly below B.
+# Field-wise numeric sort, because `sort -V` is not available everywhere and a
+# lexicographic compare puts 3.4.9 above 3.4.26.
+version_lt() {
+    [ "$1" = "$2" ] && return 1
+    local lowest
+    lowest=$(printf '%s\n%s\n' "$1" "$2" | sort -t. -k1,1n -k2,2n -k3,3n | head -1)
+    [ "$lowest" = "$1" ]
+}
+
 # ============================================
 
 check_prerequisites() {
@@ -157,18 +219,22 @@ check_prerequisites() {
         print_warning "sqlite3 not found, will be needed for database"
     fi
 
-    # glibc check (Linux only)
+    # Native-addon floors (Linux only, #336). Both are checked: clearing glibc and
+    # failing GLIBCXX still means require('gdal-async') dies after a clean install.
     if [[ "$OSTYPE" == "linux"* ]]; then
-        local glibc_version
-        glibc_version=$(ldd --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+$')
-        if [ -n "$glibc_version" ]; then
-            local glibc_major glibc_minor
-            glibc_major=$(echo "$glibc_version" | cut -d. -f1)
-            glibc_minor=$(echo "$glibc_version" | cut -d. -f2)
-            if [ "$glibc_major" -lt 2 ] || { [ "$glibc_major" -eq 2 ] && [ "$glibc_minor" -lt 34 ]; }; then
-                print_error "glibc $glibc_version is too old (need >= 2.34)"
-                exit 1
-            fi
+        resolve_native_floors
+
+        local glibc_version glibcxx_version
+        glibc_version=$(host_glibc_version)
+        if [ -n "$glibc_version" ] && version_lt "$glibc_version" "$REQUIRED_GLIBC"; then
+            print_error "glibc $glibc_version is too old (need >= $REQUIRED_GLIBC for gdal-async's $(uname -m) prebuild)"
+            exit 1
+        fi
+
+        glibcxx_version=$(host_max_glibcxx)
+        if [ -n "$glibcxx_version" ] && version_lt "$glibcxx_version" "$REQUIRED_GLIBCXX"; then
+            print_error "libstdc++ exports only GLIBCXX_$glibcxx_version (need >= GLIBCXX_$REQUIRED_GLIBCXX for gdal-async's $(uname -m) prebuild)"
+            exit 1
         fi
     fi
 
