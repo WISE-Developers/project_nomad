@@ -4,10 +4,107 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.54.0
+## v0.55.0
+
+### 2026-11-10
+
+- [`434f620`](https://github.com/WISE-Developers/project_nomad/commit/434f620cb5c99ce7f69c14f1279f2b54ff7b61d8) Merge pull request #525 from WISE-Developers/dev — *Franco Nogarin, 07:02*
+- [`da4df87`](https://github.com/WISE-Developers/project_nomad/commit/da4df873d2aea326cd720d15038569264b91f49d) chore: dev v0.54.20 [release-bot] — *github-actions[bot], 12:31*
+- [`5c49213`](https://github.com/WISE-Developers/project_nomad/commit/5c49213e42e3e8b1a663be71f9539a5817c7db4a) Merge fix/336-glibc-thresholds: arch-aware native-addon floors replacing the FireSTARR-attributed glibc thresholds — *Franco Nogarin, 06:30*
+- [`61ecaad`](https://github.com/WISE-Developers/project_nomad/commit/61ecaad794474e0544c5aae6d8b0359f9d49bdb8) #336 fix: gate the metal path on gdal-async's prebuild, arch-aware, with the libstdc++ check that never existed — *Franco Nogarin, 06:30*
+
+### 2026-11-09
+
+- [`bbc9977`](https://github.com/WISE-Developers/project_nomad/commit/bbc99771f368c73f59be04c927e4e8ea8902319c) chore: dev v0.54.19 [release-bot] — *github-actions[bot], 19:40*
+- [`e200a5f`](https://github.com/WISE-Developers/project_nomad/commit/e200a5fc385ceb02b3608b16dd325dbba57f4e45) Merge branch 'fix/523-name-what-wires-fuelreproject' into dev — *Franco Nogarin, 13:38*
+- [`976716e`](https://github.com/WISE-Developers/project_nomad/commit/976716e47d50042b3d27b83db246c8ab70ff7bc2) test(#335): assert the dataset-path intent per installer, not by one prompt count — *Franco Nogarin, 13:31*
+- [`20d37c6`](https://github.com/WISE-Developers/project_nomad/commit/20d37c6234ab1cf5877dd0932b0f388bba6a69ce) fix(#335): make install-nomad-headless.sh actually unattended — 34 prompts, 0 reads — *Franco Nogarin, 13:26*
+- [`f169774`](https://github.com/WISE-Developers/project_nomad/commit/f16977431119b42a908f029711ed9e5aa8919b5f) fix(#336): port set-if-absent update_env_value to every installer copy, and test them all — *Franco Nogarin, 13:20*
+- [`25fcb90`](https://github.com/WISE-Developers/project_nomad/commit/25fcb90ddda190aea3a1335b67c4fdf636f14f97) chore: dev v0.54.18 [release-bot] — *github-actions[bot], 17:26*
+- [`526a849`](https://github.com/WISE-Developers/project_nomad/commit/526a849f584fd45befac17ec4dac8dbc5cc2be49) Merge branch 'fix/522-models-run-outputmode' into dev — *Franco Nogarin, 11:19*
+- [`7108c29`](https://github.com/WISE-Developers/project_nomad/commit/7108c29d159f1f68589565ae9960f7581be1dfeb) Merge branch 'fix/521-gdal-availability-probe' into dev — *Franco Nogarin, 11:19*
+- [`c011dc5`](https://github.com/WISE-Developers/project_nomad/commit/c011dc55d5a2a332ecfb73dc0290277c854fd032) Merge branch 'fix/519-nested-workspace-deps' into dev — *Franco Nogarin, 11:19*
+- [`05e3484`](https://github.com/WISE-Developers/project_nomad/commit/05e3484f1b40aa665456594855804d483210de92) docs(#523): say in the file that #282 wires fuelReproject, and why it reads as covered — *Franco Nogarin, 11:17*
+- [`a63b239`](https://github.com/WISE-Developers/project_nomad/commit/a63b239fe6968ba099e40939ef22a03cd8b712df) fix(#519): copy the workspace's nested dependency tree into the production image — *Franco Nogarin, 10:48*
+- [`1620e23`](https://github.com/WISE-Developers/project_nomad/commit/1620e235af936f2a9d7860f41eaf5bc3d7230d6e) fix(#522): share one modelMode resolver between /models/run and /models/:id/execute — *Franco Nogarin, 10:44*
+- [`313ae6c`](https://github.com/WISE-Developers/project_nomad/commit/313ae6c527f261a05a14c62a0518532c86fcbabc) fix(#521): decide GDAL availability by running the tools, not by asking which — *Franco Nogarin, 10:41*
+- [`f1c9f90`](https://github.com/WISE-Developers/project_nomad/commit/f1c9f9019724c300feff5ea1188b4bbe83ad5278) fix(#520): let the image entrypoint supply the binary, and pass --raster-root — *Franco Nogarin, 10:36*
+- [`8458646`](https://github.com/WISE-Developers/project_nomad/commit/84586465ef61ef48aae90184d93bd7ea955e0f5a) chore: dev v0.54.17 [release-bot] — *github-actions[bot], 15:29*
+- [`a142ef7`](https://github.com/WISE-Developers/project_nomad/commit/a142ef7c6b81a24d544b6dd4e8728b08cad4236a) Merge origin/dev into dev — *Franco Nogarin, 09:28*
+- [`b43379d`](https://github.com/WISE-Developers/project_nomad/commit/b43379d1b191f3ecb1e84098f7651d512691693f) Merge #512: tag a dev pre-release at the bump commit, not the default branch — *Franco Nogarin, 09:28*
+- [`adbfa20`](https://github.com/WISE-Developers/project_nomad/commit/adbfa2076dcdff581ce83384d89aea6e47debb3d) fix(#512): tag a dev pre-release at the bump commit, not the default branch — *Franco Nogarin, 09:28*
+- [`5d63cdc`](https://github.com/WISE-Developers/project_nomad/commit/5d63cdcad3ebcd217886604bda8734f9be6d9e0c) chore: dev v0.54.16 [release-bot] — *github-actions[bot], 15:26*
+- [`b3963e6`](https://github.com/WISE-Developers/project_nomad/commit/b3963e651bf17d27cfaceee725fc6d15498eb1be) Merge origin/dev into dev — *Franco Nogarin, 09:26*
+- [`a62cbe7`](https://github.com/WISE-Developers/project_nomad/commit/a62cbe759c0fa5db2fed46dbf76a221ec045366f) Merge #517: validate archive entry names before anything is written — *Franco Nogarin, 09:25*
+- [`7a76109`](https://github.com/WISE-Developers/project_nomad/commit/7a76109ea3d97c2f88ccdf4fa4bebea0c7916493) fix(#517): validate archive entry names before anything is written, on one shared rule — *Franco Nogarin, 09:25*
+- [`06cf5e5`](https://github.com/WISE-Developers/project_nomad/commit/06cf5e5f1c1744601e25bfed61dc77ec8529cac3) chore: dev v0.54.15 [release-bot] — *github-actions[bot], 15:10*
+- [`e46e9c9`](https://github.com/WISE-Developers/project_nomad/commit/e46e9c9efb2eb3f166194cea72fed0eee878afaa) Merge origin/dev into dev — *Franco Nogarin, 09:10*
+- [`18db696`](https://github.com/WISE-Developers/project_nomad/commit/18db696e0694722b9c90306e467dc756416fb517) Merge #515: bake RASTER_ROOT at image build so docker mode needs no shell — *Franco Nogarin, 09:10*
+- [`a07c63c`](https://github.com/WISE-Developers/project_nomad/commit/a07c63c0dc18b0dbb8901e206710de9ade99bebb) fix(#515): bake RASTER_ROOT at image build so docker mode needs no shell — *Franco Nogarin, 09:10*
+- [`1416921`](https://github.com/WISE-Developers/project_nomad/commit/1416921f8de16c598ac5993964d297ce2d919ec5) chore: dev v0.54.14 [release-bot] — *github-actions[bot], 15:05*
+- [`54e8f99`](https://github.com/WISE-Developers/project_nomad/commit/54e8f99d5ed9985f0ef082e11e67aa947008628e) Merge origin/dev into dev — *Franco Nogarin, 09:05*
+- [`1c3c57f`](https://github.com/WISE-Developers/project_nomad/commit/1c3c57f86a588926c1e871f35a279c977bc99388) Merge #518: run GDAL tools with argument lists instead of shell strings — *Franco Nogarin, 09:05*
+
+### 2026-11-08
+
+- [`c03d2a7`](https://github.com/WISE-Developers/project_nomad/commit/c03d2a75ab8e21f50aeb848e7765039c12d62217) Run GDAL tools with argument lists instead of shell strings, so file paths are always passed as single arguments. — *Scott Jordison, 13:00*
+
+### 2026-11-09
+
+- [`59de59c`](https://github.com/WISE-Developers/project_nomad/commit/59de59cf03139d908347af56e30e210dd711dbc6) chore: dev v0.54.13 [release-bot] — *github-actions[bot], 14:58*
+- [`13785e9`](https://github.com/WISE-Developers/project_nomad/commit/13785e9d48e943ec516acfb16019d492d0bc2ae8) Merge origin/dev into dev — *Franco Nogarin, 08:57*
+- [`7c588dd`](https://github.com/WISE-Developers/project_nomad/commit/7c588dda8accdcb276aed8db725ce3957606e4d3) Merge #514: an executing model reports Running, on both execution paths — *Franco Nogarin, 08:57*
+- [`af2d464`](https://github.com/WISE-Developers/project_nomad/commit/af2d464b23f54cad47439ce37722c7bf1a2c1a14) fix(#514): an executing model reports Running, on BOTH execution paths — *Franco Nogarin, 08:57*
+- [`a35c877`](https://github.com/WISE-Developers/project_nomad/commit/a35c877fdf85e7cb3f292c5a11abfca7c99b7183) chore: dev v0.54.12 [release-bot] — *github-actions[bot], 14:49*
+- [`438fcaf`](https://github.com/WISE-Developers/project_nomad/commit/438fcafb5f1626bf84db0a0647bc01940b2079b8) Merge origin/dev (release-bot v0.54.11) into dev — *Franco Nogarin, 08:49*
+- [`e32032c`](https://github.com/WISE-Developers/project_nomad/commit/e32032c607ae68de477b03bd7d688ec846472f8f) Merge #516: remove the stale-recovery query that was never wired to anything — *Franco Nogarin, 08:48*
+- [`36bd7f7`](https://github.com/WISE-Developers/project_nomad/commit/36bd7f7848bcf33ba780de5aa843c3b9777c8194) fix(#516): remove the stale-recovery query that was never wired to anything — *Franco Nogarin, 08:48*
+- [`6d66275`](https://github.com/WISE-Developers/project_nomad/commit/6d66275fb2546361f9a704eaae98a5be02f1aaa7) chore: dev v0.54.11 [release-bot] — *github-actions[bot], 14:45*
+- [`cee431e`](https://github.com/WISE-Developers/project_nomad/commit/cee431e4c8575bc2b70d60e9d59549f4a8e75443) Merge #513: health reports engine availability, fixed at the cast not the literal — *Franco Nogarin, 08:44*
+- [`2c2fa6a`](https://github.com/WISE-Developers/project_nomad/commit/2c2fa6a4c85a47bbefe8d17499f1766d77c15f25) fix(#513): health reports engine availability, fixed at the cast not the literal — *Franco Nogarin, 08:44*
+
+### 2026-11-06
+
+- [`f24e737`](https://github.com/WISE-Developers/project_nomad/commit/f24e7372b9c1025c1292ef2f455c417ba2a501ad) chore: dev v0.54.10 [release-bot] — *github-actions[bot], 21:25*
+- [`3e1882c`](https://github.com/WISE-Developers/project_nomad/commit/3e1882cea8a6562fc5a065ea12c110ffa964bb95) Merge remote-tracking branch 'origin/dev' into dev — *Franco Nogarin, 15:25*
+- [`82ff0b4`](https://github.com/WISE-Developers/project_nomad/commit/82ff0b4592ad3eaad5d66112808d6d2bbb55ce93) Merge chore/test-fire-readme-corrections: 241 weather rows, and fuel-vintage.json documented — *Franco Nogarin, 15:25*
+- [`ab94838`](https://github.com/WISE-Developers/project_nomad/commit/ab94838cfc30373a91f10cb81cc8a36a09c7df42) test fire readme: 241 weather rows not 240, and the output now records the fuel vintage — *Franco Nogarin, 15:25*
+- [`d97cdbc`](https://github.com/WISE-Developers/project_nomad/commit/d97cdbc744efd89ccdc798592fd1653d924f2fea) chore: dev v0.54.9 [release-bot] — *github-actions[bot], 14:05*
+- [`660c31d`](https://github.com/WISE-Developers/project_nomad/commit/660c31d42094f135629c822a7734cd32f6a62e4a) Merge feature/mcp-auth: MCP key authentication, attributed writes, and a dedicated listener — *Franco Nogarin, 08:03*
+
+### 2026-11-04
+
+- [`f380de1`](https://github.com/WISE-Developers/project_nomad/commit/f380de1a137de3cc97eb649ef55bd73ae681f9bc) MCP: key authentication, attributed writes, and a dedicated listener — *Franco Nogarin, 12:19*
+- [`931b00b`](https://github.com/WISE-Developers/project_nomad/commit/931b00b81ebeaad94c81521e891e6691d7aaadc2) chore: dev v0.54.8 [release-bot] — *github-actions[bot], 14:19*
+- [`47a3201`](https://github.com/WISE-Developers/project_nomad/commit/47a32015d9be6f4d1146b02355cb7d275bef312e) Merge feature/282-fuel-source-selection: selectable fuel source with no fallback in either direction — *Franco Nogarin, 08:18*
+- [`be911df`](https://github.com/WISE-Developers/project_nomad/commit/be911df39bbb6136367e7bf8413d9423b650ec87) #282 task 6: the WCS as a selectable fuel source, with no fallback in either direction — *Franco Nogarin, 08:18*
+- [`1affb33`](https://github.com/WISE-Developers/project_nomad/commit/1affb332d9829332aa959bb8938a28df574ba5f8) chore: dev v0.54.7 [release-bot] — *github-actions[bot], 14:11*
+- [`225c700`](https://github.com/WISE-Developers/project_nomad/commit/225c70055260d89b0b8eec2a878e97961141143d) Merge remote-tracking branch 'origin/dev' into dev — *Franco Nogarin, 08:11*
+- [`f5e02cb`](https://github.com/WISE-Developers/project_nomad/commit/f5e02cb0f899617e1595f7a896c5973d6c4b4ddb) Merge fix/282-reproject-test-litter: census writes to scratch, committed byproducts removed — *Franco Nogarin, 08:11*
+- [`32e5af4`](https://github.com/WISE-Developers/project_nomad/commit/32e5af4ed094eae1230138ed6d40ac55eaaafd9b) #282: stop the reprojection test littering the repo, and remove the three files I committed — *Franco Nogarin, 08:11*
+- [`a2ff78d`](https://github.com/WISE-Developers/project_nomad/commit/a2ff78d229440b2667a79798f88fa8aa9d60013a) chore: dev v0.54.6 [release-bot] — *github-actions[bot], 14:10*
+- [`7e8fd7a`](https://github.com/WISE-Developers/project_nomad/commit/7e8fd7a5d63d230f78a3a53c6f5bdb9e1b6e6dd2) Merge feature/282-fuel-reproject: nearest-neighbour UTM reprojection at an explicit resolution, with a bilinear control — *Franco Nogarin, 08:10*
+- [`a641902`](https://github.com/WISE-Developers/project_nomad/commit/a6419029d2f319461b2900cfabd0193ade2d4a47) #282 task 4: reproject fuel locally, nearest-neighbour, at an explicit resolution — *Franco Nogarin, 08:10*
+- [`caec15c`](https://github.com/WISE-Developers/project_nomad/commit/caec15cc04d46eab840b7e69a0fc1839a1e7e207) chore: dev v0.54.5 [release-bot] — *github-actions[bot], 12:52*
+- [`ec96091`](https://github.com/WISE-Developers/project_nomad/commit/ec96091bb8a59f7d75c8c7dface28ef1f1efcaf6) Merge feature/282-fuel-decode-lut: decode table kept structurally separate from FireSTARR's modelling table — *Franco Nogarin, 06:52*
+- [`f37b8df`](https://github.com/WISE-Developers/project_nomad/commit/f37b8df528a1fbe4846158d34ce6e1b91890cb13) #282 task 3: the DECODE table, structurally separable from FireSTARR's modelling table — *Franco Nogarin, 06:52*
+- [`968f02b`](https://github.com/WISE-Developers/project_nomad/commit/968f02b5ccaad5356ef50f335b6309870aefc111) chore: dev v0.54.4 [release-bot] — *github-actions[bot], 12:41*
+- [`025ca02`](https://github.com/WISE-Developers/project_nomad/commit/025ca0246e627a8fd06c19f8c6d87d0f0f61044f) Merge feature/282-fuel-wcs-client: clipped fuel coverage from the WCS, verified against the live service — *Franco Nogarin, 06:41*
+- [`570c07a`](https://github.com/WISE-Developers/project_nomad/commit/570c07a8a62f8e1437effc4bee78f4f8ea0b21c2) #282 task 1: fetch a clipped fuel coverage from the WCS, native 3978, GeoTIFF to disk — *Franco Nogarin, 06:41*
+- [`bcab41a`](https://github.com/WISE-Developers/project_nomad/commit/bcab41a7600ce89b3db70330d7c71c09f8f47088) chore: dev v0.54.3 [release-bot] — *github-actions[bot], 12:14*
+- [`a5e3d8d`](https://github.com/WISE-Developers/project_nomad/commit/a5e3d8d5c6bf680fa97b4e17be9c2afe58c7eb20) Merge remote-tracking branch 'origin/dev' into dev — *Franco Nogarin, 06:13*
+- [`fc7d7c7`](https://github.com/WISE-Developers/project_nomad/commit/fc7d7c75e686fc2e27b393ced2ff20145db31c08) Merge feature/282-fuel-lut-validator: check WCS fuel values against the canonical LUT before anything consumes them — *Franco Nogarin, 06:13*
+- [`f2a8273`](https://github.com/WISE-Developers/project_nomad/commit/f2a8273d9df5a384f90d5feb42eaa0fbcc0d5b87) #282 task 2: validate every WCS fuel value against the canonical LUT — *Franco Nogarin, 06:13*
 
 ### 2026-11-03
 
+- [`b08a2e4`](https://github.com/WISE-Developers/project_nomad/commit/b08a2e4b053f3732cd8434498f0a4bd15fee15c1) chore: dev v0.54.2 [release-bot] — *github-actions[bot], 18:38*
+- [`9e21149`](https://github.com/WISE-Developers/project_nomad/commit/9e2114925628d217ee5acc94b147dd8421bc91ba) Merge feature/419-percentile-label-disclosure: state the nearest-rank method where users read the percentiles — *Franco Nogarin, 12:37*
+- [`ff20cef`](https://github.com/WISE-Developers/project_nomad/commit/ff20cefbaedc1c902aaf3ef93b1a701786866e2c) #419: disclose the nearest-rank definition where the percentiles are read — *Franco Nogarin, 12:37*
+- [`fd82c94`](https://github.com/WISE-Developers/project_nomad/commit/fd82c94e9035c9f6aa815b3e9a1709662a51aac3) chore: dev v0.54.1 [release-bot] — *github-actions[bot], 16:18*
+- [`c26ef6c`](https://github.com/WISE-Developers/project_nomad/commit/c26ef6c951d426e7ed8d86c4266e6ed870ed2b65) Merge test/oauth-coverage-489-501 into dev — *Franco Nogarin, 10:18*
+- [`da53f10`](https://github.com/WISE-Developers/project_nomad/commit/da53f10345fa28a98243eb5cbacbbfb60d992704) test(#489,#501): oauth coverage for the two issues whose logic is identity-dependent — *Franco Nogarin, 10:18*
+- [`e180088`](https://github.com/WISE-Developers/project_nomad/commit/e18008857b66eeca2ed66469eeb3faf1b8d722fc) chore: release v0.54.0 [release-bot] — *github-actions[bot], 15:12*
 - [`0a2f022`](https://github.com/WISE-Developers/project_nomad/commit/0a2f02221e6872af862489db6676238455188609) Merge pull request #510 from WISE-Developers/dev — *Franco Nogarin, 09:12*
 - [`f0d7700`](https://github.com/WISE-Developers/project_nomad/commit/f0d770054fd3c4bc808cf1e733932005f6d4139a) chore: dev v0.53.1 [release-bot] — *github-actions[bot], 14:44*
 - [`046dcc0`](https://github.com/WISE-Developers/project_nomad/commit/046dcc05d1ce7bf4338e6eea7cdfd3f9b1a4160d) Merge fix/507-require-identity-on-writes into dev — *Franco Nogarin, 08:43*

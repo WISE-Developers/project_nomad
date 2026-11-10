@@ -1,6 +1,6 @@
 {
   "name": "@nomad/backend",
-  "version": "0.54.20",
+  "version": "0.55.0",
   "description": "Project Nomad - Fire Modeling Backend API",
   "private": true,
   "type": "module",
