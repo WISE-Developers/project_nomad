@@ -7,6 +7,124 @@ required key added in one release still applies if you skip past it.
 
 ---
 
+## v0.55.0 — eight new `.env` keys, all optional. **Upgrading from v0.54.0 needs no action.** (#526)
+
+Two new subsystems arrived: an **MCP server** and an optional **WCS fuel source**.
+Both are off unless you turn them on, and the defaults live in the code rather than
+only in `.env.example` — an unset environment behaves exactly as v0.54.0 did.
+
+**If you are upgrading and do not want either feature, there is nothing to do.** Your
+existing `.env` is complete. The rest of this entry is for operators who want to enable
+one.
+
+```
+NOMAD_ENABLE_MCP            NOMAD_FUEL_SOURCE
+NOMAD_MCP_AUTH_KEY          NOMAD_FUEL_WCS_URL
+NOMAD_MCP_IDENTITY          NOMAD_FUEL_WCS_COVERAGE
+NOMAD_MCP_PORT              NOMAD_FUEL_WCS_CACHE_DIR
+```
+
+### Blank is not the same as unset, for every key below
+
+A key present with an empty value — `NOMAD_FUEL_WCS_URL=` — **looks configured and is
+not.** Both subsystems trim and treat empty as missing, so a half-filled `.env` fails the
+same way an absent one does rather than starting with a blank setting.
+
+---
+
+### MCP server — three values, and it will not start on a partial set
+
+`NOMAD_ENABLE_MCP=true` opts in. **The flag alone is not sufficient and is not
+dangerous:** with the flag set and no credentials, MCP mounts *nothing* — the route is
+absent (404), not present and open.
+
+| key | required when | notes |
+|---|---|---|
+| `NOMAD_ENABLE_MCP` | — | `true` opts in. Anything else, including unset, means MCP never starts. |
+| `NOMAD_MCP_AUTH_KEY` | MCP enabled | **Minimum 32 characters, from a CSPRNG** — e.g. `openssl rand -hex 32`. Sent in the `x-nomad-mcp-key` header on every request, never in a query string. |
+| `NOMAD_MCP_IDENTITY` | MCP enabled | The account MCP-created records belong to. |
+| `NOMAD_MCP_PORT` | MCP enabled | No default, deliberately. |
+
+**Setting exactly one of `NOMAD_MCP_AUTH_KEY` and `NOMAD_MCP_IDENTITY` stops the
+process.** That is intentional: a half-configuration is a mistake someone made, and the
+only safe reading of a mistake is to stop. Set both, or neither.
+
+**`NOMAD_MCP_IDENTITY` is checked before anything binds.** In `oauth` mode it must match
+an existing account, and **the process will not start if it does not** — otherwise records
+would be attributed to an account that does not exist. In `simple`, `none` and ACN modes
+there is no local account store to check against, so the identity is recorded as
+*unverified* and the startup log says so. That is not an error; it is the mode being
+honest about what it could confirm.
+
+**`NOMAD_MCP_PORT` has no default on purpose.** MCP listens on its own loopback port, so
+the port is *chosen* rather than derived — a derived port would leave your configuration
+silent about where MCP is actually listening. It must be a valid TCP port and **must not
+equal the main application port**, which is `3001` unless you set `PORT`. Both conditions
+are checked at startup and both stop the process.
+
+**MCP is deliberately not published.** No `ports:` entry in compose, no proxy ingress, no
+DNS record. Reach it with an SSH forward to the container's address — and look that
+address up rather than writing it down, because it changes when the container is
+recreated.
+
+---
+
+### WCS fuel source — **the keys exist; the feature is NOT yet wired in (#282)**
+
+**Do not set these yet.** `NOMAD_FUEL_SOURCE` and the three `NOMAD_FUEL_WCS_*` keys appear
+in `.env.example` as of v0.55.0, and the module that validates them is written and tested —
+but **nothing in the running backend calls it.** Setting `NOMAD_FUEL_SOURCE=wcs` today has
+no effect at all: it does not switch fuel sources, and it does not fail either, because the
+resolver never runs.
+
+Measured, not assumed: `NOMAD_FUEL_SOURCE` is read in exactly one file,
+`backend/src/infrastructure/fuel/fuelSource.ts`, and that file has no caller outside its own
+directory. The same check finds 1 caller for `ArrivalTimeExtractor` and 2 for
+`ContourGenerator`, so it is capable of finding wired code.
+
+**#282 is the issue that wires it.** Until it lands, a deployment behaves exactly as v0.54.0
+did: local installed fuel tiles, always.
+
+The rest of this section describes the behaviour the module already implements, so it is
+accurate about what WILL happen rather than what happens now. It is recorded here because an
+operator who finds these keys in `.env.example` deserves to know both that they are inert and
+what they are for.
+
+| key | required when | notes |
+|---|---|---|
+| `NOMAD_FUEL_SOURCE` | — | `local` (default) or `wcs`. Any other value **stops the process** rather than defaulting. |
+| `NOMAD_FUEL_WCS_URL` | `wcs` only | Service endpoint. |
+| `NOMAD_FUEL_WCS_COVERAGE` | `wcs` only | e.g. `fbp100m2026wcs`. |
+| `NOMAD_FUEL_WCS_CACHE_DIR` | `wcs` only | **Must sit inside a mounted path — see below.** |
+
+**There is NO fallback between fuel sources, in either direction, and that is the whole
+design.** Selecting `wcs` without all three variables makes the backend fail rather than
+quietly using local tiles. A run on a fuel grid nobody chose is indistinguishable from a
+correct one, and nothing in the output would say which it used — a silent default inside a
+spread calculation is not a convenience, it is a wrong answer delivered confidently.
+
+For the same reason an unrecognised value is refused rather than coerced: a typo like
+`NOMAD_FUEL_SOURCE=wsc` stops the process instead of silently running `local`, because the
+operator asked for something and would otherwise be told nothing.
+
+**`NOMAD_FUEL_WCS_CACHE_DIR` must sit inside a path the container mounts.** A grid written
+outside the mounts surfaces as a FireSTARR *"file not found"*, which is a long way from
+the cause. This is the same class of mistake as pointing `NOMAD_USAGE_LOG_PATH` at
+`/data`: the writes succeed, so nothing complains, and the data dies on the next
+`docker compose up`. Verify with:
+
+```bash
+docker inspect nomad --format '{{range .Mounts}}{{.Destination}} {{end}}'
+```
+
+**Which source a run used is INTENDED to be recorded, not inferred** — `fuelProducerLabel()`
+returns either `CFS FBP WCS coverage <id>` or `local installed fuel dataset` (#431). Like the
+resolver above, **it currently has no caller outside the fuel directory**, so no run records a
+fuel-source producer yet. Fuel *vintage* is a separate thing and IS recorded and displayed
+today, in model setup and in results.
+
+---
+
 ## BREAKING for `@nomad/frontend` consumers: three map packages are now peer dependencies (#485)
 
 **If you embed `@nomad/frontend`, you must declare these yourself. Every consumer,
