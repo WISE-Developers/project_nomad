@@ -1,6 +1,17 @@
 /**
  * Fetches a clipped fuel coverage from the CFS FBP WCS. #282 task 1.
  *
+ * NOT YET WIRED, AND THAT IS THE CORRECT STATE. No production file outside this
+ * directory imports this module: every reference today is in its own test. #282 is
+ * what connects it to a run, and #282 is parked upstream on NFIS declaring a NoData
+ * value for the served coverage (BadgerOnABike raised it with them, #282, 2026-11-03).
+ * Until that lands, a run cannot tell an absent pixel from a real fuel class, so
+ * wiring this in would mean inventing one.
+ *
+ * DELETE THIS PARAGRAPH WHEN #282 WIRES IT UP. It is not decoration:
+ * scripts/__tests__/fuel_modules_declare_wiring.test.sh fails on a module that has
+ * acquired a production importer while still claiming to be unwired, so the note
+ * cannot quietly outlive the condition it describes (#523).
  * WHAT THE SERVICE ACTUALLY DOES, measured rather than read from the spec:
  *   - `GetCapabilities` advertises `fbp100m2026wcs` and `fbp30m2026wcs` only.
  *   - Both return a single-band Int16 GeoTIFF, native EPSG:3978, pixel values
