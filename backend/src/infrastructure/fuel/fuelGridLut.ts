@@ -2,6 +2,16 @@
  * The canonical FBP fuel lookup table, and the guard that every fuel value
  * Nomad reads from the CFS WCS must pass. #282 task 2.
  *
+ * NOT YET WIRED, AND THAT IS THE CORRECT STATE. No production file outside this
+ * directory imports this module: every reference today is in its own test. #282 is
+ * what connects it, and #282 is parked upstream on NFIS declaring a NoData value --
+ * which is this guard's blind spot too, since a nil pixel and a real grid_value are
+ * indistinguishable to a validator that has never been told which is which.
+ *
+ * DELETE THIS PARAGRAPH WHEN #282 WIRES IT UP. It is not decoration:
+ * scripts/__tests__/fuel_modules_declare_wiring.test.sh fails on a module that has
+ * acquired a production importer while still claiming to be unwired, so the note
+ * cannot quietly outlive the condition it describes (#523).
  * WHY THIS EXISTS AT ALL. The WCS serves a single-band Int16 raster whose pixel
  * values are `grid_value` from this table. There is nothing in the response that
  * says so: a corrupted, re-coded or re-palettised coverage would arrive looking
