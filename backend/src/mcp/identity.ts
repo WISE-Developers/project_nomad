@@ -23,7 +23,9 @@
  * test, and the startup log says so. Treating "no store to ask" as "the answer was yes"
  * would leave the configuration looking checked when nothing had checked it.
  */
-import { getKnex } from '../infrastructure/database/index.js';
+// No database import at module scope on purpose. The account store resolves the auth
+// database lazily inside `hasAccount` (#531), so this module pulls in neither the models
+// connection nor better-sqlite3 unless an oauth instance actually asks the question.
 
 /** The auth modes this process can run in. ACN is a deployment mode, not a SAN auth mode. */
 export type McpAuthMode = 'oauth' | 'simple' | 'none' | 'acn';
@@ -66,9 +68,31 @@ export interface ResolvedMcpIdentity {
 export function createAuthUserStore(): McpIdentityStore {
   return {
     async hasAccount(email: string): Promise<boolean> {
-      const knex = getKnex();
-      const row = await knex('auth_user').where({ email }).first();
-      return Boolean(row);
+      // ACCOUNTS ARE NOT IN THE MODELS DATABASE (#531). This used to call `getKnex()`,
+      // which is the connection to `nomad.db` — models, jobs, fire_models. `auth_user`
+      // lives in `nomad_auth.db`, a separate file Better Auth opens for itself. The
+      // query therefore failed with `no such table: auth_user` for EVERY identity, and
+      // because `resolveMcpIdentity` turns an unanswerable check into a throw inside the
+      // startup path, enabling MCP on an oauth instance crash-looped the whole
+      // application rather than merely disabling MCP.
+      //
+      // The path comes from `resolveAuthDbPath()` rather than being rebuilt here, so
+      // there is exactly one answer to "where are the accounts".
+      //
+      // Opened READ-ONLY and closed immediately: this is a startup-time question asked
+      // once, and MCP has no business holding a writable handle on the auth database.
+      const { resolveAuthDbPath } = await import('../infrastructure/auth/betterAuth.js');
+      const { default: Database } = await import('better-sqlite3');
+
+      // A missing or unreadable file throws here, which is the contract: the caller
+      // must be able to tell "could not ask" from "no such account".
+      const db = new Database(resolveAuthDbPath(), { readonly: true, fileMustExist: true });
+      try {
+        const row = db.prepare('SELECT 1 FROM auth_user WHERE email = ? LIMIT 1').get(email);
+        return Boolean(row);
+      } finally {
+        db.close();
+      }
     },
   };
 }
