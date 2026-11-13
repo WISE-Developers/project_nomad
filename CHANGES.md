@@ -4,10 +4,24 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.57.0
+## v0.58.0
+
+### 2026-11-13
+
+- [`ff84f43`](https://github.com/WISE-Developers/project_nomad/commit/ff84f43317baa11852c4d8ebd9d7243f06a8e263) Merge pull request #532 from WISE-Developers/dev — *Franco Nogarin, 07:48*
+
+### 2026-11-12
+
+- [`c346c32`](https://github.com/WISE-Developers/project_nomad/commit/c346c3274ce5b0121cc08c192c2401cad1a6bc28) chore: dev v0.57.2 [release-bot] — *github-actions[bot], 17:20*
+- [`33689a4`](https://github.com/WISE-Developers/project_nomad/commit/33689a42e950454742025ecc8436143bda76aefc) Merge fix/531-mcp-identity-auth-db: MCP identity asks the auth database, not the models database — *Franco Nogarin, 11:15*
+- [`7de8a81`](https://github.com/WISE-Developers/project_nomad/commit/7de8a8160c96b7e770268bd8716a6c4311c54521) #531 MCP identity asks the auth database, not the models database — *Franco Nogarin, 11:14*
+- [`3092e5a`](https://github.com/WISE-Developers/project_nomad/commit/3092e5a451343097e28fee6ec74f1630b9e546c4) chore: dev v0.57.1 [release-bot] — *github-actions[bot], 11:32*
+- [`f20a553`](https://github.com/WISE-Developers/project_nomad/commit/f20a55333bcadbad3d7b1c31ba3d0819c6280826) Merge fix/523-fuel-wiring-annotations: the fuel modules declare their own wiring, held in both directions — *Franco Nogarin, 05:30*
+- [`8381363`](https://github.com/WISE-Developers/project_nomad/commit/8381363425a24451d2f22eae5bd569b4717f901f) #523 the fuel modules now declare their own wiring, and a guard holds it both ways — *Franco Nogarin, 05:30*
 
 ### 2026-11-10
 
+- [`daeddd9`](https://github.com/WISE-Developers/project_nomad/commit/daeddd9d514ed51dca92d4d6d006857f57cd0707) chore: release v0.57.0 [release-bot] — *github-actions[bot], 17:49*
 - [`dd7afac`](https://github.com/WISE-Developers/project_nomad/commit/dd7afacea32ee91cc27f25b794b14b0b7f3be1d4) Merge pull request #530 from WISE-Developers/dev — *Franco Nogarin, 11:49*
 - [`f7071f8`](https://github.com/WISE-Developers/project_nomad/commit/f7071f8aa80330dae48aa442dd2aca6ddf2c1eb6) chore: dev v0.56.4 [release-bot] — *github-actions[bot], 17:27*
 - [`060ab87`](https://github.com/WISE-Developers/project_nomad/commit/060ab87f623715f9187abbda9bb4441f290cb905) Merge fix/529-firestarr-registry-repoint: the rest of the class — HTTP references and a fourth spelling — *Franco Nogarin, 11:26*
