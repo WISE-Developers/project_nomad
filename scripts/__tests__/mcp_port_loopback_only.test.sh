@@ -10,7 +10,21 @@
 # loopback. Publishing the port on the host's 127.0.0.1 is what makes
 # `ssh -L 3002:127.0.0.1:3002` actually work.
 #
-# WHY THE BIND ADDRESS IS HARDCODED AND NOT AN ENV VAR. `nomad.ciffc.ca` is fronted by
+# PUBLISHING IS NECESSARY AND NOT SUFFICIENT, measured on the demo at v0.59.0 after this
+# guard was already green. Docker forwards a published port to the container's BRIDGE
+# address, never to the container's loopback, so with the listener on container loopback
+# the publish was inert and docker-proxy accepted the tunnel's bytes then closed (491
+# written, 0 read): `172.18.0.2:3002` CLOSED against `172.18.0.2:3001` OPEN as the
+# positive control. The container must therefore bind 0.0.0.0, which section 5 asserts.
+#
+# TWO DIFFERENT ADDRESSES, AND ONLY ONE OF THEM IS AN ENV VAR. The HOST side of the
+# publish stays a literal (section 3). The address the listener binds INSIDE the
+# container is `NOMAD_MCP_BIND_ADDRESS`, allowlisted in `mcp/listener.ts` to loopback or
+# 0.0.0.0 and nothing else. Conflating the two is the mistake this paragraph exists to
+# prevent: 0.0.0.0 inside a container whose publish is pinned to host loopback reaches
+# no further than the host, while 0.0.0.0 on the HOST side reaches the internet.
+#
+# WHY THE HOST BIND ADDRESS IS HARDCODED AND NOT AN ENV VAR. `nomad.ciffc.ca` is fronted by
 # cloudflared whose ingress is whole-host with NO path filter — it names
 # `http://localhost:53000` and catches everything else with a 404. So the only thing
 # keeping MCP off the public internet is that its port is not the one cloudflared routes
@@ -100,6 +114,38 @@ if echo "$app_port_line" | grep -q 'NOMAD_FRONTEND_HOST_PORT'; then
 else
     bad "the app's own port publish still uses NOMAD_FRONTEND_HOST_PORT" \
         "$(echo "$app_port_line" | head -1)"
+fi
+
+# ---------------------------------------------------------------------------
+# 5. THE CONTAINER MUST BIND 0.0.0.0, AND THAT IS ONLY SAFE BECAUSE OF SECTION 3.
+#    A loopback bind inside the container makes the publish above inert: docker
+#    forwards the published port to the bridge address, where nothing would listen.
+#    The two assertions are COUPLED on purpose — widening the host publish while the
+#    container binds every interface is the combination that reaches the internet.
+# ---------------------------------------------------------------------------
+bind_env="$(grep -E '^[[:space:]]*-[[:space:]]*NOMAD_MCP_BIND_ADDRESS=' "$COMPOSE" || true)"
+
+if [ -z "$bind_env" ]; then
+    bad "compose sets NOMAD_MCP_BIND_ADDRESS for the container" \
+        "not set — the listener defaults to container loopback and the publish above is inert"
+else
+    bind_value="$(echo "$bind_env" | sed -e 's/.*NOMAD_MCP_BIND_ADDRESS=//' -e 's/[[:space:]]*$//')"
+    if [ "$bind_value" = "0.0.0.0" ]; then
+        ok "the container binds 0.0.0.0, so the published port actually reaches the listener"
+    else
+        bad "the container binds 0.0.0.0, so the published port actually reaches the listener" \
+            "value is '$bind_value'; loopback here makes the publish inert"
+    fi
+
+    # THE COUPLING. Only meaningful when the container binds every interface.
+    if [ "$bind_value" = "0.0.0.0" ]; then
+        if [ "${host_part:-}" = "127.0.0.1" ]; then
+            ok "container binds 0.0.0.0 AND the host publish is literal loopback"
+        else
+            bad "container binds 0.0.0.0 AND the host publish is literal loopback" \
+                "host part '${host_part:-<unset>}' with an all-interfaces container bind is internet exposure"
+        fi
+    fi
 fi
 
 echo
