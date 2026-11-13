@@ -4,10 +4,15 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.59.0
+## v0.60.0
 
 ### 2026-11-13
 
+- [`41e65e9`](https://github.com/WISE-Developers/project_nomad/commit/41e65e9a0e3d1835a645aec56a243c0769f492a3) Merge pull request #535 from WISE-Developers/dev — *Franco Nogarin, 09:39*
+- [`f0bfce1`](https://github.com/WISE-Developers/project_nomad/commit/f0bfce1a9ad105cd789ddf5fea7241d1ddd0efd4) chore: dev v0.59.1 [release-bot] — *github-actions[bot], 15:33*
+- [`d13a51b`](https://github.com/WISE-Developers/project_nomad/commit/d13a51b782c52649f94e568f66e93c0a80a70d2a) Merge fix/mcp-container-bind-address: the published port needs an all-interfaces bind inside the container — *Franco Nogarin, 09:33*
+- [`c085e82`](https://github.com/WISE-Developers/project_nomad/commit/c085e82fa14af83e2333336db26ba3c63055f974) MCP: bind 0.0.0.0 inside the container, or publishing the port does nothing — *Franco Nogarin, 09:32*
+- [`634d766`](https://github.com/WISE-Developers/project_nomad/commit/634d766f4e026e93e0bc8f9efd9e160a3af80619) chore: release v0.59.0 [release-bot] — *github-actions[bot], 15:16*
 - [`e041b23`](https://github.com/WISE-Developers/project_nomad/commit/e041b23b7269edf75472a604f9a93c7a3abb59dd) Merge pull request #533 from WISE-Developers/dev — *Franco Nogarin, 09:15*
 - [`5965ee1`](https://github.com/WISE-Developers/project_nomad/commit/5965ee18ea1e9e23d6b668445f882631f369b520) chore: dev v0.58.1 [release-bot] — *github-actions[bot], 15:04*
 - [`08f8e77`](https://github.com/WISE-Developers/project_nomad/commit/08f8e77c30b150cc46c19b121f41931f7a07025c) Merge feat/mcp-loopback-port-publish: publish MCP on host loopback for the SSH tunnel — *Franco Nogarin, 09:03*
