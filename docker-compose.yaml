@@ -20,6 +20,23 @@ services:
         - VITE_AUTH_MODE=${VITE_AUTH_MODE:-simple}
     ports:
       - "${NOMAD_FRONTEND_HOST_PORT}:3001"
+      # MCP, published on HOST LOOPBACK ONLY so `ssh -L 3002:127.0.0.1:3002` can reach it.
+      #
+      # MCP binds 127.0.0.1 INSIDE the container, so without this line it was reachable
+      # only by `docker exec` — an SSH tunnel terminates on the host and nothing bridged
+      # the two. The design doc's claim that it was "reachable only through an SSH tunnel"
+      # was never true as built.
+      #
+      # THE 127.0.0.1 IS DELIBERATELY A LITERAL, NOT A VARIABLE. cloudflared's ingress is
+      # whole-host with no path filter (it names http://localhost:53000 and 404s the rest),
+      # so the only things keeping MCP off the public internet are that its port is not the
+      # routed one and that it is not bound to 0.0.0.0. A substitutable bind address would
+      # let one .env typo publish `execute-model` and `batch-execute` to every interface.
+      # scripts/__tests__/mcp_port_loopback_only.test.sh fails if this is widened.
+      #
+      # Harmless when MCP is off: nothing listens inside the container, so the publish is
+      # an unused loopback mapping.
+      - "127.0.0.1:${NOMAD_MCP_PORT:-3002}:${NOMAD_MCP_PORT:-3002}"
     volumes:
       # WARNING: Docker socket mount - see Security Considerations in README
       - /var/run/docker.sock:/var/run/docker.sock
