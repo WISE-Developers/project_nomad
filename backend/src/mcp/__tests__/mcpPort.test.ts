@@ -222,7 +222,28 @@ describe('nothing is published to the host or the edge', () => {
     expect(src).not.toMatch(/mountMcpServer/);
   });
 
-  it('does not publish the MCP port in docker-compose', async () => {
+  /**
+   * CHANGED 2026-11-13. This asserted `compose` must not mention `NOMAD_MCP_PORT` at
+   * all — no publish of any kind. That was broader than the rule stated at the top of
+   * this file, and the gap mattered:
+   *
+   *   MCP binds 127.0.0.1 INSIDE the container. With nothing published, the ONLY way
+   *   in is `docker exec` on the box. An SSH tunnel terminates on the HOST, so
+   *   `ssh -L 3002:127.0.0.1:3002` reached nothing. The design doc claimed MCP was
+   *   "reachable only through an SSH tunnel"; it was not reachable by one at all.
+   *
+   * The boundary this file actually describes is "a port the proxy does not route to,
+   * so reaching it requires a shell on the host". Publishing on the HOST'S loopback
+   * preserves that completely: cloudflared's ingress names `http://localhost:53000`
+   * and 404s everything else, so it cannot reach 127.0.0.1:3002, and an SSH forward
+   * still requires an account with a shell.
+   *
+   * So the rule is not "never published" — it is "never published anywhere the edge
+   * can reach". That is what is asserted now, and it is STRICTER where it counts: the
+   * bind address must be a literal, because `${ANYTHING}:3002` would pass a
+   * loopback-looking check on the strength of whatever a variable happened to hold.
+   */
+  it('publishes the MCP port on host loopback only, never where the edge can reach', async () => {
     const { readFileSync, existsSync } = await import('node:fs');
     const { join } = await import('node:path');
 
@@ -239,6 +260,20 @@ describe('nothing is published to the host or the edge', () => {
     // Positive control: the file is a compose file and was actually read.
     expect(compose).toMatch(/services:/);
 
-    expect(compose).not.toMatch(/NOMAD_MCP_PORT/);
+    const mcpPublish = compose
+      .split('\n')
+      .filter((l) => /^\s*-\s*".*NOMAD_MCP_PORT.*"/.test(l));
+
+    // It must be published, or a tunnel reaches nothing.
+    expect(mcpPublish, 'MCP port is not published; an SSH tunnel would reach nothing').toHaveLength(1);
+
+    // And it must be bound to a LITERAL loopback address.
+    expect(mcpPublish[0]).toMatch(/"127\.0\.0\.1:/);
+    expect(mcpPublish[0]).not.toMatch(/0\.0\.0\.0/);
+
+    // The host part must not be substitutable — one .env typo must not be able to
+    // publish `execute-model` and `batch-execute` on every interface.
+    const hostPart = mcpPublish[0].replace(/^[^"]*"/, '').split(':')[0];
+    expect(hostPart, 'bind address must be a literal, not an env substitution').toBe('127.0.0.1');
   });
 });
