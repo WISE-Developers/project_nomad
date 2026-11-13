@@ -109,4 +109,90 @@ describe('parsePerimeterGeoJSON — invalid JSON', () => {
       expect(err.fieldErrors[0].message).toMatch(/token|position|expected/i);
     }
   });
+
+  /**
+   * #537. Franco uploaded SS014-25_perimeter_2025-08-01.geojson in the UI and got
+   * "Successfully loaded 0 feature(s)" — a 201 with an empty collection, rendered as
+   * success. Two defects, and the second is the dangerous one.
+   *
+   * 1. MultiPolygon was absent from SUPPORTED_GEOMETRY_TYPES. Every NWT VIIRS and GPS
+   *    perimeter in hand is a MultiPolygon — a fire with an unburned island, or several
+   *    disjoint lobes, cannot be a single Polygon.
+   * 2. The FeatureCollection branch FILTERED the unsupported features away and returned
+   *    what was left. Filtering every feature out is indistinguishable from an empty
+   *    file, so the caller is told it succeeded. A bare Feature carrying the same
+   *    geometry threw; only the collection path swallowed it.
+   */
+  describe('#537 multi-part geometries and the silent filter', () => {
+    const multiPolygon = {
+      type: 'MultiPolygon',
+      coordinates: [[[[-117.74, 61.72], [-117.73, 61.72], [-117.73, 61.71], [-117.74, 61.72]]]],
+    };
+
+    it('keeps a MultiPolygon feature — the shape every real perimeter arrives in', () => {
+      const fc = JSON.stringify({
+        type: 'FeatureCollection',
+        features: [{ type: 'Feature', properties: { fire_number: 'SS014-25' }, geometry: multiPolygon }],
+      });
+      const out = parsePerimeterGeoJSON(fc);
+      expect(out.features).toHaveLength(1);
+      expect(out.features[0].geometry.type).toBe('MultiPolygon');
+      expect(out.features[0].properties?.fire_number).toBe('SS014-25');
+    });
+
+    it('keeps a bare MultiPolygon Feature', () => {
+      const f = JSON.stringify({ type: 'Feature', properties: {}, geometry: multiPolygon });
+      expect(parsePerimeterGeoJSON(f).features).toHaveLength(1);
+    });
+
+    it('keeps a bare MultiPolygon geometry object', () => {
+      expect(parsePerimeterGeoJSON(JSON.stringify(multiPolygon)).features).toHaveLength(1);
+    });
+
+    it('keeps MultiPoint and MultiLineString too, for the same reason', () => {
+      const mp = { type: 'MultiPoint', coordinates: [[-117.7, 61.7], [-117.6, 61.6]] };
+      const ml = { type: 'MultiLineString', coordinates: [[[-117.7, 61.7], [-117.6, 61.6]]] };
+      expect(parsePerimeterGeoJSON(JSON.stringify(mp)).features).toHaveLength(1);
+      expect(parsePerimeterGeoJSON(JSON.stringify(ml)).features).toHaveLength(1);
+    });
+
+    it('REFUSES a collection whose every feature is unsupported, instead of reporting success', () => {
+      const fc = JSON.stringify({
+        type: 'FeatureCollection',
+        features: [
+          { type: 'Feature', properties: {}, geometry: { type: 'GeometryCollection', geometries: [] } },
+        ],
+      });
+      expect(() => parsePerimeterGeoJSON(fc)).toThrow(/GeometryCollection/);
+    });
+
+    it('names every unsupported type it dropped, so the message is actionable', () => {
+      const fc = JSON.stringify({
+        type: 'FeatureCollection',
+        features: [
+          { type: 'Feature', properties: {}, geometry: { type: 'GeometryCollection', geometries: [] } },
+          { type: 'Feature', properties: {}, geometry: { type: 'Nonsense', coordinates: [] } },
+        ],
+      });
+      expect(() => parsePerimeterGeoJSON(fc)).toThrow(/GeometryCollection.*Nonsense|Nonsense.*GeometryCollection/);
+    });
+
+    it('an EMPTY collection is still accepted — empty is not the same as all-dropped', () => {
+      const fc = JSON.stringify({ type: 'FeatureCollection', features: [] });
+      expect(parsePerimeterGeoJSON(fc).features).toHaveLength(0);
+    });
+
+    it('a mixed collection keeps the supported features and does not throw', () => {
+      const fc = JSON.stringify({
+        type: 'FeatureCollection',
+        features: [
+          { type: 'Feature', properties: {}, geometry: multiPolygon },
+          { type: 'Feature', properties: {}, geometry: { type: 'GeometryCollection', geometries: [] } },
+        ],
+      });
+      const out = parsePerimeterGeoJSON(fc);
+      expect(out.features).toHaveLength(1);
+      expect(out.features[0].geometry.type).toBe('MultiPolygon');
+    });
+  });
 });
