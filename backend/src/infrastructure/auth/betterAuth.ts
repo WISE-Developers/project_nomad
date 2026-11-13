@@ -203,7 +203,17 @@ export function resolveTrustedOrigins(
 }
 
 
-function resolveAuthDbPath(): string {
+/**
+ * Where the Better Auth database lives.
+ *
+ * EXPORTED because MCP needs to ask the same file (#531). It previously computed
+ * nothing and asked `getKnex()` — the MODELS connection — for `auth_user`, a table that
+ * only exists here. Two components each internally consistent, disagreeing about which
+ * database holds accounts, which crash-looped every oauth instance that enabled MCP.
+ * Sharing this function is what stops the two drifting apart again: there is one answer
+ * to "where are the accounts", and it is this.
+ */
+export function resolveAuthDbPath(): string {
   const dataPath = process.env.NOMAD_DATA_PATH
     || process.env.FIRESTARR_DATASET_PATH
     || process.cwd();

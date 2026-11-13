@@ -1,6 +1,15 @@
 /**
  * The DECODE table: what a fuel pixel IS, for display and attribution. #282 task 3.
  *
+ * NOT YET WIRED, AND THAT IS THE CORRECT STATE. No production file outside this
+ * directory imports this module: every reference today is in its own test. #282 is
+ * what connects it, and #282 is parked upstream on NFIS declaring a NoData value.
+ * Nothing in the application decodes a fuel pixel for display yet.
+ *
+ * DELETE THIS PARAGRAPH WHEN #282 WIRES IT UP. It is not decoration:
+ * scripts/__tests__/fuel_modules_declare_wiring.test.sh fails on a module that has
+ * acquired a production importer while still claiming to be unwired, so the note
+ * cannot quietly outlive the condition it describes (#523).
  * NOT FireSTARR'S MODELLING TABLE, and the difference is deliberate on both
  * sides. FireSTARR's own `fuel.lut` gives the non-fuel block burnable fuel types
  * so that non-fuel behaves as a very slow fuel and some movement occurs
