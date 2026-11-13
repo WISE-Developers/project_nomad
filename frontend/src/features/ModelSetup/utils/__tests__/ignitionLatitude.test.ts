@@ -117,3 +117,32 @@ describe('resolveIgnitionLatitude', () => {
     });
   });
 });
+
+/**
+ * #539, third layer. `coordinatesOf` named Point, LineString and Polygon and returned
+ * [] for everything else. With a MultiPolygon upload and no `bounds`, step 3 found no
+ * latitudes and the function THREW — or, worse, if bounds happened to be present from
+ * a previous drawing, it returned that stale latitude instead. The FWI day-length term
+ * is computed from this number.
+ */
+describe('#539 multi-part geometries yield their coordinates', () => {
+  const ringA: [number, number][] = [[-117.7, 61.7], [-117.6, 61.8], [-117.6, 61.6], [-117.7, 61.7]];
+  const ringB: [number, number][] = [[-116.7, 62.3], [-116.6, 62.4], [-116.6, 62.2], [-116.7, 62.3]];
+  const sd = (geometry: unknown) =>
+    ({ features: [{ type: 'Feature', properties: {}, geometry }] } as never);
+
+  it('derives the latitude from a MultiPolygon when bounds are absent', () => {
+    expect(resolveIgnitionLatitude(sd({ type: 'MultiPolygon', coordinates: [[ringA]] }))).toBeCloseTo(61.6, 6);
+  });
+
+  it('spans every part of a multi-part polygon, taking the minimum latitude', () => {
+    expect(
+      resolveIgnitionLatitude(sd({ type: 'MultiPolygon', coordinates: [[ringA], [ringB]] })),
+    ).toBeCloseTo(61.6, 6);
+  });
+
+  it('handles MultiPoint and MultiLineString', () => {
+    expect(resolveIgnitionLatitude(sd({ type: 'MultiPoint', coordinates: [[-117.7, 61.7], [-116.7, 62.3]] }))).toBeCloseTo(61.7, 6);
+    expect(resolveIgnitionLatitude(sd({ type: 'MultiLineString', coordinates: [[[-117.7, 61.7], [-117.6, 61.5]]] }))).toBeCloseTo(61.5, 6);
+  });
+});

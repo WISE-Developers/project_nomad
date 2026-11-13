@@ -28,6 +28,22 @@ function getBoundsFromFeatures(features: GeoJSON.Feature[]): BoundingBox | null 
       for (const ring of geom.coordinates) {
         allCoords.push(...(ring as [number, number][]));
       }
+    } else if (geom.type === 'MultiPoint') {
+      // Multi-part geometries (#539). Omitting these made an uploaded
+      // MultiPolygon perimeter contribute NO coordinates, so the bounds came
+      // back null and the step reported a spatial problem the user could not
+      // see on a map that was showing the perimeter.
+      allCoords.push(...(geom.coordinates as [number, number][]));
+    } else if (geom.type === 'MultiLineString') {
+      for (const line of geom.coordinates) {
+        allCoords.push(...(line as [number, number][]));
+      }
+    } else if (geom.type === 'MultiPolygon') {
+      for (const polygon of geom.coordinates) {
+        for (const ring of polygon) {
+          allCoords.push(...(ring as [number, number][]));
+        }
+      }
     }
   }
 

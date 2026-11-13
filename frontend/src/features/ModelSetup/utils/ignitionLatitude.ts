@@ -29,6 +29,15 @@ function coordinatesOf(feature: SpatialData['features'][number]): number[][] {
   if (geometry.type === 'LineString') return geometry.coordinates;
   if (geometry.type === 'Polygon') return geometry.coordinates.flat();
 
+  // Multi-part geometries (#539). Every NWT perimeter is a MultiPolygon, and
+  // returning [] for one meant step 3 found no latitudes at all: either this
+  // function threw, or — worse — step 2 returned a `bounds` left over from a
+  // previous drawing, putting the FWI day-length term at the wrong latitude
+  // with nothing to show for it.
+  if (geometry.type === 'MultiPoint') return geometry.coordinates;
+  if (geometry.type === 'MultiLineString') return geometry.coordinates.flat();
+  if (geometry.type === 'MultiPolygon') return geometry.coordinates.flat(2);
+
   return [];
 }
 

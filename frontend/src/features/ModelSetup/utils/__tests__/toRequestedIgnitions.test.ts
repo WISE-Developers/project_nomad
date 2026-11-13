@@ -81,3 +81,75 @@ describe('toRequestedIgnitions', () => {
     expect(requested.map((r) => r.type)).toEqual(['point', 'polygon', 'linestring']);
   });
 });
+
+/**
+ * #539. After #537 made the perimeter parser accept MultiPolygon, Franco uploaded a
+ * real perimeter, watched it load, then hit Start Model and got
+ * "No ignition was drawn or imported."
+ *
+ * This function's `default:` branch dropped every geometry it did not name, and its
+ * comment said "Nothing else can be drawn or imported into SpatialData.features" —
+ * true when it was written, false the moment the parser started admitting multi-part
+ * geometries. The feature reached the map and died here, silently, so the user saw an
+ * empty ignition list rather than an unsupported-type message.
+ *
+ * Every NWT perimeter is a MultiPolygon. A multi-part geometry expands into one
+ * requested ignition PER PART — the backend already merges a list and names its
+ * notices positionally — so nothing is invented and nothing is collapsed.
+ */
+describe('#539 multi-part geometries expand rather than vanish', () => {
+  const ringA: [number, number][] = [[-117.7, 61.7], [-117.6, 61.7], [-117.6, 61.6], [-117.7, 61.7]];
+  const ringB: [number, number][] = [[-116.7, 62.3], [-116.6, 62.3], [-116.6, 62.2], [-116.7, 62.3]];
+  const hole: [number, number][] = [[-117.68, 61.68], [-117.65, 61.68], [-117.65, 61.65], [-117.68, 61.68]];
+
+  const feat = (geometry: unknown): DrawnFeature =>
+    ({ type: 'Feature', id: 'x', properties: {}, geometry } as unknown as DrawnFeature);
+
+  it('expands a single-part MultiPolygon into one polygon ignition', () => {
+    const out = toRequestedIgnitions([feat({ type: 'MultiPolygon', coordinates: [[ringA]] })]);
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe('polygon');
+    expect(out[0].coordinates).toEqual([ringA]);
+  });
+
+  it('expands a two-part MultiPolygon into two polygon ignitions, in order', () => {
+    const out = toRequestedIgnitions([feat({ type: 'MultiPolygon', coordinates: [[ringA], [ringB]] })]);
+    expect(out).toHaveLength(2);
+    expect(out.every((i) => i.type === 'polygon')).toBe(true);
+    expect(out[0].coordinates).toEqual([ringA]);
+    expect(out[1].coordinates).toEqual([ringB]);
+  });
+
+  it('KEEPS the holes — an unburned island must not become burned', () => {
+    const out = toRequestedIgnitions([feat({ type: 'MultiPolygon', coordinates: [[ringA, hole]] })]);
+    expect(out).toHaveLength(1);
+    expect(out[0].coordinates).toEqual([ringA, hole]);
+  });
+
+  it('expands MultiPoint and MultiLineString too', () => {
+    const mp = toRequestedIgnitions([feat({ type: 'MultiPoint', coordinates: [[-117.7, 61.7], [-116.7, 62.3]] })]);
+    expect(mp.map((i) => i.type)).toEqual(['point', 'point']);
+    expect(mp[0].coordinates).toEqual([-117.7, 61.7]);
+
+    const ml = toRequestedIgnitions([feat({ type: 'MultiLineString', coordinates: [[[-117.7, 61.7], [-117.6, 61.6]]] })]);
+    expect(ml.map((i) => i.type)).toEqual(['linestring']);
+  });
+
+  it('closes an unclosed MultiPolygon ring, as it does for Polygon', () => {
+    const open: [number, number][] = [[-117.7, 61.7], [-117.6, 61.7], [-117.6, 61.6]];
+    const out = toRequestedIgnitions([feat({ type: 'MultiPolygon', coordinates: [[open]] })]);
+    expect(out[0].coordinates).toEqual([[...open, open[0]]]);
+  });
+
+  it('mixes multi-part and single-part features without losing either', () => {
+    const out = toRequestedIgnitions([
+      feat({ type: 'MultiPolygon', coordinates: [[ringA], [ringB]] }),
+      feat({ type: 'Point', coordinates: [-115.0, 60.0] }),
+    ]);
+    expect(out.map((i) => i.type)).toEqual(['polygon', 'polygon', 'point']);
+  });
+
+  it('an empty MultiPolygon still yields nothing, inventing no geometry', () => {
+    expect(toRequestedIgnitions([feat({ type: 'MultiPolygon', coordinates: [] })])).toHaveLength(0);
+  });
+});
