@@ -4,10 +4,15 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.60.0
+## v0.61.0
 
 ### 2026-11-13
 
+- [`45e166a`](https://github.com/WISE-Developers/project_nomad/commit/45e166a23aa97745b7c4a794440cea92f5a702be) Merge pull request #538 from WISE-Developers/dev — *Franco Nogarin, 11:39*
+- [`ee8e82d`](https://github.com/WISE-Developers/project_nomad/commit/ee8e82dd50e36ed2635920d9e0909e65da79ec4e) chore: dev v0.60.1 [release-bot] — *github-actions[bot], 17:33*
+- [`8ee0f68`](https://github.com/WISE-Developers/project_nomad/commit/8ee0f68b44b2fa83283a98d7ce185413f8e3ed1b) Merge fix/perimeter-import-multipolygon: #537 MultiPolygon perimeters and the all-dropped false success — *Franco Nogarin, 11:32*
+- [`0c21e60`](https://github.com/WISE-Developers/project_nomad/commit/0c21e60cff36b4b83d68763fbe130388c4c9e381) Fix #537: perimeter GeoJSON upload accepted MultiPolygon as zero features — *Franco Nogarin, 11:32*
+- [`9d2b397`](https://github.com/WISE-Developers/project_nomad/commit/9d2b397b2a2ac3ff6ebc93bd3d66005c000e68ad) chore: release v0.60.0 [release-bot] — *github-actions[bot], 15:40*
 - [`41e65e9`](https://github.com/WISE-Developers/project_nomad/commit/41e65e9a0e3d1835a645aec56a243c0769f492a3) Merge pull request #535 from WISE-Developers/dev — *Franco Nogarin, 09:39*
 - [`f0bfce1`](https://github.com/WISE-Developers/project_nomad/commit/f0bfce1a9ad105cd789ddf5fea7241d1ddd0efd4) chore: dev v0.59.1 [release-bot] — *github-actions[bot], 15:33*
 - [`d13a51b`](https://github.com/WISE-Developers/project_nomad/commit/d13a51b782c52649f94e568f66e93c0a80a70d2a) Merge fix/mcp-container-bind-address: the published port needs an all-interfaces bind inside the container — *Franco Nogarin, 09:33*
