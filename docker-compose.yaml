@@ -55,6 +55,16 @@ services:
       # Authentication mode for SAN (none|simple|oauth)
       - NOMAD_AUTH_MODE=${NOMAD_AUTH_MODE:-simple}
       - VITE_AUTH_MODE=${VITE_AUTH_MODE:-simple}
+      # MCP binds EVERY interface INSIDE the container, and that is required rather
+      # than lax: Docker forwards the published port above to this container's BRIDGE
+      # address, never to its loopback, so a loopback bind here makes that publish
+      # inert -- docker-proxy accepts the connection and closes it with no reply.
+      #
+      # This is NOT the same address as the host side of the publish. That one is a
+      # literal 127.0.0.1 and is what keeps MCP off the internet; 0.0.0.0 here reaches
+      # no further than this host. Hardcoded, not substitutable, for the same reason.
+      # scripts/__tests__/mcp_port_loopback_only.test.sh asserts the two TOGETHER.
+      - NOMAD_MCP_BIND_ADDRESS=0.0.0.0
     env_file:
       - .env
     restart: unless-stopped
