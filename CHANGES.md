@@ -4,10 +4,15 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.58.0
+## v0.59.0
 
 ### 2026-11-13
 
+- [`e041b23`](https://github.com/WISE-Developers/project_nomad/commit/e041b23b7269edf75472a604f9a93c7a3abb59dd) Merge pull request #533 from WISE-Developers/dev — *Franco Nogarin, 09:15*
+- [`5965ee1`](https://github.com/WISE-Developers/project_nomad/commit/5965ee18ea1e9e23d6b668445f882631f369b520) chore: dev v0.58.1 [release-bot] — *github-actions[bot], 15:04*
+- [`08f8e77`](https://github.com/WISE-Developers/project_nomad/commit/08f8e77c30b150cc46c19b121f41931f7a07025c) Merge feat/mcp-loopback-port-publish: publish MCP on host loopback for the SSH tunnel — *Franco Nogarin, 09:03*
+- [`0844aa0`](https://github.com/WISE-Developers/project_nomad/commit/0844aa021c76aceab137ea9f55d4bd5d124f808b) MCP: publish the port on host loopback so an SSH tunnel can reach it — *Franco Nogarin, 09:03*
+- [`c670c6c`](https://github.com/WISE-Developers/project_nomad/commit/c670c6c774d0bfeeaf5df262e8c727196376b49e) chore: release v0.58.0 [release-bot] — *github-actions[bot], 13:49*
 - [`ff84f43`](https://github.com/WISE-Developers/project_nomad/commit/ff84f43317baa11852c4d8ebd9d7243f06a8e263) Merge pull request #532 from WISE-Developers/dev — *Franco Nogarin, 07:48*
 
 ### 2026-11-12
