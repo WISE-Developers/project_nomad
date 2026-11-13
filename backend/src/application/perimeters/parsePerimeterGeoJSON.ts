@@ -3,7 +3,27 @@ import { ValidationError } from '../../domain/errors/ValidationError.js';
 
 export type PerimeterFeatureCollection = FeatureCollection;
 
-const SUPPORTED_GEOMETRY_TYPES = new Set(['Point', 'LineString', 'Polygon']);
+/**
+ * Geometry types this parser accepts.
+ *
+ * THE MULTI-PART TYPES ARE NOT OPTIONAL (#537). Every NWT VIIRS and GPS perimeter we
+ * handle arrives as a `MultiPolygon` — a fire with an unburned island, or several
+ * disjoint lobes, cannot be expressed as a single `Polygon`. Omitting them meant a real
+ * perimeter file parsed to zero features and the UI reported
+ * "Successfully loaded 0 feature(s)".
+ *
+ * `GeometryCollection` is still excluded deliberately: it has no single coordinate
+ * array, so the downstream ignition flow has nothing to consume. It now REFUSES rather
+ * than being dropped in silence.
+ */
+const SUPPORTED_GEOMETRY_TYPES = new Set([
+  'Point',
+  'MultiPoint',
+  'LineString',
+  'MultiLineString',
+  'Polygon',
+  'MultiPolygon',
+]);
 
 export function parsePerimeterGeoJSON(input: string): PerimeterFeatureCollection {
   let json: unknown;
@@ -22,9 +42,24 @@ export function parsePerimeterGeoJSON(input: string): PerimeterFeatureCollection
   }
 
   if (json.type === 'FeatureCollection' && Array.isArray(json.features)) {
-    const features = (json.features as Feature[]).filter((f) =>
-      SUPPORTED_GEOMETRY_TYPES.has(f.geometry?.type),
-    );
+    const all = json.features as Feature[];
+    const features = all.filter((f) => SUPPORTED_GEOMETRY_TYPES.has(f.geometry?.type));
+
+    // DROPPING EVERY FEATURE IS A FAILURE, NOT AN EMPTY RESULT (#537). Returning the
+    // filtered-to-nothing collection produced a 201 that the UI rendered as
+    // "Successfully loaded 0 feature(s)" — a silent default in the exact shape that
+    // makes a broken upload look like an empty file. An EMPTY input collection is
+    // still accepted, because the caller sent nothing and nothing came back; it is
+    // only the all-dropped case that lies.
+    if (features.length === 0 && all.length > 0) {
+      const dropped = [...new Set(all.map((f) => f.geometry?.type ?? 'missing geometry'))];
+      throw ValidationError.forField(
+        'content',
+        `contains no supported geometry — every feature was ${dropped.join(', ')}. ` +
+          `Supported: ${[...SUPPORTED_GEOMETRY_TYPES].join(', ')}.`,
+      );
+    }
+
     return { type: 'FeatureCollection', features };
   }
 
