@@ -17,8 +17,8 @@
  * is reported in `unsupported` rather than approximated.
  */
 
-import type { Point, LineString, Polygon } from 'geojson';
 import type { DrawingMode, DrawnFeature } from '../../Map/types/geometry';
+import { expandMultiPartFeatures } from '../utils/expandMultiPartFeatures';
 import type { BoundingBox, ModelSetupData, ParsedWeatherCSV } from '../types';
 import { buildParsedWeatherCSV, parseCSV } from '../utils/weatherValidation';
 
@@ -65,8 +65,15 @@ export interface ImportPrefill {
   unsupported: string[];
 }
 
-/** GeoJSON geometry type -> the wizard's drawing mode. */
-const DRAWING_MODES: Record<string, DrawingMode> = {
+/**
+ * Single-part geometry type -> the wizard's drawing mode.
+ *
+ * #539: this maps only what `expandMultiPartFeatures` can produce, and is read
+ * only AFTER expansion. The previous table doubled as the list of "types the form
+ * can carry", which is a different question — and when the answer to one changed,
+ * the other silently disagreed.
+ */
+const MODE_FOR_GEOMETRY: Record<string, DrawingMode> = {
   Point: 'point',
   LineString: 'line',
   Polygon: 'polygon',
@@ -108,52 +115,6 @@ function boundsOf(features: DrawnFeature[]): BoundingBox | undefined {
   return [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
 }
 
-/**
- * One ignition as a feature the map and the spatial step can carry.
- *
- * Built per geometry type rather than cast: DrawnFeature is a UNION of
- * Feature<Point> | Feature<LineString> | Feature<Polygon>, not a Feature of a
- * union, so a single cast would compile only by lying about the narrowing.
- *
- * `properties.mode` is required by TerraDraw, which ignores a feature without
- * it — so an imported ignition would simply not appear on the map.
- */
-function toDrawnFeature(
-  name: string,
-  geometry: { type: string; coordinates: unknown },
-): DrawnFeature | undefined {
-  const properties = { name, mode: DRAWING_MODES[geometry.type] };
-  switch (geometry.type) {
-    case 'Point':
-      return {
-        type: 'Feature',
-        properties,
-        geometry: { type: 'Point', coordinates: geometry.coordinates as Point['coordinates'] },
-      };
-    case 'LineString':
-      return {
-        type: 'Feature',
-        properties,
-        geometry: {
-          type: 'LineString',
-          coordinates: geometry.coordinates as LineString['coordinates'],
-        },
-      };
-    case 'Polygon':
-      return {
-        type: 'Feature',
-        properties,
-        geometry: {
-          type: 'Polygon',
-          coordinates: geometry.coordinates as Polygon['coordinates'],
-        },
-      };
-    default:
-      // Reported in `unsupported` by the caller; nothing is invented here.
-      return undefined;
-  }
-}
-
 export function prefillFromImportPlan(plan: ImportedScenarioPlan): ImportPrefill {
   const unsupported: string[] = [];
 
@@ -183,10 +144,19 @@ export function prefillFromImportPlan(plan: ImportedScenarioPlan): ImportPrefill
   // They are deliberately NOT merged here. Merging is the backend's job, and
   // collapsing them client-side would take away the operator's chance to see,
   // on the map, what the file actually declared before anything combined them.
-  const features: DrawnFeature[] = plan.ignitions.flatMap((ignition) => {
-    const feature = toDrawnFeature(ignition.name, ignition.geometry);
-    return feature ? [feature] : [];
-  });
+  // #539: multi-part ignitions EXPAND here rather than being refused below.
+  // `flatMap` was already the shape this needed — one ignition can legitimately
+  // become several features, because a MultiPolygon fire is several polygons and
+  // the wizard carries only single-part geometry. Each part keeps its own rings,
+  // so a hole stays a hole.
+  const expansion = expandMultiPartFeatures(
+    plan.ignitions.map((ignition) => ({
+      type: 'Feature' as const,
+      properties: { name: ignition.name },
+      geometry: ignition.geometry,
+    })),
+  );
+  const features: DrawnFeature[] = expansion.features;
 
   // Checked across EVERY ignition, not just the first.
   //
@@ -194,21 +164,18 @@ export function prefillFromImportPlan(plan: ImportedScenarioPlan): ImportPrefill
   // was sufficient — nothing got past the refusal. Supporting several opens the
   // hole: an undrawable SECOND ignition would otherwise reach the map
   // unexamined, which is the silent drop this guard exists to prevent.
-  for (const ignition of plan.ignitions) {
-    if (!DRAWING_MODES[ignition.geometry.type]) {
-      unsupported.push(
-        `Ignition "${ignition.name}" is a ${ignition.geometry.type}, which the setup form ` +
-          'cannot draw or carry.',
-      );
-    }
-  }
+  //
+  // #539: this list comes from the expansion itself rather than from a second
+  // table of drawable types. Keeping its own copy is what let a MultiPolygon be
+  // carried and simultaneously reported as uncarryable — the two lists disagreed
+  // the moment one of them learned a new type.
+  unsupported.push(...expansion.unsupported);
 
-  // The drawing mode follows the first DRAWABLE ignition. A mixed plan is
-  // already reported above, so this only decides which tool the map opens with.
-  const firstDrawable = plan.ignitions.find((i) => DRAWING_MODES[i.geometry.type]);
-  const mode: DrawingMode = firstDrawable
-    ? (DRAWING_MODES[firstDrawable.geometry.type] ?? 'none')
-    : 'none';
+  // The drawing mode follows the first feature that actually survived expansion,
+  // for the same reason: it cannot disagree with what was carried. A mixed plan
+  // is already reported above, so this only decides which tool the map opens
+  // with.
+  const mode: DrawingMode = MODE_FOR_GEOMETRY[features[0]?.geometry.type ?? ''] ?? 'none';
 
   const { date, time } = localWallClock(plan.startTime);
 

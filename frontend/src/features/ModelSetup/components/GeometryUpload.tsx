@@ -13,6 +13,10 @@
 import React, { useState, useCallback, useRef } from 'react';
 import JSZip from 'jszip';
 import type { DrawnFeature } from '../../Map/types/geometry';
+import {
+  expandMultiPartFeatures,
+  type IncomingFeature,
+} from '../utils/expandMultiPartFeatures';
 
 export interface GeometryUploadProps {
   /** Called when features are successfully parsed from file */
@@ -89,17 +93,39 @@ export function GeometryUpload({ onUpload }: GeometryUploadProps) {
         return;
       }
 
-      const fc = (await res.json()) as { features: DrawnFeature[] };
-      const features = fc.features.map((f) => ({
-        ...f,
-        properties: {
-          ...f.properties,
-          inputMethod: 'upload',
-          fileName,
-        },
-      }));
+      // #539: this used to be `(await res.json()) as { features: DrawnFeature[] }`
+      // — a bare cast asserting the server's features are single-part. Since #537
+      // the server accepts MultiPolygon, and every NWT VIIRS or GPS perimeter is
+      // one, so the cast was silencing the type system at exactly the point the
+      // lie entered. The perimeter then drew on the map and the submit step said
+      // "No ignition was drawn or imported", because `DrawnFeature` cannot
+      // describe what had been poured into it.
+      const fc = (await res.json()) as { features?: IncomingFeature[] };
+      const { features, unsupported } = expandMultiPartFeatures(
+        (fc.features ?? []).map((f) => ({
+          ...f,
+          properties: {
+            ...(f.properties ?? {}),
+            inputMethod: 'upload',
+            fileName,
+          },
+        })),
+      );
+
+      // ALL-DROPPED IS A FAILURE, NOT AN EMPTY RESULT (#537). Reporting success
+      // over zero features is what made a broken upload look like an empty file.
+      if (features.length === 0) {
+        setError(
+          unsupported.length > 0
+            ? unsupported.join(' ')
+            : `No geometry in ${fileName} could be used.`,
+        );
+        return;
+      }
 
       setSuccess(`Successfully loaded ${features.length} feature(s) from ${fileName}`);
+      // A partial read still loads, and still says what it could not carry.
+      if (unsupported.length > 0) setError(unsupported.join(' '));
       onUpload(features);
     },
     [onUpload]
