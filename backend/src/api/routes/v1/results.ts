@@ -330,8 +330,32 @@ router.get(
       throw new NotFoundError('Result', resultId);
     }
 
+    // #536: a perimeter row carries its geometry IN the row and has no file, so
+    // the stored-row branch must not assume a filePath. Before #536 these
+    // products were never persisted and this branch was unreachable for them;
+    // persisting them so MCP can retrieve them made it reachable, and brought
+    // #292 back as a 404 for every model whose rows had been written.
+    const rowGeoJSON = stored.result.metadata.geojson;
+    if (rowGeoJSON !== undefined && rowGeoJSON !== null) {
+      res.setHeader('Content-Type', 'application/geo+json');
+      res.setHeader('Content-Disposition', `attachment; filename="${resultId}.geojson"`);
+      res.send(typeof rowGeoJSON === 'string' ? rowGeoJSON : JSON.stringify(rowGeoJSON));
+      return;
+    }
+
     const relativeFilePath = stored.result.metadata.filePath as string | undefined;
     if (!relativeFilePath) {
+      // A row with neither geometry nor a file: derive it, the same way the
+      // never-persisted case above does. A row written by an older build, or one
+      // whose geometry did not survive the repository, must not 404 while the
+      // arrival rasters that produced it are still on disk.
+      const regenerated = await resultsService.getPerimeterGeoJSON(typedResultId);
+      if (regenerated) {
+        res.setHeader('Content-Type', 'application/geo+json');
+        res.setHeader('Content-Disposition', `attachment; filename="${resultId}.geojson"`);
+        res.send(regenerated);
+        return;
+      }
       throw new NotFoundError('Result file', resultId);
     }
     const filePath = resolveResultFilePath(relativeFilePath);
