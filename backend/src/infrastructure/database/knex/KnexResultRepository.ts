@@ -36,9 +36,18 @@ interface ResultRow {
 function rowToResult(row: ResultRow): ModelResult {
   const parsedMetadata = row.metadata ? JSON.parse(row.metadata) : {};
 
+  // `file_path` is notNullable, and `save()` satisfies that with '' for a row
+  // that has no file — which a #536 perimeter row does not, its geometry
+  // travelling in the metadata instead. Putting '' back as `metadata.filePath`
+  // would report a path that is not a path: `get-results-data` returns
+  // `metadata.filePath` verbatim to an MCP caller, and the sim-directory anchor
+  // in getPerimeterGeoJSON/getArrivalRasterPath picks "the first row carrying a
+  // filePath". An empty string was never a valid path, and every existing
+  // consumer already tests this field for truthiness, so omitting it is what
+  // they all already assume.
   const metadata: ResultMetadata = {
     ...parsedMetadata,
-    filePath: row.file_path,
+    ...(row.file_path ? { filePath: row.file_path } : {}),
   };
 
   return new ModelResult({
