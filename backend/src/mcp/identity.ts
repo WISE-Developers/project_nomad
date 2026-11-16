@@ -98,12 +98,47 @@ export function createAuthUserStore(): McpIdentityStore {
 }
 
 /**
+ * The identity named an account that does not exist (#543).
+ *
+ * This is the ATTRIBUTION failure, and it is fatal: records MCP created would be
+ * written as a user who is not there. Stopping the process is the right answer and
+ * stays the right answer.
+ */
+export class McpIdentityUnmatchedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'McpIdentityUnmatchedError';
+  }
+}
+
+/**
+ * The identity could not be ASKED about (#543) — no store, a wrong database, a locked
+ * file, a bug in the store.
+ *
+ * Nothing is attributed wrongly because nothing was written: MCP simply does not
+ * mount. It is deliberately NOT a subclass of the unmatched error, and neither is a
+ * subclass of the other, because the call site branches on `instanceof` and an
+ * inheritance relationship would silently collapse the distinction this exists to
+ * draw.
+ */
+export class McpIdentityUnverifiableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'McpIdentityUnverifiableError';
+  }
+}
+
+/**
  * Resolves the configured MCP identity, failing closed when it cannot be proven.
  *
- * @throws in oauth mode when the account does not exist, or when the store cannot be
- *         consulted at all. An unanswered check is not a pass: the two outcomes are
- *         reported differently on purpose, because "this name is wrong" and "I could
- *         not find out" call for different fixes from whoever is reading the error.
+ * @throws {McpIdentityUnmatchedError} in oauth mode when the account does not exist.
+ * @throws {McpIdentityUnverifiableError} when the store cannot be consulted at all.
+ *
+ * An unanswered check is not a pass. The two outcomes were always reported with
+ * different MESSAGES on purpose — because "this name is wrong" and "I could not find
+ * out" call for different fixes from whoever is reading the error — but they were both
+ * a plain `Error`, so no caller could act on the difference. Prose is not a type;
+ * #543 gave them one each.
  */
 export async function resolveMcpIdentity(
   identity: string,
@@ -118,7 +153,8 @@ export async function resolveMcpIdentity(
   }
 
   if (!store) {
-    throw new Error(
+    // Nothing was asked, so nothing was disproved: unverifiable, not unmatched.
+    throw new McpIdentityUnverifiableError(
       `NOMAD_MCP_IDENTITY ("${identity}") could not be verified: no account store was ` +
         'available in oauth mode. MCP will not start with an identity it cannot resolve.',
     );
@@ -128,7 +164,7 @@ export async function resolveMcpIdentity(
   try {
     exists = await store.hasAccount(identity);
   } catch (error) {
-    throw new Error(
+    throw new McpIdentityUnverifiableError(
       `NOMAD_MCP_IDENTITY ("${identity}") could not be verified: the account store ` +
         `could not be consulted (${error instanceof Error ? error.message : String(error)}). ` +
         'Not starting, rather than attributing models to an unchecked identity.',
@@ -136,7 +172,7 @@ export async function resolveMcpIdentity(
   }
 
   if (!exists) {
-    throw new Error(
+    throw new McpIdentityUnmatchedError(
       `NOMAD_MCP_IDENTITY ("${identity}") does not match any account in this instance, ` +
         'so records MCP created would be attributed to an account that does not exist. ' +
         'Sign in once with this address, or set NOMAD_MCP_IDENTITY to an address that ' +
@@ -145,4 +181,57 @@ export async function resolveMcpIdentity(
   }
 
   return { userId: identity, verified: true };
+}
+
+/**
+ * Resolve the identity, or report that MCP must stay unmounted (#543).
+ *
+ * THE POLICY, and why it is not symmetric:
+ *
+ *   unmatched    -> RETHROW. The process stops, as it always did. An identity naming
+ *                   no account would attribute records to a user who is not there,
+ *                   and that is worth refusing to boot over.
+ *   unverifiable -> return null after logging loudly. MCP does not mount and the rest
+ *                   of the application starts. Nothing is attributed wrongly because
+ *                   nothing is written, and an optional feature behind a flag must not
+ *                   be able to take the fire-modelling site down. #531 was this case:
+ *                   the query hit the wrong database, so the check could not be
+ *                   performed at all, and the demo crash-looped for ~4 minutes with 10
+ *                   restarts under `restart: unless-stopped`.
+ *
+ * This makes the file's existing asymmetry deliberate rather than accidental: with the
+ * flag set and no auth key, MCP already does not start and the app comes up fine. A
+ * missing key was tolerated while an unanswerable check was fatal, and both are
+ * equally "MCP is not usable".
+ *
+ * ANYTHING ELSE RETHROWS. A failure that is neither known kind is not downgraded to a
+ * quiet unmount — catching broadly here would turn every future bug in this path into
+ * a silently absent MCP, which is the silent default this codebase refuses.
+ *
+ * @param log  called ONLY on the unverifiable path, with a message naming the cause.
+ * @param resolve injected so the "unexpected error" branch is reachable in tests;
+ *                `resolveMcpIdentity` wraps everything a store throws into one of the
+ *                two classes, so a third kind cannot be produced through it.
+ */
+export async function resolveMcpIdentityOrUnmount(
+  identity: string,
+  authMode: McpAuthMode,
+  store: McpIdentityStore | undefined,
+  log: (message: string) => void,
+  resolve: typeof resolveMcpIdentity = resolveMcpIdentity,
+): Promise<ResolvedMcpIdentity | null> {
+  try {
+    return await resolve(identity, authMode, store);
+  } catch (error) {
+    if (error instanceof McpIdentityUnverifiableError) {
+      // Loud, and carrying the underlying cause: a bare "MCP disabled" would leave
+      // the reader with no idea which of the two failures happened or how to fix it.
+      log(
+        `MCP will NOT start: the configured identity could not be verified. The rest of ` +
+          `the application is starting normally. Cause: ${error.message}`,
+      );
+      return null;
+    }
+    throw error;
+  }
 }
