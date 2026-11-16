@@ -4,10 +4,15 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.62.0
+## v0.63.0
 
 ### 2026-11-16
 
+- [`d25bb9d`](https://github.com/WISE-Developers/project_nomad/commit/d25bb9d01866e74460e341eff65c885c230ef8b2) Merge pull request #548 from WISE-Developers/dev — *Franco Nogarin, 06:09*
+- [`ff0a224`](https://github.com/WISE-Developers/project_nomad/commit/ff0a224ffc0ec664b2ca50f0e204236f88236336) chore: dev v0.62.1 [release-bot] — *github-actions[bot], 12:00*
+- [`b66fa79`](https://github.com/WISE-Developers/project_nomad/commit/b66fa79e4110a3c7e4dcb27a2f1025771cd0cb1b) Merge fix/543-mcp-identity-unmount: an unverifiable MCP identity leaves MCP unmounted instead of killing the app — *Franco Nogarin, 05:59*
+- [`d227d1c`](https://github.com/WISE-Developers/project_nomad/commit/d227d1cf00f7a350fbd303cb0fa314d1847409f7) #543: an unanswerable MCP identity check no longer takes the whole site down — *Franco Nogarin, 05:59*
+- [`3114a31`](https://github.com/WISE-Developers/project_nomad/commit/3114a31430116599ab7a0f70bb7a7bbea8f32923) chore: release v0.62.0 [release-bot] — *github-actions[bot], 11:25*
 - [`a18bdd4`](https://github.com/WISE-Developers/project_nomad/commit/a18bdd44f61767e1773ff7001e5d07b0581a9aa2) Merge pull request #544 from WISE-Developers/dev — *Franco Nogarin, 05:25*
 - [`e9b5b8e`](https://github.com/WISE-Developers/project_nomad/commit/e9b5b8ecefa76d4585ae014942d59d868f5f01ee) chore: dev v0.61.2 [release-bot] — *github-actions[bot], 11:17*
 - [`84d548c`](https://github.com/WISE-Developers/project_nomad/commit/84d548c4a6986d48ad9faa9ce4bf29a1a722feed) Merge origin/dev (release-bot v0.61.1) into #536 follow-up — *Franco Nogarin, 05:16*
