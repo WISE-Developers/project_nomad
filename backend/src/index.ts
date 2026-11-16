@@ -209,18 +209,34 @@ const mcpSetup = await (async () => {
     return null;
   }
 
-  // The identity is resolved BEFORE anything listens: a configured identity matching no
-  // account would attribute records to an account that does not exist, so a failure to
-  // resolve stops the process here.
-  const { resolveMcpIdentity, createAuthUserStore } = await import('./mcp/identity.js');
+  // The identity is resolved BEFORE anything listens, and the two ways that can fail
+  // are NOT the same failure (#543):
+  //
+  //   matches no account   -> throws, and the process stops. A configured identity
+  //                           naming an account that does not exist would attribute
+  //                           records to a user who is not there.
+  //   cannot be ASKED      -> returns null. MCP does not mount and the rest of the
+  //                           application starts normally. Nothing is attributed
+  //                           wrongly because nothing is written.
+  //
+  // #531 was the second kind — the query hit the wrong database, so the check could not
+  // be performed at all, and the demo crash-looped for ~4 minutes with 10 restarts for
+  // a feature behind a flag that was not serving traffic yet. Note that this makes the
+  // asymmetry a few lines above DELIBERATE: a missing auth key already lets the app
+  // boot without MCP, and an unanswerable identity check is the same category of
+  // "MCP is not usable".
+  const { resolveMcpIdentityOrUnmount, createAuthUserStore } = await import('./mcp/identity.js');
   const { resolveMcpPort } = await import('./mcp/listener.js');
 
   const mcpAuthMode = process.env.NOMAD_DEPLOYMENT_MODE === 'ACN' ? 'acn' : resolveAuthMode();
-  const identity = await resolveMcpIdentity(
+  const identity = await resolveMcpIdentityOrUnmount(
     mcpConfig.identity,
     mcpAuthMode,
     mcpAuthMode === 'oauth' ? createAuthUserStore() : undefined,
+    (message) => logger.startup(message),
   );
+
+  if (!identity) return null;
 
   return {
     config: mcpConfig,
