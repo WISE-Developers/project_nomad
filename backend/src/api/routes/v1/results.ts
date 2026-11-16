@@ -9,8 +9,8 @@ import { createReadStream, existsSync } from 'fs';
 import { stat } from 'fs/promises';
 import { basename } from 'path';
 import { asyncHandler } from '../../middleware/index.js';
-import { NotFoundError } from '../../../domain/errors/index.js';
-import { createModelResultId, OutputFormat } from '../../../domain/entities/index.js';
+import { NotFoundError, ValidationError } from '../../../domain/errors/index.js';
+import { createModelResultId, OutputFormat, OutputType } from '../../../domain/entities/index.js';
 import { getModelResultsService } from '../../../application/services/index.js';
 import { generateContours, generateRasterTile, getRasterBounds, ContourError } from '../../../infrastructure/firestarr/index.js';
 import { getEngine } from '../../../infrastructure/engines/index.js';
@@ -19,6 +19,26 @@ import { EngineError } from '../../../domain/errors/index.js';
 import { EngineType } from '../../../domain/entities/index.js';
 
 const router = Router();
+
+/**
+ * #546: an arrival-time grid has no GeoJSON preview to serve.
+ *
+ * Its values are Julian-day fractions, and `generateContours` applies the probability
+ * SLD with no symbology argument, so contouring one produces a plausible-looking
+ * answer about the wrong quantity. Refusing and naming the endpoint that CAN render
+ * it is the honest response; a silent default here is the thing being fixed.
+ */
+function arrivalHasNoGeoJSONPreview(resultId: string, modelId?: string): ValidationError {
+  const tileEndpoint = modelId
+    ? `/api/v1/models/${modelId}/arrival-tile/{z}/{x}/{y}.png`
+    : '/api/v1/models/{modelId}/arrival-tile/{z}/{x}/{y}.png';
+  return ValidationError.forField(
+    'resultId',
+    `is an arrival-time grid, which has no GeoJSON preview — its values are ` +
+      `Julian-day fractions, not probabilities. Render it with ${tileEndpoint}, or ` +
+      `fetch the raster itself from /api/v1/results/${resultId}/download.`,
+  );
+}
 
 /**
  * @openapi
@@ -62,8 +82,49 @@ router.get(
 
     // Get result
     const stored = await resultsService.getResultById(typedResultId);
+
+    // #546: BRANCH ON THE PRODUCT BEFORE REACHING FOR A FILE. `generateContours`
+    // takes nothing but a path and applies the static FireSTARR probability SLD
+    // symbology, so the unconditional call below handled the two products #536
+    // persists as if they were burn-probability rasters: a perimeter row has no file
+    // and 404'd, and an arrival grid came back 200 with probability bands over
+    // Julian-day values — a wrong answer nothing downstream could tell from a right
+    // one. `download` grew both branches (#292, then #536); preview never did.
     if (!stored) {
+      const syntheticPerimeter = await resultsService.getPerimeterGeoJSON(typedResultId);
+      if (syntheticPerimeter) {
+        res.setHeader('Content-Type', 'application/geo+json');
+        res.send(syntheticPerimeter);
+        return;
+      }
+      const syntheticArrival = await resultsService.getArrivalRasterPath(typedResultId);
+      if (syntheticArrival) {
+        throw arrivalHasNoGeoJSONPreview(resultId);
+      }
       throw new NotFoundError('Result', resultId);
+    }
+
+    if (stored.result.outputType === OutputType.ArrivalTime) {
+      throw arrivalHasNoGeoJSONPreview(resultId, stored.modelId);
+    }
+
+    if (stored.result.outputType === OutputType.Perimeter) {
+      // A perimeter row carries its geometry IN the row. The on-demand fallback is
+      // for a row written by an older build, or one whose geometry did not survive
+      // the repository — the same defence the download route keeps.
+      const rowGeoJSON = stored.result.metadata.geojson;
+      if (rowGeoJSON !== undefined && rowGeoJSON !== null) {
+        res.setHeader('Content-Type', 'application/geo+json');
+        res.send(typeof rowGeoJSON === 'string' ? rowGeoJSON : JSON.stringify(rowGeoJSON));
+        return;
+      }
+      const regenerated = await resultsService.getPerimeterGeoJSON(typedResultId);
+      if (regenerated) {
+        res.setHeader('Content-Type', 'application/geo+json');
+        res.send(regenerated);
+        return;
+      }
+      throw new NotFoundError('Result file', resultId);
     }
 
     const relativeFilePath = stored.result.metadata.filePath as string | undefined;
