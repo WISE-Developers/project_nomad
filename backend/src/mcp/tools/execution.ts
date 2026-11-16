@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import {
+  type FireModel,
   createFireModelId,
   ModelStatus,
   createJobId,
@@ -30,6 +31,42 @@ import {
   modelAlreadyRunning,
   engineFailed,
 } from '../errors.js';
+import { getModelResultsService } from '../../application/services/index.js';
+
+/**
+ * Make sure the model's derived deterministic products exist as result rows
+ * before reading the repository (#536).
+ *
+ * `get-results-summary` and `get-results-data` read `findByModelId`, and the
+ * perimeter and arrival-time products are derived rather than written by the
+ * engine's output parser. Asking the application service for the model's results
+ * is what derives and persists them.
+ *
+ * Without this call the rows would appear to an MCP caller only after a human had
+ * opened that model in the browser — the GUI reader being the only thing that
+ * triggered persistence. That is a worse failure than the one #536 fixes: it
+ * presents as intermittent, and the hidden variable is someone else's browsing.
+ *
+ * Swallowed on failure on purpose. These products are an additional view of a
+ * completed model; a derivation that cannot run (no GDAL, an unreadable sim
+ * directory) must leave the probability rows reachable rather than turning a
+ * working tool into an error.
+ */
+async function ensureDerivedResultRows(model: FireModel): Promise<void> {
+  try {
+    // `engineType` is required on FireModelProps, so there is no default to fall
+    // back to here — a `?? EngineType.FireSTARR` would be a branch that can never
+    // run, which tsc said plainly while 1608 passing tests did not.
+    const engine = getEngine(model.engineType);
+    const resultsService = getModelResultsService(engine);
+    await resultsService.getResults(model.id, model.name, model.engineType);
+  } catch (e) {
+    console.warn(
+      `[mcp/execution] Could not derive result rows for ${model.id}; reporting stored rows only:`,
+      e,
+    );
+  }
+}
 
 /**
  * Registers execution tools on the MCP server.
@@ -140,7 +177,7 @@ export function registerExecutionTools(server: McpServer): void {
     'get-results-summary',
     {
       title: 'Get Results Summary',
-      description: 'Get a human-readable summary of the results for a completed fire model.',
+      description: 'Get a human-readable summary of the results for a completed fire model. For a deterministic run this includes the vector fire perimeters and the arrival-time raster, not only the probability rasters (#536).',
       inputSchema: {
         modelId: z.string().describe('Model ID from create-model'),
       },
@@ -149,6 +186,9 @@ export function registerExecutionTools(server: McpServer): void {
       const repo = getModelRepository();
       const model = await repo.findById(createFireModelId(modelId));
       if (!model) return modelNotFound(modelId);
+
+      // #536: derive and persist the perimeter / arrival-time rows first.
+      await ensureDerivedResultRows(model);
 
       const resultRepo = getResultRepository();
       const results = await resultRepo.findByModelId(createFireModelId(modelId));
@@ -207,7 +247,7 @@ export function registerExecutionTools(server: McpServer): void {
     'get-results-data',
     {
       title: 'Get Results Data',
-      description: 'Get structured result data for a completed fire model, including file paths and metadata.',
+      description: 'Get structured result data for a completed fire model, including file paths and metadata. A deterministic run also returns one perimeter row per simulation day, each carrying its GeoJSON geometry in metadata, and an arrival-time raster row (#536).',
       inputSchema: {
         modelId: z.string().describe('Model ID from create-model'),
       },
@@ -216,6 +256,11 @@ export function registerExecutionTools(server: McpServer): void {
       const repo = getModelRepository();
       const model = await repo.findById(createFireModelId(modelId));
       if (!model) return modelNotFound(modelId);
+
+      // #536: derive and persist the perimeter / arrival-time rows first. Both
+      // result tools do this — a fix applied to one member of a class is not
+      // applied to the other, and these two are read interchangeably.
+      await ensureDerivedResultRows(model);
 
       const resultRepo = getResultRepository();
       const results = await resultRepo.findByModelId(createFireModelId(modelId));
