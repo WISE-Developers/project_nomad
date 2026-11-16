@@ -79,8 +79,16 @@ export function registerModelTools(server: McpServer, context?: McpToolContext):
       inputSchema: {
         name: z.string().min(1).max(200)
           .describe('Name for the fire model (e.g., "Highway 3 Fire - Wind Scenario A")'),
-        description: z.string().max(1000).optional()
-          .describe('Optional description of the model scenario'),
+        // NO `description` HERE (#545). It was declared, destructured away, and lost:
+        // `FireModel` has no such field and the models table has no such column, so
+        // there was nowhere for it to go. Declaring it told every MCP client it could
+        // set a description and then answered as though it had — a silent default.
+        //
+        // The fix is removal rather than persistence because the GUI has no
+        // description either. Adding one here would be an MCP-only knob, which is the
+        // divergence #534 was closed to avoid: the two surfaces configure the same
+        // model and must not disagree about what a model has. If models should carry a
+        // description, it belongs in the domain and in both surfaces at once.
       },
     },
     async ({ name }): Promise<CallToolResult> => {
