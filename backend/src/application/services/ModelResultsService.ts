@@ -17,6 +17,7 @@ import {
   ModelResult,
   OutputType,
   OutputFormat,
+  createModelResultId,
 } from '../../domain/entities/index.js';
 import { TimeRange } from '../../domain/value-objects/index.js';
 import { IFireModelingEngine, ExecutionStatus } from '../interfaces/IFireModelingEngine.js';
@@ -327,8 +328,29 @@ export class ModelResultsService {
         }
       }
 
-      // Build output items
-      const outputs: OutputItem[] = results.map((result) => {
+      // Build output items.
+      //
+      // #536: the perimeter and arrival-time ROWS are deliberately excluded here
+      // and the derivation below stays authoritative for them. Three reasons, each
+      // of which was a live defect waiting:
+      //
+      //   1. `hasPerimeters` (below) would see a persisted perimeter row and skip
+      //      derivation, handing the GUI `/results/:id/preview` and
+      //      `getDisplayName()` in place of `/models/:id/perimeters?day=N` and
+      //      "Fire Boundary - <date>", and dropping the per-day color entirely.
+      //   2. The `outputs.length > 0 && outputs[0].filePath` gate below guards the
+      //      whole inputs + derivation block. A perimeter row carries no filePath,
+      //      so one sorting first would silently skip everything after it.
+      //   3. In deterministic mode the final filter keeps only perimeter and
+      //      arrival_time anyway, so a row-mapped copy would be a second entry for
+      //      a product the derivation already produced correctly.
+      //
+      // The rows exist for consumers that read the repository directly — which is
+      // every MCP caller, and the whole of #536.
+      const derivedRowTypes: OutputType[] = [OutputType.Perimeter, OutputType.ArrivalTime];
+      const outputs: OutputItem[] = results
+        .filter((result) => !derivedRowTypes.includes(result.outputType))
+        .map((result) => {
         // Get file path from metadata
         const filePath = (result.metadata.filePath as string) ?? null;
 
@@ -489,6 +511,18 @@ export class ModelResultsService {
               // null when no arrival raster / timeRange is available.
               let startJulianForPerimeters: number | null = null;
 
+              // #536: the derived products, captured so they can be persisted as
+              // result rows once. Hoisted rather than re-derived, because
+              // extractDeterministicPerimeters shells out to GDAL and deriving a
+              // second time for the repository would double that cost on every
+              // read.
+              let arrivalForRows: { filePath: string; julianDays: number[] } | null = null;
+              let perimetersForRows: Array<{
+                julianDay: number;
+                date: string | null;
+                geojson: unknown;
+              }> = [];
+
               // #482/#492: the model's range, resolved ONCE and hoisted, because
               // both the arrival output and the perimeter naming need it. It
               // was declared inside the try below and the perimeter block
@@ -546,6 +580,7 @@ export class ModelResultsService {
                   }
                   // else: startDate stays undefined. An unknown start stays unknown.
                   startJulianForPerimeters = startJulian;
+                  arrivalForRows = { filePath: arrival.filePath, julianDays: arrival.julianDays };
 
                   outputs.push({
                     id: `arrival-time-${modelId}`,
@@ -631,10 +666,26 @@ export class ModelResultsService {
                     });
                   });
                   console.log(`[ModelResultsService] Added ${perimeterResult.value.perimeters.length} deterministic perimeter outputs`);
+                  perimetersForRows = perimeterResult.value.perimeters.map((p) => ({
+                    julianDay: p.julianDay,
+                    date: p.date,
+                    geojson: p.geojson,
+                  }));
                 } else if (!perimeterResult.success) {
                   console.warn(`[ModelResultsService] Failed to extract deterministic perimeters: ${perimeterResult.error.message}`);
                 }
               }
+
+              // #536: persist what was just derived, so a consumer reading the
+              // repository directly sees these products too. The GUI keeps using
+              // the derived OutputItems above; these rows exist for everyone else,
+              // and MCP is the caller that could not see them at all.
+              await this.persistDerivedResultRows(
+                modelId,
+                results,
+                arrivalForRows,
+                perimetersForRows,
+              );
             }
           }
         } catch (e) {
@@ -676,6 +727,105 @@ export class ModelResultsService {
       modelId: result.fireModelId,
       result,
     };
+  }
+
+  /**
+   * Persist the derived deterministic products as result rows (#536).
+   *
+   * An MCP client could configure and run a model but never retrieve its
+   * perimeter or arrival-time outputs, because the derivation above produces
+   * `OutputItem` — the GUI/API DTO — downstream of the point where rows are
+   * written, and nothing ever converted them. `get-results-summary` and
+   * `get-results-data` read the repository faithfully; there was simply nothing
+   * there but the probability rasters.
+   *
+   * Franco's call was rows rather than a new MCP tool, so both tools surface
+   * these with no change to either.
+   *
+   * IDEMPOTENT ON THE REPOSITORY, not on the in-memory outputs: `existing` is
+   * what `findByModelId` returned at the top of this read. A perimeter is
+   * identified by its Julian day and the arrival raster by there being one, which
+   * is the same identity the download route's synthetic ids already use.
+   *
+   * Failures here are logged and swallowed deliberately. These rows are an
+   * additional consumer's view of products the GUI is already serving from the
+   * derivation; a repository that cannot take them must not take down a read that
+   * otherwise succeeded.
+   */
+  private async persistDerivedResultRows(
+    modelId: FireModelId,
+    existing: ModelResult[],
+    arrival: { filePath: string; julianDays: number[] } | null,
+    perimeters: Array<{ julianDay: number; date: string | null; geojson: unknown }>,
+  ): Promise<void> {
+    const existingPerimeterDays = new Set(
+      existing
+        .filter((r) => r.outputType === OutputType.Perimeter)
+        .map((r) => r.metadata.julianDay),
+    );
+    const hasArrivalRow = existing.some((r) => r.outputType === OutputType.ArrivalTime);
+
+    const rows: ModelResult[] = [];
+
+    for (const perimeter of perimeters) {
+      if (existingPerimeterDays.has(perimeter.julianDay)) continue;
+      rows.push(
+        new ModelResult({
+          // The same id the download route already resolves synthetically, so a
+          // product has one identity whether it is in the repository or not.
+          id: createModelResultId(`perimeter-day${perimeter.julianDay}-${modelId}`),
+          fireModelId: modelId,
+          outputType: OutputType.Perimeter,
+          format: OutputFormat.GeoJSON,
+          metadata: {
+            julianDay: perimeter.julianDay,
+            simulationDate: perimeter.date ?? undefined,
+            deterministic: true,
+            // The geometry travels IN the row. `get-results-data` returns
+            // metadata verbatim, and a perimeter whose geometry is not in the row
+            // is a perimeter an MCP caller still cannot use — the same failure one
+            // layer further in.
+            geojson: perimeter.geojson,
+          },
+        }),
+      );
+    }
+
+    if (arrival && !hasArrivalRow) {
+      rows.push(
+        new ModelResult({
+          id: createModelResultId(`arrival-time-${modelId}`),
+          fireModelId: modelId,
+          outputType: OutputType.ArrivalTime,
+          format: OutputFormat.GeoTIFF,
+          metadata: {
+            // RELATIVE, matching the convention every probability row uses
+            // (`modelId/filename`). `resolveResultFilePath` resolves relative
+            // paths, and `getPerimeterGeoJSON`/`getArrivalRasterPath` pick the
+            // first row carrying a filePath as the anchor they derive simDir
+            // from — an absolute path stored here would be handed to that
+            // resolver and resolve to the wrong directory.
+            filePath: `${modelId}/${path.basename(arrival.filePath)}`,
+            julianDays: arrival.julianDays,
+            deterministic: true,
+          },
+        }),
+      );
+    }
+
+    for (const row of rows) {
+      try {
+        await this.resultRepo.save(row);
+      } catch (e) {
+        console.log(`[ModelResultsService] Derived result row ${row.id} save error: ${e}`);
+      }
+    }
+
+    if (rows.length > 0) {
+      console.log(
+        `[ModelResultsService] Persisted ${rows.length} derived result row(s) for ${modelId} (#536)`,
+      );
+    }
   }
 
   /**
