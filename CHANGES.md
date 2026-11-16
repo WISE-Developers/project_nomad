@@ -4,10 +4,22 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.61.0
+## v0.62.0
+
+### 2026-11-16
+
+- [`a18bdd4`](https://github.com/WISE-Developers/project_nomad/commit/a18bdd44f61767e1773ff7001e5d07b0581a9aa2) Merge pull request #544 from WISE-Developers/dev — *Franco Nogarin, 05:25*
+- [`e9b5b8e`](https://github.com/WISE-Developers/project_nomad/commit/e9b5b8ecefa76d4585ae014942d59d868f5f01ee) chore: dev v0.61.2 [release-bot] — *github-actions[bot], 11:17*
+- [`84d548c`](https://github.com/WISE-Developers/project_nomad/commit/84d548c4a6986d48ad9faa9ce4bf29a1a722feed) Merge origin/dev (release-bot v0.61.1) into #536 follow-up — *Franco Nogarin, 05:16*
+- [`4906769`](https://github.com/WISE-Developers/project_nomad/commit/4906769cca1320729fd665b97d67002037f95e38) Merge fix/536-empty-filepath-roundtrip: a perimeter row must not report an empty filePath — *Franco Nogarin, 05:16*
+- [`dec5760`](https://github.com/WISE-Developers/project_nomad/commit/dec5760ea6eaa71ad06603198330683dc92e72d8) #536 follow-up: a perimeter row must not report a filePath it does not have — *Franco Nogarin, 05:16*
+- [`6644c58`](https://github.com/WISE-Developers/project_nomad/commit/6644c589f8092068dd9231f1fbe9602ed2ed9d77) chore: dev v0.61.1 [release-bot] — *github-actions[bot], 11:11*
+- [`8d47137`](https://github.com/WISE-Developers/project_nomad/commit/8d4713789d37c20724e1236f3a25a7fbfccd8d2b) Merge fix/536-perimeter-arrival-result-rows: #536 perimeter and arrival-time products as result rows for MCP — *Franco Nogarin, 05:11*
+- [`19b973d`](https://github.com/WISE-Developers/project_nomad/commit/19b973d81a9c033e5c5fbde72e25bf038e744800) #536: perimeter and arrival-time products reachable over MCP as result rows — *Franco Nogarin, 05:10*
 
 ### 2026-11-13
 
+- [`f6a63be`](https://github.com/WISE-Developers/project_nomad/commit/f6a63be2afea94de7ece9806ddaec708412f276b) chore: release v0.61.0 [release-bot] — *github-actions[bot], 17:40*
 - [`45e166a`](https://github.com/WISE-Developers/project_nomad/commit/45e166a23aa97745b7c4a794440cea92f5a702be) Merge pull request #538 from WISE-Developers/dev — *Franco Nogarin, 11:39*
 - [`ee8e82d`](https://github.com/WISE-Developers/project_nomad/commit/ee8e82dd50e36ed2635920d9e0909e65da79ec4e) chore: dev v0.60.1 [release-bot] — *github-actions[bot], 17:33*
 - [`8ee0f68`](https://github.com/WISE-Developers/project_nomad/commit/8ee0f68b44b2fa83283a98d7ce185413f8e3ed1b) Merge fix/perimeter-import-multipolygon: #537 MultiPolygon perimeters and the all-dropped false success — *Franco Nogarin, 11:32*
