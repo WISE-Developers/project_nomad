@@ -4,10 +4,28 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.63.0
+## v0.64.0
 
 ### 2026-11-16
 
+- [`a380bbb`](https://github.com/WISE-Developers/project_nomad/commit/a380bbbb1f249658647386baf0878002fecd26cc) Merge pull request #549 from WISE-Developers/dev — *Franco Nogarin, 07:59*
+- [`60f0c7d`](https://github.com/WISE-Developers/project_nomad/commit/60f0c7dd3d436dbaac9c796a9d2c125ad0dea82e) chore: dev v0.63.4 [release-bot] — *github-actions[bot], 13:56*
+- [`7d2e241`](https://github.com/WISE-Developers/project_nomad/commit/7d2e2413758ad9f410b945df5185f46e70fb351f) Merge fix/550-tile-bounds-outputtype: tile and bounds classify the product through one shared resolver — *Franco Nogarin, 07:55*
+- [`09f6d8a`](https://github.com/WISE-Developers/project_nomad/commit/09f6d8a0a0877f27bfd9e7bdd87f2687c58e9e67) #550: tile and bounds classify the product too, through one shared resolver — *Franco Nogarin, 07:55*
+- [`bced983`](https://github.com/WISE-Developers/project_nomad/commit/bced9836ec4a736f09b5f455558682f6711255cc) chore: dev v0.63.3 [release-bot] — *github-actions[bot], 13:48*
+- [`95dd4d5`](https://github.com/WISE-Developers/project_nomad/commit/95dd4d5d831136935d89c3cb8a5fbc52201d80f1) Merge origin/dev (v0.63.2 bump) into #547 derived geometry chain — *Franco Nogarin, 07:47*
+- [`833826e`](https://github.com/WISE-Developers/project_nomad/commit/833826e77b5ead9d6c39d6210f555e8860cca631) Merge fix/547-derive-geometry-set: one derived chain instead of three hand-kept geometry lists — *Franco Nogarin, 07:47*
+- [`47d00de`](https://github.com/WISE-Developers/project_nomad/commit/47d00dec1ab3c727c4d87718c548c67e97269bc8) #547: one derived chain instead of three hand-kept geometry lists — *Franco Nogarin, 07:46*
+- [`88329ec`](https://github.com/WISE-Developers/project_nomad/commit/88329ec9ab201f7156d7a14574616b60a428432b) chore: dev v0.63.2 [release-bot] — *github-actions[bot], 13:14*
+- [`ab26d4e`](https://github.com/WISE-Developers/project_nomad/commit/ab26d4ed0b89973fecac959e7f16c77479bdd40d) Merge fix/546-preview-outputtype: preview branches on outputType — *Franco Nogarin, 07:13*
+- [`052f5ea`](https://github.com/WISE-Developers/project_nomad/commit/052f5eab0b7ca5c56550eccbffd078230ca742d9) Merge fix/545-create-model-description: create-model stops declaring a description it cannot keep — *Franco Nogarin, 07:13*
+- [`5fef23c`](https://github.com/WISE-Developers/project_nomad/commit/5fef23cd4889d4b2a6d4dc0533b982c25292bcff) #546: preview branches on outputType instead of contouring whatever it is handed — *Franco Nogarin, 07:13*
+- [`7779d12`](https://github.com/WISE-Developers/project_nomad/commit/7779d126f68018bf19886aac39ce587aff82b122) #545: create-model stops declaring a description it cannot keep — *Franco Nogarin, 07:09*
+- [`c9adc4b`](https://github.com/WISE-Developers/project_nomad/commit/c9adc4bd6c6af387fc6ed2de0afd3630edb356c8) chore: dev v0.63.1 [release-bot] — *github-actions[bot], 12:52*
+- [`a1be9aa`](https://github.com/WISE-Developers/project_nomad/commit/a1be9aa9632e0653fd84519a3e9a1d8a1e499710) Merge origin/dev (v0.63.0 back-merge) into #539-541 boundary expansion — *Franco Nogarin, 06:50*
+- [`67519d4`](https://github.com/WISE-Developers/project_nomad/commit/67519d4054d2fe58f3a444e2650864a4c0a0979b) Merge fix/539-541-expand-multipart-at-boundary: multi-part geometry expands where it enters — *Franco Nogarin, 06:48*
+- [`80c3d08`](https://github.com/WISE-Developers/project_nomad/commit/80c3d088ed8daaf5fb173ae4d5fb89d0897f297b) #539 #540 #541: expand multi-part geometry at the boundary, not in every layer — *Franco Nogarin, 06:48*
+- [`8c1398b`](https://github.com/WISE-Developers/project_nomad/commit/8c1398b995a6d7934987deeef0edb5eef6d1ca45) chore: release v0.63.0 [release-bot] — *github-actions[bot], 12:09*
 - [`d25bb9d`](https://github.com/WISE-Developers/project_nomad/commit/d25bb9d01866e74460e341eff65c885c230ef8b2) Merge pull request #548 from WISE-Developers/dev — *Franco Nogarin, 06:09*
 - [`ff0a224`](https://github.com/WISE-Developers/project_nomad/commit/ff0a224ffc0ec664b2ca50f0e204236f88236336) chore: dev v0.62.1 [release-bot] — *github-actions[bot], 12:00*
 - [`b66fa79`](https://github.com/WISE-Developers/project_nomad/commit/b66fa79e4110a3c7e4dcb27a2f1025771cd0cb1b) Merge fix/543-mcp-identity-unmount: an unverifiable MCP identity leaves MCP unmounted instead of killing the app — *Franco Nogarin, 05:59*
