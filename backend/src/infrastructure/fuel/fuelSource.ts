@@ -9,8 +9,9 @@
  * function that would throw. v0.55.0's upgrading.md briefly documented this key as
  * operator-facing, including the promise that misconfiguring it fails rather than
  * falling back; that was corrected before release precisely because the promise had
- * no mechanism behind it. #282 is what connects this, and #282 is parked upstream on
- * NFIS declaring a NoData value.
+ * no mechanism behind it. #282 is what connects this. It is NO LONGER parked on NFIS:
+ * the nil value is now configuration, NOMAD_FUEL_NODATA_VALUE, required and unset until
+ * an operator declares it (Franco, 2026-11-17).
  *
  * DELETE THIS PARAGRAPH WHEN #282 WIRES IT UP, and document the key for operators at
  * the same time. It is not decoration:

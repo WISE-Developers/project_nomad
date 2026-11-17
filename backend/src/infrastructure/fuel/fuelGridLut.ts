@@ -4,9 +4,12 @@
  *
  * NOT YET WIRED, AND THAT IS THE CORRECT STATE. No production file outside this
  * directory imports this module: every reference today is in its own test. #282 is
- * what connects it, and #282 is parked upstream on NFIS declaring a NoData value --
- * which is this guard's blind spot too, since a nil pixel and a real grid_value are
- * indistinguishable to a validator that has never been told which is which.
+ * what connects it. It is NO LONGER parked on NFIS: the nil value is now configuration,
+ * NOMAD_FUEL_NODATA_VALUE, required and unset until an operator declares it (Franco,
+ * 2026-11-17). THE BLIND SPOT IS CLOSED: `findNonCanonicalValues` and
+ * `assertCanonicalGridValues` take that declared value and exempt it, so a nil pixel and
+ * a real grid_value are distinguishable at last -- but ONLY because somebody declared
+ * which is which. Declare nothing and nothing is exempt, exactly as before.
  *
  * DELETE THIS PARAGRAPH WHEN #282 WIRES IT UP. It is not decoration:
  * scripts/__tests__/fuel_modules_declare_wiring.test.sh fails on a module that has
@@ -19,13 +22,23 @@
  * is a fire-behaviour number nobody can trace. So the values are checked against
  * the table before anything consumes them.
  *
- * THE SERVICE DECLARES NO NIL VALUE. `swe:nilValues` is empty in
+ * THE SERVICE DECLARES NO NIL VALUE, SO WE DO. `swe:nilValues` is empty in
  * DescribeCoverage and the GeoTIFF carries no NoData tag (measured 2026-11-04;
- * raised with NFIS by BadgerOnABike). `0` is NOT a row in this table, so a `0`
- * pixel cannot be distinguished from a class we failed to decode. It is
- * therefore REJECTED, not mapped to non-fuel - mapping it would assert a
- * fire-behaviour fact about a pixel we cannot read, silently, inside a spread
- * calculation.
+ * raised with NFIS by BadgerOnABike). `0` is NOT a row in this table, so by itself a
+ * `0` pixel cannot be distinguished from a class we failed to decode, and is
+ * REJECTED - mapping it to non-fuel would assert a fire-behaviour fact about a pixel
+ * we cannot read, silently, inside a spread calculation.
+ *
+ * The ONE thing that changes that is an operator naming the value in
+ * NOMAD_FUEL_NODATA_VALUE. Then `0` - or whatever they named - is exempt, because a
+ * human has said which byte means absent. It is still never MAPPED to non-fuel: it is
+ * excluded from the canonical check, not given a fuel type. Absent and non-fuel are
+ * different claims, and only one of them is true of a pixel outside the coverage.
+ *
+ * The live coverage's value is measurably `0` (20,000 all-zero pixels past the data
+ * edge, an Int16 band with noDataValue null, measured 2026-11-16, issue comment
+ * 6920174616). That measurement is EVIDENCE for what an operator should set; it is
+ * deliberately not a default here, because a default would decide on their behalf.
  *
  * TWO TABLES, TWO JOBS, NEVER INTERCHANGEABLE. FireSTARR's own `fuel.lut` gives
  * the non-fuel block (100, 101, 103, 104, 105, 106) burnable fuel types on
@@ -92,12 +105,26 @@ export function parseFuelLut(csv: string): FuelLut {
  * Reports ALL of them rather than the first: a coverage that has gone wrong
  * tends to go wrong in more than one class, and a single-value error message
  * invites fixing one and re-running.
+ *
+ * `nilValue` is the absent-pixel value an OPERATOR declared, via
+ * NOMAD_FUEL_NODATA_VALUE (#282). Pixels equal to it are absent, not undecodable, and
+ * are not reported. Omitting it means no nil value has been declared, and then nothing
+ * is exempt — which is the behaviour this module has always had.
+ *
+ * It is a parameter rather than a module constant on purpose: which value means "absent"
+ * is a property of the coverage being read, not of this table. Baking one in would make
+ * a declared nil of 0 and an undecodable 0 the same thing again, permanently.
  */
-export function findNonCanonicalValues(values: Iterable<number>, lut: FuelLut): number[] {
+export function findNonCanonicalValues(
+  values: Iterable<number>,
+  lut: FuelLut,
+  nilValue?: number,
+): number[] {
   const offending: number[] = [];
   const seen = new Set<number>();
   for (const value of values) {
     if (lut.has(value) || seen.has(value)) continue;
+    if (nilValue !== undefined && value === nilValue) continue;
     seen.add(value);
     offending.push(value);
   }
@@ -107,13 +134,25 @@ export function findNonCanonicalValues(values: Iterable<number>, lut: FuelLut): 
 /**
  * Fails the run loudly when a fuel grid carries anything the table does not
  * define. There is deliberately no permissive mode and no substitution.
+ *
+ * `nilValue` carries the same meaning as in `findNonCanonicalValues`: the declared
+ * absent-pixel value, or nothing at all if none has been declared.
  */
-export function assertCanonicalGridValues(values: Iterable<number>, lut: FuelLut): void {
-  const offending = findNonCanonicalValues(values, lut);
+export function assertCanonicalGridValues(
+  values: Iterable<number>,
+  lut: FuelLut,
+  nilValue?: number,
+): void {
+  const offending = findNonCanonicalValues(values, lut, nilValue);
   if (offending.length === 0) return;
+  const nilNote =
+    nilValue === undefined
+      ? 'No nil value is declared, so NO value is exempt: set NOMAD_FUEL_NODATA_VALUE ' +
+        'if this coverage marks absent pixels.'
+      : `The declared nil value is ${nilValue}; these are not it.`;
   throw new Error(
     `fuel grid carries ${offending.length} value(s) absent from the canonical LUT: ` +
       `${offending.join(', ')}. ` +
-      'The grid was NOT decoded. 0 is not a grid_value and is never treated as non-fuel.',
+      `The grid was NOT decoded. ${nilNote}`,
   );
 }
