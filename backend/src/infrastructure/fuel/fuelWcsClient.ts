@@ -3,9 +3,11 @@
  *
  * NOT YET WIRED, AND THAT IS THE CORRECT STATE. No production file outside this
  * directory imports this module: every reference today is in its own test. #282 is
- * what connects it to a run, and #282 is parked upstream on NFIS declaring a NoData
- * value for the served coverage (BadgerOnABike raised it with them, #282, 2026-11-03).
- * Until that lands, a run cannot tell an absent pixel from a real fuel class, so
+ * what connects it to a run. It is NO LONGER parked on NFIS: the nil value is now
+ * configuration, NOMAD_FUEL_NODATA_VALUE, required and unset until an operator declares
+ * it (Franco, 2026-11-17). NFIS still declares none of its own for the served coverage
+ * (BadgerOnABike raised it with them, #282, 2026-11-03), which is exactly why the value
+ * is ours to state. Until it is set, a run cannot tell an absent pixel from a real fuel class, so
  * wiring this in would mean inventing one.
  *
  * DELETE THIS PARAGRAPH WHEN #282 WIRES IT UP. It is not decoration:

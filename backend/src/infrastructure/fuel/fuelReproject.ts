@@ -2,9 +2,11 @@
  * Reprojects a fuel grid into the run's UTM zone, locally. #282 task 4,
  * and #282's sixth checkbox ("re-project to local UTM central meridian").
  *
- * NOT YET WIRED, AND THAT IS THE CORRECT STATE. #282 is what connects it, and #282 is
- * parked upstream on NFIS declaring a NoData value. `buildFuelWarpArgs` has no
- * production caller today: every reference is in this file's own test.
+ * NOT YET WIRED, AND THAT IS THE CORRECT STATE. #282 is what connects it. It is NO
+ * LONGER parked on NFIS: the nil value is now configuration, NOMAD_FUEL_NODATA_VALUE,
+ * required and unset until an operator declares it (Franco, 2026-11-17).
+ * `buildFuelWarpArgs` has no production caller today: every reference is in this file's
+ * own test.
  *
  * Said here because the test below is the ONLY test in the repository that runs real
  * GDAL binaries rather than mocking them, against a real GeoTIFF fixture. That makes the
