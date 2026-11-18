@@ -40,9 +40,30 @@ would model a fire on a grid nobody chose and record it as though it had been th
 **`NOMAD_FUEL_WCS_CACHE_DIR` must sit inside a path the container mounts.** A path outside
 the mounts surfaces later as a missing raster rather than a missing mount.
 
-**Treat the WCS source as unproven for operational use.** It is opt-in and non-default on
-purpose. The 20 km window in particular is a placeholder pending the fuel SME: a fire that
-outruns it reaches the grid edge.
+**DO NOT SET `NOMAD_FUEL_SOURCE=wcs` ON A DEPLOYMENT YET. It cannot produce a fire.**
+Measured 2026-11-18 against the live coverage and FireSTARR v0.9.20. The fuel grid it
+produces is correct — georeferencing asserted, sample points round-tripped against an
+independent query, the data edge reading as the declared nil — but FireSTARR cannot yet
+consume a raster root built this way, for two reasons found by trying it:
+
+1. **A raster root needs a co-registered DEM, not only fuel.** The installed dataset
+   carries `dem_*.tif` beside every `fuel_*.tif`, on the same origin and size. Handed a
+   root with fuel alone, FireSTARR **segfaults with no message at all** — no FATAL line,
+   no log, exit 139. Supplying the DEM clipped to the same extent gets past it.
+2. **The reprojection targets the wrong datum.** `utmEpsgForZone` returns WGS84 UTM
+   (EPSG:326xx) while the installed fuel and DEM are both NAD83 (EPSG:269xx), and
+   FireSTARR answers `Grids are not aligned`. Which datum is authoritative is a
+   fire-modelling decision, not a plumbing one, so it is filed rather than changed here.
+
+**What is NOT claimed, and why the distinction matters.** A full run was not achieved —
+but neither was it achieved with the INSTALLED dataset using the same harness, which
+failed at `map::at` after loading fuels and finding the ignition cell. So the fire-run
+failures are **not attributable to the WCS source**; the harness itself is not a working
+invocation. Items 1 and 2 above stand on their own because they come from FireSTARR's own
+diagnostics and from `gdalinfo`, neither of which depends on a run completing.
+
+The 20 km window is also a placeholder pending the fuel SME: a fire that outruns it
+reaches the grid edge.
 
 ---
 

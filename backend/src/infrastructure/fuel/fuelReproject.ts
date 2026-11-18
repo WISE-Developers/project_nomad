@@ -48,6 +48,25 @@ export interface FuelWarpRequest {
   readonly utmZone: number;
   /** Cell size in metres. Stated explicitly; there is deliberately no default. */
   readonly resolutionM: number;
+  /**
+   * The operator-declared absent-pixel value, used as the fill for the parts of the
+   * output rectangle the source never covered.
+   *
+   * REPROJECTING A RECTANGLE PRODUCES A ROTATED QUADRILATERAL, so the output always has
+   * corners outside the source footprint, and something must go in them. Left to itself
+   * gdalwarp writes 0 there and declares no NoData — measured 2026-11-18 on
+   * fbp100m2026wcs, whose fetched window held values 1..675 and no 0 at all, while the
+   * reprojected corner read 0.
+   *
+   * That is only harmless while the declared nil happens to BE 0. Declare -9999 and the
+   * corners would still be filled with 0, which is a legitimate grid value, so ground
+   * the coverage never described would read as a real fuel class and a fire could spread
+   * through it with nothing saying so.
+   *
+   * Optional only so this stayed additive to callers that predate it; the production
+   * seam always supplies it.
+   */
+  readonly nilValue?: number;
 }
 
 /**
@@ -59,6 +78,7 @@ export function buildFuelWarpArgs({
   targetPath,
   utmZone,
   resolutionM,
+  nilValue,
 }: FuelWarpRequest): string[] {
   if (!Number.isFinite(resolutionM) || resolutionM <= 0) {
     throw new Error(
@@ -79,6 +99,9 @@ export function buildFuelWarpArgs({
     // Keep the integer type; a float output would invite interpolation later.
     '-ot',
     'Int16',
+    // `!== undefined`, never a truthiness test: 0 is the value the live coverage uses
+    // past its data edge, and `if (nilValue)` would drop exactly that case.
+    ...(nilValue !== undefined ? ['-dstnodata', String(nilValue)] : []),
     '-overwrite',
     sourcePath,
     targetPath,
@@ -86,17 +109,29 @@ export function buildFuelWarpArgs({
 }
 
 /**
- * Fails when reprojection produced a class the source did not contain.
+ * Fails when reprojection produced a FUEL CLASS the source did not contain.
  *
  * A SUBSET IS FINE and expected: the reprojected footprint clips corners, so
  * edge classes can disappear. What must never happen is a class appearing -
  * nearest-neighbour cannot invent one, and anything that does has blended.
+ *
+ * `nilValue` is the operator-declared absent-pixel value, and it is exempt because
+ * reprojection LEGITIMATELY introduces absence: the rotated footprint leaves corners the
+ * source never covered, and those are filled with the nil. Without this parameter the
+ * check failed a correct reprojection on its first real coverage (#282, 2026-11-18),
+ * which is the shape where a guard manufactures failures and teaches people to ignore it.
+ *
+ * Exempting ONE declared value does not blunt the check: a blended kernel produces
+ * values that are not the nil - 650 against 102 averages to 376 - and those still fail.
+ * Omit the parameter and nothing is exempt, exactly as before.
  */
 export function assertClassDomainPreserved(
   sourceValues: Iterable<number>,
   reprojectedValues: Iterable<number>,
+  nilValue?: number,
 ): void {
   const source = new Set(sourceValues);
+  if (nilValue !== undefined) source.add(nilValue);
   const invented = [...new Set(reprojectedValues)].filter(value => !source.has(value));
   if (invented.length > 0) {
     throw new Error(

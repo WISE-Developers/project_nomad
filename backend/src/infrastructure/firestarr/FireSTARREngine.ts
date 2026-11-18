@@ -746,9 +746,30 @@ export class FireSTARREngine implements IFireModelingEngine, IWorkspaceAwareEngi
     // Putting grid-root resolution on the port is the better fix and is a wider change
     // than #520 should carry.
     const generator = this.inputGenerator as Partial<FireSTARRInputGenerator>;
-    const gridRootForEngine = isBinaryMode()
+    const installedRoot = isBinaryMode()
       ? generator.getGridRoot?.()
       : generator.getContainerGridRoot?.();
+
+    // A RUN THAT SOURCED ITS OWN FUEL OVERRIDES THE INSTALLED ROOT (#282).
+    //
+    // This flag is the only thing that decides which fuel a fire actually burns. Before
+    // this branch existed, a WCS-sourced run fetched a coverage, checked it against the
+    // canonical table, reprojected it into the run's UTM zone, recorded the WCS as its
+    // producer — and then the engine was pointed at the locally installed tiles, so the
+    // fire used those. Every artefact of the run said otherwise. Asking D7's fourth
+    // question, whether the resulting grid was the one the ENGINE consumed, is what
+    // turned that up; the path having run proved nothing about it.
+    //
+    // In container mode the working directory is mounted at a known path, so the per-run
+    // root is derived from the container form rather than passed as a host path the
+    // engine could not open.
+    const perRunRoot = inputResult.fuelRasterRoot
+      ? isBinaryMode()
+        ? inputResult.fuelRasterRoot
+        : `${workingDir}/fuelgrid`
+      : undefined;
+
+    const gridRootForEngine = perRunRoot ?? installedRoot;
     if (gridRootForEngine) {
       args.push('--raster-root', gridRootForEngine);
     }

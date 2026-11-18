@@ -497,6 +497,10 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
         perimeterFile,
         configFiles: [],
         perimeterCentroid,
+        // Set only when the fuel came from somewhere other than the installed dataset
+        // (#282). Without carrying it this far, a WCS run fetches, validates and
+        // reprojects a coverage and the engine then reads the local tiles anyway.
+        fuelRasterRoot: fuel.fuelRasterRoot,
       };
 
       console.log(`[FireSTARRInputGenerator] Generated inputs for model ${modelId}:`, result);

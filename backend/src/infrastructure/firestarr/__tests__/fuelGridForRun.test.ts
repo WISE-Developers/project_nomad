@@ -43,6 +43,7 @@ function deps(over: Partial<FuelGridForRunDeps> = {}): FuelGridForRunDeps {
     toEpsg3978: vi.fn().mockResolvedValue({ x: 570705, y: 6743438 }),
     warp: vi.fn().mockResolvedValue(undefined),
     nilValue: vi.fn().mockReturnValue(0),
+    ensureDir: vi.fn().mockResolvedValue(undefined),
     ...over,
   };
 }
@@ -179,6 +180,37 @@ describe('resolveFuelGridForRun — wcs, opt-in (#282, D1/D2/D4)', () => {
     expect(args[args.indexOf('-t_srs') + 1]).toBe('EPSG:32611');
     expect(args[args.indexOf('-tr') + 1]).toBe('100');
     expect(args[args.indexOf('-r') + 1]).toBe('near');
+  });
+
+  it('returns a RASTER ROOT for the engine, with the grid inside it under the name FireSTARR looks for', async () => {
+    // The engine takes --raster-root, a directory, and picks its own grid inside it. A
+    // grid written anywhere else is a file nothing reads, which is what the path looked
+    // like before this field existed: every guard green, the fire on local fuel.
+    const d = deps();
+    const result = await resolveFuelGridForRun(REQUEST, d, WCS_ENV);
+
+    expect(result.fuelRasterRoot).toBe('/sims/model-1/fuelgrid');
+    expect(result.gridPath).toBe('/sims/model-1/fuelgrid/default/fuel_11_0.tif');
+    // `default` rather than the model year, so the engine finds it whatever year is
+    // asked for — the window was cut for this run's ignition.
+    expect(d.ensureDir).toHaveBeenCalledWith('/sims/model-1/fuelgrid/default');
+  });
+
+  it('CONTROL: a local run carries NO raster root, so the installed one keeps being used', async () => {
+    const result = await resolveFuelGridForRun(REQUEST, deps(), {});
+    expect(result.fuelRasterRoot).toBeUndefined();
+  });
+
+  it('tells the warp the declared nil as the fill, and exempts it from the domain check', async () => {
+    const assertDomain = vi.fn();
+    const d = deps({ nilValue: vi.fn().mockReturnValue(0), assertDomain });
+    await resolveFuelGridForRun(REQUEST, d, WCS_ENV);
+
+    const args: string[] = (d.warp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(args[args.indexOf('-dstnodata') + 1]).toBe('0');
+    // Third argument is the nil. Without it the check fails a correct reprojection,
+    // because the rotated footprint's corners are filled with exactly this value.
+    expect(assertDomain.mock.calls[0][2]).toBe(0);
   });
 
   it('checks the reprojection invented no class, after the warp', async () => {

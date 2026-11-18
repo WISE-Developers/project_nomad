@@ -23,6 +23,15 @@ export interface InputGenerationResult {
   readonly configFiles: string[];
   /** Corrected ignition centroid from perimeter rasterization (WGS84) */
   readonly perimeterCentroid?: { latitude: number; longitude: number };
+  /**
+   * Raster root the engine must use for THIS run, when it is not the installed one
+   * (#282).
+   *
+   * The engine takes `--raster-root`, a directory, and picks its own grid inside it, so
+   * a run that sources fuel from somewhere else has to say where. Absent for a local
+   * run, which keeps using the installed root.
+   */
+  readonly fuelRasterRoot?: string;
 }
 
 /**

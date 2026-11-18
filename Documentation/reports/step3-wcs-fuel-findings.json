@@ -1,0 +1,115 @@
+{
+  "3a_path_ran": {
+    "source": "wcs",
+    "producer_recorded": "CFS FBP WCS coverage fbp100m2026wcs",
+    "coverage_requests": [
+      "https://ca.nfis.org/mapserver/cgi-bin/fbp_eng.cgi?SERVICE=WCS&REQUEST=GetCoverage&version=2.0.1&CoverageId=fbp100m2026wcs&outputformat=geotiff&subset=x%28-1084637.1626541617%2C-1064637.1626541617%29&subset=y%281459481.0622321097%2C1479481.0622321097%29"
+    ],
+    "grid_handed_on": "/Volumes/KINGSTON/tmp/sage-step3-proof/fuelgrid/default/fuel_11_0.tif",
+    "note": "Guard and domain checks are inside resolveFuelGridForRun; reaching this line means both passed."
+  },
+  "3b_i_georeferencing": {
+    "expected_epsg": 32611,
+    "actual_epsg": 32611,
+    "epsg_ok": true,
+    "requested_resolution_m": 100,
+    "actual_cell_size": [
+      100,
+      100
+    ],
+    "cell_size_ok": true,
+    "extent_contains_ignition": true
+  },
+  "3b_ii_round_trip": {
+    "uniform_patch_radius_cells": 2,
+    "samples_found": 4,
+    "asymmetry": {
+      "north_vs_south_differ": true,
+      "east_vs_west_differ": true,
+      "classes": {
+        "north": 102,
+        "south": 2,
+        "east": 102,
+        "west": 101
+      }
+    },
+    "round_trips": [
+      {
+        "direction": "north",
+        "bbox_3978": [
+          -1074637.1626541617,
+          1474581.0622321097,
+          -1074537.1626541617,
+          1474681.0622321097
+        ],
+        "independent_getcoverage_value": 102,
+        "our_reprojected_grid_value": 102,
+        "agree": true,
+        "http_status": 200
+      },
+      {
+        "direction": "south",
+        "bbox_3978": [
+          -1074637.1626541617,
+          1462281.0622321097,
+          -1074537.1626541617,
+          1462381.0622321097
+        ],
+        "independent_getcoverage_value": 2,
+        "our_reprojected_grid_value": 2,
+        "agree": true,
+        "http_status": 200
+      },
+      {
+        "direction": "east",
+        "bbox_3978": [
+          -1070037.1626541617,
+          1469381.0622321097,
+          -1069937.1626541617,
+          1469481.0622321097
+        ],
+        "independent_getcoverage_value": 102,
+        "our_reprojected_grid_value": 102,
+        "agree": true,
+        "http_status": 200
+      },
+      {
+        "direction": "west",
+        "bbox_3978": [
+          -1080237.1626541617,
+          1469381.0622321097,
+          -1080137.1626541617,
+          1469481.0622321097
+        ],
+        "independent_getcoverage_value": 101,
+        "our_reprojected_grid_value": 101,
+        "agree": true,
+        "http_status": 200
+      }
+    ],
+    "all_agree": true
+  },
+  "3b_iii_off_edge": {
+    "corner_probe": {
+      "x": 557585.2293300803,
+      "y": 6756559.5745496005,
+      "value": 0
+    },
+    "declared_nil": 0,
+    "corner_reads_as_declared_nil": true,
+    "ignition_probe": {
+      "x": 570705.9192183949,
+      "y": 6743438.78367615,
+      "value": 1
+    },
+    "ignition_is_a_real_class": true,
+    "note": "The output corner lies outside the rotated source footprint, so it is beyond the coverage data edge while still inside the raster. It must be the declared nil, and the ignition must NOT be, or the check passes on an empty grid."
+  },
+  "3b_item5_local_cross_check": {
+    "ran": false,
+    "local_vintage": "2025",
+    "coverage_vintage": null,
+    "evidence": "DescribeCoverage declares no season or vintage anywhere in its response",
+    "skipped_because": "vintage equality could NOT BE ASSERTED from both sides own metadata. D9 item 5 requires assertion, never assumption, so the cross-check does not run. The three mandatory checks above are what condition 3 rests on, and they stand on their own."
+  }
+}

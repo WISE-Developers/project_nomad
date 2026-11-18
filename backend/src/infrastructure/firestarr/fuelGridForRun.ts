@@ -89,6 +89,20 @@ export interface FuelGridForRun {
   /** Which source produced it, for the run's own record (#431, plan D4). */
   readonly producer: string;
   readonly source: 'local' | 'wcs';
+  /**
+   * The RASTER ROOT the engine must be pointed at, when it is not the installed one.
+   *
+   * THIS FIELD IS THE DIFFERENCE BETWEEN A PATH THAT RAN AND A FIRE THAT USED IT.
+   * FireSTARR is not handed a fuel file — it takes `--raster-root`, a DIRECTORY, and
+   * selects its own grid inside it. So fetching, validating and reprojecting a coverage
+   * changes nothing on its own: without this, a WCS run would do all of that work and
+   * the engine would still read the locally installed tiles, with every artefact in the
+   * run saying the WCS had been used. Found by asking D7's fourth question — was the
+   * resulting grid the one the ENGINE consumed — rather than only whether the path ran.
+   *
+   * Undefined for a local run, which keeps using the installed root exactly as before.
+   */
+  readonly fuelRasterRoot?: string;
 }
 
 /**
@@ -113,6 +127,8 @@ export interface FuelGridForRunDeps {
   readonly warp?: (args: string[]) => Promise<void>;
   /** EnvironmentService.getFuelNoDataValue — throws when unset, by design (D2). */
   readonly nilValue?: () => number;
+  /** Creates the raster-root directory the reprojected grid is written into. */
+  readonly ensureDir?: (path: string) => Promise<void>;
   readonly assertCanonical?: typeof assertCanonicalGridValues;
   readonly assertDomain?: typeof assertClassDomainPreserved;
 }
@@ -152,6 +168,12 @@ export async function resolveFuelGridForRun(
   const warp = deps.warp;
   const assertCanonical = deps.assertCanonical ?? assertCanonicalGridValues;
   const assertDomain = deps.assertDomain ?? assertClassDomainPreserved;
+  const ensureDir =
+    deps.ensureDir ??
+    (async (path: string) => {
+      const { mkdir } = await import('node:fs/promises');
+      await mkdir(path, { recursive: true });
+    });
   if (!readGridValues || !warp || !deps.nilValue) {
     throw new Error(
       'the WCS fuel source needs a raster reader, a warp runner and a nil-value source. ' +
@@ -181,19 +203,36 @@ export async function resolveFuelGridForRun(
   const sourceValues = await readGridValues(coveragePath);
   assertCanonical(sourceValues, loadDecodeFuelLut(), nil);
 
-  const targetPath = join(request.workingDir, 'fuel_wcs_utm.tif');
+  // THE REPROJECTED GRID IS WRITTEN INTO A RASTER ROOT, not dropped beside the weather
+  // file, because that is the shape FireSTARR reads: `{root}/{year|default}/fuel_*.tif`.
+  // `default` rather than the model year so the engine finds it whatever year is asked
+  // for — the window was cut for THIS run's ignition, so there is no other year it could
+  // be. The `_0` suffix is the zone's own central meridian (zone * 6 - 183), which is
+  // what reprojecting to utmEpsgForZone always produces; a `_5` half-zone grid cannot
+  // arise from this path.
+  const fuelRasterRoot = join(request.workingDir, 'fuelgrid');
+  const targetDir = join(fuelRasterRoot, 'default');
+  const targetPath = join(targetDir, `fuel_${request.utmZone}_0.tif`);
+  await ensureDir(targetDir);
   await warp(
     buildFuelWarpArgs({
       sourcePath: coveragePath,
       targetPath,
       utmZone: request.utmZone,
       resolutionM: request.resolutionM,
+      // The fill for the corners the rotated footprint leaves uncovered. Told to
+      // gdalwarp rather than left to it: unguided it writes 0 and declares no NoData,
+      // so a declared nil of anything else would leave real-looking fuel in ground the
+      // coverage never described (#282, measured 2026-11-18).
+      nilValue: nil,
     })
   );
 
-  // Step 3: nearest-neighbour cannot invent a class, so anything new means it blended.
-  assertDomain(sourceValues, await readGridValues(targetPath));
+  // Step 3: nearest-neighbour cannot invent a class, so anything new means it blended —
+  // except the nil, which the fill above legitimately introduces.
+  assertDomain(sourceValues, await readGridValues(targetPath), nil);
 
-  // Step 4: the reprojected grid, never the download.
-  return { gridPath: targetPath, producer, source: 'wcs' };
+  // Step 4: the reprojected grid, never the download — and the root the engine must be
+  // pointed at, without which none of the above reaches the fire.
+  return { gridPath: targetPath, producer, source: 'wcs', fuelRasterRoot };
 }
