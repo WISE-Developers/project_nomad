@@ -175,7 +175,41 @@ FIRESTARR_EXECUTION_MODE="docker"
 # ---- Step 4: paths + ports + hostname (mirrors step3 defaults) --------
 # All env-or-default, identical to what the menu installer's prompts use.
 FIRESTARR_DOWNLOAD_DIR="${FIRESTARR_DOWNLOAD_DIR:-$HOME/Downloads}"
+is_placeholder_value() {
+    # True when a value is one of OUR shipped placeholders rather than something
+    # an operator chose (#343).
+    #
+    # .env.example ships non-empty placeholders, and the installer copies it to
+    # .env before writing any key. The #292 rule ("never overwrite an existing
+    # non-empty value") could not tell the two apart, so it preserved the
+    # placeholder and discarded the answer given at the prompt. 5.5 GB of fuel
+    # rasters landed in a literal /absolute/path/to/firestarr_data.
+    #
+    # Anchored patterns only: a genuine path like /home/yourname/data or an
+    # agency id like changeme-inc must NOT be mistaken for a placeholder.
+    local value="$1"
+
+    case "$value" in
+        /absolute/path/to/*)      return 0 ;;
+        /path/to/*)               return 0 ;;
+        your-*)                   return 0 ;;
+        changeme|CHANGEME)        return 0 ;;
+        yourdomain.com|example.com) return 0 ;;
+        xxx|XXX|TODO|TBD)         return 0 ;;
+    esac
+
+    return 1
+}
+
 FIRESTARR_DATASET_PATH="${FIRESTARR_DATASET_PATH:-$HOME/firestarr_data}"
+# #561: this script sources .env, which was copied from .env.example and ships this
+# key NON-EMPTY, so the :- fallback above cannot fire and the shipped placeholder is
+# inherited silently -- there is no prompt here to notice it. NOMAD_DATA_PATH is
+# derived from it on the next line, so the check belongs before that, which is why
+# is_placeholder_value is defined above rather than further down.
+if is_placeholder_value "$FIRESTARR_DATASET_PATH"; then
+    FIRESTARR_DATASET_PATH="$HOME/firestarr_data"
+fi
 SIMS_OUTPUT_PATH="$FIRESTARR_DATASET_PATH/sims"
 NOMAD_DATA_PATH="${NOMAD_DATA_PATH:-$FIRESTARR_DATASET_PATH}"
 NOMAD_FRONTEND_HOST_PORT="${NOMAD_FRONTEND_HOST_PORT:-3901}"
@@ -224,31 +258,6 @@ ok "FIRESTARR_IMAGE = $FIRESTARR_IMAGE"
 # ---- Step 7: generate_env_file (line-for-line equivalent) -------------
 step "Writing .env (in place, preserves unrelated keys)"
 
-is_placeholder_value() {
-    # True when a value is one of OUR shipped placeholders rather than something
-    # an operator chose (#343).
-    #
-    # .env.example ships non-empty placeholders, and the installer copies it to
-    # .env before writing any key. The #292 rule ("never overwrite an existing
-    # non-empty value") could not tell the two apart, so it preserved the
-    # placeholder and discarded the answer given at the prompt. 5.5 GB of fuel
-    # rasters landed in a literal /absolute/path/to/firestarr_data.
-    #
-    # Anchored patterns only: a genuine path like /home/yourname/data or an
-    # agency id like changeme-inc must NOT be mistaken for a placeholder.
-    local value="$1"
-
-    case "$value" in
-        /absolute/path/to/*)      return 0 ;;
-        /path/to/*)               return 0 ;;
-        your-*)                   return 0 ;;
-        changeme|CHANGEME)        return 0 ;;
-        yourdomain.com|example.com) return 0 ;;
-        xxx|XXX|TODO|TBD)         return 0 ;;
-    esac
-
-    return 1
-}
 
 update_env_value() {
     local key="$1"
