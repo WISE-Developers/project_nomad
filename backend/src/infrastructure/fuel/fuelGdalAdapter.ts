@@ -1,0 +1,104 @@
+/**
+ * The real GDAL collaborators for `resolveFuelGridForRun` (#282, plan Step 2).
+ *
+ * Kept apart from the seam so the composition stays testable without GDAL, and so the
+ * two different GDAL surfaces this path needs are visible rather than tangled:
+ *
+ *   - `gdal-async`, the in-process binding, for the coordinate transform and for reading
+ *     pixel values. It is already how PerimeterRasterizer and ArrivalTimeTileGenerator
+ *     read rasters, so this adds no new dependency.
+ *   - `gdalwarp`, the CLI, for the reprojection — because `buildFuelWarpArgs` returns an
+ *     argv for it, and the argv form is what keeps paths with spaces unquoted and
+ *     uninjectable.
+ *
+ * THOSE TWO CAN DISAGREE ABOUT WHETHER GDAL IS PRESENT, and on a macOS dev host they
+ * currently do: the binding loads fine while every Homebrew GDAL binary fails to link
+ * (measured 2026-11-18 — libheif wants libx265.215 and Homebrew ships .217). So a
+ * missing CLI is reported as exactly that, naming the binary, rather than as a fuel
+ * error. The dev container's GDAL 3.6.2 works, which is where this path is exercised.
+ */
+
+import { spawn } from 'node:child_process';
+
+/** The coverage's native CRS. Stated once; the WCS serves only this. */
+const COVERAGE_EPSG = 3978;
+
+/**
+ * WGS84 to the coverage CRS, in projected metres.
+ *
+ * `fromEPSG(4326)` does not transform correctly in this binding — the existing fuel-grid
+ * lookup carries the same note and the same proj4 workaround, so this matches it rather
+ * than inventing a second convention.
+ */
+export async function toEpsg3978(
+  latitude: number,
+  longitude: number
+): Promise<{ x: number; y: number }> {
+  const gdal = (await import('gdal-async')).default;
+  const wgs84 = gdal.SpatialReference.fromProj4('+proj=longlat +datum=WGS84 +no_defs');
+  const target = gdal.SpatialReference.fromEPSG(COVERAGE_EPSG);
+  const transform = new gdal.CoordinateTransformation(wgs84, target);
+  const point = transform.transformPoint(longitude, latitude);
+  return { x: point.x, y: point.y };
+}
+
+/**
+ * Every DISTINCT pixel value in band 1.
+ *
+ * Distinct rather than all of them: both guards take a set — "which values are present"
+ * — and a 20 km window at 100 m is 40,000 pixels whose full list says nothing extra.
+ */
+export async function readGridValues(path: string): Promise<number[]> {
+  const gdal = (await import('gdal-async')).default;
+  const ds = await gdal.openAsync(path);
+  try {
+    const band = ds.bands.get(1);
+    const { x, y } = ds.rasterSize;
+    const pixels = band.pixels.read(0, 0, x, y) as unknown as ArrayLike<number>;
+    const seen = new Set<number>();
+    for (let i = 0; i < pixels.length; i += 1) {
+      seen.add(pixels[i]);
+    }
+    return [...seen];
+  } finally {
+    ds.close();
+  }
+}
+
+/**
+ * Runs `gdalwarp` with a prepared argv.
+ *
+ * Non-zero exit carries stderr into the message. GDAL reports a projection refusal and a
+ * missing file in the same exit code, so the text is the only thing that tells them apart.
+ */
+export async function warp(args: string[], binary = 'gdalwarp'): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(binary, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    let stderr = '';
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+    child.on('error', (err: NodeJS.ErrnoException) => {
+      reject(
+        new Error(
+          err.code === 'ENOENT'
+            ? `${binary} is not on PATH, so the fuel grid cannot be reprojected. This is a ` +
+              'missing GDAL CLI, not a fuel data problem.'
+            : `${binary} could not be started: ${err.message}`
+        )
+      );
+    });
+    child.on('close', (code: number | null) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(
+        new Error(
+          `${binary} exited ${code ?? 'with no status'} while reprojecting the fuel grid. ` +
+            `stderr: ${stderr.trim() || '(empty)'}`
+        )
+      );
+    });
+  });
+}
