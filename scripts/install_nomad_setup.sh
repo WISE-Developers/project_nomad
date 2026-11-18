@@ -672,7 +672,14 @@ prompt_dataset_source() {
             ;;
         3)
             # Skip - use default path but don't download
+            # #561: .env.example ships this key NON-EMPTY and the installer sources .env before the
+            # wizard runs, so the :- fallback below is dead code and the operator would be OFFERED
+            # our own placeholder. The predicate already existed; it was only ever asked at write
+            # time (#343). Asked here too, a placeholder reads as ABSENT, exactly as #343 intended.
             local default_dataset="${FIRESTARR_DATASET_PATH:-$HOME/firestarr_data}"
+            if is_placeholder_value "$default_dataset"; then
+                default_dataset="$HOME/firestarr_data"
+            fi
             FIRESTARR_DATASET_PATH="$default_dataset"
             DATASET_INSTALL_MODE="skip"
             print_info "Skipping dataset configuration - you'll need to set this up later"
@@ -692,7 +699,14 @@ prompt_existing_dataset() {
     echo "    Expected structure: {path}/generated/grid/100m/"
     echo ""
 
+    # #561: .env.example ships this key NON-EMPTY and the installer sources .env before the
+    # wizard runs, so the :- fallback below is dead code and the operator would be OFFERED
+    # our own placeholder. The predicate already existed; it was only ever asked at write
+    # time (#343). Asked here too, a placeholder reads as ABSENT, exactly as #343 intended.
     local default_dataset="${FIRESTARR_DATASET_PATH:-$HOME/firestarr_data}"
+    if is_placeholder_value "$default_dataset"; then
+        default_dataset="$HOME/firestarr_data"
+    fi
     read -p "Dataset path [$default_dataset]: " input_dataset
     input_dataset="${input_dataset:-$default_dataset}"
 
@@ -754,7 +768,14 @@ prompt_new_dataset_path() {
     echo "    Where to extract and install the dataset."
     echo ""
 
+    # #561: .env.example ships this key NON-EMPTY and the installer sources .env before the
+    # wizard runs, so the :- fallback below is dead code and the operator would be OFFERED
+    # our own placeholder. The predicate already existed; it was only ever asked at write
+    # time (#343). Asked here too, a placeholder reads as ABSENT, exactly as #343 intended.
     local default_dataset="${FIRESTARR_DATASET_PATH:-$HOME/firestarr_data}"
+    if is_placeholder_value "$default_dataset"; then
+        default_dataset="$HOME/firestarr_data"
+    fi
     read -p "Install path [$default_dataset]: " input_dataset
     input_dataset="${input_dataset:-$default_dataset}"
 
