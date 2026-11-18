@@ -2,22 +2,18 @@
  * Which fuel source a run uses, and how that choice is recorded. #282 task 6,
  * condition 5.
  *
- * NOT YET WIRED, AND THAT IS THE CORRECT STATE -- AND THIS MODULE IS THE ONE WHERE
- * THAT MATTERS MOST. `resolveFuelSource` has no production caller: NOMAD_FUEL_SOURCE
- * is read in this file and nowhere else, so the two rules below DESCRIBE INTENT AND
- * DO NOT YET RUN. In particular rule 2 cannot fail, because nothing calls the
- * function that would throw. v0.55.0's upgrading.md briefly documented this key as
- * operator-facing, including the promise that misconfiguring it fails rather than
- * falling back; that was corrected before release precisely because the promise had
- * no mechanism behind it. #282 is what connects this. It is NO LONGER parked on NFIS:
- * the nil value is now configuration, NOMAD_FUEL_NODATA_VALUE, required and unset until
- * an operator declares it (Franco, 2026-11-17).
+ * WIRED by #282, and this module is the one where that mattered most.
+ * `infrastructure/firestarr/fuelGridForRun.ts` calls `resolveFuelSource` once per run,
+ * so the two rules below now RUN rather than describe intent, and rule 2's throw is
+ * reachable. v0.55.0's upgrading.md briefly documented this key as operator-facing,
+ * including the promise that misconfiguring it fails rather than falling back; that was
+ * corrected before release precisely because the promise had no mechanism behind it.
+ * The mechanism exists now, so the key is documented for operators again.
  *
- * DELETE THIS PARAGRAPH WHEN #282 WIRES IT UP, and document the key for operators at
- * the same time. It is not decoration:
- * scripts/__tests__/fuel_modules_declare_wiring.test.sh fails on a module that has
- * acquired a production importer while still claiming to be unwired, so the note
- * cannot quietly outlive the condition it describes (#523).
+ * THE DEFAULT DID NOT CHANGE WHEN IT WAS WIRED. Unset still means `local`, because the
+ * WCS source ships opt-in and non-default (Franco, 2026-11-18: "no its optional, and not
+ * a default at this time" — "at this time" being a not-yet rather than a never).
+ *
  * TWO RULES, AND THEY ARE THE WHOLE MODULE.
  *
  * 1. An installation that has local fuel tiles keeps working with no

@@ -28,6 +28,39 @@ import { type FireModelId } from '../../domain/entities/index.js';
 import { FireSTARRParams } from './types.js';
 import { writeWeatherCSV, validateWeatherData } from './WeatherCSVWriter.js';
 import { rasterizePerimeter, isGDALAvailable, isSupportedPerimeterGeometry } from './PerimeterRasterizer.js';
+import {
+  resolveFuelGridForRun,
+  LocalFuelGridMissingError,
+  type FuelGridForRun,
+} from './fuelGridForRun.js';
+import { toEpsg3978, readGridValues, warp } from '../fuel/fuelGdalAdapter.js';
+import { EnvironmentService } from '../config/EnvironmentService.js';
+
+/**
+ * Cell size for a WCS-sourced fuel grid, in metres.
+ *
+ * 100 m, matching both the served coverage (`fbp100m2026wcs`) and the installed local
+ * grids, so switching source does not silently change resolution. Stated here rather
+ * than defaulted inside the reprojection, which deliberately has no default.
+ */
+const FUEL_WCS_RESOLUTION_M = 100;
+
+/**
+ * Side length of the fuel window fetched around the ignition, in metres.
+ *
+ * THIS IS THE ONE FIRE-BEHAVIOUR CHOICE THIS WIRING MAKES, and it is a placeholder
+ * pending the SME. The local path hands FireSTARR whole tiles, so there was no window
+ * to inherit; 20 km gives 10 km of spread room in every direction from the ignition.
+ * A fire that outruns the window would reach the grid edge, and what FireSTARR does
+ * there is not something this constant should be deciding by accident. Confirm with
+ * Samuel L (#282's SME) before the WCS source is recommended for real use — which D1
+ * already defers by shipping it opt-in and non-default.
+ */
+const FUEL_WCS_WINDOW_M = 20000;
+
+/** UTM zone from longitude, the same arithmetic FireSTARREngine already uses. */
+const utmZoneForLongitude = (longitude: number): number =>
+  Math.floor((longitude + 180) / 6) + 1;
 
 /**
  * Configuration for FireSTARR input generation.
@@ -247,6 +280,7 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
     workingDir: string,
     gridPath: string,
     requestedYear: number,
+    fuelSourceLabel?: string,
   ): Promise<void> {
     const vintage = this.vintageFromGridPath(gridPath);
     const matchedRequestedYear = vintage === String(requestedYear);
@@ -271,6 +305,12 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
       // Omitted entirely rather than written as null, so a reader can tell
       // "nobody recorded this" from "recorded as nothing".
       ...(producer ? { producer } : {}),
+      // Which SOURCE produced this grid (#282, plan D4), as fuelProducerLabel named it.
+      // A SEPARATE field from `producer` on purpose: that one is the dataset manifest's
+      // own attribution and means nothing for a WCS run, and overwriting it would
+      // rewrite what every existing local run claims. A reader needs both answers —
+      // who made the data, and where this run got it.
+      ...(fuelSourceLabel ? { fuelSource: fuelSourceLabel } : {}),
       recordedAt: new Date().toISOString(),
     };
 
@@ -340,17 +380,49 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
       // "Process exited with code 1" after the engine died on a bare raster
       // root. Reported here, while it can still be acted on.
       const modelYear = params.startDate.getFullYear();
-      const fuelGrid = await this.findFuelGridForCoordinates(
-        params.latitude,
-        params.longitude,
-        modelYear,
-      );
-      if (!fuelGrid) {
-        return Result.fail(new ValidationError(await this.describeMissingFuel(modelYear)));
-      }
 
-      // Write down which vintage this run used, now, while it is true (#331).
-      await this.recordFuelVintage(workingDir, fuelGrid, modelYear);
+      // #282: which SOURCE the grid comes from is now a decision, taken here.
+      // NOMAD_FUEL_SOURCE unset or `local` runs the selector below exactly as before
+      // this seam existed, which is what keeps an existing deployment unchanged.
+      let fuel: FuelGridForRun;
+      try {
+        fuel = await resolveFuelGridForRun(
+          {
+            latitude: params.latitude,
+            longitude: params.longitude,
+            modelYear,
+            utmZone: utmZoneForLongitude(params.longitude),
+            resolutionM: FUEL_WCS_RESOLUTION_M,
+            windowM: FUEL_WCS_WINDOW_M,
+            workingDir,
+          },
+          {
+            findLocalGrid: (latitude, longitude, year) =>
+              this.findFuelGridForCoordinates(latitude, longitude, year),
+            toEpsg3978,
+            readGridValues,
+            warp,
+            nilValue: () => new EnvironmentService().getFuelNoDataValue(),
+          },
+        );
+      } catch (error) {
+        // The local no-coverage case keeps #330's specific diagnosis, which names what
+        // IS installed. Everything else is reported as it was thrown: a WCS
+        // misconfiguration, an undecodable coverage and a failed reprojection each say
+        // something different, and flattening them into one message is how an operator
+        // ends up re-checking a key that was always right.
+        if (error instanceof LocalFuelGridMissingError) {
+          return Result.fail(new ValidationError(await this.describeMissingFuel(modelYear)));
+        }
+        return Result.fail(
+          new ValidationError(error instanceof Error ? error.message : String(error)),
+        );
+      }
+      const fuelGrid = fuel.gridPath;
+
+      // Write down which vintage this run used, now, while it is true (#331), and which
+      // source produced it (#431, #282).
+      await this.recordFuelVintage(workingDir, fuelGrid, modelYear, fuel.producer);
 
       // Write weather CSV
       const weatherFile = join(workingDir, 'weather.csv');

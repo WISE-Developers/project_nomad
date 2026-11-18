@@ -7,7 +7,53 @@ required key added in one release still applies if you skip past it.
 
 ---
 
+## The WCS fuel source is now wired. **Upgrading needs no action.** (#282)
+
+**No new keys.** `NOMAD_FUEL_SOURCE`, the three `NOMAD_FUEL_WCS_*` keys and
+`NOMAD_FUEL_NODATA_VALUE` all already shipped. What changed is that they are no longer
+inert: the backend now reads them.
+
+**If you set none of them, nothing changes.** `NOMAD_FUEL_SOURCE` unset still means
+`local`, and a local run resolves its fuel grid through exactly the same selector as
+before — same directory search, same year-then-`default` fallback, same file. That was
+measured rather than assumed: the grid a fixed model resolves was hashed before the
+wiring existed and again afterwards, and the hash, the chosen file and the candidate list
+are identical.
+
+**What `NOMAD_FUEL_SOURCE=wcs` now actually does**, where before it did nothing:
+
+1. reads `NOMAD_FUEL_NODATA_VALUE` **first**, and fails naming the key if it is unset —
+   before any download, so you are not charged a transfer to be told;
+2. fetches a 20 km coverage window centred on the ignition from `NOMAD_FUEL_WCS_URL` /
+   `NOMAD_FUEL_WCS_COVERAGE`, writing it under `NOMAD_FUEL_WCS_CACHE_DIR`;
+3. checks every pixel value against the canonical FBP table, exempting your declared nil
+   value, and **refuses naming the offending values** if any are undefined;
+4. reprojects to the run's UTM zone at 100 m, nearest-neighbour only, then checks the
+   reprojection invented no fuel class;
+5. records `fuelSource: "CFS FBP WCS coverage <id>"` in the run's `fuel-vintage.json`,
+   alongside the existing `producer` field, which is unchanged.
+
+**There is still no fallback between sources, in either direction.** A `wcs` selection
+missing any of its keys fails the run. It does not quietly use your local tiles — that
+would model a fire on a grid nobody chose and record it as though it had been the request.
+
+**`NOMAD_FUEL_WCS_CACHE_DIR` must sit inside a path the container mounts.** A path outside
+the mounts surfaces later as a missing raster rather than a missing mount.
+
+**Treat the WCS source as unproven for operational use.** It is opt-in and non-default on
+purpose. The 20 km window in particular is a placeholder pending the fuel SME: a fire that
+outruns it reaches the grid edge.
+
+---
+
 ## One new `.env` key, `NOMAD_FUEL_NODATA_VALUE`. **Upgrading needs no action.** (#282)
+
+> **SUPERSEDED in part — see the entry above.** This entry says no code reads
+> `NOMAD_FUEL_NODATA_VALUE` and that the WCS fuel modules have no production caller. That
+> was true when written and is **no longer true**: #282 wired them. Everything else here
+> — what the key means, why there is no default, and that blank and unset are the same —
+> still stands. Kept rather than rewritten, because it is the record of what that release
+> actually shipped.
 
 `.env.example` now ships `NOMAD_FUEL_NODATA_VALUE`, deliberately **empty**.
 
@@ -100,6 +146,11 @@ recreated.
 ---
 
 ### WCS fuel source — **the keys exist; the feature is NOT yet wired in (#282)**
+
+> **SUPERSEDED — #282 wired it. See the newest entry at the top of this file.** The
+> paragraph below was accurate for v0.55.0 and is kept as the record of that release. If
+> you are upgrading THROUGH v0.55.0 to a release that includes #282, the top entry is the
+> one that describes your target.
 
 **Do not set these yet.** `NOMAD_FUEL_SOURCE` and the three `NOMAD_FUEL_WCS_*` keys appear
 in `.env.example` as of v0.55.0, and the module that validates them is written and tested —

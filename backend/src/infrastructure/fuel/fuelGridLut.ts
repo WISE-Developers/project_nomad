@@ -2,19 +2,14 @@
  * The canonical FBP fuel lookup table, and the guard that every fuel value
  * Nomad reads from the CFS WCS must pass. #282 task 2.
  *
- * NOT YET WIRED, AND THAT IS THE CORRECT STATE. No production file outside this
- * directory imports this module: every reference today is in its own test. #282 is
- * what connects it. It is NO LONGER parked on NFIS: the nil value is now configuration,
- * NOMAD_FUEL_NODATA_VALUE, required and unset until an operator declares it (Franco,
- * 2026-11-17). THE BLIND SPOT IS CLOSED: `findNonCanonicalValues` and
- * `assertCanonicalGridValues` take that declared value and exempt it, so a nil pixel and
- * a real grid_value are distinguishable at last -- but ONLY because somebody declared
- * which is which. Declare nothing and nothing is exempt, exactly as before.
+ * WIRED by #282: infrastructure/firestarr/fuelGridForRun.ts calls `assertCanonicalGridValues`
+ * on every coverage it fetches, before the reprojection and before the engine sees it.
+ * THE BLIND SPOT IS CLOSED: that call is passed the operator-declared
+ * NOMAD_FUEL_NODATA_VALUE and exempts it, so a nil pixel and a real grid_value are
+ * distinguishable at last — but ONLY because somebody declared which is which. Declare
+ * nothing and the getter throws before anything is fetched, so the guard is never run
+ * with nothing exempt.
  *
- * DELETE THIS PARAGRAPH WHEN #282 WIRES IT UP. It is not decoration:
- * scripts/__tests__/fuel_modules_declare_wiring.test.sh fails on a module that has
- * acquired a production importer while still claiming to be unwired, so the note
- * cannot quietly outlive the condition it describes (#523).
  * WHY THIS EXISTS AT ALL. The WCS serves a single-band Int16 raster whose pixel
  * values are `grid_value` from this table. There is nothing in the response that
  * says so: a corrupted, re-coded or re-palettised coverage would arrive looking

@@ -6,10 +6,17 @@
  * fixed model? Run it before the first #282 wiring commit to capture a baseline, and
  * again after each wiring step to compare.
  *
- * IT CALLS THE PRODUCTION SELECTOR. `FireSTARRInputGenerator.findFuelGridForCoordinates`
- * is the code a real run uses; a reimplementation of its proximity sort and extent check
- * would typecheck, agree with itself forever, and measure a proposition one step beside
- * the one that matters. The import below is the whole point of this file.
+ * IT GOES THROUGH THE PRODUCTION PATH, NOT AROUND IT. It calls `resolveFuelGridForRun`,
+ * the seam #282 added, which calls `FireSTARRInputGenerator.findFuelGridForCoordinates`.
+ * Both halves of that matter: a reimplementation of the selector's proximity sort and
+ * extent check would typecheck and agree with itself forever, and calling the selector
+ * DIRECTLY — which is what the first version of this file did, while the baseline was
+ * captured — measures a function the wiring never touched, so it would report "wiring
+ * changed nothing" about a proposition one step beside condition 4.
+ *
+ * The baseline hash is unaffected by that correction: the selector it reached is the
+ * same one the seam reaches with the flag unset, which is itself the thing condition 4
+ * asserts, and the recapture through the seam produced the identical hash.
  *
  * WHAT IS DELIBERATELY NOT CLAIMED: FireSTARR is handed `--raster-root`, a DIRECTORY, and
  * picks its own grid internally (see FireSTARREngine.buildCommand, `--raster-root`). So
@@ -26,6 +33,7 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { FireSTARRInputGenerator } from '../src/infrastructure/firestarr/FireSTARRInputGenerator.js';
+import { resolveFuelGridForRun } from '../src/infrastructure/firestarr/fuelGridForRun.js';
 
 /** The fixed model. Hay River, NWT — the same ignition the timezone suite uses. */
 const MODEL = {
@@ -60,11 +68,45 @@ async function main(): Promise<void> {
   }
 
   const generator = new FireSTARRInputGenerator({ gridRoot });
-  const selected = await generator.findFuelGridForCoordinates(
-    MODEL.latitude,
-    MODEL.longitude,
-    MODEL.modelYear
+
+  // THROUGH THE SEAM, NOT AROUND IT. The first version of this harness called
+  // findFuelGridForCoordinates directly, which measures a function #282's wiring never
+  // touched — so it would have reported "wiring changed nothing" while testing a
+  // proposition one step beside the one condition 4 asks. The seam is the code that
+  // changed, so the seam is what gets measured; `resolveFuelGridForRun` with the flag
+  // unset must route to the same local selector and return the same file.
+  //
+  // The WCS collaborators are deliberately omitted. With the flag unset they must never
+  // be reached, and leaving them out means a regression that starts reaching them fails
+  // here loudly instead of quietly succeeding.
+  const resolved = await resolveFuelGridForRun(
+    {
+      latitude: MODEL.latitude,
+      longitude: MODEL.longitude,
+      modelYear: MODEL.modelYear,
+      utmZone: 11,
+      resolutionM: 100,
+      windowM: 20000,
+      workingDir: gridRoot,
+    },
+    {
+      findLocalGrid: (latitude, longitude, year) =>
+        generator.findFuelGridForCoordinates(latitude, longitude, year),
+      toEpsg3978: () => {
+        throw new Error('the unset-flag path must not project a coverage window');
+      },
+    },
+    process.env
   );
+
+  if (resolved.source !== 'local') {
+    throw new Error(
+      `with NOMAD_FUEL_SOURCE unset the seam resolved "${resolved.source}", not "local". ` +
+        'Condition 4 is about the unset default, and the default has moved.'
+    );
+  }
+
+  const selected: string | undefined = resolved.gridPath;
 
   if (!selected) {
     // A null here is a real answer about the dataset, not a broken instrument — and it

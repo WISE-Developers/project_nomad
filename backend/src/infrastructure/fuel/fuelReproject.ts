@@ -2,16 +2,18 @@
  * Reprojects a fuel grid into the run's UTM zone, locally. #282 task 4,
  * and #282's sixth checkbox ("re-project to local UTM central meridian").
  *
- * NOT YET WIRED, AND THAT IS THE CORRECT STATE. #282 is what connects it. It is NO
- * LONGER parked on NFIS: the nil value is now configuration, NOMAD_FUEL_NODATA_VALUE,
- * required and unset until an operator declares it (Franco, 2026-11-17).
- * `buildFuelWarpArgs` has no production caller today: every reference is in this file's
- * own test.
+ * WIRED by #282: `infrastructure/firestarr/fuelGridForRun.ts` builds this argv and runs
+ * gdalwarp on every WCS-sourced grid, then calls `assertClassDomainPreserved` on the
+ * result. It is no longer true that every reference lives in this file's own test — the
+ * reading that got it filed as dead code (#523). It was never dead; it was early.
  *
- * Said here because the test below is the ONLY test in the repository that runs real
- * GDAL binaries rather than mocking them, against a real GeoTIFF fixture. That makes the
- * fuel path look verified end to end to anyone auditing GDAL coverage, and it was filed
- * as dead code on exactly that reading (#523). It is not dead; it is early.
+ * THE REAL-GDAL TEST BELOW IS STILL THE ONLY ONE IN THE REPOSITORY that runs GDAL
+ * binaries rather than mocking them, and that is still worth knowing — because on a
+ * macOS dev host it SKIPS. The Homebrew GDAL binaries fail to link there (libheif wants
+ * libx265.215 and Homebrew ships .217, measured 2026-11-18) while the gdal-async binding
+ * loads fine, so the two GDAL surfaces disagree about whether GDAL is present. A skip is
+ * invisible in a green run, which is why this path is exercised in the dev container,
+ * whose GDAL 3.6.2 works.
  *
  * WHY NOT ASK THE SERVICE. `outputCrs` on the WCS works and is itself
  * nearest-neighbour, so it invents no classes - but it returns the same pixel
