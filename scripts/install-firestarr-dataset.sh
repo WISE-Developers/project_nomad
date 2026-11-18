@@ -52,6 +52,34 @@ print_info() {
     echo -e "${BLUE}ℹ${NC} $1"
 }
 
+is_placeholder_value() {
+    # True when a value is one of OUR shipped placeholders rather than something
+    # an operator chose (#343).
+    #
+    # .env.example ships non-empty placeholders, and .env is routinely copied from
+    # it. This script is the one that DOWNLOADS, so it is the last point before
+    # ~11 GB moves: `-z` alone cannot tell our placeholder from a path someone
+    # meant, so it created a literal /absolute/path/to/firestarr_data and filled it.
+    #
+    # Anchored patterns only: a genuine path like /home/yourname/data or an
+    # agency id like changeme-inc must NOT be mistaken for a placeholder.
+    #
+    # Defined above load_config, its first caller, to match the other three
+    # installers in this class (#561).
+    local value="$1"
+
+    case "$value" in
+        /absolute/path/to/*)      return 0 ;;
+        /path/to/*)               return 0 ;;
+        your-*)                   return 0 ;;
+        changeme|CHANGEME)        return 0 ;;
+        yourdomain.com|example.com) return 0 ;;
+        xxx|XXX|TODO|TBD)         return 0 ;;
+    esac
+
+    return 1
+}
+
 # Load configuration from .env
 load_config() {
     if [ ! -f "$ENV_FILE" ]; then
@@ -80,6 +108,20 @@ load_config() {
 
     if [ -z "$FIRESTARR_DATASET_PATH" ]; then
         print_error "FIRESTARR_DATASET_PATH not set in $ENV_FILE"
+        exit 1
+    fi
+
+    # #562: refuse a shipped placeholder the way an empty value is already refused.
+    # This is the gate that runs before every `mkdir -p "$FIRESTARR_DATASET_PATH"`, so
+    # refusing here is what keeps the dataset out of a directory named after the example.
+    if is_placeholder_value "$FIRESTARR_DATASET_PATH"; then
+        print_error "FIRESTARR_DATASET_PATH is still the example placeholder: $FIRESTARR_DATASET_PATH"
+        echo ""
+        echo "Set it in $ENV_FILE to a real path with room for the dataset, e.g.:"
+        echo "  FIRESTARR_DATASET_PATH=\$HOME/firestarr_data"
+        echo ""
+        echo "Installing into the placeholder would create a literal directory of that"
+        echo "name and put roughly 11 GB of rasters inside it."
         exit 1
     fi
 }
