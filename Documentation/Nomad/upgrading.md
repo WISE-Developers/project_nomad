@@ -7,6 +7,36 @@ required key added in one release still applies if you skip past it.
 
 ---
 
+## One new `.env` key, `NOMAD_FUEL_NODATA_VALUE`. **Upgrading needs no action.** (#282)
+
+`.env.example` now ships `NOMAD_FUEL_NODATA_VALUE`, deliberately **empty**.
+
+**You do not need to set it, and nothing will break if you leave it alone.** No code in
+the application reads it yet: the WCS fuel modules that will use it have no production
+caller, which is the same "present but not wired" state `NOMAD_FUEL_SOURCE` is in. Your
+existing `.env` is complete without it.
+
+**What it will mean when the fuel path is wired.** It is the pixel value a fuel coverage
+uses to mark an ABSENT cell. The CFS WCS declares none of its own — `swe:nilValues` is
+empty in DescribeCoverage and the GeoTIFF carries no NoData tag — so without one, an
+absent pixel and a fuel class that failed to decode are the same byte. Treating either as
+the other would assert a fire-behaviour fact about a pixel that cannot be read.
+
+**There is deliberately no default and no placeholder value.** A seeded value would let
+the fuel path run against a nil value nobody chose, succeeding quietly on the wrong
+pixels — the exact failure the key exists to prevent. When the fuel path is wired, asking
+for fuel without having set it will fail loudly and name the key, rather than guessing.
+
+**Blank is not the same as unset here** — both mean "no nil value declared", and when
+nothing is declared, NO pixel value is exempt from the canonical fuel-table check. That is
+the pre-existing behaviour, unchanged.
+
+For the CFS coverage as served in 2026 the measured value is `0`. That is evidence for
+what to set, not a default: 0 is a legitimate value for this key, so the setting is read
+as an integer rather than as "non-empty".
+
+---
+
 ## v0.55.0 — eight new `.env` keys, all optional. **Upgrading from v0.54.0 needs no action.** (#526)
 
 Two new subsystems arrived: an **MCP server** and an optional **WCS fuel source**.
