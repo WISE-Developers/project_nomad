@@ -166,18 +166,20 @@ recreated.
 
 ---
 
-### WCS fuel source — **the keys exist; the feature is NOT yet wired in (#282)**
+### WCS fuel source — **the keys existed but were inert in v0.55.0 (#282 wired them later)**
 
-> **SUPERSEDED — #282 wired it. See the newest entry at the top of this file.** The
-> paragraph below was accurate for v0.55.0 and is kept as the record of that release. If
-> you are upgrading THROUGH v0.55.0 to a release that includes #282, the top entry is the
-> one that describes your target.
+> **SUPERSEDED — #282 wired it. See the newest entry at the top of this file**, which
+> describes what the keys do now and why you still should not set `wcs` on a deployment.
+> The paragraph below is kept as the record of what v0.55.0 shipped, **rewritten into the
+> past tense on purpose**: a disclaimer left in the present tense reads as current to
+> anyone scanning headings, which is the whole failure this file's own guard exists to
+> catch. The history is preserved; the stale claim is not.
 
-**Do not set these yet.** `NOMAD_FUEL_SOURCE` and the three `NOMAD_FUEL_WCS_*` keys appear
-in `.env.example` as of v0.55.0, and the module that validates them is written and tested —
-but **nothing in the running backend calls it.** Setting `NOMAD_FUEL_SOURCE=wcs` today has
-no effect at all: it does not switch fuel sources, and it does not fail either, because the
-resolver never runs.
+**In v0.55.0 these keys did nothing.** `NOMAD_FUEL_SOURCE` and the three
+`NOMAD_FUEL_WCS_*` keys appeared in `.env.example`, and the module that validates them was
+written and tested — but **nothing in the running backend called it.** Setting
+`NOMAD_FUEL_SOURCE=wcs` on that release had no effect at all: it did not switch fuel
+sources, and it did not fail either, because the resolver never ran.
 
 Measured, not assumed: `NOMAD_FUEL_SOURCE` is read in exactly one file,
 `backend/src/infrastructure/fuel/fuelSource.ts`, and that file has no caller outside its own
