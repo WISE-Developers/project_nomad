@@ -4,10 +4,37 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.64.0
+## v0.65.0
+
+### 2026-11-19
+
+- [`cc5c011`](https://github.com/WISE-Developers/project_nomad/commit/cc5c011cf758b264db2dda70a53e8b314927167e) Merge pull request #564 from WISE-Developers/dev — *Franco Nogarin, 06:42*
+
+### 2026-11-18
+
+- [`7a3062d`](https://github.com/WISE-Developers/project_nomad/commit/7a3062d49a182ad6233716514a1c616b903e339e) chore: dev v0.64.4 [release-bot] — *github-actions[bot], 17:44*
+- [`e4db1cc`](https://github.com/WISE-Developers/project_nomad/commit/e4db1cc3756381e948ba33cc08022b94ce567a1c) Merge #282: wire the fuel path behind NOMAD_FUEL_SOURCE, and the two defects proving it against the live coverage found — *Franco Nogarin, 11:44*
+- [`4cb33c5`](https://github.com/WISE-Developers/project_nomad/commit/4cb33c53c9d91e1561c2e6dd458f50d185224f6d) #282 Step 3: prove the WCS fuel grid against the live coverage, and fix what that found — *Franco Nogarin, 11:44*
+- [`37431cb`](https://github.com/WISE-Developers/project_nomad/commit/37431cb8a1b548c1057ef3ccc755db78af128f7b) #282: wire the five fuel modules behind NOMAD_FUEL_SOURCE, default unchanged — *Franco Nogarin, 11:26*
+- [`c149836`](https://github.com/WISE-Developers/project_nomad/commit/c1498368f4638c730460396baf9d3b30078f503e) Merge #282's nil-value mechanism: the fuel nil value is required configuration with no default, ahead of the wiring that depends on it — *Franco Nogarin, 11:13*
+- [`1fb957f`](https://github.com/WISE-Developers/project_nomad/commit/1fb957f19c673ea78ef0e16cb6f4de858f223acf) chore: dev v0.64.3 [release-bot] — *github-actions[bot], 17:13*
+- [`c577b76`](https://github.com/WISE-Developers/project_nomad/commit/c577b760b84b7e6a064abbed32d0e800bba66ca9) Merge #562: the dataset downloader asks the placeholder predicate before it creates the directory — *Franco Nogarin, 11:12*
+- [`e253723`](https://github.com/WISE-Developers/project_nomad/commit/e25372347b5d069f355c2ecdc639f8f25184fdf3) #562: the dataset downloader refuses a shipped placeholder instead of mkdir -p'ing it — *Franco Nogarin, 11:11*
+- [`4ac25d2`](https://github.com/WISE-Developers/project_nomad/commit/4ac25d24b10e06d8ae41a460588de3220e663fbf) chore: dev v0.64.2 [release-bot] — *github-actions[bot], 17:08*
+- [`54bbf0d`](https://github.com/WISE-Developers/project_nomad/commit/54bbf0d0709c460fa269c9fd2139eb3d27a2a76c) Merge Step 0: condition 4's fuel-grid baseline, captured before the fuel path has any production caller — *Franco Nogarin, 11:08*
+- [`60d5663`](https://github.com/WISE-Developers/project_nomad/commit/60d56634ef13ddd393e95f69ad6f59a89f757bf7) #282 Step 0: capture condition 4's fuel-grid baseline before any wiring exists — *Franco Nogarin, 11:08*
+- [`e6e2832`](https://github.com/WISE-Developers/project_nomad/commit/e6e283246c6e5ee34200688f3aca61a8d84c33a9) chore: dev v0.64.1 [release-bot] — *github-actions[bot], 12:28*
+- [`bae48d8`](https://github.com/WISE-Developers/project_nomad/commit/bae48d8ce5421b695f3695dd918a5018a3228eef) Merge #561: ask the placeholder predicate at prompt time across all three installers — *Franco Nogarin, 06:28*
+- [`f1be9e8`](https://github.com/WISE-Developers/project_nomad/commit/f1be9e83008ec7af9341216920735ab68bc06705) #561: ask the placeholder predicate at PROMPT time, not only at write time — *Franco Nogarin, 06:27*
+- [`1ad2971`](https://github.com/WISE-Developers/project_nomad/commit/1ad297106562788096e981e2f4dd6a55d0ee0739) #282: document NOMAD_FUEL_NODATA_VALUE for operators, stating that no action is needed — *Franco Nogarin, 06:27*
+
+### 2026-11-17
+
+- [`aacced8`](https://github.com/WISE-Developers/project_nomad/commit/aacced81960fc60f04299138ef9812be2633ce62) #282: the fuel nil value becomes required configuration, with no default and no seed — *Franco Nogarin, 13:16*
 
 ### 2026-11-16
 
+- [`1ceec78`](https://github.com/WISE-Developers/project_nomad/commit/1ceec789fb7ce4614a2744eb76e3a94cd729ae73) chore: release v0.64.0 [release-bot] — *github-actions[bot], 13:59*
 - [`a380bbb`](https://github.com/WISE-Developers/project_nomad/commit/a380bbbb1f249658647386baf0878002fecd26cc) Merge pull request #549 from WISE-Developers/dev — *Franco Nogarin, 07:59*
 - [`60f0c7d`](https://github.com/WISE-Developers/project_nomad/commit/60f0c7dd3d436dbaac9c796a9d2c125ad0dea82e) chore: dev v0.63.4 [release-bot] — *github-actions[bot], 13:56*
 - [`7d2e241`](https://github.com/WISE-Developers/project_nomad/commit/7d2e2413758ad9f410b945df5185f46e70fb351f) Merge fix/550-tile-bounds-outputtype: tile and bounds classify the product through one shared resolver — *Franco Nogarin, 07:55*
