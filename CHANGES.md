@@ -4,10 +4,16 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.66.0
+## v0.67.0
 
 ### 2026-11-19
 
+- [`11064d3`](https://github.com/WISE-Developers/project_nomad/commit/11064d37099aa48a8fd690eb0790e52e8fcdbef2) Merge pull request #566 from WISE-Developers/dev — *Franco Nogarin, 08:24*
+- [`4a58a80`](https://github.com/WISE-Developers/project_nomad/commit/4a58a80ee5b5834eb9136c5af640acb299d2b659) chore: dev v0.66.1 [release-bot] — *github-actions[bot], 14:19*
+- [`28f3fee`](https://github.com/WISE-Developers/project_nomad/commit/28f3fee688045484079d9fb9ed470daf28fac510) Merge origin/dev (v0.66.0 release commits) into the ESM fix — *Franco Nogarin, 08:18*
+- [`c0d8551`](https://github.com/WISE-Developers/project_nomad/commit/c0d85516284a435541fe83b76d78c9d4306abdae) Merge: fix the ESM import that crash-looped v0.66.0, and gate the built output on boot-resolvability — *Franco Nogarin, 08:18*
+- [`ca0b878`](https://github.com/WISE-Developers/project_nomad/commit/ca0b878fb79a69b5ec98332815b322f7d84f2efa) Fix the ESM import that crash-looped v0.66.0, and add the gate that four green gates all missed — *Franco Nogarin, 08:18*
+- [`1dbbb85`](https://github.com/WISE-Developers/project_nomad/commit/1dbbb85cf92393f795f31a224cd5754ed9d7e861) chore: release v0.66.0 [release-bot] — *github-actions[bot], 13:57*
 - [`72009cc`](https://github.com/WISE-Developers/project_nomad/commit/72009cc8aa03e213139d39e376826f4b52fbc9e7) Merge pull request #565 from WISE-Developers/dev — *Franco Nogarin, 07:56*
 - [`ba92f84`](https://github.com/WISE-Developers/project_nomad/commit/ba92f8403a643db219652e7aaf00a615596e8990) chore: dev v0.65.1 [release-bot] — *github-actions[bot], 12:50*
 - [`1ac755c`](https://github.com/WISE-Developers/project_nomad/commit/1ac755c13808a0550029fdcf713462043fd44688) Merge: upgrading.md stops disclaiming a feature that is now wired — *Franco Nogarin, 06:49*
