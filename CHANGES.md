@@ -4,10 +4,15 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.65.0
+## v0.66.0
 
 ### 2026-11-19
 
+- [`72009cc`](https://github.com/WISE-Developers/project_nomad/commit/72009cc8aa03e213139d39e376826f4b52fbc9e7) Merge pull request #565 from WISE-Developers/dev — *Franco Nogarin, 07:56*
+- [`ba92f84`](https://github.com/WISE-Developers/project_nomad/commit/ba92f8403a643db219652e7aaf00a615596e8990) chore: dev v0.65.1 [release-bot] — *github-actions[bot], 12:50*
+- [`1ac755c`](https://github.com/WISE-Developers/project_nomad/commit/1ac755c13808a0550029fdcf713462043fd44688) Merge: upgrading.md stops disclaiming a feature that is now wired — *Franco Nogarin, 06:49*
+- [`624b854`](https://github.com/WISE-Developers/project_nomad/commit/624b854aa45f139a8fc57f9ac6c0fdae14ad689e) Rewrite v0.55.0's inert-keys entry into the past tense, so upgrading.md stops disclaiming a feature that is now wired — *Franco Nogarin, 06:49*
+- [`05b328b`](https://github.com/WISE-Developers/project_nomad/commit/05b328bf41d406bf5e094dbfbb6629a24b97969d) chore: release v0.65.0 [release-bot] — *github-actions[bot], 12:43*
 - [`cc5c011`](https://github.com/WISE-Developers/project_nomad/commit/cc5c011cf758b264db2dda70a53e8b314927167e) Merge pull request #564 from WISE-Developers/dev — *Franco Nogarin, 06:42*
 
 ### 2026-11-18
