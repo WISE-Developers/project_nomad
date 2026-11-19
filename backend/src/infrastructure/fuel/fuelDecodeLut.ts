@@ -24,7 +24,7 @@
  * that file if CFS issues a new table; do not hand-edit one copy.
  */
 
-import { parseFuelLut, type FuelLut } from './fuelGridLut';
+import { parseFuelLut, type FuelLut } from './fuelGridLut.js';
 
 /**
  * The six rows that separate the decode table from the modelling table. Derived
