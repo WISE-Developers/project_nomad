@@ -1,0 +1,40 @@
+{
+  "what_this_is": "Condition 4's baseline (plan D8, Step 0). Captured BEFORE the first #282 wiring commit, on code where NOMAD_FUEL_SOURCE has no production reader at all. It cannot be recaptured after wiring lands: there is no untouched code path left to capture it from.",
+  "the_question_it_answers": "With NOMAD_FUEL_SOURCE unset, does the existing local fuel path still select the same grid, with the same bytes, for this fixed model?",
+  "instrument": "backend/scripts/fuel-grid-baseline.ts - calls the production FireSTARRInputGenerator.findFuelGridForCoordinates, not a reimplementation of it.",
+  "subject_caveat": "FireSTARR is handed --raster-root, a DIRECTORY, and selects its own grid internally. There is therefore no single 'fuel grid handed to the engine' file in the local path. The subject captured here is the grid OUR code resolves for the ignition - which is the artefact the WCS source replaces, and so the right subject for condition 4. D8's wording is narrowed to this on purpose.",
+  "model_id": "baseline-hay-river-2026",
+  "inputs": {
+    "latitude": 60.82,
+    "longitude": -115.7,
+    "modelYear": 2026,
+    "gridRoot": "/Volumes/KINGSTON/FireSTARR_Fuel_Data_Sets/FireSTARR_Dataset_2026_V1.0/generated/grid/100m"
+  },
+  "nomad_fuel_source": "unset (asserted absent from process.env)",
+  "selected_grid": "/Volumes/KINGSTON/FireSTARR_Fuel_Data_Sets/FireSTARR_Dataset_2026_V1.0/generated/grid/100m/default/fuel_11_0.tif",
+  "resolved_from": "default-fallback",
+  "hash": "eed395e1cf64753918f76bfaa4c01de2110bfe9a96c4af7d0eaaa80017bdddb3",
+  "repeat_hash": "eed395e1cf64753918f76bfaa4c01de2110bfe9a96c4af7d0eaaa80017bdddb3",
+  "size_bytes": 25561604,
+  "candidate_count": 31,
+  "candidates_sha256": "b4dc1f16317ddb1ec597ae3b127f2f1c7a3c16bdeac37208796e2b1d2eaf5afd",
+  "captured_at": [
+    "2026-11-18T17:07:02.563Z",
+    "2026-11-18T17:07:02.866Z"
+  ],
+  "repeatability": "The two hashes are INDEPENDENT readings from two separate tsx processes, not one value copied. They agree, so condition 4 is measurable as written. Had they differed, the plan would have been wrong about condition 4 and Step 0 says to stop and say so.",
+  "controls": {
+    "can_it_disagree": {
+      "method": "Same instrument, same model, pointed at the 2024 dataset grid root instead.",
+      "grid_root": "/Volumes/KINGSTON/FireSTARR_Fuel_Data_Sets/2024_firestarr_data/generated/grid/100m",
+      "selected_grid": "/Volumes/KINGSTON/FireSTARR_Fuel_Data_Sets/2024_firestarr_data/generated/grid/100m/default/fuel_11_0.tif",
+      "hash": "7772599d3573890d6c38dd9c6566e04320abcebafd809adcd0e3d9217dbf1efc",
+      "result": "DIFFERENT hash from the baseline, so the value is a function of the data and not a constant the instrument always returns. Note it selected the same FILENAME (fuel_11_0.tif) with the same candidate count - a filename or count comparison would have called these two datasets equal. Only the bytes separate them."
+    },
+    "does_the_unset_guard_fire": {
+      "method": "Re-run with NOMAD_FUEL_SOURCE=wcs present in the environment.",
+      "result": "Refused, exit 1, naming the present value and stating that condition 4 is about the flag being UNSET. The guard is not one that has never fired."
+    }
+  },
+  "how_to_compare_after_wiring": "NOMAD_BASELINE_GRID_ROOT=<the gridRoot recorded above> NOMAD_BASELINE_OUT=<tmp> env -u NOMAD_FUEL_SOURCE ./node_modules/.bin/tsx backend/scripts/fuel-grid-baseline.ts - then require selected_grid, hash and candidates_sha256 to equal the values above. Any difference fails condition 4."
+}
