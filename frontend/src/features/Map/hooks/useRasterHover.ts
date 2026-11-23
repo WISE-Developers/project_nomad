@@ -9,7 +9,8 @@
  */
 
 import { useEffect, useRef } from 'react';
-import * as maplibregl from 'maplibre-gl';
+import type { Map as MapLibreMap, MapMouseEvent, Popup } from 'maplibre-gl';
+import { loadMaplibre } from '../maplibreLazy';
 import { PROBABILITY_LEGEND } from '../symbology/palettes.js';
 
 // =============================================================================
@@ -97,7 +98,7 @@ export function colorToPercentage(
  */
 interface UseRasterHoverProps {
   /** MapLibre map instance */
-  map: maplibregl.Map | null;
+  map: MapLibreMap | null;
   /** Whether any raster layer has hover enabled (visible + 100% opacity) */
   hasVisibleRasterLayer: boolean;
 }
@@ -119,7 +120,7 @@ export function useRasterHover({
   map,
   hasVisibleRasterLayer,
 }: UseRasterHoverProps): void {
-  const popupRef = useRef<maplibregl.Popup | null>(null);
+  const popupRef = useRef<Popup | null>(null);
 
   useEffect(() => {
     if (!map || !hasVisibleRasterLayer) {
@@ -134,51 +135,70 @@ export function useRasterHover({
     const canvas = map.getCanvas();
     const gl = canvas.getContext('webgl2');
 
-    // Initialise popup (lazy)
-    if (!popupRef.current) {
-      popupRef.current = new maplibregl.Popup({
-        closeButton: false,
-        closeOnClick: false,
-        className: 'raster-probability-popup',
-      });
-    }
+    // maplibre is loaded on demand (#567). `loadMaplibre()` resolves from cache
+    // here -- this hook only runs once a map exists, and the map could not have
+    // been constructed without the module -- but it is still a promise, so the
+    // listeners are attached in the continuation and `detach` carries them back
+    // out to the cleanup.
+    let cancelled = false;
+    let detach: (() => void) | null = null;
 
-    const popup = popupRef.current;
+    loadMaplibre().then((maplibregl) => {
+      if (cancelled) return;
 
-    function handleMouseMove(e: maplibregl.MapMouseEvent) {
-      if (!gl) return;
+      // Initialise popup (lazy)
+      if (!popupRef.current) {
+        popupRef.current = new maplibregl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+          className: 'raster-probability-popup',
+        });
+      }
 
-      const pixel = new Uint8Array(4);
-      const x = e.point.x;
-      // WebGL y-axis is flipped relative to screen coordinates
-      const y = canvas.height - e.point.y;
+      const popup = popupRef.current;
 
-      gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+      function handleMouseMove(e: MapMouseEvent) {
+        if (!gl) return;
 
-      const [r, g, b, a] = pixel;
-      const band = colorToPercentage(r, g, b, a);
+        const pixel = new Uint8Array(4);
+        const x = e.point.x;
+        // WebGL y-axis is flipped relative to screen coordinates
+        const y = canvas.height - e.point.y;
 
-      if (band !== null) {
-        popup
-          .setLngLat(e.lngLat)
-          .setHTML(`<div style="color:#333;font-size:13px;padding:2px 4px"><strong>Burn Probability:</strong> ${band}</div>`)
-          .addTo(map!);
-      } else {
+        gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+
+        const [r, g, b, a] = pixel;
+        const band = colorToPercentage(r, g, b, a);
+
+        if (band !== null) {
+          popup
+            .setLngLat(e.lngLat)
+            .setHTML(`<div style="color:#333;font-size:13px;padding:2px 4px"><strong>Burn Probability:</strong> ${band}</div>`)
+            .addTo(map!);
+        } else {
+          popup.remove();
+        }
+      }
+
+      function handleMouseLeave() {
         popup.remove();
       }
-    }
 
-    function handleMouseLeave() {
-      popup.remove();
-    }
+      map.on('mousemove', handleMouseMove);
+      canvas.addEventListener('mouseleave', handleMouseLeave);
 
-    map.on('mousemove', handleMouseMove);
-    canvas.addEventListener('mouseleave', handleMouseLeave);
+      detach = () => {
+        map.off('mousemove', handleMouseMove);
+        canvas.removeEventListener('mouseleave', handleMouseLeave);
+        popup.remove();
+      };
+    }).catch((err: unknown) => {
+      console.error('[useRasterHover] failed to load maplibre for the hover popup:', err);
+    });
 
     return () => {
-      map.off('mousemove', handleMouseMove);
-      canvas.removeEventListener('mouseleave', handleMouseLeave);
-      popup.remove();
+      cancelled = true;
+      if (detach) detach();
     };
   }, [map, hasVisibleRasterLayer]);
 }

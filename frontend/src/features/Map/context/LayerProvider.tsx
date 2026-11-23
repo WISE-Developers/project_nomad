@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
-import * as maplibregl from 'maplibre-gl';
+import type { Map as MapLibreMap, Popup, RasterTileSource } from 'maplibre-gl';
+import { loadMaplibre } from '../maplibreLazy';
 import { useMap } from './MapContext';
 import { useOpenNomad } from '../../../openNomad/context';
 import { useRasterHover } from '../hooks/useRasterHover';
@@ -24,7 +25,7 @@ const LAYERS_STORAGE_KEY = 'nomad-layers';
  * no data layer is on the map yet (caller then appends above the basemap).
  */
 function firstDataLayerId(
-  map: maplibregl.Map,
+  map: MapLibreMap,
   excludeId: string,
   layers: LayerConfig[],
 ): string | undefined {
@@ -113,7 +114,7 @@ export function LayerProvider({ children }: { children: ReactNode }) {
   const hasRestoredRef = useRef(false);
 
   // Popup for hover tooltips
-  const popupRef = useRef<maplibregl.Popup | null>(null);
+  const popupRef = useRef<Popup | null>(null);
 
   // Track current layers state for style.load handler (avoids stale closure)
   const layersRef = useRef(state.layers);
@@ -128,20 +129,37 @@ export function LayerProvider({ children }: { children: ReactNode }) {
   }, [map]);
 
   // Initialize popup
+  //
+  // Gated on `map` and loading maplibre on demand (#567). This used to be a
+  // mount-only effect constructing a Popup immediately, which is a map-stack
+  // dependency paid by every embedded consumer whether or not it ever renders a
+  // map. A hover popup is useless without one, so there is nothing to build
+  // until a map exists -- and by then `loadMaplibre()` resolves from cache,
+  // because the map could not have been constructed without it.
   useEffect(() => {
-    if (!popupRef.current) {
+    if (!map) return;
+
+    let cancelled = false;
+
+    loadMaplibre().then((maplibregl) => {
+      if (cancelled || popupRef.current) return;
       popupRef.current = new maplibregl.Popup({
         closeButton: false,
         closeOnClick: false,
         className: 'probability-popup',
       });
-    }
+    }).catch((err: unknown) => {
+      console.error('[LayerProvider] failed to load maplibre for the hover popup:', err);
+    });
+
     return () => {
+      cancelled = true;
       if (popupRef.current) {
         popupRef.current.remove();
+        popupRef.current = null;
       }
     };
-  }, []);
+  }, [map]);
 
   // Restore layers when map style changes (e.g., basemap switch)
   useEffect(() => {
@@ -691,7 +709,7 @@ export function LayerProvider({ children }: { children: ReactNode }) {
               (prev?.highlightBuckets ?? []).join(',') !==
                 (next.arrivalMeta.highlightBuckets ?? []).join(',');
             if (changed) {
-              const source = m.getSource(next.id) as maplibregl.RasterTileSource | undefined;
+              const source = m.getSource(next.id) as RasterTileSource | undefined;
               if (source && typeof source.setTiles === 'function') {
                 const url = Array.isArray(next.url) ? next.url[0] : next.url;
                 const newUrl = withArrivalParams(url, next.arrivalMeta);

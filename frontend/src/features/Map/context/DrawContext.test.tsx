@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { DrawProvider } from './DrawProvider';
 import { useDraw } from './DrawContext';
 import type { DrawnFeature } from '../types/geometry';
@@ -94,14 +94,35 @@ function wrapper({ children }: { children: ReactNode }) {
   return <DrawProvider>{children}</DrawProvider>;
 }
 
+/**
+ * Mount the hook and WAIT for the provider to finish initialising — #567.
+ *
+ * DrawProvider used to construct TerraDraw synchronously in its effect, so
+ * `renderHook` returned a ready context and every test could `act()` straight
+ * away. terra-draw and its maplibre adapter are now loaded by dynamic
+ * `import()`, so the instance is built in a promise continuation and
+ * `terraDrawRef.current` is still null on the first tick.
+ *
+ * This asserts `isReady` rather than merely flushing microtasks. A bare
+ * `await act(async () => {})` would also make these tests pass, but it would
+ * pass just as happily if the provider stopped initialising altogether — the
+ * assertions would then run against a context whose TerraDraw is permanently
+ * null, which is the silent-green failure this suite exists to catch.
+ */
+async function mountDraw() {
+  const mounted = renderHook(() => useDraw(), { wrapper });
+  await waitFor(() => expect(mounted.result.current.isReady).toBe(true));
+  return mounted;
+}
+
 describe('DrawContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('deleteSelected', () => {
-    it('removes deleted features from state.features', () => {
-      const { result } = renderHook(() => useDraw(), { wrapper });
+    it('removes deleted features from state.features', async () => {
+      const { result } = await mountDraw();
 
       // Add 3 features
       const f1 = makeFeature('f1');
@@ -136,8 +157,8 @@ describe('DrawContext', () => {
       expect(result.current.state.selectedIds).toHaveLength(0);
     });
 
-    it('notifies delete subscribers with removed features', () => {
-      const { result } = renderHook(() => useDraw(), { wrapper });
+    it('notifies delete subscribers with removed features', async () => {
+      const { result } = await mountDraw();
       const deleteCb = vi.fn();
 
       act(() => {
@@ -162,12 +183,12 @@ describe('DrawContext', () => {
   });
 
   describe('addFeatures resilience', () => {
-    it('updates state even when TerraDraw addFeatures throws', () => {
+    it('updates state even when TerraDraw addFeatures throws', async () => {
       mockAddFeatures.mockImplementationOnce(() => {
         throw new Error("Cannot read properties of undefined (reading 'setData')");
       });
 
-      const { result } = renderHook(() => useDraw(), { wrapper });
+      const { result } = await mountDraw();
 
       act(() => {
         result.current.addFeatures([makeFeature('f1'), makeFeature('f2')]);
@@ -177,12 +198,12 @@ describe('DrawContext', () => {
       expect(result.current.state.features).toHaveLength(2);
     });
 
-    it('updates state even when TerraDraw returns validation failures', () => {
+    it('updates state even when TerraDraw returns validation failures', async () => {
       mockAddFeatures.mockImplementationOnce(() => [
         { valid: false, reason: 'Feature does not have a valid mode property' },
       ]);
 
-      const { result } = renderHook(() => useDraw(), { wrapper });
+      const { result } = await mountDraw();
 
       act(() => {
         result.current.addFeatures([makeFeature('f1')]);
@@ -192,12 +213,12 @@ describe('DrawContext', () => {
       expect(result.current.state.features).toHaveLength(1);
     });
 
-    it('notifies subscribers even when TerraDraw throws', () => {
+    it('notifies subscribers even when TerraDraw throws', async () => {
       mockAddFeatures.mockImplementationOnce(() => {
         throw new Error('adapter crash');
       });
 
-      const { result } = renderHook(() => useDraw(), { wrapper });
+      const { result } = await mountDraw();
       const createCb = vi.fn();
 
       act(() => {
@@ -208,8 +229,8 @@ describe('DrawContext', () => {
       expect(createCb).toHaveBeenCalledTimes(1);
     });
 
-    it('injects mode property from geometry type', () => {
-      const { result } = renderHook(() => useDraw(), { wrapper });
+    it('injects mode property from geometry type', async () => {
+      const { result } = await mountDraw();
 
       act(() => {
         result.current.addFeatures([
@@ -227,8 +248,8 @@ describe('DrawContext', () => {
   });
 
   describe('deleteAll', () => {
-    it('removes all features from state', () => {
-      const { result } = renderHook(() => useDraw(), { wrapper });
+    it('removes all features from state', async () => {
+      const { result } = await mountDraw();
 
       act(() => {
         result.current.addFeatures([makeFeature('f1'), makeFeature('f2'), makeFeature('f3')]);
