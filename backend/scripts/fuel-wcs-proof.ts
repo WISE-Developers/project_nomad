@@ -33,9 +33,11 @@
  * a different code path, which is the only reason the comparison means anything; checking
  * our pipeline against our own client would prove that assignment works.
  *
- * GDAL: the warp runs in a container. Every Homebrew GDAL binary on this host fails to
- * link (libheif wants libx265.215, Homebrew ships .217) while the gdal-async binding loads
- * fine, so the orchestration is done here and the one broken binary is delegated. The
+ * GDAL: the warp runs in a container. That was forced when this was written — every
+ * Homebrew GDAL binary on this host failed to link, while the gdal-async binding loaded
+ * fine — and the host CLI has worked again since 2026-11-23 (GDAL 3.13.3). The warp is
+ * still delegated, because the container is what production uses and proving the host's
+ * GDAL proves the wrong machine. The
  * container mounts the working directory AT THE SAME ABSOLUTE PATH, so the argv that
  * production builds is the argv that runs — rewriting paths for the container would mean
  * proving a different command than the one deployments use.

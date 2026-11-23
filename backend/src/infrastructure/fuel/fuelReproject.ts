@@ -8,12 +8,18 @@
  * reading that got it filed as dead code (#523). It was never dead; it was early.
  *
  * THE REAL-GDAL TEST BELOW IS STILL THE ONLY ONE IN THE REPOSITORY that runs GDAL
- * binaries rather than mocking them, and that is still worth knowing — because on a
- * macOS dev host it SKIPS. The Homebrew GDAL binaries fail to link there (libheif wants
- * libx265.215 and Homebrew ships .217, measured 2026-11-18) while the gdal-async binding
- * loads fine, so the two GDAL surfaces disagree about whether GDAL is present. A skip is
- * invisible in a green run, which is why this path is exercised in the dev container,
- * whose GDAL 3.6.2 works.
+ * binaries rather than mocking them, and it RUNS AND PASSES on this host as of
+ * 2026-11-23 (GDAL 3.13.3).
+ *
+ * It did not, from 2026-11-05 to 2026-11-20: Homebrew's GDAL binaries failed to link
+ * (libheif wanted libx265.215 while Homebrew shipped .217, then re2 wanted an abseil
+ * that had moved on) while the gdal-async binding loaded fine the whole time. So the two
+ * GDAL surfaces disagreed about whether GDAL was present, and `describe.skipIf` turned
+ * that into a SKIP — invisible inside a green run, for fifteen days. The reprojection was
+ * exercised in the dev container instead.
+ *
+ * Kept rather than deleted because the skip can return the next time a Homebrew
+ * dependency moves, and "2 skipped" in a passing run is not something anyone reads.
  *
  * WHY NOT ASK THE SERVICE. `outputCrs` on the WCS works and is itself
  * nearest-neighbour, so it invents no classes - but it returns the same pixel
