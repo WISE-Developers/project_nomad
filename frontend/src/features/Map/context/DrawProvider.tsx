@@ -166,10 +166,19 @@ export function DrawProvider({ children }: DrawProviderProps) {
         }));
       });
 
-      // Start TerraDraw
-      draw.start();
+      // Start TerraDraw.
+      //
+      // `started` is assigned BEFORE `start()`, not after. The adapter registers
+      // DOM listeners before it adds its sources, and MapLibre can throw
+      // "Style is not done loading" from inside `start()` -- e.g. a basemap
+      // switch landing while these imports were still in flight. Assigning
+      // afterwards meant a throw left a half-started TerraDraw that the cleanup
+      // could not see and would never `stop()`, leaking the adapter's listeners.
+      // The pre-#567 code closed over `draw` directly in its cleanup and did not
+      // have this hole; deferring the import is what opened it.
       started = draw;
       terraDrawRef.current = draw;
+      draw.start();
       setIsReady(true);
     }).catch((err: unknown) => {
       if (cancelled) return;
@@ -182,7 +191,13 @@ export function DrawProvider({ children }: DrawProviderProps) {
     return () => {
       cancelled = true;
       if (started) {
-        started.stop();
+        // May be half-started if `start()` threw; `stop()` is the only way to
+        // release the adapter's listeners either way.
+        try {
+          started.stop();
+        } catch (err) {
+          console.error('[DrawContext] TerraDraw stop() failed during cleanup:', err);
+        }
       }
       terraDrawRef.current = null;
       setIsReady(false);

@@ -58,7 +58,7 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 
 export type MapLibre = typeof MapLibreGL;
 
-/** Resolved module, once loaded. Read synchronously via `getLoadedMaplibre`. */
+/** Resolved module, once loaded. Lets a repeat call resolve without a microtask. */
 let loaded: MapLibre | null = null;
 
 /**
@@ -86,21 +86,19 @@ export function loadMaplibre(): Promise<MapLibre> {
       maplibregl.setWorkerUrl(workerUrl);
       loaded = maplibregl;
       return maplibregl;
+    }).catch((err: unknown) => {
+      // Drop the cached promise so a later mount can try again. Caching the
+      // REJECTION would make one transient chunk failure permanent for the life
+      // of the page: close and reopen the preview and the loader would hand back
+      // the same rejection without ever re-attempting the fetch.
+      //
+      // This re-throws. It is not a fallback — the caller still fails, and still
+      // surfaces it.
+      inFlight = null;
+      throw err;
     });
   }
 
   return inFlight;
 }
 
-/**
- * The already-loaded module, or null.
- *
- * For SYNCHRONOUS call sites that cannot await — a maplibre event handler, or an
- * effect that attaches one. Those only ever run once a map exists, and a map
- * only exists because a map-creating path already awaited `loadMaplibre`, so by
- * then this is non-null. Returning null is therefore not a fallback hiding a
- * failure: it means no map was ever created and there is nothing to decorate.
- */
-export function getLoadedMaplibre(): MapLibre | null {
-  return loaded;
-}

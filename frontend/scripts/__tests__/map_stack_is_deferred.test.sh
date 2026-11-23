@@ -65,10 +65,21 @@ else
     echo; echo "passed: $passed   failed: $failed"; exit 1
 fi
 
-es_static_refs() { grep -rhoE "(from|import) ?\"$1\"" "$DIST" --include=*.js | wc -l | tr -d ' '; }
-umd_requires()   { grep -ohE "require\(\"$1\")" "$UMD" | wc -l | tr -d ' '; }
+# Count MODULE SPECIFIER occurrences, quote-agnostic and form-agnostic.
+#
+# An earlier version of this file matched `(from|import) ?"<mod>"`. Codex found
+# the hole and I reproduced it: minified output is `import{Map as M}from"..."`,
+# so a `}` sits before `from` and the anchored form reports ZERO on a genuinely
+# static import. It also missed single quotes entirely. A guard whose spelling
+# has to match the minifier's is not a guard.
+#
+# So: count every QUOTED occurrence of the specifier in any form. The closing
+# quote is what keeps `terra-draw` from matching `terra-draw-maplibre-gl-adapter`
+# and `maplibre-gl` from matching `maplibre-gl/dist/...`.
+spec_refs() { grep -rhoE "['\"]$1['\"]" "$DIST" --include=*.js | wc -l | tr -d ' '; }
+umd_requires() { grep -ohE "require\(['\"]$1['\"]\)" "$UMD" | wc -l | tr -d ' '; }
 
-REACT_ES="$(es_static_refs react)"
+REACT_ES="$(spec_refs react)"
 REACT_UMD="$(umd_requires react)"
 if [ "$REACT_ES" -gt 0 ] && [ "$REACT_UMD" -gt 0 ]; then
     ok "control: react IS still statically imported (ES $REACT_ES, UMD $REACT_UMD) — both scanners can see a real import"
@@ -80,12 +91,12 @@ fi
 
 # --- the assertion this issue is about ---------------------------------------
 for mod in maplibre-gl terra-draw terra-draw-maplibre-gl-adapter; do
-    n_es="$(es_static_refs "$mod")"
+    n_es="$(spec_refs "$mod")"
     if [ "$n_es" -eq 0 ]; then
-        ok "ES output has no static import of $mod"
+        ok "ES output carries no reference of ANY form to $mod"
     else
-        bad "ES output has no static import of $mod" \
-            "found $n_es static ref(s). A consumer who never opens a map still downloads it."
+        bad "ES output carries no reference of ANY form to $mod" \
+            "found $n_es quoted specifier ref(s). A consumer who never opens a map still downloads it."
     fi
 
     n_umd="$(umd_requires "$mod")"
@@ -144,8 +155,32 @@ for marker in nomad-basemap-style nomad-map-view probability-popup raster-probab
 done
 
 # ...and the app must reach maplibre only through a dynamic import.
-APP_STATIC="$(grep -rhosE '(^|[;,])(import|from)"\./maplibre-gl-[A-Za-z0-9_-]+\.js"' "$APP_ASSETS"/*.js | wc -l | tr -d ' ')"
-APP_DYNAMIC="$(grep -rhosE 'import\("\./maplibre-gl-[A-Za-z0-9_-]+\.js"\)' "$APP_ASSETS"/*.js | wc -l | tr -d ' ')"
+# Static is computed as TOTAL minus DYNAMIC rather than matched directly, so no
+# assertion depends on guessing how the minifier spelled the import.
+chunk_total()   { grep -rhosE "['\"]\./maplibre-gl-[A-Za-z0-9_-]+\.js['\"]" "$1"/*.js | wc -l | tr -d ' '; }
+chunk_dynamic() { grep -rhosE "import\([[:space:]]*['\"]\./maplibre-gl-[A-Za-z0-9_-]+\.js['\"][[:space:]]*\)" "$1"/*.js | wc -l | tr -d ' '; }
+
+# CONTROL: prove the static arithmetic FIRES, on a fixture holding one minified
+# static import and one dynamic import of the same chunk. The react control
+# above only proves the scanner recognises react's emitted spelling -- it cannot
+# show that STATIC detection works, which is exactly the hole Codex found here.
+CTL_DIR="$(mktemp -d)"
+printf 'import{Map as M}from"./maplibre-gl-CTL.js";const l=()=>import("./maplibre-gl-CTL.js");\n' > "$CTL_DIR/ctl.js"
+CTL_TOTAL="$(chunk_total "$CTL_DIR")"
+CTL_DYN="$(chunk_dynamic "$CTL_DIR")"
+CTL_STATIC=$((CTL_TOTAL - CTL_DYN))
+rm -rf "$CTL_DIR"
+if [ "$CTL_STATIC" -eq 1 ] && [ "$CTL_DYN" -eq 1 ]; then
+    ok "control: the scanner detects a MINIFIED static import (static 1, dynamic 1 on a known fixture)"
+else
+    bad "control: the scanner detects a MINIFIED static import" \
+        "fixture with 1 static + 1 dynamic import scored static=$CTL_STATIC dynamic=$CTL_DYN. The scanner cannot see a static import, so the assertion below cannot fail and proves nothing."
+    echo; echo "passed: $passed   failed: $failed"; exit 1
+fi
+
+APP_TOTAL="$(chunk_total "$APP_ASSETS")"
+APP_DYNAMIC="$(chunk_dynamic "$APP_ASSETS")"
+APP_STATIC=$((APP_TOTAL - APP_DYNAMIC))
 if [ "$APP_DYNAMIC" -gt 0 ]; then
     ok "the app loads maplibre by dynamic import ($APP_DYNAMIC site(s)) — deferred, not removed"
 else
@@ -156,7 +191,7 @@ if [ "$APP_STATIC" -eq 0 ]; then
     ok "the app has no STATIC import of the maplibre chunk"
 else
     bad "the app has no STATIC import of the maplibre chunk" \
-        "found $APP_STATIC. A static import means first paint pays for maplibre again."
+        "$APP_TOTAL total chunk refs minus $APP_DYNAMIC dynamic = $APP_STATIC static. A static import means first paint pays for maplibre again."
 fi
 
 echo
