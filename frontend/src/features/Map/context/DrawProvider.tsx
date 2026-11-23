@@ -1,7 +1,10 @@
 import { ReactNode, useState, useCallback, useEffect, useRef } from 'react';
-import { TerraDraw, TerraDrawPointMode, TerraDrawLineStringMode, TerraDrawPolygonMode, TerraDrawSelectMode } from 'terra-draw';
+import type { TerraDraw } from 'terra-draw';
 import type { GeoJSONStoreFeatures } from 'terra-draw';
-import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter';
+// terra-draw and its maplibre adapter are loaded on demand, not at import —
+// #567. They are part of the map stack, and an embedded consumer that never
+// opens a Nomad map must not pay for them. Both remain REQUIRED peer
+// dependencies: anyone who DOES open the map genuinely needs them.
 import { useMap } from './MapContext';
 import { DrawContext, type DrawContextValue } from './DrawContext';
 import type { DrawingMode, DrawnFeature, DrawingState } from '../types/geometry';
@@ -68,93 +71,119 @@ export function DrawProvider({ children }: DrawProviderProps) {
   useEffect(() => {
     if (!map || !isLoaded) return;
 
-    const adapter = new TerraDrawMapLibreGLAdapter({
-      map,
-    });
+    // Guards the window between unmount and the dynamic imports resolving (#567):
+    // without it the cleanup runs first, terraDrawRef is still null, and we then
+    // `start()` a TerraDraw nothing will ever `stop()`.
+    let cancelled = false;
+    let started: TerraDraw | null = null;
 
-    let idCounter = 0;
-    const draw = new TerraDraw({
-      adapter,
-      modes: [
-        new TerraDrawPointMode(),
-        new TerraDrawLineStringMode(),
-        new TerraDrawPolygonMode(),
-        new TerraDrawSelectMode(),
-      ],
-      idStrategy: {
-        isValidId: (id: string | number) => id !== undefined && id !== null,
-        getId: () => `td-${Date.now()}-${++idCounter}`,
-      },
-    });
+    Promise.all([
+      import('terra-draw'),
+      import('terra-draw-maplibre-gl-adapter'),
+    ]).then(([
+      { TerraDraw, TerraDrawPointMode, TerraDrawLineStringMode, TerraDrawPolygonMode, TerraDrawSelectMode },
+      { TerraDrawMapLibreGLAdapter },
+    ]) => {
+      if (cancelled) return;
 
-    // Set up event listeners
-    draw.on('finish', (id) => {
-      const feature = draw.getSnapshotFeature(id);
-      if (feature) {
-        const drawnFeature = toDrawnFeature(feature);
+      const adapter = new TerraDrawMapLibreGLAdapter({
+        map,
+      });
+
+      let idCounter = 0;
+      const draw = new TerraDraw({
+        adapter,
+        modes: [
+          new TerraDrawPointMode(),
+          new TerraDrawLineStringMode(),
+          new TerraDrawPolygonMode(),
+          new TerraDrawSelectMode(),
+        ],
+        idStrategy: {
+          isValidId: (id: string | number) => id !== undefined && id !== null,
+          getId: () => `td-${Date.now()}-${++idCounter}`,
+        },
+      });
+
+      // Set up event listeners
+      draw.on('finish', (id) => {
+        const feature = draw.getSnapshotFeature(id);
+        if (feature) {
+          const drawnFeature = toDrawnFeature(feature);
+          setState((prev) => ({
+            ...prev,
+            features: [...prev.features, drawnFeature],
+          }));
+          createSubscribers.current.forEach((cb) => cb([drawnFeature]));
+        }
+      });
+
+      draw.on('change', (ids, type) => {
+        if (type === 'delete') {
+          const deletedFeatures = featuresRef.current.filter(f => ids.includes(String(f.id)));
+          if (deletedFeatures.length > 0) {
+            setState((prev) => ({
+              ...prev,
+              features: prev.features.filter(f => !ids.includes(String(f.id))),
+              selectedIds: prev.selectedIds.filter(id => !ids.includes(String(id))),
+            }));
+            deleteSubscribers.current.forEach((cb) => cb(deletedFeatures));
+          }
+        } else if (type === 'update') {
+          const updatedFeatures: DrawnFeature[] = [];
+          ids.forEach(id => {
+            const feature = draw.getSnapshotFeature(id);
+            if (feature) {
+              updatedFeatures.push(toDrawnFeature(feature));
+            }
+          });
+          if (updatedFeatures.length > 0) {
+            setState((prev) => ({
+              ...prev,
+              features: prev.features.map(f =>
+                ids.includes(String(f.id))
+                  ? updatedFeatures.find(uf => String(uf.id) === String(f.id)) ?? f
+                  : f
+              ),
+            }));
+            updateSubscribers.current.forEach((cb) => cb(updatedFeatures));
+          }
+        }
+      });
+
+      draw.on('select', (id) => {
+        setState((prev) => {
+          const idStr = String(id);
+          if (prev.selectedIds.includes(idStr)) return prev;
+          return { ...prev, selectedIds: [...prev.selectedIds, idStr] };
+        });
+      });
+
+      draw.on('deselect', (id) => {
         setState((prev) => ({
           ...prev,
-          features: [...prev.features, drawnFeature],
+          selectedIds: prev.selectedIds.filter(sid => sid !== String(id)),
         }));
-        createSubscribers.current.forEach((cb) => cb([drawnFeature]));
-      }
-    });
-
-    draw.on('change', (ids, type) => {
-      if (type === 'delete') {
-        const deletedFeatures = featuresRef.current.filter(f => ids.includes(String(f.id)));
-        if (deletedFeatures.length > 0) {
-          setState((prev) => ({
-            ...prev,
-            features: prev.features.filter(f => !ids.includes(String(f.id))),
-            selectedIds: prev.selectedIds.filter(id => !ids.includes(String(id))),
-          }));
-          deleteSubscribers.current.forEach((cb) => cb(deletedFeatures));
-        }
-      } else if (type === 'update') {
-        const updatedFeatures: DrawnFeature[] = [];
-        ids.forEach(id => {
-          const feature = draw.getSnapshotFeature(id);
-          if (feature) {
-            updatedFeatures.push(toDrawnFeature(feature));
-          }
-        });
-        if (updatedFeatures.length > 0) {
-          setState((prev) => ({
-            ...prev,
-            features: prev.features.map(f =>
-              ids.includes(String(f.id))
-                ? updatedFeatures.find(uf => String(uf.id) === String(f.id)) ?? f
-                : f
-            ),
-          }));
-          updateSubscribers.current.forEach((cb) => cb(updatedFeatures));
-        }
-      }
-    });
-
-    draw.on('select', (id) => {
-      setState((prev) => {
-        const idStr = String(id);
-        if (prev.selectedIds.includes(idStr)) return prev;
-        return { ...prev, selectedIds: [...prev.selectedIds, idStr] };
       });
-    });
 
-    draw.on('deselect', (id) => {
-      setState((prev) => ({
-        ...prev,
-        selectedIds: prev.selectedIds.filter(sid => sid !== String(id)),
-      }));
+      // Start TerraDraw
+      draw.start();
+      started = draw;
+      terraDrawRef.current = draw;
+      setIsReady(true);
+    }).catch((err: unknown) => {
+      if (cancelled) return;
+      // A missing required peer, surfaced rather than swallowed: drawing silently
+      // never becoming available is the kind of failure that gets diagnosed as a
+      // UI bug for days.
+      console.error('[DrawContext] failed to load the drawing stack:', err);
     });
-
-    // Start TerraDraw
-    draw.start();
-    terraDrawRef.current = draw;
-    setIsReady(true);
 
     return () => {
-      draw.stop();
+      cancelled = true;
+      if (started) {
+        started.stop();
+      }
       terraDrawRef.current = null;
       setIsReady(false);
     };

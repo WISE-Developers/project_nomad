@@ -1,6 +1,6 @@
 import { useEffect, useRef, ReactNode } from 'react';
-import * as maplibregl from 'maplibre-gl';
-import '../maplibreWorker';
+import type { Map as MapLibreMap } from 'maplibre-gl';
+import { loadMaplibre } from '../maplibreLazy';
 import { useMapInternal } from '../context/MapContext';
 import { DrawProvider } from '../context/DrawProvider';
 import { MapOptions, DEFAULT_MAP_OPTIONS, BASEMAP_STYLES, BasemapStyle } from '../types';
@@ -59,11 +59,15 @@ export function MapContainer({
   style,
 }: MapContainerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
   const { setMap, setIsLoaded, setIsLoading, setError } = useMapInternal();
 
   useEffect(() => {
     if (!containerRef.current) return;
+
+    // Captured synchronously: maplibre is loaded asynchronously now (#567), and
+    // `containerRef.current` could be null by the time the import resolves.
+    const container = containerRef.current;
 
     // Merge options with defaults
     const mergedOptions = { ...DEFAULT_MAP_OPTIONS, ...options };
@@ -93,12 +97,20 @@ export function MapContainer({
       }
     }
 
-    try {
-      setIsLoading(true);
-      setError(null);
+    // maplibre is imported on demand (#567), so construction is async. `cancelled`
+    // guards the window between unmount and the import resolving: without it the
+    // cleanup below runs first, mapRef is still null, and we then build a map
+    // nothing will ever remove.
+    let cancelled = false;
+
+    setIsLoading(true);
+    setError(null);
+
+    loadMaplibre().then((maplibregl) => {
+      if (cancelled) return;
 
       const map = new maplibregl.Map({
-        container: containerRef.current,
+        container,
         style: initialStyle,
         center: initialCenter,
         zoom: initialZoom,
@@ -140,14 +152,19 @@ export function MapContainer({
         const raw: unknown = e.error;
         setError(raw instanceof Error ? raw : new Error(String((raw as { message?: string })?.message ?? raw)));
       });
-    } catch (err) {
+    }).catch((err: unknown) => {
+      if (cancelled) return;
+      // Covers both a failed `import('maplibre-gl')` — a consumer missing the
+      // required peer — and a throw from the Map constructor. Surfaced, never
+      // swallowed: a blank map with no error is what #372 cost us.
       const error = err instanceof Error ? err : new Error(String(err));
       setError(error);
       setIsLoading(false);
-    }
+    });
 
     // Cleanup on unmount
     return () => {
+      cancelled = true;
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
