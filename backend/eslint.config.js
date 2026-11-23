@@ -21,6 +21,20 @@ export default [
   },
   js.configs.recommended,
   {
+    // Plain ESM scripts under scripts/ run under Node, so they need Node globals.
+    // Without this block they fall through to the bare recommended config and every
+    // `process` and `console` is an undefined identifier. The repo's own lint script
+    // only covers `src`, so that went unnoticed until scripts/ was linted directly.
+    files: ['**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+  {
     files: ['**/*.ts'],
     languageOptions: {
       parser: tsParser,
