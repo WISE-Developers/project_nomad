@@ -4,10 +4,36 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.67.0
+## v0.68.0
+
+### 2026-11-23
+
+- [`eba533d`](https://github.com/WISE-Developers/project_nomad/commit/eba533dcd502ceb64f1e91b5616ba55e3650ab23) Merge pull request #568 from WISE-Developers/dev — *Franco Nogarin, 11:09*
+- [`2e2fd70`](https://github.com/WISE-Developers/project_nomad/commit/2e2fd70a948f5bf146dac68b5ab618c9158232a5) chore: dev v0.67.5 [release-bot] — *github-actions[bot], 16:30*
+- [`1a92288`](https://github.com/WISE-Developers/project_nomad/commit/1a922886628cb48c7878a732e032972c33823f06) Fix four defects Codex found in the #567 deferral, including a regression I added — *Franco Nogarin, 10:28*
+- [`c9b7c18`](https://github.com/WISE-Developers/project_nomad/commit/c9b7c18e6d5ba60224c3663ae3b787a97ef9f2f9) chore: dev v0.67.4 [release-bot] — *github-actions[bot], 16:13*
+- [`b88eeaf`](https://github.com/WISE-Developers/project_nomad/commit/b88eeaf6b3a35c309a4623f9cd760e3150ab3ee7) Merge #567: defer the map stack out of openNomad's static import graph — *Franco Nogarin, 10:12*
+- [`fbb941f`](https://github.com/WISE-Developers/project_nomad/commit/fbb941f98a59f41d7d3fc070629748e477f11dfe) Await provider readiness in DrawContext's tests, now that TerraDraw loads async — *Franco Nogarin, 10:12*
+- [`af6d760`](https://github.com/WISE-Developers/project_nomad/commit/af6d7608bf021163c2529db60da81c7bb50b1ae3) Wire the #567 gate into CI, and correct the record rather than the comments — *Franco Nogarin, 09:26*
+- [`f4f8fe3`](https://github.com/WISE-Developers/project_nomad/commit/f4f8fe3f60aa6fee489d262ffea61f37562ef935) Point the deferred-not-deleted assertion at the artefact that holds the map — *Franco Nogarin, 09:20*
+- [`4f9b24f`](https://github.com/WISE-Developers/project_nomad/commit/4f9b24fec4a8c43d79e6b5fa7be6b01702db47e9) Defer the map stack out of openNomad's static import graph (#567) — *Franco Nogarin, 09:15*
+- [`28b97c6`](https://github.com/WISE-Developers/project_nomad/commit/28b97c632e0c654a9143e42e0e48851d01ff9584) chore: dev v0.67.3 [release-bot] — *github-actions[bot], 14:05*
+- [`a256a2d`](https://github.com/WISE-Developers/project_nomad/commit/a256a2d0679a656edc7cc82605b39968415f5478) Merge origin/dev into the lint fix — *Franco Nogarin, 08:05*
+- [`c2ce818`](https://github.com/WISE-Developers/project_nomad/commit/c2ce818ae619768443c7885cdf459e2136476974) Merge: lint covers scripts, and .mjs files get Node globals — *Franco Nogarin, 08:05*
+- [`5631f3a`](https://github.com/WISE-Developers/project_nomad/commit/5631f3a86259b555dc4a748ec2f5f0582f1212b1) Lint the scripts directory, and give plain ESM scripts the Node globals they need — *Franco Nogarin, 08:05*
+- [`5d4914f`](https://github.com/WISE-Developers/project_nomad/commit/5d4914f176fff037e4e6e61e7dc315613b73280d) chore: dev v0.67.2 [release-bot] — *github-actions[bot], 14:04*
+- [`2eb5d3f`](https://github.com/WISE-Developers/project_nomad/commit/2eb5d3fb260b128d6656b612d29812ce1a4c9723) Merge: correct the GDAL-host claims now that the CLI works again — *Franco Nogarin, 08:03*
+- [`6976f1f`](https://github.com/WISE-Developers/project_nomad/commit/6976f1f9e7f0f3dd3a26532529a838be3d51c784) The host's GDAL CLI works again; say so where this code claimed otherwise — *Franco Nogarin, 08:03*
+
+### 2026-11-22
+
+- [`61a5ba3`](https://github.com/WISE-Developers/project_nomad/commit/61a5ba321f09de3c0c5f7114809faa0778ca215c) chore: dev v0.67.1 [release-bot] — *github-actions[bot], 18:17*
+- [`cae41f3`](https://github.com/WISE-Developers/project_nomad/commit/cae41f373bc8006b26c21605450ca8c8dc538439) Merge branch 'docs/floorplan-map' into dev — *Franco Nogarin, 18:13*
+- [`6905b0a`](https://github.com/WISE-Developers/project_nomad/commit/6905b0ab28991fa6f46b0573b36f36e0fa6ba4fe) docs: add Floorplan architecture map of Project Nomad — *Franco Nogarin, 18:13*
 
 ### 2026-11-19
 
+- [`e792a2b`](https://github.com/WISE-Developers/project_nomad/commit/e792a2bf2858189548600143b8fc8f9e48e52993) chore: release v0.67.0 [release-bot] — *github-actions[bot], 14:24*
 - [`11064d3`](https://github.com/WISE-Developers/project_nomad/commit/11064d37099aa48a8fd690eb0790e52e8fcdbef2) Merge pull request #566 from WISE-Developers/dev — *Franco Nogarin, 08:24*
 - [`4a58a80`](https://github.com/WISE-Developers/project_nomad/commit/4a58a80ee5b5834eb9136c5af640acb299d2b659) chore: dev v0.66.1 [release-bot] — *github-actions[bot], 14:19*
 - [`28f3fee`](https://github.com/WISE-Developers/project_nomad/commit/28f3fee688045484079d9fb9ed470daf28fac510) Merge origin/dev (v0.66.0 release commits) into the ESM fix — *Franco Nogarin, 08:18*
