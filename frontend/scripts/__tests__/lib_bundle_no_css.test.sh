@@ -8,6 +8,13 @@
 # OutputPreviewModal.tsx — are not in the bundle. Rollup dropped their JS and
 # kept their stylesheet import.
 #
+# STILL TRUE, re-measured 2026-11-23 while fixing #567, from the library build's
+# own sourcemaps: neither component is in the openNomad graph, and neither are
+# LayerProvider or DrawProvider. A session of mine claimed the opposite on #567
+# and was wrong. What IS in the graph, and is what actually imported maplibre at
+# module load, was `maplibreWorker.ts` (setWorkerUrl at module scope, now folded
+# into features/Map/maplibreLazy.ts) and `useRasterHover.ts` (new Popup).
+#
 # It was also unreachable: frontend/package.json `exports` has no style entry, so
 # a consumer could not import it without a deep path past the public API.
 #

@@ -125,12 +125,29 @@ describe('convention: externalised packages are declared peers (#485)', () => {
       expect(peerDependencies).toHaveProperty(name);
 
       // These were briefly `optional: true`, on the premise that a consumer
-      // embedding only the Dashboard never needs a map stack. MEASURED FALSE:
-      // the built library requires all three unconditionally -- the UMD bundle
-      // carries `require("maplibre-gl")`, `require("terra-draw")` and
-      // `require("terra-draw-maplibre-gl-adapter")` at the top level, and the
-      // ES entry statically imports the one chunk that holds them. There is no
-      // dynamic import anywhere, so no surface avoids them.
+      // embedding only the Dashboard never needs a map stack. MEASURED FALSE at
+      // the time: the built library required all three unconditionally -- the
+      // UMD bundle carried `require("maplibre-gl")`, `require("terra-draw")` and
+      // `require("terra-draw-maplibre-gl-adapter")` at the top level, and the ES
+      // entry statically imported the one chunk that held them.
+      //
+      // UPDATED 2026-11-23 (#567): the static imports are GONE. They are now
+      // loaded by dynamic `import()`, so the built library no longer references
+      // any of the three at module load --
+      // scripts/__tests__/map_stack_is_deferred.test.sh asserts exactly that
+      // against the emitted ES and UMD output.
+      //
+      // THE ASSERTION BELOW IS UNCHANGED, AND DELIBERATELY SO. Deferring the
+      // import did not make the dependency optional. `useRasterHover` is still
+      // shipped in the library graph and still builds a maplibre Popup the
+      // moment a consumer wires it to a map, so a consumer who installs without
+      // maplibre has a broken install either way -- and the two npm behaviours
+      // are what decide this, not whether the import is static:
+      //   required peer -> npm installs it
+      //   optional peer -> npm does NOT
+      // `optional` would still guarantee an unresolved module at runtime, where
+      // no install, typecheck or test gate can see it (#485). The only thing
+      // that changed is WHEN the module is fetched, not WHETHER it is needed.
       //
       // And the two install behaviours differ, measured from a tarball, which
       // is how our one known consumer actually installs this package:

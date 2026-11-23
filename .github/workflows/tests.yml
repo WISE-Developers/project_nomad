@@ -130,6 +130,19 @@ jobs:
         run: bash scripts/__tests__/react_is_a_peer_dep.test.sh
         working-directory: frontend
 
+      # openNomad imported maplibre-gl at module scope, so every embedded
+      # consumer downloaded MapLibre on page load even when it never created a
+      # Nomad map -- pinning EasyMap 3 to mapbox-gl 3.31.0 (EM3 #1009, Nomad
+      # #567). Nothing in CI could see it: tsc, vitest and lint all accept a
+      # static import, and none of them inspects what the build emits.
+      #
+      # Wired explicitly, like its two neighbours above, because this job names
+      # each suite rather than globbing them. An unwired guard is a guard that
+      # can never fire.
+      - name: The map stack is deferred, not statically imported
+        run: bash scripts/__tests__/map_stack_is_deferred.test.sh
+        working-directory: frontend
+
   frontend-react19:
     name: Frontend on React 19 (typecheck + tests)
     runs-on: ubuntu-latest
