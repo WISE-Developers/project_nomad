@@ -97,15 +97,66 @@ for mod in maplibre-gl terra-draw terra-draw-maplibre-gl-adapter; do
     fi
 done
 
-# --- deferred, not deleted ---------------------------------------------------
-# Without this, DELETING the map features entirely would satisfy everything above.
-# That would be the one outcome #567 explicitly rejected.
-DYN="$(grep -rhoE 'import\("maplibre-gl"\)|import\("terra-draw"\)|import\("terra-draw-maplibre-gl-adapter"\)' "$DIST" --include=*.js | wc -l | tr -d ' ')"
-if [ "$DYN" -gt 0 ]; then
-    ok "the map stack is still reachable by dynamic import ($DYN site(s)) — deferred, not removed"
+# --- deferred, not deleted: asserted where the map actually lives -------------
+# The library graph does NOT contain MapContainer, OutputPreviewModal,
+# LayerProvider or DrawProvider -- measured from the build's own sourcemaps, on
+# both sides of this change. Only `useRasterHover` and the old `maplibreWorker`
+# were ever in it, and maplibreWorker's MODULE-SCOPE `setWorkerUrl` was the
+# import-time cost #567 is actually about.
+#
+# So "the map stack is still reachable" cannot be asserted against dist/ above:
+# there is nothing there to defer. An earlier version of this file asserted
+# exactly that, and failed -- on a proposition nobody was testing. A condition
+# one step beside the task looks identical to a real one until it fires.
+#
+# The map lives in the SAN APP build. That is where deferred-vs-deleted is a
+# real distinction, so that is where it is checked.
+BUILD_LOG="$(mktemp)"
+if ( cd "$FRONTEND" && npm run build ) > "$BUILD_LOG" 2>&1; then
+    ok "npm run build (SAN app) succeeds"
 else
-    bad "the map stack is still reachable by dynamic import" \
-        "zero dynamic import() sites for the three modules. The static imports may be gone because the map features were REMOVED, which is not the fix #567 asked for: MapContainer and OutputPreviewModal must still be able to create a map."
+    bad "npm run build (SAN app) succeeds" "$(tail -5 "$BUILD_LOG")"
+    rm -f "$BUILD_LOG"
+    echo; echo "passed: $passed   failed: $failed"; exit 1
+fi
+rm -f "$BUILD_LOG"
+
+APP_ASSETS="$FRONTEND/dist/assets"
+
+# Control, in BOTH directions, before any answer below is believed.
+if grep -rqs 'Nomad' "$APP_ASSETS"/*.js && ! grep -rqs 'zzz-control-string-that-cannot-exist' "$APP_ASSETS"/*.js; then
+    ok "control: the app-bundle scanner finds a known string and not an absent one"
+else
+    bad "control: the app-bundle scanner finds a known string and not an absent one" \
+        "the scanner is not measuring this artefact; every assertion below is void"
+    echo; echo "passed: $passed   failed: $failed"; exit 1
+fi
+
+# The map components must still BE in the app. Deleting them satisfies every
+# absence check in this file, and is the one outcome #567 explicitly rejected.
+for marker in nomad-basemap-style nomad-map-view probability-popup raster-probability-popup; do
+    if grep -rqs "$marker" "$APP_ASSETS"/*.js; then
+        ok "the app still contains the map code that uses '$marker'"
+    else
+        bad "the app still contains the map code that uses '$marker'" \
+            "absent from the app bundle. The map stack was REMOVED, not deferred."
+    fi
+done
+
+# ...and the app must reach maplibre only through a dynamic import.
+APP_STATIC="$(grep -rhosE '(^|[;,])(import|from)"\./maplibre-gl-[A-Za-z0-9_-]+\.js"' "$APP_ASSETS"/*.js | wc -l | tr -d ' ')"
+APP_DYNAMIC="$(grep -rhosE 'import\("\./maplibre-gl-[A-Za-z0-9_-]+\.js"\)' "$APP_ASSETS"/*.js | wc -l | tr -d ' ')"
+if [ "$APP_DYNAMIC" -gt 0 ]; then
+    ok "the app loads maplibre by dynamic import ($APP_DYNAMIC site(s)) — deferred, not removed"
+else
+    bad "the app loads maplibre by dynamic import" \
+        "no dynamic import of a maplibre chunk. Either maplibre was inlined back into a static chunk, or the map was removed."
+fi
+if [ "$APP_STATIC" -eq 0 ]; then
+    ok "the app has no STATIC import of the maplibre chunk"
+else
+    bad "the app has no STATIC import of the maplibre chunk" \
+        "found $APP_STATIC. A static import means first paint pays for maplibre again."
 fi
 
 echo
