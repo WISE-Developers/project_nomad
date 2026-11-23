@@ -5,7 +5,8 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import * as maplibregl from 'maplibre-gl';
+import type { Map as MapLibreMap } from 'maplibre-gl';
+import { loadMaplibre } from '../../Map/maplibreLazy';
 import { useOpenNomad } from '../../../openNomad/context';
 import { PROBABILITY_LEGEND } from '../../Map/symbology/palettes';
 import type { OutputItem } from '../types';
@@ -51,7 +52,7 @@ export function OutputPreviewModal({
 }: OutputPreviewModalProps) {
   const api = useOpenNomad();
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [geoJsonData, setGeoJsonData] = useState<ContourFeatureCollection | null>(null);
@@ -119,9 +120,18 @@ export function OutputPreviewModal({
   useEffect(() => {
     if (!mapContainerRef.current || !geoJsonData || mapRef.current) return;
 
-    try {
+    // Captured synchronously: maplibre is loaded on demand now (#567), so the
+    // ref could be null by the time the import resolves. `cancelled` guards the
+    // same window for the map itself -- without it a modal closed mid-load
+    // builds a map the cleanup has already run past.
+    const container = mapContainerRef.current;
+    let cancelled = false;
+
+    loadMaplibre().then((maplibregl) => {
+      if (cancelled) return;
+
       const map = new maplibregl.Map({
-        container: mapContainerRef.current,
+        container,
         style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
         center: [-115, 55], // Default Alberta center
         zoom: 8,
@@ -217,12 +227,16 @@ export function OutputPreviewModal({
         // Add navigation controls
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
       });
-    } catch (err) {
+    }).catch((err: unknown) => {
+      if (cancelled) return;
+      // Covers a failed `import('maplibre-gl')` -- a consumer missing the
+      // required peer -- as well as a throw from the Map constructor.
       const message = err instanceof Error ? err.message : 'Map initialization failed';
       setError(message);
-    }
+    });
 
     return () => {
+      cancelled = true;
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;

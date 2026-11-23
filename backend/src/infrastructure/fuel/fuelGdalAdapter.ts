@@ -11,11 +11,12 @@
  *     argv for it, and the argv form is what keeps paths with spaces unquoted and
  *     uninjectable.
  *
- * THOSE TWO CAN DISAGREE ABOUT WHETHER GDAL IS PRESENT, and on a macOS dev host they
- * currently do: the binding loads fine while every Homebrew GDAL binary fails to link
- * (measured 2026-11-18 — libheif wants libx265.215 and Homebrew ships .217). So a
- * missing CLI is reported as exactly that, naming the binary, rather than as a fuel
- * error. The dev container's GDAL 3.6.2 works, which is where this path is exercised.
+ * THOSE TWO CAN DISAGREE ABOUT WHETHER GDAL IS PRESENT, which is why a missing CLI is
+ * reported as exactly that, naming the binary, rather than as a fuel error. They did
+ * disagree on this macOS host from 2026-11-05 to 2026-11-20: the binding loaded fine
+ * while every Homebrew GDAL binary failed to link. Resolved 2026-11-23 — the CLI is
+ * GDAL 3.13.3 and the binding 3.12.3, and both work. The dev container's GDAL 3.6.2
+ * works too, which is where this path ran while the host's was broken.
  */
 
 import { spawn } from 'node:child_process';

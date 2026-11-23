@@ -11,6 +11,23 @@ import './index.css';
 // 83 kB stylesheet of unusable map chrome in every published tarball, not even
 // reachable through `exports`.
 //
+// CONFIRMED, not rewritten, 2026-11-23 (#567). Everything above is still true:
+// measured from the library build's own sourcemaps, neither MapContainer nor
+// OutputPreviewModal is in the openNomad graph, and nor are LayerProvider or
+// DrawProvider. A session of mine recorded the opposite on the board and on
+// #567 — that both components were "reachable from DashboardContainer" — and
+// that was wrong. This comment was right. Reality outranks documentation, but
+// only after you have measured which one is which.
+//
+// What IS in the library graph, and what therefore dragged MapLibre onto every
+// embedded consumer's page, was not these two components:
+//   - `maplibreWorker.ts`, which called `setWorkerUrl` AT MODULE SCOPE
+//   - `useRasterHover.ts`, which built a `new maplibregl.Popup`
+// Both now load the library on demand via `features/Map/maplibreLazy.ts`, and
+// `maplibreWorker.ts` is gone, folded into it. maplibre-gl stays a REQUIRED
+// peerDependency: useRasterHover is still shipped and still needs it the moment
+// a consumer wires it to a map.
+//
 // Embedded consumers own their own map and its styles: maplibre-gl is declared
 // external in vite.lib.config.ts and LayerContext takes `map` as a parameter.
 import 'maplibre-gl/dist/maplibre-gl.css';

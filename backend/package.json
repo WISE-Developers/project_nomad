@@ -1,6 +1,6 @@
 {
   "name": "@nomad/backend",
-  "version": "0.67.0",
+  "version": "0.67.5",
   "description": "Project Nomad - Fire Modeling Backend API",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "build": "tsc && npm run copy:assets && npm run verify:dist",
     "verify:dist": "node scripts/check-dist-imports.mjs dist",
     "start": "node dist/index.js",
-    "lint": "eslint src --max-warnings 0",
+    "lint": "eslint src scripts --max-warnings 0",
     "test": "vitest",
     "test:watch": "vitest watch",
     "copy:assets": "node -e \"const fs=require('fs'),path=require('path');const src='src/services/splash/assets';const dest='dist/services/splash/assets';fs.mkdirSync(dest,{recursive:true});for(const f of fs.readdirSync(src))fs.copyFileSync(path.join(src,f),path.join(dest,f));\""
