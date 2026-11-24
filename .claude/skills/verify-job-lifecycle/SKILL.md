@@ -43,7 +43,7 @@ Its one assumption: deployments that set a name set different ones.
 Run it when a change touches any file in the coverage record below. To see whether it does:
 
 ```sh
-git diff --name-only e2491b1 -- backend/src/infrastructure/services/JobQueue.ts backend/src/domain/entities/Job.ts backend/src/domain/entities/FireModel.ts backend/src/infrastructure/database/knex/KnexJobRepository.ts backend/src/infrastructure/database/knex/KnexModelRepository.ts backend/src/index.ts backend/src/infrastructure/execution/composeProjectName.ts backend/src/application/services/startupRecovery.ts backend/src/application/services/cancelRun.ts backend/src/application/services/runRegistry.ts backend/src/application/services/finalizeModelExecution.ts backend/src/application/services/executeAndFinalizeModel.ts backend/src/infrastructure/firestarr/FireSTARREngine.ts backend/src/infrastructure/docker/DockerExecutor.ts backend/src/infrastructure/nativebinary/NativeBinaryExecutor.ts backend/src/api/routes/v1/models.ts backend/src/api/routes/v1/jobs.ts backend/src/mcp/tools/execution.ts
+git diff --name-only 16c4fda -- backend/src/infrastructure/services/JobQueue.ts backend/src/domain/entities/Job.ts backend/src/domain/entities/FireModel.ts backend/src/infrastructure/database/knex/KnexJobRepository.ts backend/src/infrastructure/database/knex/KnexModelRepository.ts backend/src/index.ts backend/src/infrastructure/execution/composeProjectName.ts backend/src/application/services/startupRecovery.ts backend/src/application/services/cancelRun.ts backend/src/application/services/runRegistry.ts backend/src/application/services/finalizeModelExecution.ts backend/src/application/services/executeAndFinalizeModel.ts backend/src/infrastructure/firestarr/FireSTARREngine.ts backend/src/infrastructure/docker/DockerExecutor.ts backend/src/infrastructure/nativebinary/NativeBinaryExecutor.ts backend/src/api/routes/v1/models.ts backend/src/api/routes/v1/jobs.ts backend/src/mcp/tools/execution.ts
 ```
 
 Any output means the verification needs a look. The command compares the working tree with the sync commit, so it also sees uncommitted edits. Also run the check when a change adds a new place that writes `jobs.status` or `fire_models.status`, or starts or stops an engine. Find those with `rg -n "jobQueue\.(enqueue|updateStatus|complete|fail|cancel)|ModelStatus\.(Queued|Running|Completed|Failed|Cancelled)|updateStatusUnlessCancelled|failInterrupted|killLeftovers|recoverAfterRestart|COMPOSE_PROJECT_NAME|composeProjectName|engine\.(execute|cancel)|runRegistry|getRunRegistry" backend/src`. If a hit is not in the coverage record, the model does not describe it yet.
@@ -149,7 +149,7 @@ To show a mechanism matters, remove it from the code and run its test. Then remo
 
 ## Coverage record
 
-Sync commit: `e2491b1`, plus the uncommitted fix on branch `fix/job-lifecycle-findings`. Move this to the fix commit's hash once it lands.
+Sync commit: `16c4fda` (the verification describes the code at this commit; `check.sh` passed all 41 checks there).
 
 | Code | Spec action(s) |
 | --- | --- |
