@@ -4,6 +4,7 @@ import {
   JobId,
   JobStatus,
   FireModelId,
+  ModelStatus,
   createJobId,
 } from '../../domain/entities/index.js';
 import { DomainError, NotFoundError, ValidationError } from '../../domain/errors/index.js';
@@ -109,18 +110,32 @@ export class JobQueue implements IJobQueue {
   }
 
   /**
-   * Initialize the job queue, recovering from any incomplete state
+   * Startup recovery. Called once from initializeDatabaseLayer in index.ts, before the
+   * server listens, so no request or run is in flight.
+   *
+   * The process that drove every unfinished run is gone and nothing resumes runs, so:
+   *   1. every pending or running job is failed. Pending ones too: on
+   *      POST /models/:id/execute a job stays pending for the whole of engine
+   *      initialization, and a pending job nobody will pick up waits forever (F2);
+   *   2. every model still queued or running - or still draft but with a job, which is
+   *      the MCP path, since it never writes queued - takes the outcome of its latest
+   *      job. A model the job layer had finished (job completed, crash before the model
+   *      write) is completed, not failed; a model with no job at all is failed (F3).
    */
   async initialize(): Promise<void> {
     // Capture the interrupted jobs BEFORE marking them, so each one can be
-    // recorded individually. markRunningAsFailed returns only a count.
-    const interrupted = await this.repo.findByStatus(JobStatus.Running);
+    // recorded individually. failInterrupted returns only a count.
+    const interrupted = [
+      ...(await this.repo.findByStatus(JobStatus.Pending)),
+      ...(await this.repo.findByStatus(JobStatus.Running)),
+    ];
 
-    // Mark any running jobs as failed (they were interrupted by restart)
-    const failedCount = await this.repo.markRunningAsFailed();
+    const failedCount = await this.repo.failInterrupted();
     if (failedCount > 0) {
       console.log(`[JobQueue] Marked ${failedCount} interrupted jobs as failed`);
     }
+
+    await this.reconcileInterruptedModels();
 
     // These failures happen at boot with no request in flight and no in-memory
     // engine state - the reason run events are emitted here and not from the
@@ -131,6 +146,47 @@ export class JobQueue implements IJobQueue {
         interrupted_by_restart: true,
       });
     }
+  }
+
+  /** Step 2 of initialize(). */
+  private async reconcileInterruptedModels(): Promise<void> {
+    const { models } = await this.modelRepo.find({
+      status: [ModelStatus.Queued, ModelStatus.Running, ModelStatus.Draft],
+    });
+
+    for (const model of models) {
+      // findByModelId is newest first.
+      const [latest] = await this.repo.findByModelId(model.id);
+      if (model.status === ModelStatus.Draft && !latest) continue;
+
+      const outcome =
+        latest?.status === JobStatus.Completed
+          ? ModelStatus.Completed
+          : latest?.status === JobStatus.Cancelled
+            ? ModelStatus.Cancelled
+            : ModelStatus.Failed;
+      await this.modelRepo.updateStatus(model.id, outcome);
+      console.log(`[JobQueue] Model ${model.id} was ${model.status} at restart; now ${outcome}`);
+    }
+  }
+
+  /**
+   * Writes a job through updateIfActive, so a completed, failed or cancelled job is
+   * never overwritten. When the stored job is already final, answers with why.
+   */
+  private async writeIfActive(updated: Job): Promise<Result<Job, DomainError>> {
+    if (await this.repo.updateIfActive(updated)) {
+      return Result.ok(updated);
+    }
+    const current = await this.repo.findById(updated.id);
+    if (!current) {
+      return Result.fail(new NotFoundError('Job', updated.id));
+    }
+    return Result.fail(
+      new ValidationError(`Job is already ${current.status}`, [
+        { field: 'status', message: `Job is already ${current.status}` },
+      ])
+    );
   }
 
   async enqueue(modelId: FireModelId): Promise<Result<Job, DomainError>> {
@@ -196,13 +252,14 @@ export class JobQueue implements IJobQueue {
     }
 
     console.log(`[JobQueue.updateStatus] Saving job ${jobId}: status=${updated.status}, startedAt=${updated.startedAt?.toISOString()}, completedAt=${updated.completedAt?.toISOString()}`);
-    await this.repo.update(updated);
+    const written = await this.writeIfActive(updated);
+    if (!written.success) return written;
     console.log(`[JobQueue] Job ${jobId} status updated to ${status}`);
 
     // No event here: model.run.started is emitted at enqueue so that every run
     // has exactly one start, including runs that fail before reaching Running.
 
-    return Result.ok(updated);
+    return written;
   }
 
   async updateProgress(jobId: JobId, progress: number): Promise<Result<Job, DomainError>> {
@@ -211,10 +268,7 @@ export class JobQueue implements IJobQueue {
       return Result.fail(new NotFoundError('Job', jobId));
     }
 
-    const updated = existing.withProgress(progress);
-    await this.repo.update(updated);
-
-    return Result.ok(updated);
+    return this.writeIfActive(existing.withProgress(progress));
   }
 
   async cancel(jobId: JobId): Promise<Result<Job, DomainError>> {
@@ -231,11 +285,11 @@ export class JobQueue implements IJobQueue {
       );
     }
 
-    const cancelled = existing.withStatus(JobStatus.Cancelled);
-    await this.repo.update(cancelled);
-    console.log(`[JobQueue] Job ${jobId} cancelled`);
-
-    return Result.ok(cancelled);
+    // canCancel() above read the status; the run can still finish before this write
+    // lands, and then updateIfActive refuses it rather than overwriting the result.
+    const written = await this.writeIfActive(existing.withStatus(JobStatus.Cancelled));
+    if (written.success) console.log(`[JobQueue] Job ${jobId} cancelled`);
+    return written;
   }
 
   async fail(jobId: JobId, error: string): Promise<Result<Job, DomainError>> {
@@ -245,7 +299,8 @@ export class JobQueue implements IJobQueue {
     }
 
     const failed = existing.withError(error);
-    await this.repo.update(failed);
+    const written = await this.writeIfActive(failed);
+    if (!written.success) return written;
     console.log(`[JobQueue] Job ${jobId} failed: ${error}`);
 
     await this.recordRun('model.run.failed', failed.modelId, {
@@ -263,7 +318,8 @@ export class JobQueue implements IJobQueue {
     }
 
     const completed = existing.withStatus(JobStatus.Completed).withProgress(100);
-    await this.repo.update(completed);
+    const written = await this.writeIfActive(completed);
+    if (!written.success) return written;
     console.log(`[JobQueue] Job ${jobId} completed`);
 
     // Wall clock, which includes container startup. FireSTARR's own

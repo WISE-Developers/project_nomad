@@ -16,6 +16,8 @@ import {
 import { Result } from '../../application/common/index.js';
 import { EngineError } from '../../domain/errors/index.js';
 import { EngineType } from '../../domain/entities/index.js';
+import { stopChildProcess } from '../execution/stopChildProcess.js';
+import { composeProjectNameFrom } from '../execution/composeProjectName.js';
 
 /** Default timeout: 4 hours */
 const DEFAULT_TIMEOUT_MS = 4 * 60 * 60 * 1000;
@@ -41,29 +43,90 @@ export class DockerExecutor implements IContainerExecutor {
   }
 
   /**
-   * Cancel a running job by its ID.
-   * Sends SIGTERM followed by SIGKILL after grace period.
-   * @returns true if process was found and killed, false otherwise
+   * Stops the run started for `jobId` and confirms nothing is left of it.
+   *
+   * The run is a `docker compose run` CLI in front of a container, and signalling the CLI
+   * does not reliably stop the container: it belongs to the daemon. So the container is
+   * killed by its name first, the CLI is stopped, and the daemon is then asked whether
+   * anything by that name remains (removing it with `rm -f` if so). Rejects when the
+   * daemon cannot be asked or the container is still there.
    */
-  cancelJob(jobId: string): boolean {
-    const child = this.activeProcesses.get(jobId);
-    if (!child) {
-      console.log(`[DockerExecutor] No active process found for job ${jobId}`);
-      return false;
+  async cancel(jobId: string): Promise<void> {
+    const name = containerNameFor(jobId);
+    console.log(`[DockerExecutor] Cancelling job ${jobId}: docker kill ${name}`);
+
+    const kill = await this.runCommand(['kill', name], 30000);
+    if (kill.exitCode !== 0 && !/no such container/i.test(kill.stderr)) {
+      // Not decisive on its own: the confirmation below is.
+      console.warn(`[DockerExecutor] docker kill ${name} exited ${kill.exitCode}: ${kill.stderr.trim()}`);
     }
 
-    console.log(`[DockerExecutor] Cancelling job ${jobId}, sending SIGTERM`);
-    child.kill('SIGTERM');
+    const child = this.activeProcesses.get(jobId);
+    if (child) {
+      await stopChildProcess(child, KILL_GRACE_PERIOD_MS, `docker compose run for job ${jobId}`);
+    }
 
-    // Force kill after grace period if still running
-    setTimeout(() => {
-      if (this.activeProcesses.has(jobId)) {
-        console.log(`[DockerExecutor] Grace period expired for ${jobId}, sending SIGKILL`);
-        child.kill('SIGKILL');
+    await this.confirmNoContainer(name);
+    console.log(`[DockerExecutor] Job ${jobId} cancelled; no container ${name} remains`);
+  }
+
+  /**
+   * Startup sweep. A backend that died left its containers running (signalling the
+   * compose CLI does not stop them, and the CLI itself may have died with the backend).
+   * Removes every container named nomad-run-* that belongs to THIS compose project -
+   * another deployment on the same daemon keeps its own - then lists again. Rejects when
+   * the daemon cannot be asked or anything is left.
+   */
+  async killLeftovers(): Promise<string[]> {
+    const list = async (): Promise<string[]> => {
+      const ps = await this.runCommand(
+        [
+          'ps', '-a',
+          '--filter', `name=^/${CONTAINER_PREFIX}`,
+          '--filter', `label=com.docker.compose.project=${composeProjectName()}`,
+          '--format', '{{.Names}}',
+        ],
+        10000,
+      );
+      if (ps.exitCode !== 0) {
+        throw new Error(`docker ps failed, so leftover ${CONTAINER_PREFIX}* containers cannot be found: ${ps.stderr.trim()}`);
       }
-    }, KILL_GRACE_PERIOD_MS);
+      return ps.stdout.split('\n').map((l) => l.trim()).filter(Boolean).sort();
+    };
 
-    return true;
+    const leftovers = await list();
+    if (leftovers.length === 0) return [];
+
+    console.log(`[DockerExecutor] Removing leftover containers from a previous run: ${leftovers.join(', ')}`);
+    const rm = await this.runCommand(['rm', '-f', ...leftovers], 60000);
+    const remaining = await list();
+    if (remaining.length > 0) {
+      throw new Error(
+        `leftover containers are still present after docker rm -f: ${remaining.join(', ')}` +
+          (rm.stderr.trim() ? ` (${rm.stderr.trim()})` : ''),
+      );
+    }
+    return leftovers;
+  }
+
+  private async confirmNoContainer(name: string): Promise<void> {
+    const listed = async (): Promise<boolean> => {
+      const ps = await this.runCommand(['ps', '-aq', '--filter', `name=^/${name}$`], 10000);
+      if (ps.exitCode !== 0) {
+        throw new Error(`docker ps failed, so container ${name} cannot be confirmed stopped: ${ps.stderr.trim()}`);
+      }
+      return ps.stdout.trim() !== '';
+    };
+
+    if (!(await listed())) return;
+
+    const rm = await this.runCommand(['rm', '-f', name], 30000);
+    if (await listed()) {
+      throw new Error(
+        `container ${name} is still present after docker kill and docker rm -f` +
+          (rm.stderr.trim() ? `: ${rm.stderr.trim()}` : ''),
+      );
+    }
   }
 
   /**
@@ -95,8 +158,22 @@ export class DockerExecutor implements IContainerExecutor {
       let timeoutHandle: NodeJS.Timeout | undefined;
       let killHandle: NodeJS.Timeout | undefined;
 
-      // Use explicit project name to ensure consistency when running from container
-      const projectName = process.env.COMPOSE_PROJECT_NAME || 'project_nomad';
+      // Checked in the same synchronous block as the spawn below, so a cancel that fired
+      // the signal can never be followed by a container start.
+      if (options.signal?.aborted) {
+        resolve(Result.fail(EngineError.cancelled(EngineType.FireSTARR)));
+        return;
+      }
+
+      // Use explicit project name to ensure consistency when running from container.
+      // There is no default (composeProjectName.ts): a run never starts under a guess.
+      let projectName: string;
+      try {
+        projectName = composeProjectName();
+      } catch (error) {
+        resolve(Result.fail(EngineError.executionFailed(EngineType.FireSTARR, (error as Error).message)));
+        return;
+      }
 
       // When running in container, use host.env which has the original host paths
       // (not the overridden container paths from the process environment)
@@ -308,8 +385,30 @@ let instance: DockerExecutor | null = null;
  * #520 nothing tested it: the suite mocks the executor, so the vector was never
  * handed to a real entrypoint.
  */
+/**
+ * The container name for a run, so DockerExecutor.cancel can kill it by name. Restricted
+ * to the characters Docker allows in a name.
+ */
+export function containerNameFor(jobId: string): string {
+  return `${CONTAINER_PREFIX}${jobId.replace(/[^a-zA-Z0-9_.-]/g, '-')}`;
+}
+
+const CONTAINER_PREFIX = 'nomad-run-';
+
+/**
+ * The compose project every run belongs to; killLeftovers sweeps only this one. No
+ * default: throws, naming the key, when it is unset.
+ */
+function composeProjectName(): string {
+  return composeProjectNameFrom(process.env);
+}
+
 export function buildComposeRunArgs(options: ContainerRunOptions): string[] {
   const args: string[] = ['run', '--rm'];
+
+  if (options.jobId) {
+    args.push('--name', containerNameFor(options.jobId));
+  }
 
   // Add volume mounts
   if (options.volumes) {

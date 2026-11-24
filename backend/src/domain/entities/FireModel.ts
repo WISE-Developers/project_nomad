@@ -38,6 +38,8 @@ export enum ModelStatus {
   Completed = 'completed',
   /** Execution failed */
   Failed = 'failed',
+  /** Stopped by a user cancel (DELETE /jobs/:id) */
+  Cancelled = 'cancelled',
 }
 
 /**
@@ -166,13 +168,21 @@ export class FireModel {
    * Check if the model can be executed
    */
   canExecute(): boolean {
-    return this.status === ModelStatus.Draft || this.status === ModelStatus.Failed;
+    return (
+      this.status === ModelStatus.Draft ||
+      this.status === ModelStatus.Failed ||
+      this.status === ModelStatus.Cancelled
+    );
   }
 
   /**
    * Check if the model is in a terminal state
    */
   isTerminal(): boolean {
-    return this.status === ModelStatus.Completed || this.status === ModelStatus.Failed;
+    return (
+      this.status === ModelStatus.Completed ||
+      this.status === ModelStatus.Failed ||
+      this.status === ModelStatus.Cancelled
+    );
   }
 }

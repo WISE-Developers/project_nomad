@@ -40,8 +40,13 @@ export interface ContainerRunOptions {
   readonly timeout?: number;
   /** Project directory for docker-compose */
   readonly projectDir?: string;
-  /** Optional job ID for tracking and cancellation support */
+  /**
+   * Optional job ID for tracking and cancellation support. Docker names the container
+   * after it (`containerNameFor`), so `cancel(jobId)` can find it.
+   */
   readonly jobId?: string;
+  /** When this has fired, no process or container is started. */
+  readonly signal?: AbortSignal;
 }
 
 /**
@@ -104,4 +109,18 @@ export interface IContainerExecutor {
    * @returns True if the service can be started
    */
   isServiceAvailable(service: string): Promise<boolean>;
+
+  /**
+   * Stops the process (and, for Docker, the container) started for `jobId`, and resolves
+   * only once it has confirmed nothing is left. Rejects when it cannot confirm that.
+   */
+  cancel(jobId: string): Promise<void>;
+
+  /**
+   * Startup only, before recovery: removes every engine container a previous backend
+   * process left behind (for Docker: `nomad-run-*` containers of this compose project),
+   * and confirms none is left. Resolves to the names removed. Rejects when it cannot
+   * confirm that, and startup must then stop.
+   */
+  killLeftovers(): Promise<string[]>;
 }

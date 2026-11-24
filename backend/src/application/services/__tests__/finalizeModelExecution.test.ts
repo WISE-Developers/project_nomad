@@ -35,8 +35,8 @@ let deps: FinalizeDeps;
 
 beforeEach(() => {
   deps = {
-    failJob: vi.fn(async () => undefined),
-    completeJob: vi.fn(async () => undefined),
+    failJob: vi.fn(async () => true),
+    completeJob: vi.fn(async () => true),
     markModelCompleted: vi.fn(async () => undefined),
     markModelFailed: vi.fn(async () => undefined),
     harvestResults: vi.fn(async () => undefined),
@@ -91,8 +91,8 @@ describe('finalizeModelExecution — the non-terminal states that hung (#432)', 
 
     for (const state of all) {
       const fresh: FinalizeDeps = {
-        failJob: vi.fn(async () => undefined),
-        completeJob: vi.fn(async () => undefined),
+        failJob: vi.fn(async () => true),
+        completeJob: vi.fn(async () => true),
         markModelCompleted: vi.fn(async () => undefined),
         markModelFailed: vi.fn(async () => undefined),
         harvestResults: vi.fn(async () => undefined),
@@ -123,5 +123,21 @@ describe('finalizeModelExecution — harvesting must not strand the job (#432)',
 
     expect(failing.completeJob).toHaveBeenCalled();
     expect(failing.warn).toHaveBeenCalled();
+  });
+});
+
+/**
+ * When the job write is refused, the job was already final: a cancel recorded itself
+ * first. The model is then the cancel's to write, and writing it here is what left a
+ * cancelled job beside a completed model in verification/job-lifecycle.
+ */
+describe('finalizeModelExecution — a refused job write leaves the model alone', () => {
+  it.each(['completed', 'failed', 'running'] as const)('engine reported %s', async (state) => {
+    deps = { ...deps, completeJob: vi.fn(async () => false), failJob: vi.fn(async () => false) };
+
+    await finalizeModelExecution(status(state), deps);
+
+    expect(deps.markModelCompleted).not.toHaveBeenCalled();
+    expect(deps.markModelFailed).not.toHaveBeenCalled();
   });
 });

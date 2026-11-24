@@ -35,24 +35,37 @@ class FakeJobRepo {
   async update(job: Job): Promise<void> {
     this.jobs.set(job.id, job);
   }
+  async updateIfActive(job: Job): Promise<boolean> {
+    const current = this.jobs.get(job.id);
+    if (!current || current.isTerminal()) return false;
+    this.jobs.set(job.id, job);
+    return true;
+  }
+  async findByModelId(): Promise<Job[]> {
+    return [];
+  }
   async findById(id: JobId): Promise<Job | null> {
     return this.jobs.get(id) ?? null;
   }
   async findByStatus(status: JobStatus): Promise<Job[]> {
     return [...this.jobs.values()].filter((j) => j.status === status);
   }
-  async markRunningAsFailed(): Promise<number> {
-    const running = await this.findByStatus(JobStatus.Running);
-    for (const j of running) {
+  async failInterrupted(): Promise<number> {
+    const active = [
+      ...(await this.findByStatus(JobStatus.Pending)),
+      ...(await this.findByStatus(JobStatus.Running)),
+    ];
+    for (const j of active) {
       this.jobs.set(j.id, j.withError('Interrupted by restart'));
     }
-    return running.length;
+    return active.length;
   }
 }
 
 function fakeModelRepo(userId?: string) {
   return {
     findById: async () => ({ id: MODEL_ID, userId }),
+    find: async () => ({ models: [], totalCount: 0, hasMore: false }),
   };
 }
 

@@ -5,7 +5,10 @@ import { join } from 'path';
 import { asyncHandler } from '../../middleware/index.js';
 import { createJobId, EngineType } from '../../../domain/entities/index.js';
 import { getJobQueue } from '../../../infrastructure/services/index.js';
-import { getWorkspaceAwareEngine } from '../../../infrastructure/engines/index.js';
+import { getEngine, getWorkspaceAwareEngine } from '../../../infrastructure/engines/index.js';
+import { getModelRepository } from '../../../infrastructure/database/index.js';
+import { cancelRun } from '../../../application/services/cancelRun.js';
+import { getRunRegistry } from '../../../application/services/runRegistry.js';
 
 const router = Router();
 
@@ -306,7 +309,10 @@ router.get(
  * /jobs/{id}:
  *   delete:
  *     summary: Cancel a job
- *     description: Cancels a running or pending job
+ *     description: |
+ *       Cancels a running or pending job. Stops the engine first, including the FireSTARR
+ *       container, and marks the job and its model cancelled only once that is confirmed.
+ *       If the stop cannot be confirmed the job is left as it was and the response is 500.
  *     tags: [Jobs]
  *     parameters:
  *       - in: path
@@ -336,14 +342,17 @@ router.delete(
   '/jobs/:id',
   asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const jobQueue = getJobQueue();
 
-    const result = await jobQueue.cancel(createJobId(id));
-    if (!result.success) {
-      throw result.error;
-    }
+    // Kills the engine and confirms it before anything is marked cancelled; a kill that
+    // cannot be confirmed is a 500 and changes nothing (cancelRun.ts).
+    const cancelled = await cancelRun(createJobId(id), {
+      jobQueue: getJobQueue(),
+      modelRepository: getModelRepository(),
+      engineFor: getEngine,
+      runs: getRunRegistry(),
+    });
 
-    res.json(result.value.toJSON());
+    res.json(cancelled.toJSON());
   })
 );
 

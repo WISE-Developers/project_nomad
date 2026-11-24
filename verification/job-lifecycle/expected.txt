@@ -1,0 +1,44 @@
+# What check.sh must find at the sync commit in .claude/skills/verify-job-lifecycle/SKILL.md.
+# path  rule  PASS|BREAK. Every rule must PASS: findings F1-F6 are fixed, and a BREAK here is a
+# regression. Change a line only when the code changed on purpose and the skill says why.
+run FinalJobStaysFinal PASS
+run FinishedRunHasFinalJob PASS
+run FinishedRunHasFinalModel PASS
+run RestartFailsRunningJobs PASS
+run RestartLeavesNoPendingJob PASS
+run RestartLeavesNoActiveModel PASS
+run JobAndModelAgreeOnSuccess PASS
+run JobAndModelAgreeOnCancel PASS
+run CancelledRunHasNoEngine PASS
+run AcceptedCancelEndsCancelled PASS
+run FailedCancelLeavesJobAlone PASS
+run KilledRunEndsCancelled PASS
+run RestartLeavesNoEngine PASS
+execute FinalJobStaysFinal PASS
+execute FinishedRunHasFinalJob PASS
+execute FinishedRunHasFinalModel PASS
+execute RestartFailsRunningJobs PASS
+execute RestartLeavesNoPendingJob PASS
+execute RestartLeavesNoActiveModel PASS
+execute JobAndModelAgreeOnSuccess PASS
+execute JobAndModelAgreeOnCancel PASS
+execute CancelledRunHasNoEngine PASS
+execute AcceptedCancelEndsCancelled PASS
+execute FailedCancelLeavesJobAlone PASS
+execute KilledRunEndsCancelled PASS
+execute RestartLeavesNoEngine PASS
+mcp FinalJobStaysFinal PASS
+mcp FinishedRunHasFinalJob PASS
+mcp FinishedRunHasFinalModel PASS
+mcp RestartFailsRunningJobs PASS
+mcp RestartLeavesNoPendingJob PASS
+mcp RestartLeavesNoActiveModel PASS
+mcp JobAndModelAgreeOnSuccess PASS
+mcp JobAndModelAgreeOnCancel PASS
+mcp CancelledRunHasNoEngine PASS
+mcp AcceptedCancelEndsCancelled PASS
+mcp FailedCancelLeavesJobAlone PASS
+mcp KilledRunEndsCancelled PASS
+mcp RestartLeavesNoEngine PASS
+compose NoForeignKill PASS
+compose UnsetNeverServes PASS

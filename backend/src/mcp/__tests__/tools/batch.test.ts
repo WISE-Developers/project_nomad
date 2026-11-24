@@ -54,6 +54,12 @@ vi.mock('../../../infrastructure/database/index.js', () => ({
       mockModels.set(id, updated);
       return updated;
     }),
+    updateStatusUnlessCancelled: vi.fn(async (id: string, status: ModelStatus) => {
+      const model = mockModels.get(id);
+      if (!model || model.status === ModelStatus.Cancelled) return false;
+      mockModels.set(id, model.withStatus(status));
+      return true;
+    }),
     getConfigJson: vi.fn(async (id: string) => mockConfigs.get(id) ?? null),
     saveConfigJson: vi.fn(async (id: string, config: Record<string, unknown>) => {
       mockConfigs.set(id, config);

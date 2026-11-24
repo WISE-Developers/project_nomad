@@ -174,7 +174,7 @@ export class FireSTARREngine implements IFireModelingEngine, IWorkspaceAwareEngi
     logger.engine(`Model initialized successfully`, 'FireSTARR', model.id);
   }
 
-  async execute(modelId: FireModelId): Promise<void> {
+  async execute(modelId: FireModelId, options?: { signal?: AbortSignal }): Promise<void> {
     const state = this.executions.get(modelId);
     if (!state || !state.inputResult || !state.params) {
       throw new Error(`Model ${modelId} not initialized`);
@@ -235,6 +235,7 @@ export class FireSTARREngine implements IFireModelingEngine, IWorkspaceAwareEngi
         command,
         timeout: 4 * 60 * 60 * 1000, // 4 hours
         jobId: modelId, // Enable cancellation tracking
+        signal: options?.signal,
         env: Object.keys(env).length > 0 ? env : undefined,
       },
       onOutput
@@ -385,16 +386,15 @@ export class FireSTARREngine implements IFireModelingEngine, IWorkspaceAwareEngi
   }
 
   async cancel(modelId: FireModelId): Promise<void> {
+    // Always asks the executor, even with no execution state here: a container for this
+    // model can exist without it (state is per process). Rejects if the stop cannot be
+    // confirmed, and then nothing below runs.
+    await this.executor.cancel(modelId);
+    logger.engine(`Engine stopped for cancel`, 'FireSTARR', modelId);
+
     const state = this.executions.get(modelId);
     if (!state) {
       return;
-    }
-
-    // Kill the running process if active
-    const executorWithCancel = this.executor as { cancelJob?: (jobId: string) => boolean };
-    if (executorWithCancel.cancelJob) {
-      const killed = executorWithCancel.cancelJob(modelId);
-      logger.engine(`Cancel request: ${killed ? 'process killed' : 'no active process'}`, 'FireSTARR', modelId);
     }
 
     // Update status

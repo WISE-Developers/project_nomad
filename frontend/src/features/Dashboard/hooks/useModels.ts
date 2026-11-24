@@ -106,7 +106,8 @@ function sortModels(
           queued: 1,
           completed: 2,
           failed: 3,
-          draft: 4,
+          cancelled: 4,
+          draft: 5,
         };
         comparison = statusOrder[a.status] - statusOrder[b.status];
         break;

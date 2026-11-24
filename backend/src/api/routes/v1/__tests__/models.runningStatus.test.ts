@@ -30,9 +30,15 @@ import request from 'supertest';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
-const { initializeSpy, findById, save, savedStatuses } = vi.hoisted(() => {
+const { initializeSpy, findById, save, updateStatusUnlessCancelled, savedStatuses } = vi.hoisted(() => {
   const savedStatuses: string[] = [];
   return {
+    // The background run writes the model through the guarded write (finding F1 of
+    // verification/job-lifecycle), so the recorder listens there too, in the same list.
+    updateStatusUnlessCancelled: vi.fn(async (_id: unknown, status: string) => {
+      savedStatuses.push(status);
+      return true;
+    }),
     initializeSpy: vi.fn(async (_m: unknown, _o: unknown): Promise<void> => undefined),
     findById: vi.fn(),
     // Records the status of every model handed to save(), in call order. This is the
@@ -70,6 +76,7 @@ vi.mock('../../../../infrastructure/database/index.js', () => ({
   getModelRepository: vi.fn(() => ({
     findById,
     save,
+    updateStatusUnlessCancelled,
     find: vi.fn(),
     updateStatus: vi.fn(async () => undefined),
     getConfigJson: vi.fn(async () => null),
@@ -205,7 +212,7 @@ describe('#514 every execution path that marks the job running marks the model r
   // a nested call — `updateStatus(createFireModelId(modelId), ModelStatus.Running)` contains
   // an inner `)` — so it reported a real write as missing. Bounding on the statement
   // terminator instead spans arguments without running past the call.
-  const WRITES_MODEL_RUNNING = /(?:withStatus|updateStatus)\([^;]*ModelStatus\.Running/g;
+  const WRITES_MODEL_RUNNING = /(?:withStatus|updateStatus|updateStatusUnlessCancelled)\([^;]*ModelStatus\.Running/g;
   // WRITES on this side too, for the same reason. Counting bare `JobStatus.Running`
   // mentions conflated a write with a comparison: `mcp/tools/execution.ts:115` is
   // `case JobStatus.Running:`, so that file reported 2 job marks against 1 model write and

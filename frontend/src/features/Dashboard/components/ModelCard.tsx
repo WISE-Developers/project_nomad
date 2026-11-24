@@ -77,6 +77,8 @@ function getStatusColor(status: ModelStatus): string {
       return '#ff9800';
     case 'failed':
       return '#f44336';
+    case 'cancelled':
+      return '#616161';
     case 'draft':
       return '#9e9e9e';
     default:
@@ -94,6 +96,8 @@ function getStatusLabel(status: ModelStatus): string {
       return 'Queued';
     case 'failed':
       return 'Failed';
+    case 'cancelled':
+      return 'Cancelled';
     case 'draft':
       return 'Draft';
     default:
