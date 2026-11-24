@@ -293,6 +293,81 @@ await_version() {
     return 1
 }
 
+# Refuse to deploy when a required `.env` key is missing or blank, and NAME it
+# (#571).
+#
+# Before this existed the deploy pulled, tagged, recreated, and only THEN did
+# the backend exit 1 on the missing key — with the site down and nothing earlier
+# reporting an error. The runbook's "add new required keys before recreating"
+# was the only protection, and it was a step a human had to remember.
+#
+# WHERE THIS LIST COMES FROM. The backend announces every required key as
+#     throw new Error('Required environment variable "KEY" is not set...')
+# in EnvironmentService.getRequired, getFuelNoDataValue and JsonlUsageLogger.
+# scripts/__tests__/deploy_env_preflight.test.sh greps that convention and FAILS
+# when the backend names a key this function has never heard of, so the list
+# cannot rot quietly while the backend moves.
+#
+# NOT EVERY REQUIRED KEY IS UNCONDITIONAL, and demanding them all would be worse
+# than no preflight: NOMAD_FUEL_NODATA_VALUE is required only on the WCS fuel
+# path and the default is local, so an unconditional demand would refuse every
+# deploy of a deployment that never uses it. COMPOSE_PROJECT_NAME is required
+# only in docker mode; binary mode labels and sweeps no containers.
+#
+# BLANK COUNTS AS MISSING, because the backend treats it that way. A preflight
+# that accepts a blank disagrees with the thing it is protecting.
+preflight_env() {
+    local env_file="${1:-.env}"
+    local always="NOMAD_HOME_TIMEZONE NOMAD_USAGE_LOG_PATH NOMAD_USAGE_LOG_MAX_BYTES"
+    local missing="" k value mode fuel
+
+    if [ ! -f "$env_file" ]; then
+        print_error "REFUSING TO DEPLOY: no $env_file to check."
+        print_error "The backend exits 1 without its required keys. See section 4 of the"
+        print_error "deployment runbook, and Documentation/Nomad/upgrading.md."
+        return 1
+    fi
+
+    # The LAST assignment wins, matching how a shell sources the file. Stripping
+    # whitespace is only for the emptiness test, never for the value itself.
+    for k in $always; do
+        value="$(sed -n "s/^${k}=//p" "$env_file" | tail -1 | tr -d '[:space:]')"
+        [ -n "$value" ] || missing="$missing $k"
+    done
+
+    # Docker mode only. Unset defaults to docker, which is the compose default.
+    mode="$(sed -n 's/^FIRESTARR_EXECUTION_MODE=//p' "$env_file" | tail -1 | tr -d '[:space:]')"
+    [ -n "$mode" ] || mode="docker"
+    if [ "$mode" = "docker" ]; then
+        value="$(sed -n 's/^COMPOSE_PROJECT_NAME=//p' "$env_file" | tail -1 | tr -d '[:space:]')"
+        [ -n "$value" ] || missing="$missing COMPOSE_PROJECT_NAME"
+    fi
+
+    # WCS fuel path only. Unset defaults to local, where no action is needed.
+    fuel="$(sed -n 's/^NOMAD_FUEL_SOURCE=//p' "$env_file" | tail -1 | tr -d '[:space:]')"
+    [ -n "$fuel" ] || fuel="local"
+    if [ "$fuel" != "local" ]; then
+        value="$(sed -n 's/^NOMAD_FUEL_NODATA_VALUE=//p' "$env_file" | tail -1 | tr -d '[:space:]')"
+        [ -n "$value" ] || missing="$missing NOMAD_FUEL_NODATA_VALUE"
+    fi
+
+    if [ -n "$missing" ]; then
+        print_error "REFUSING TO DEPLOY: required .env keys are missing or blank."
+        for k in $missing; do
+            print_error "  missing or blank: $k"
+        done
+        print_error ""
+        print_error "The backend exits 1 at startup without these, so recreating the container"
+        print_error "now would take the site down. Nothing has been pulled, tagged or recreated."
+        print_error "Add them to $env_file first — see Documentation/Nomad/upgrading.md and"
+        print_error "section 3 of the deployment runbook for the safe-edit procedure."
+        return 1
+    fi
+
+    print_success "Required .env keys present (mode=$mode, fuel=$fuel)"
+    return 0
+}
+
 main() {
     refuse_root || exit 1
 
@@ -330,6 +405,10 @@ main() {
         print_info "[dry-run] would: git pull --ff-only origin $BRANCH"
         git fetch -q origin "$BRANCH"
         print_info "would move $before -> $(git rev-parse --short "origin/$BRANCH")"
+        # Report what would be refused rather than refusing silently (#571).
+        # This runs the PRE-PULL key list, since the pull has not happened; the
+        # real deploy re-checks with the pulled list after the self-update.
+        preflight_env ".env" || print_warning "[dry-run] the real deploy would REFUSE above"
         return 0
     fi
 
@@ -369,6 +448,12 @@ main() {
         export NOMAD_DEPLOY_REEXEC=1
         exec "$SCRIPT_PATH" "$@"
     fi
+
+    # Refuse before anything is tagged or recreated (#571). Placed AFTER the pull
+    # and after the self-update re-exec on purpose: newly required keys arrive
+    # WITH the pull, so a preflight before it can only know the old version's
+    # requirements, and the re-exec guarantees this is the pulled copy's list.
+    preflight_env ".env" || exit 1
 
     # Tag the image we are replacing so rollback is one command.
     #
