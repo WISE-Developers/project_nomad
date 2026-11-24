@@ -1892,6 +1892,58 @@ is_placeholder_value() {
     return 1
 }
 
+# COMPOSE_PROJECT_NAME is REQUIRED in docker mode and has NO default (#570).
+# A shared default is the bug, not a convenience: two deployments that never set
+# the key carried the same container label, and one deployment's startup sweep
+# removed the other deployment's RUNNING container. So the name is ASKED FOR.
+#
+# On an upgrade the stack is ALREADY running under a name, usually its folder
+# name, because that is what Compose derives when nothing is set. That name is
+# read from `docker compose ls`, SHOWN, and confirmed. Adopting the wrong name
+# is worse than leaving the key unset: the sweep would then hunt containers
+# under a name this deployment never used, and could match one that did.
+#
+# Echoes the chosen name and returns 0. Echoes nothing and returns 1 when no
+# name was chosen. EOF IS NOT CONSENT, and `read` is what makes that
+# expressible: it fails at EOF but succeeds on an empty line, so "Enter accepts
+# the shown default" and "no answer writes nothing" stay two different things.
+prompt_compose_project_name() {
+    local env_file="${1:-}"
+    local ls_out="" detected="" count=0 reply=""
+
+    if command -v docker >/dev/null 2>&1; then
+        ls_out="$(docker compose ls 2>/dev/null)" || ls_out=""
+    fi
+    if [ -n "$ls_out" ]; then
+        count="$(printf '%s\n' "$ls_out" | awk 'NR>1 && NF>0 {print $1}' | grep -c . || true)"
+        # Exactly one candidate is a default worth offering. Several is not: with
+        # more than one project on the daemon there is no safe guess, so ask bare.
+        if [ "$count" = "1" ]; then
+            detected="$(printf '%s\n' "$ls_out" | awk 'NR>1 && NF>0 {print $1; exit}')"
+        fi
+    fi
+
+    if [ -n "$detected" ]; then
+        printf '  Compose project name [%s]: ' "$detected" >&2
+    else
+        printf '  Compose project name (required, no default): ' >&2
+    fi
+
+    if ! IFS= read -r reply; then
+        return 1
+    fi
+    reply="$(printf '%s' "$reply" | tr -d '[:space:]')"
+    if [ -n "$reply" ]; then
+        printf '%s\n' "$reply"
+        return 0
+    fi
+    if [ -n "$detected" ]; then
+        printf '%s\n' "$detected"
+        return 0
+    fi
+    return 1
+}
+
 update_env_value() {
     local key="$1"
     local value="$2"
@@ -1985,6 +2037,19 @@ generate_env_file() {
     update_env_value "NOMAD_USAGE_LOG_MAX_BYTES" "52428800"
     update_env_value "FIRESTARR_DATASET_PATH" "$FIRESTARR_DATASET_PATH"
     update_env_value "FIRESTARR_EXECUTION_MODE" "$FIRESTARR_EXECUTION_MODE"
+
+    # COMPOSE_PROJECT_NAME (#570): required in docker mode, asked for, never defaulted.
+    if [ "${FIRESTARR_EXECUTION_MODE:-docker}" = "docker" ]; then
+        if [ -z "${COMPOSE_PROJECT_NAME:-}" ]; then
+            if ! COMPOSE_PROJECT_NAME="$(prompt_compose_project_name "$env_file")"; then
+                print_error "COMPOSE_PROJECT_NAME is required in docker mode and no name was given."
+                print_error "The backend refuses to start without it. Re-run and supply a name, or"
+                print_error "set COMPOSE_PROJECT_NAME in the environment before running this installer."
+                return 1
+            fi
+        fi
+        update_env_value "COMPOSE_PROJECT_NAME" "$COMPOSE_PROJECT_NAME"
+    fi
 
     if [ -n "$NOMAD_DATA_PATH" ]; then
         update_env_value "NOMAD_DATA_PATH" "$NOMAD_DATA_PATH"

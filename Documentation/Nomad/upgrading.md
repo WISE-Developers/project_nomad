@@ -7,6 +7,47 @@ required key added in one release still applies if you skip past it.
 
 ---
 
+## One new REQUIRED `.env` key in docker mode, `COMPOSE_PROJECT_NAME`. **Upgrading needs action.**
+
+**The backend refuses to start in docker mode (`FIRESTARR_EXECUTION_MODE=docker`, the
+default) until `COMPOSE_PROJECT_NAME` is set.** It logs `COMPOSE_PROJECT_NAME is not set`
+and exits 1. Binary mode does not need it.
+
+**Before you upgrade**, run `docker compose ls` on the host and add the name your Nomad
+stack already runs under, for example:
+
+```
+COMPOSE_PROJECT_NAME=project_nomad
+```
+
+Use the name you see, not a new one: Docker Compose also reads this key, and a different
+name would start a second stack beside the running one.
+
+**Why it is required now.** Each FireSTARR run is a container named `nomad-run-<model>`
+and labelled with this project. Cancelling a run kills its container by name, and at
+startup the backend removes every leftover `nomad-run-*` container carrying the label,
+because a backend that died leaves its containers running. The label is what keeps that
+sweep off another deployment's runs on the same Docker host. The backend used to fall
+back to `project_nomad`, so two deployments that never set the key shared that name and
+each one's restart removed the other's runs. **Give every deployment on one host its own
+name.**
+
+**Also new in this release, no action needed:** cancelling a job (`DELETE /api/v1/jobs/:id`)
+now stops the FireSTARR container and marks the job and the model `cancelled`, or answers
+500 and changes nothing if the stop cannot be confirmed. At startup, interrupted pending
+jobs are failed along with running ones, and their models are settled. A new model status,
+`cancelled`, can appear.
+
+**The installers now ask for it (#570).** On a FRESH install the installer prompts for the
+name. On an UPGRADE it reads what the stack is already running under from
+`docker compose ls`, shows that name, and asks you to confirm it — it is never written on
+your behalf. Accepting the shown default is a choice; a non-interactive run that cannot
+answer writes nothing and stops, rather than adopting a name you never saw. If you are
+upgrading by hand instead of through an installer, set the key yourself before the
+container is recreated.
+
+---
+
 ## The WCS fuel source is now wired. **Upgrading needs no action.** (#282)
 
 **No new keys.** `NOMAD_FUEL_SOURCE`, the three `NOMAD_FUEL_WCS_*` keys and
