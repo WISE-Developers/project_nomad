@@ -38,6 +38,14 @@ now stops the FireSTARR container and marks the job and the model `cancelled`, o
 jobs are failed along with running ones, and their models are settled. A new model status,
 `cancelled`, can appear.
 
+**The installers now ask for it (#570).** On a FRESH install the installer prompts for the
+name. On an UPGRADE it reads what the stack is already running under from
+`docker compose ls`, shows that name, and asks you to confirm it — it is never written on
+your behalf. Accepting the shown default is a choice; a non-interactive run that cannot
+answer writes nothing and stops, rather than adopting a name you never saw. If you are
+upgrading by hand instead of through an installer, set the key yourself before the
+container is recreated.
+
 ---
 
 ## The WCS fuel source is now wired. **Upgrading needs no action.** (#282)

@@ -250,6 +250,56 @@ function Expand-NomadArchive {
 }
 
 # Generate .env file
+function Read-ComposeProjectName {
+    # COMPOSE_PROJECT_NAME is REQUIRED in docker mode and has NO default (#570).
+    # A shared default is the bug, not a convenience: two deployments that never
+    # set the key carried the same container label, and one deployment's startup
+    # sweep removed the other deployment's RUNNING container.
+    #
+    # On an upgrade the stack is ALREADY running under a name. That name is read
+    # from `docker compose ls`, SHOWN, and confirmed. Adopting the wrong name is
+    # worse than leaving the key unset, because the sweep would then hunt
+    # containers under a name this deployment never used.
+    #
+    # Returns the chosen name, or nothing when no name was chosen.
+    #
+    # NOTE ON Read-Host: it is deliberately NOT used. Read-Host returns an empty
+    # string for an empty line AND for EOF, measured on pwsh 7.7.0, so it cannot
+    # tell "Enter accepts the shown default" from "no answer was given".
+    # [Console]::In.ReadLine() returns "" for an empty line and $null at EOF,
+    # which is what keeps those two outcomes distinct.
+    param([Parameter(Mandatory=$true)][string]$EnvFile)
+
+    $detected = @()
+    try {
+        $out = & docker compose ls 2>$null
+        if ($LASTEXITCODE -eq 0 -and $out) {
+            $detected = @($out | Select-Object -Skip 1 |
+                Where-Object { $_ -match '\S' } |
+                ForEach-Object { ($_ -split '\s+')[0] } |
+                Where-Object { $_ })
+        }
+    } catch { $detected = @() }
+
+    # Exactly one candidate is a default worth offering. Several is not: with
+    # more than one project on the daemon there is no safe guess, so ask bare.
+    $default = $null
+    if ($detected.Count -eq 1) { $default = $detected[0] }
+
+    if ($default) {
+        [Console]::Error.WriteLine("  Compose project name [$default]: ")
+    } else {
+        [Console]::Error.WriteLine("  Compose project name (required, no default): ")
+    }
+
+    $line = [Console]::In.ReadLine()
+    if ($null -eq $line) { return }           # EOF is not consent
+    $line = $line.Trim()
+    if ($line) { return $line }
+    if ($default) { return $default }         # Enter on a SHOWN default is consent
+    return
+}
+
 function New-EnvironmentFile {
     param($projectDir)
 
@@ -313,6 +363,18 @@ function New-EnvironmentFile {
     Update-EnvValue "NOMAD_USAGE_LOG_MAX_BYTES" "52428800"
     Update-EnvValue "FIRESTARR_DATASET_PATH" $DatasetPath
     Update-EnvValue "FIRESTARR_EXECUTION_MODE" "docker"
+
+    # COMPOSE_PROJECT_NAME (#570): required in docker mode, asked for, never defaulted.
+    if (-not $env:COMPOSE_PROJECT_NAME) {
+        $composeProject = Read-ComposeProjectName -EnvFile $envFile
+        if (-not $composeProject) {
+            Write-NomadFail "COMPOSE_PROJECT_NAME is required in docker mode and no name was given. The backend refuses to start without it."
+            return
+        }
+    } else {
+        $composeProject = $env:COMPOSE_PROJECT_NAME
+    }
+    Update-EnvValue "COMPOSE_PROJECT_NAME" $composeProject
     Update-EnvValue "NOMAD_DATA_PATH" $NomadDataPath
 
     # Port configuration
