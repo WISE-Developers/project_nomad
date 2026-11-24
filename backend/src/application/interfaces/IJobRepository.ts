@@ -24,6 +24,15 @@ export interface IJobRepository {
   update(job: Job): Promise<Job>;
 
   /**
+   * Writes the job only while the stored row is still pending or running, in one
+   * conditional UPDATE. A completed, failed or cancelled job is never overwritten, however
+   * the writers interleave.
+   *
+   * @returns true if the row was written, false if it was already final (or is missing)
+   */
+  updateIfActive(job: Job): Promise<boolean>;
+
+  /**
    * Finds a job by ID.
    *
    * @param id - Job ID
@@ -71,12 +80,12 @@ export interface IJobRepository {
   exists(id: JobId): Promise<boolean>;
 
   /**
-   * Marks all running jobs as failed.
-   * Used for startup recovery after unclean shutdown.
+   * Marks every pending or running job as failed. Startup recovery: the process that was
+   * driving them is gone, and nothing resumes a run.
    *
    * @returns Number of jobs marked as failed
    */
-  markRunningAsFailed(): Promise<number>;
+  failInterrupted(): Promise<number>;
 
   /**
    * Deletes jobs older than the specified date.

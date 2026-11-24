@@ -17,8 +17,9 @@
  * What the operator sees is the processing window spinning forever. The SSE
  * route polls until the job reports terminal, and it never does. Nothing
  * clears it short of a server restart, which sweeps it up through
- * `markRunningAsFailed()` and calls it "Server restarted while job was
+ * startup recovery and calls it "Server restarted while job was
  * running" — a message that describes the restart rather than the failure.
+ * (Recovery is now JobQueue.initialize, which also fails pending jobs.)
  *
  * A spinner that never resolves is worse than an error. It tells the operator
  * to keep waiting for something that is not coming.
@@ -30,8 +31,13 @@
 import type { ExecutionStatus } from '../interfaces/IFireModelingEngine.js';
 
 export interface FinalizeDeps {
-  readonly failJob: (reason: string) => Promise<void>;
-  readonly completeJob: () => Promise<void>;
+  /**
+   * Resolve to whether the job write was applied. It is refused when the job is already
+   * final - a cancel recorded itself first - and then the model is not written: it is
+   * the cancel's to write (verification/job-lifecycle).
+   */
+  readonly failJob: (reason: string) => Promise<boolean>;
+  readonly completeJob: () => Promise<boolean>;
   readonly markModelCompleted: () => Promise<void>;
   readonly markModelFailed: () => Promise<void>;
   /** Results are harvested eagerly; failure here must not strand the job. */
@@ -49,7 +55,7 @@ export async function finalizeModelExecution(
   deps: FinalizeDeps,
 ): Promise<void> {
   if (status.state === 'completed') {
-    await deps.completeJob();
+    if (!(await deps.completeJob())) return;
     await deps.markModelCompleted();
 
     // Harvesting is a convenience — results can still be lazy-loaded on first
@@ -65,7 +71,7 @@ export async function finalizeModelExecution(
   }
 
   if (status.state === 'failed') {
-    await deps.failJob(status.error ?? 'Execution failed');
+    if (!(await deps.failJob(status.error ?? 'Execution failed'))) return;
     await deps.markModelFailed();
     return;
   }
@@ -81,10 +87,11 @@ export async function finalizeModelExecution(
   // someone looking at FireSTARR's log for an error that is not there. The
   // defect is that the engine stopped reporting, not that the fire model was
   // wrong.
-  await deps.failJob(
+  const written = await deps.failJob(
     `Execution ended while the engine still reported '${status.state}'. ` +
       `The run stopped without reaching a final state, so no results were produced. ` +
       `This is an engine or orchestration fault rather than a problem with the model inputs.`,
   );
+  if (!written) return;
   await deps.markModelFailed();
 }

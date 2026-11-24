@@ -34,6 +34,12 @@ import type { ExecutionStatus } from '../interfaces/IFireModelingEngine.js';
 export interface ExecuteDeps extends FinalizeDeps {
   readonly execute: () => Promise<void>;
   readonly getStatus: () => Promise<ExecutionStatus>;
+  /**
+   * RunHandle.stoppedByCancel. Checked once the engine has returned or thrown: when a
+   * cancel stopped the run, nothing is written, because the job and the model are the
+   * cancel's to write. Omitted means no cancel can reach this run.
+   */
+  readonly stoppedByCancel?: () => Promise<boolean>;
 }
 
 /**
@@ -44,18 +50,26 @@ export interface ExecuteDeps extends FinalizeDeps {
 export async function executeAndFinalizeModel(deps: ExecuteDeps): Promise<void> {
   let status: ExecutionStatus;
 
+  const stopped = () => deps.stoppedByCancel?.() ?? Promise.resolve(false);
+
   try {
     await deps.execute();
     // Asking the engine is the point. Resolving only means the call returned.
     status = await deps.getStatus();
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await deps.failJob(message);
-    await deps.markModelFailed();
+    try {
+      if (await stopped()) return;
+      const message = error instanceof Error ? error.message : String(error);
+      if (await deps.failJob(message)) await deps.markModelFailed();
+    } catch (writeError) {
+      const message = writeError instanceof Error ? writeError.message : String(writeError);
+      deps.warn(`Failed to record execution outcome: ${message}`);
+    }
     return;
   }
 
   try {
+    if (await stopped()) return;
     await finalizeModelExecution(status, deps);
   } catch (error) {
     // Resolving the job is the one thing that must happen. If the repository

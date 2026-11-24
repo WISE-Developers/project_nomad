@@ -17,6 +17,8 @@ export enum EngineErrorCode {
   INVALID_CONFIG = 'ENGINE_INVALID_CONFIG',
   /** Engine cancelled by user */
   CANCELLED = 'ENGINE_CANCELLED',
+  /** A cancel could not confirm the engine stopped */
+  CANCEL_FAILED = 'ENGINE_CANCEL_FAILED',
   /** Output processing failed */
   OUTPUT_FAILED = 'ENGINE_OUTPUT_FAILED',
   /** Location not supported by engine */
@@ -139,6 +141,11 @@ export class EngineError extends DomainError {
   /**
    * Creates an output processing error
    */
+  /** A cancel could not confirm that the engine stopped, so nothing was cancelled. */
+  static cancelFailed(engineType: EngineType, reason: string): EngineError {
+    return new EngineError(EngineErrorCode.CANCEL_FAILED, engineType, reason);
+  }
+
   static outputFailed(engineType: EngineType, reason: string): EngineError {
     return new EngineError(
       EngineErrorCode.OUTPUT_FAILED,

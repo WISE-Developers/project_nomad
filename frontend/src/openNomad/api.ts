@@ -135,7 +135,7 @@ export type EngineType = 'firestarr' | 'wise';
  *                          \-> failed
  * ```
  */
-export type ModelStatus = 'draft' | 'queued' | 'running' | 'completed' | 'failed';
+export type ModelStatus = 'draft' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 /**
  * Fire model entity as returned by the API.

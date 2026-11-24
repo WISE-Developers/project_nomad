@@ -27,6 +27,7 @@ import { getModelResultsService } from '../../../application/services/index.js';
 import { getJobQueue } from '../../../infrastructure/services/JobQueue.js';
 import { getModelRepository, getResultRepository } from '../../../infrastructure/database/index.js';
 import { finalizeModelExecution } from '../../../application/services/finalizeModelExecution.js';
+import { getRunRegistry } from '../../../application/services/runRegistry.js';
 import type { ExecutionOptions, ModelMode } from '../../../application/interfaces/IFireModelingEngine.js';
 import { buildExecutionOptions, deriveOutputMode, resolveModelMode } from '../../../application/execution/buildExecutionOptions.js';
 import type { WeatherConfig } from '../../../infrastructure/weather/types.js';
@@ -281,34 +282,36 @@ router.post(
     if (model.engineType === EngineType.FireSTARR) {
       const engine = getEngine(EngineType.FireSTARR);
 
+      // Registered before the first await, so a cancel can always find this run.
+      const run = getRunRegistry().register(jobId, modelId);
+
       (async () => {
         try {
-          // Mark job as running (sets startedAt timestamp)
-          await jobQueue.updateStatus(jobId, JobStatus.Running);
+          // Mark job as running (sets startedAt timestamp). Refused when a cancel already
+          // took the job, and then this run does nothing more.
+          if (!(await jobQueue.updateStatus(jobId, JobStatus.Running)).success) return;
           // And the MODEL, not only the job (#514). Without this a model stayed Queued for
           // the whole run, so an executing model and one that had not started were
-          // indistinguishable on the dashboard.
-          await modelRepo.save(model.withStatus(ModelStatus.Running));
+          // indistinguishable on the dashboard. Never over a cancel's write.
+          await modelRepo.updateStatusUnlessCancelled(modelId, ModelStatus.Running);
 
           await engine.initialize(model, executionOptions);
-          await engine.execute(modelId);
+          await engine.execute(modelId, { signal: run.signal });
           const status = await engine.getStatus(modelId);
+          // A cancel that stopped the engine records the job and the model itself.
+          if (await run.stoppedByCancel()) return;
           // Every engine state resolves the job. This was an if/else-if with
           // no else, so a run that stopped while still reporting a
           // non-terminal state left the job hanging and the processing window
           // spinning forever (#432).
           await finalizeModelExecution(status, {
-            completeJob: async () => {
-              await jobQueue.complete(jobId);
-            },
-            failJob: async (reason) => {
-              await jobQueue.fail(jobId, reason);
-            },
+            completeJob: async () => (await jobQueue.complete(jobId)).success,
+            failJob: async (reason) => (await jobQueue.fail(jobId, reason)).success,
             markModelCompleted: async () => {
-              await modelRepo.save(model.withStatus(ModelStatus.Completed));
+              await modelRepo.updateStatusUnlessCancelled(modelId, ModelStatus.Completed);
             },
             markModelFailed: async () => {
-              await modelRepo.save(model.withStatus(ModelStatus.Failed));
+              await modelRepo.updateStatusUnlessCancelled(modelId, ModelStatus.Failed);
             },
             harvestResults: async () => {
               const results = await engine.getResults(modelId);
@@ -321,10 +324,14 @@ router.post(
             warn: (message) => logger.warn(`${message} (model ${modelId})`, 'Model'),
           });
         } catch (error) {
+          if (await run.stoppedByCancel()) return;
           const message = error instanceof Error ? error.message : String(error);
           logger.error(`Execution failed: ${message}`, 'Model', { modelId });
-          await jobQueue.fail(jobId, message);
-          await modelRepo.save(model.withStatus(ModelStatus.Failed));
+          if ((await jobQueue.fail(jobId, message)).success) {
+            await modelRepo.updateStatusUnlessCancelled(modelId, ModelStatus.Failed);
+          }
+        } finally {
+          run.release();
         }
       })();
     } else {
@@ -744,39 +751,41 @@ router.post(
     if (model.engineType === EngineType.FireSTARR) {
       const engine = getEngine(EngineType.FireSTARR);
 
+      // Registered before the first await, so a cancel can always find this run.
+      const run = getRunRegistry().register(jobId, id as FireModelId);
+
       // Initialize and execute asynchronously
       (async () => {
         try {
           logger.engine(`Initializing FireSTARR engine`, 'FireSTARR', id);
           await engine.initialize(queuedModel, executionOptions);
 
-          // Mark job as running (sets startedAt timestamp)
-          await jobQueue.updateStatus(jobId, JobStatus.Running);
+          // Mark job as running (sets startedAt timestamp). The job is pending during
+          // initialize, so a cancel can land then; the write is refused and this run stops.
+          if (!(await jobQueue.updateStatus(jobId, JobStatus.Running)).success) return;
           // And the MODEL, not only the job (#514). Same fix as the /models/run path above
           // — both execution paths had it, so fixing one would have left this one broken.
-          await modelRepo.save(queuedModel.withStatus(ModelStatus.Running));
+          await modelRepo.updateStatusUnlessCancelled(id as FireModelId, ModelStatus.Running);
 
           logger.engine(`Starting execution`, 'FireSTARR', id);
-          await engine.execute(id as FireModelId);
+          await engine.execute(id as FireModelId, { signal: run.signal });
 
           // Check execution status
           const status = await engine.getStatus(id as FireModelId);
+          // A cancel that stopped the engine records the job and the model itself.
+          if (await run.stoppedByCancel()) return;
           // Every engine state resolves the job. This was an if/else-if with
           // no else, so a run that stopped while still reporting a
           // non-terminal state left the job hanging and the processing window
           // spinning forever (#432).
           await finalizeModelExecution(status, {
-            completeJob: async () => {
-              await jobQueue.complete(jobId);
-            },
-            failJob: async (reason) => {
-              await jobQueue.fail(jobId, reason);
-            },
+            completeJob: async () => (await jobQueue.complete(jobId)).success,
+            failJob: async (reason) => (await jobQueue.fail(jobId, reason)).success,
             markModelCompleted: async () => {
-              await modelRepo.save(queuedModel.withStatus(ModelStatus.Completed));
+              await modelRepo.updateStatusUnlessCancelled(id as FireModelId, ModelStatus.Completed);
             },
             markModelFailed: async () => {
-              await modelRepo.save(queuedModel.withStatus(ModelStatus.Failed));
+              await modelRepo.updateStatusUnlessCancelled(id as FireModelId, ModelStatus.Failed);
             },
             harvestResults: async () => {
               const results = await engine.getResults(id as FireModelId);
@@ -789,10 +798,14 @@ router.post(
             warn: (message) => logger.warn(`${message} (model ${id})`, 'Model'),
           });
         } catch (error) {
+          if (await run.stoppedByCancel()) return;
           const message = error instanceof Error ? error.message : String(error);
           logger.error(`Execution failed: ${message}`, 'Model', { modelId: id });
-          await jobQueue.fail(jobId, message);
-          await modelRepo.save(queuedModel.withStatus(ModelStatus.Failed));
+          if ((await jobQueue.fail(jobId, message)).success) {
+            await modelRepo.updateStatusUnlessCancelled(id as FireModelId, ModelStatus.Failed);
+          }
+        } finally {
+          run.release();
         }
       })();
     } else {
