@@ -103,6 +103,7 @@ drive() {
   # and would have let this suite pass for the wrong reason.
   sed -n '/^env_value() {/,/^}/p'    "$DEPLOY" >  "$d/helpers.sh"
   sed -n '/^sqlite_query() {/,/^}/p' "$DEPLOY" >> "$d/helpers.sh"
+  sed -n '/^ignore_jobs_override() {/,/^}/p' "$DEPLOY" >> "$d/helpers.sh"
   grep '^JOB_TERMINAL_STATUSES=' "$DEPLOY"     >> "$d/helpers.sh"
   {
     echo 'set -u'
@@ -258,6 +259,7 @@ d="$tmp/run"; rm -rf "$d"; mkdir -p "$d"
 sed -n "/^${FN}() {/,/^}/p" "$DEPLOY" > "$d/fn.sh"
 sed -n '/^env_value() {/,/^}/p'    "$DEPLOY" >  "$d/helpers.sh"
 sed -n '/^sqlite_query() {/,/^}/p' "$DEPLOY" >> "$d/helpers.sh"
+sed -n '/^ignore_jobs_override() {/,/^}/p' "$DEPLOY" >> "$d/helpers.sh"
 grep '^JOB_TERMINAL_STATUSES=' "$DEPLOY"     >> "$d/helpers.sh"
 {
   echo 'set -u'
@@ -351,6 +353,32 @@ write_env "$tmp/env.acnlite" "NOMAD_DEPLOYMENT_MODE=ACN" "NOMAD_DB_CLIENT=better
 r="$(drive "$tmp/env.acnlite")"; st="${r%%|*}"
 [ "$st" = "0" ] && ok "ACN with a SQLite client is checked, not refused" \
   || bad "ACN with a SQLite client is checked, not refused" "status=$st — knexConfig.ts:69-73 supports it"
+
+# ---- 13b. the override must cover the FAIL-CLOSED paths too -------------
+# Every refusal message tells the operator to re-run with --ignore-running-jobs.
+# If the flag does not actually get them past that refusal, the message is a
+# promise the code does not keep — and an operator on an unsupported database
+# would have no way to deploy at all.
+r="$(drive "$tmp/env.pg" "" IGNORE_RUNNING_JOBS=true)"; st="${r%%|*}"; out="${r#*|}"
+if [ "$st" = "0" ] && printf '%s' "$out" | grep -qiE 'not (been )?(checked|verified|run)|without checking|unverified|skipp' ; then
+  ok "the override gets past an unsupported client, and says the check did NOT run"
+else
+  bad "the override gets past an unsupported client, and says the check did NOT run" \
+      "status=$st — the refusal message advises a flag that does not work"
+fi
+r="$(drive "$tmp/env.missing" "" IGNORE_RUNNING_JOBS=true)"; st="${r%%|*}"
+[ "$st" = "0" ] && ok "the override gets past a missing database" \
+  || bad "the override gets past a missing database" "status=$st"
+r="$(drive "$tmp/env.bad" "" IGNORE_RUNNING_JOBS=true)"; st="${r%%|*}"
+[ "$st" = "0" ] && ok "the override gets past an unreadable database" \
+  || bad "the override gets past an unreadable database" "status=$st"
+# ...and WITHOUT the flag every one of those still refuses, or the override has
+# simply disabled the check rather than overriding it.
+for e in env.pg env.missing env.bad; do
+  r="$(drive "$tmp/$e")"; st="${r%%|*}"
+  [ "$st" != "0" ] || bad "CONTROL: $e still refuses without the override" "status=0"
+done
+ok "CONTROL: all three still refuse without the override"
 
 # ---- 14. the path fallback chain ---------------------------------------
 # A hardcoded path would silently miss a deployment configured either of the

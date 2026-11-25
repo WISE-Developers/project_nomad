@@ -527,6 +527,24 @@ print("\n".join(str(r[0]) for r in con.execute(sys.argv[2])))' "$db" "$sql" 2>/d
     fi
 }
 
+# Let --ignore-running-jobs past a FAIL-CLOSED refusal, loudly.
+#
+# Every refusal in preflight_jobs tells the operator to re-run with this flag, so
+# the flag has to actually work on those paths — otherwise the message is a
+# promise the code does not keep, and an operator on an unsupported database
+# could never deploy at all. What it must NOT do is pretend the check ran: the
+# whole point of refusing on an unverified database is honesty about what was
+# measured, and that honesty has to survive the override.
+ignore_jobs_override() {
+    if [ "$IGNORE_RUNNING_JOBS" != true ]; then
+        return 1
+    fi
+    print_warning "--ignore-running-jobs: proceeding although the running-jobs check"
+    print_warning "DID NOT RUN. Nothing has verified that no job is in flight, and"
+    print_warning "recreating the container kills anything that is."
+    return 0
+}
+
 # Refuse to recreate the container while any job is pending or running, NAME the
 # jobs, and require --ignore-running-jobs to proceed anyway (#572).
 #
@@ -547,8 +565,10 @@ preflight_jobs() {
     local env_file="${1:-.env}"
 
     if [ ! -f "$env_file" ]; then
+        ignore_jobs_override && return 0
         print_error "REFUSING TO DEPLOY: no $env_file, so job state cannot be checked."
         print_error "A deploy recreates the container and kills every run in flight."
+        print_error "Re-run with --ignore-running-jobs to deploy without this check."
         return 1
     fi
 
@@ -561,6 +581,7 @@ preflight_jobs() {
         ""|[Ss][Aa][Nn]) mode=SAN ;;
         [Aa][Cc][Nn])    mode=ACN ;;
         *)
+            ignore_jobs_override && return 0
             print_error "REFUSING TO DEPLOY: NOMAD_DEPLOYMENT_MODE=\"$mode\" is not SAN or ACN."
             print_error "The backend refuses to start on this value, so the deploy stops here."
             return 1 ;;
@@ -574,6 +595,7 @@ preflight_jobs() {
             sqlite3|better-sqlite3)
                 db="$(env_value NOMAD_DB_NAME "$env_file")" ;;
             *)
+                ignore_jobs_override && return 0
                 print_error "REFUSING TO DEPLOY: the running-jobs check does not support this database."
                 print_error "  NOMAD_DB_CLIENT=$client (NOMAD_DEPLOYMENT_MODE=ACN)"
                 print_error ""
@@ -596,6 +618,7 @@ preflight_jobs() {
     fi
 
     if [ ! -f "$db" ]; then
+        ignore_jobs_override && return 0
         print_error "REFUSING TO DEPLOY: no database at $db, so job state cannot be checked."
         print_error "An absent database and an empty one are indistinguishable here, and a"
         print_error "deploy that assumes the empty case kills whatever was running."
@@ -607,12 +630,14 @@ preflight_jobs() {
     inflight_count="$(sqlite_query "$db" \
         "select count(*) from jobs where status not in ($JOB_TERMINAL_STATUSES);")" || rc=$?
     if [ "$rc" = "2" ]; then
+        ignore_jobs_override && return 0
         print_error "REFUSING TO DEPLOY: no sqlite3 and no python3 on this host, so job"
         print_error "state cannot be read. This is a refusal, not a zero."
         print_error "Install either, or re-run with --ignore-running-jobs."
         return 1
     fi
     if [ "$rc" != "0" ] || [ -z "$inflight_count" ]; then
+        ignore_jobs_override && return 0
         print_error "REFUSING TO DEPLOY: could not read job state from $db."
         print_error "The query failed, and a failed query is not an answer of zero."
         print_error "Re-run with --ignore-running-jobs only after checking by hand."
@@ -627,6 +652,7 @@ preflight_jobs() {
         ''|*[!0-9]*) rc=1 ;;
     esac
     if [ "$rc" != "0" ]; then
+        ignore_jobs_override && return 0
         print_error "REFUSING TO DEPLOY: the job count read $inflight_count in flight, but the"
         print_error "total number of jobs could NOT be read from $db."
         print_error "That makes the first number meaningless — a query path that cannot count"
