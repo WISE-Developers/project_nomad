@@ -25,7 +25,7 @@ import express from 'express';
 import request from 'supertest';
 
 // ─── The retained spy: the instrument this file depends on ──────
-const { initializeSpy, findById, save, updateStatusUnlessCancelled, guardedWrites } = vi.hoisted(
+const { initializeSpy, findById, save, updateStatusUnlessCancelled } = vi.hoisted(
   () => {
     // Every status the GUARDED write accepted, in call order.
     const guardedWrites: string[] = [];
@@ -53,7 +53,6 @@ const { initializeSpy, findById, save, updateStatusUnlessCancelled, guardedWrite
         guardedWrites.push(String(status));
         return true;
       }),
-      guardedWrites,
     };
   },
 );
