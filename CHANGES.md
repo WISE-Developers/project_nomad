@@ -4,10 +4,39 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.68.0
+## v0.69.0
+
+### 2026-11-25
+
+- [`ba8477e`](https://github.com/WISE-Developers/project_nomad/commit/ba8477e8e7c7a8d11c1fd606932f2531637b326e) Merge pull request #576 from WISE-Developers/dev — *Franco Nogarin, 07:29*
+- [`20b1886`](https://github.com/WISE-Developers/project_nomad/commit/20b18862dfde2bc50d78551f438facdcdf987152) chore: dev v0.68.4 [release-bot] — *github-actions[bot], 13:03*
+- [`ab050e7`](https://github.com/WISE-Developers/project_nomad/commit/ab050e7b054048346dbe4675c1e3ca2d56340ec3) #572: --ignore-running-jobs gets past the fail-closed refusals it is advertised on — *Franco Nogarin, 07:03*
+- [`33d243e`](https://github.com/WISE-Developers/project_nomad/commit/33d243e78b6b7dc439f97f66243ae71f4d399981) Merge remote-tracking branch 'origin/fix/572-running-jobs' into devmerge2 — *Franco Nogarin, 06:59*
+- [`558298a`](https://github.com/WISE-Developers/project_nomad/commit/558298a48ad74e4264633e8ae9ec0d21128cb1c2) Merge remote-tracking branch 'origin/fix/575-reexec-argv' into devmerge2 — *Franco Nogarin, 06:59*
+- [`a4ceb2c`](https://github.com/WISE-Developers/project_nomad/commit/a4ceb2cbbaa29f143c1f2564d22ba1c82514067a) Remove the self-update argument assertion, superseded by a behaviour test — *Franco Nogarin, 06:16*
+- [`666e59c`](https://github.com/WISE-Developers/project_nomad/commit/666e59cd168186338475de5368fb2f1941179f57) #572: deploy.sh refuses to recreate while a job is pending or running — *Franco Nogarin, 05:45*
+- [`e7f26f0`](https://github.com/WISE-Developers/project_nomad/commit/e7f26f0bcfb145c2a980083317267a25999a0372) #575: deploy.sh's self-update re-exec keeps its arguments — *Franco Nogarin, 05:35*
+- [`d87bb31`](https://github.com/WISE-Developers/project_nomad/commit/d87bb31a53ba98aaea9f01239192fcf70b50e9fd) chore: dev v0.68.3 [release-bot] — *github-actions[bot], 11:03*
+- [`b226703`](https://github.com/WISE-Developers/project_nomad/commit/b2267036ce8c5f421b918256efb2bd3b524bdf21) Merge remote-tracking branch 'origin/fix/model-repo-fakes' into devmerge — *Franco Nogarin, 05:03*
+- [`8602e91`](https://github.com/WISE-Developers/project_nomad/commit/8602e91d40d7b7e228bba36f6e291747a9be983c) Stop exporting a recorder nothing reads, which failed tsc and lint — *Franco Nogarin, 05:00*
+- [`5dc2935`](https://github.com/WISE-Developers/project_nomad/commit/5dc2935d3efcab514e05b703337c6ded3e57798e) Give the model-repo test fakes the real guarded-write semantics — *Franco Nogarin, 04:56*
+
+### 2026-11-24
+
+- [`0f30ef1`](https://github.com/WISE-Developers/project_nomad/commit/0f30ef18b8d92d090634485ee092ad31ce2afec5) chore: dev v0.68.2 [release-bot] — *github-actions[bot], 21:56*
+- [`c5a0b9b`](https://github.com/WISE-Developers/project_nomad/commit/c5a0b9b363ae3e3ee8b5edc8ae92a086fa170d20) Merge remote-tracking branch 'origin/feat/570-compose-project-name-prompt' into rehearse/570-stack — *Franco Nogarin, 15:47*
+- [`9736082`](https://github.com/WISE-Developers/project_nomad/commit/97360824a51f7001c2c821ba8c168f65f8972a10) Merge remote-tracking branch 'origin/fix/job-lifecycle-findings' into rehearse/570-stack — *Franco Nogarin, 15:47*
+- [`3a440df`](https://github.com/WISE-Developers/project_nomad/commit/3a440df77fd66397a287a13834e112b6dbf4c0c9) #571: deploy.sh refuses to deploy when a required env key is missing, and names it — *Franco Nogarin, 11:21*
+- [`25623ec`](https://github.com/WISE-Developers/project_nomad/commit/25623ece57d8ae36f448d1c4b85253426061fcba) #570: the installers ASK for COMPOSE_PROJECT_NAME, on upgrades as well as fresh installs — *Franco Nogarin, 10:32*
+- [`9a811a6`](https://github.com/WISE-Developers/project_nomad/commit/9a811a668476735263d277116dc70e2d1e7bbfb7) chore: point verify-job-lifecycle sync commit at 16c4fda — *Franco Nogarin, 05:50*
+- [`16c4fda`](https://github.com/WISE-Developers/project_nomad/commit/16c4fdaa9c37053710c4d0d478eaf95fab0ea558) fix: job/model lifecycle - cancel kills the engine, restart recovery is complete — *Franco Nogarin, 05:50*
+- [`d10088a`](https://github.com/WISE-Developers/project_nomad/commit/d10088aaa2bd0b27af2612478277ad015ee8bd97) chore: dev v0.68.1 [release-bot] — *github-actions[bot], 11:40*
+- [`80a5121`](https://github.com/WISE-Developers/project_nomad/commit/80a5121fc6401cbc2121b828e09bd4561f57dadf) Merge: land the Data Center pack stranded by PR #297 — *Franco Nogarin, 05:40*
+- [`4a16ff0`](https://github.com/WISE-Developers/project_nomad/commit/4a16ff09a4bf0db1ef1d6daacb0d103d3f6ab259) Land the Open Nomad Data Center pack, stranded by PR #297 since June — *Franco Nogarin, 05:40*
 
 ### 2026-11-23
 
+- [`e2491b1`](https://github.com/WISE-Developers/project_nomad/commit/e2491b1f406812d22c0957578f9891d5725d3093) chore: release v0.68.0 [release-bot] — *github-actions[bot], 17:09*
 - [`eba533d`](https://github.com/WISE-Developers/project_nomad/commit/eba533dcd502ceb64f1e91b5616ba55e3650ab23) Merge pull request #568 from WISE-Developers/dev — *Franco Nogarin, 11:09*
 - [`2e2fd70`](https://github.com/WISE-Developers/project_nomad/commit/2e2fd70a948f5bf146dac68b5ab618c9158232a5) chore: dev v0.67.5 [release-bot] — *github-actions[bot], 16:30*
 - [`1a92288`](https://github.com/WISE-Developers/project_nomad/commit/1a922886628cb48c7878a732e032972c33823f06) Fix four defects Codex found in the #567 deferral, including a regression I added — *Franco Nogarin, 10:28*
