@@ -387,100 +387,6 @@ preflight_env() {
     return 0
 }
 
-main() {
-    refuse_root || exit 1
-
-    local root owner
-    root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-    owner="$(id -un)"
-    cd "$root"
-
-    print_info "Deploying $root from origin/$BRANCH as $owner"
-    [ "$DRY_RUN" = true ] && print_info "DRY RUN — nothing will change"
-
-    # Before anything is torn down. A deploy that stops the running container
-    # and then cannot start its replacement is strictly worse than a deploy
-    # that refuses to begin. Refs #392.
-    local chain_state=0
-    probe_docker_chain || chain_state=$?
-    docker_chain_verdict "$chain_state" || exit 1
-
-    repair_ownership "$root" "$owner"
-
-    # Keep a dated copy of the operator's config before anything moves.
-    if [ -f .env ] && [ "$DRY_RUN" != true ]; then
-        cp .env ".env.bak-$(date +%Y%m%d-%H%M%S)-pre-deploy"
-        print_success "Backed up .env"
-    fi
-
-    local before after
-    before="$(git rev-parse --short HEAD)"
-    # Hash of this script BEFORE the pull, so we can tell whether the pull
-    # changed the thing currently executing.
-    local script_sha_before
-    script_sha_before="$(shasum "$SCRIPT_PATH" 2>/dev/null | awk '{print $1}')"
-
-    if [ "$DRY_RUN" = true ]; then
-        print_info "[dry-run] would: git pull --ff-only origin $BRANCH"
-        git fetch -q origin "$BRANCH"
-        print_info "would move $before -> $(git rev-parse --short "origin/$BRANCH")"
-        # Report what would be refused rather than refusing silently (#571).
-        # This runs the PRE-PULL key list, since the pull has not happened; the
-        # real deploy re-checks with the pulled list after the self-update.
-        preflight_env ".env" || print_warning "[dry-run] the real deploy would REFUSE above"
-        preflight_jobs ".env" || print_warning "[dry-run] the real deploy would REFUSE above"
-        return 0
-    fi
-
-    git pull --ff-only origin "$BRANCH"
-    after="$(git rev-parse --short HEAD)"
-    print_success "Checkout $before -> $after"
-
-    # Run the version of this script we just pulled, not the one already in
-    # memory.
-    #
-    # A shell reads a script as it executes it, so everything below this line
-    # still comes from the copy that was on disk when the deploy STARTED. Any
-    # change to deploy.sh would otherwise take effect on the next deploy rather
-    # than the one delivering it — and worse, a deploy could run half of one
-    # version and half of another.
-    #
-    # The v0.23.0 deploy is the reason this exists: it shipped a fix to the
-    # health check and still printed the old failure, because the running shell
-    # was the v0.22.0 copy. It looked exactly like a fix that had not worked.
-    #
-    # Only when the script actually changed, so an ordinary deploy does not
-    # repeat its git and docker work. Guarded and EXPORTED so the re-executed
-    # copy knows not to do it again — an unguarded re-exec is a fork bomb
-    # against a production host. Arguments pass through, or --dry-run would
-    # quietly become a real deploy.
-    local script_sha_after
-    script_sha_after="$(shasum "$SCRIPT_PATH" 2>/dev/null | awk '{print $1}')"
-    if [ -z "$script_sha_before" ] || [ -z "$script_sha_after" ]; then
-        # Say so rather than skipping quietly. A self-update check that cannot
-        # run is worth one line of output; silently disabling it would leave the
-        # next person debugging the same "my fix did nothing" confusion with no
-        # hint that the mechanism was never active.
-        print_warning "Could not hash deploy.sh — self-update check skipped; a change to this script applies next deploy"
-    elif [ "${NOMAD_DEPLOY_REEXEC:-}" != "1" ] \
-       && [ "$script_sha_before" != "$script_sha_after" ]; then
-        print_info "deploy.sh changed in this pull — re-running the new version"
-        export NOMAD_DEPLOY_REEXEC=1
-        exec "$SCRIPT_PATH" ${ORIGINAL_ARGV[@]+"${ORIGINAL_ARGV[@]}"}
-    fi
-
-    # Refuse before anything is tagged or recreated (#571). Placed AFTER the pull
-    # and after the self-update re-exec on purpose: newly required keys arrive
-    # WITH the pull, so a preflight before it can only know the old version's
-    # requirements, and the re-exec guarantees this is the pulled copy's list.
-    preflight_env ".env" || exit 1
-
-    # The other half of the pre-deploy checklist (#572). Beside preflight_env and
-    # before anything is tagged or recreated, so a refusal leaves the running
-    # site untouched.
-    preflight_jobs ".env" || exit 1
-
-    
 # The statuses Job.isTerminalStatus names, from
 # backend/src/domain/entities/Job.ts. Anything else is in flight.
 #
@@ -688,7 +594,100 @@ preflight_jobs() {
     return 1
 }
 
-# Tag the image we are replacing so rollback is one command.
+main() {
+    refuse_root || exit 1
+
+    local root owner
+    root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    owner="$(id -un)"
+    cd "$root"
+
+    print_info "Deploying $root from origin/$BRANCH as $owner"
+    [ "$DRY_RUN" = true ] && print_info "DRY RUN — nothing will change"
+
+    # Before anything is torn down. A deploy that stops the running container
+    # and then cannot start its replacement is strictly worse than a deploy
+    # that refuses to begin. Refs #392.
+    local chain_state=0
+    probe_docker_chain || chain_state=$?
+    docker_chain_verdict "$chain_state" || exit 1
+
+    repair_ownership "$root" "$owner"
+
+    # Keep a dated copy of the operator's config before anything moves.
+    if [ -f .env ] && [ "$DRY_RUN" != true ]; then
+        cp .env ".env.bak-$(date +%Y%m%d-%H%M%S)-pre-deploy"
+        print_success "Backed up .env"
+    fi
+
+    local before after
+    before="$(git rev-parse --short HEAD)"
+    # Hash of this script BEFORE the pull, so we can tell whether the pull
+    # changed the thing currently executing.
+    local script_sha_before
+    script_sha_before="$(shasum "$SCRIPT_PATH" 2>/dev/null | awk '{print $1}')"
+
+    if [ "$DRY_RUN" = true ]; then
+        print_info "[dry-run] would: git pull --ff-only origin $BRANCH"
+        git fetch -q origin "$BRANCH"
+        print_info "would move $before -> $(git rev-parse --short "origin/$BRANCH")"
+        # Report what would be refused rather than refusing silently (#571).
+        # This runs the PRE-PULL key list, since the pull has not happened; the
+        # real deploy re-checks with the pulled list after the self-update.
+        preflight_env ".env" || print_warning "[dry-run] the real deploy would REFUSE above"
+        preflight_jobs ".env" || print_warning "[dry-run] the real deploy would REFUSE above"
+        return 0
+    fi
+
+    git pull --ff-only origin "$BRANCH"
+    after="$(git rev-parse --short HEAD)"
+    print_success "Checkout $before -> $after"
+
+    # Run the version of this script we just pulled, not the one already in
+    # memory.
+    #
+    # A shell reads a script as it executes it, so everything below this line
+    # still comes from the copy that was on disk when the deploy STARTED. Any
+    # change to deploy.sh would otherwise take effect on the next deploy rather
+    # than the one delivering it — and worse, a deploy could run half of one
+    # version and half of another.
+    #
+    # The v0.23.0 deploy is the reason this exists: it shipped a fix to the
+    # health check and still printed the old failure, because the running shell
+    # was the v0.22.0 copy. It looked exactly like a fix that had not worked.
+    #
+    # Only when the script actually changed, so an ordinary deploy does not
+    # repeat its git and docker work. Guarded and EXPORTED so the re-executed
+    # copy knows not to do it again — an unguarded re-exec is a fork bomb
+    # against a production host. Arguments pass through, or --dry-run would
+    # quietly become a real deploy.
+    local script_sha_after
+    script_sha_after="$(shasum "$SCRIPT_PATH" 2>/dev/null | awk '{print $1}')"
+    if [ -z "$script_sha_before" ] || [ -z "$script_sha_after" ]; then
+        # Say so rather than skipping quietly. A self-update check that cannot
+        # run is worth one line of output; silently disabling it would leave the
+        # next person debugging the same "my fix did nothing" confusion with no
+        # hint that the mechanism was never active.
+        print_warning "Could not hash deploy.sh — self-update check skipped; a change to this script applies next deploy"
+    elif [ "${NOMAD_DEPLOY_REEXEC:-}" != "1" ] \
+       && [ "$script_sha_before" != "$script_sha_after" ]; then
+        print_info "deploy.sh changed in this pull — re-running the new version"
+        export NOMAD_DEPLOY_REEXEC=1
+        exec "$SCRIPT_PATH" ${ORIGINAL_ARGV[@]+"${ORIGINAL_ARGV[@]}"}
+    fi
+
+    # Refuse before anything is tagged or recreated (#571). Placed AFTER the pull
+    # and after the self-update re-exec on purpose: newly required keys arrive
+    # WITH the pull, so a preflight before it can only know the old version's
+    # requirements, and the re-exec guarantees this is the pulled copy's list.
+    preflight_env ".env" || exit 1
+
+    # The other half of the pre-deploy checklist (#572). Beside preflight_env and
+    # before anything is tagged or recreated, so a refusal leaves the running
+    # site untouched.
+    preflight_jobs ".env" || exit 1
+
+    # Tag the image we are replacing so rollback is one command.
     #
     # The tag names the version the OUTGOING image contains, read out of the
     # image itself — not the version being deployed to. See #437: this used the
