@@ -1,0 +1,1 @@
+CONTROL probe branch for the delete_branch_on_merge experiment, 2026-11-25. Safe to delete.
