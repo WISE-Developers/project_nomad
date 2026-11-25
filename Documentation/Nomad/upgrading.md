@@ -7,6 +7,60 @@ required key added in one release still applies if you skip past it.
 
 ---
 
+## v0.69.0 WAS NEVER RELEASED. There is no v0.69.0 to upgrade to — go straight to v0.70.0.
+
+**If you are looking for v0.69.0: it does not exist as a deployable release.** The
+version was bumped on `main` on 2026-11-25 (commit `7a3685c`, "chore: release v0.69.0"),
+and `CHANGES.md` on `main` names it — but **no image, no git tag and no GitHub Release
+were ever produced for it.** Nothing was deployed from it and nothing needs to be. The
+work it contained is not lost: it is included in v0.70.0.
+
+**Do not try to pull `ghcr.io/wise-developers/project_nomad/nomad:0.69.0`.** It is not in
+the registry. A `docker compose pull` of it fails, and since #465 `deploy.sh` stops on a
+failed pull rather than building a substitute — which is the correct behaviour and the
+reason this was caught immediately rather than shipping something untested.
+
+### What happened
+
+The release workflow's last step on `main` merges the released version back into `dev`
+and begins with `git fetch origin dev`. The repository has
+`delete_branch_on_merge` enabled, and `dev` was not protected against deletion — so
+merging the `dev` → `main` release PR **deleted `dev`**, and about half a minute later the
+sync step could not find it:
+
+```
+fatal: couldn't find remote ref dev
+```
+
+That failed the release job, and because `publish-image` and `tag-and-release` both
+depend on it, **both were skipped** — leaving the version bump on `main` with none of the
+artefacts a release consists of.
+
+**This had been a race on every release, not a new defect.** Measured across the seven
+dev → main releases from 2026-11-16 to 2026-11-25, the gap between the merge and the sync
+step was 29, 40, 32, 42, 39, 30 and 36 seconds. The six that succeeded are not faster than
+the one that failed — 36s sits in the middle of the range. What varied was how quickly
+GitHub got round to deleting the branch. The pipeline had won that race six times.
+
+### Why it cannot happen again
+
+`dev` now carries a repository ruleset, **`dev: restrict deletions`**, whose only rule is
+`deletion`. GitHub's automatic head-branch deletion cannot remove a branch whose deletion
+is restricted, and it fails quietly rather than failing the merge, so `dev` survives the
+release PR and the sync step finds it.
+
+This was proven before being applied rather than assumed: two throwaway branches were
+merged four seconds apart by the same method, one covered by a deletion-only ruleset and
+one not. The uncovered control was auto-deleted; the covered branch survived. Deleting the
+covered branch explicitly then returned `422 Repository rule violations found — Cannot
+delete this branch`, while the same call against an uncovered branch succeeded.
+
+**Operators are unaffected by the ruleset.** It restricts deletion only — not pushes, not
+force-pushes — and adds no pull-request or status-check requirement, so the release bots
+that push version bumps to `dev` continue to work unchanged.
+
+---
+
 ## One new REQUIRED `.env` key in docker mode, `COMPOSE_PROJECT_NAME`. **Upgrading needs action.**
 
 **The backend refuses to start in docker mode (`FIRESTARR_EXECUTION_MODE=docker`, the
