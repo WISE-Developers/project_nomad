@@ -25,14 +25,38 @@ import express from 'express';
 import request from 'supertest';
 
 // ─── The retained spy: the instrument this file depends on ──────
-const { initializeSpy, findById, save } = vi.hoisted(() => ({
-  // Typed parameters — see the note in execution.parity.test.ts. A zero-arg
-  // spy signature makes mock.calls[0][1] a compile error that the green suite
-  // cannot show you.
-  initializeSpy: vi.fn(async (_model: unknown, _options: unknown): Promise<void> => undefined),
-  findById: vi.fn(),
-  save: vi.fn(async (m: unknown) => m),
-}));
+const { initializeSpy, findById, save, updateStatusUnlessCancelled, guardedWrites } = vi.hoisted(
+  () => {
+    // Every status the GUARDED write accepted, in call order.
+    const guardedWrites: string[] = [];
+    return {
+      // Typed parameters — see the note in execution.parity.test.ts. A zero-arg
+      // spy signature makes mock.calls[0][1] a compile error that the green suite
+      // cannot show you.
+      initializeSpy: vi.fn(
+        async (_model: unknown, _options: unknown): Promise<void> => undefined,
+      ),
+      findById: vi.fn(),
+      save: vi.fn(async (m: unknown) => m),
+      // REAL SEMANTICS, not a stub that returns true. KnexModelRepository does
+      // `.whereNot({ status: Cancelled }).update(...)` and returns `written > 0`,
+      // so a cancelled model must REFUSE the write and report false. A fake that
+      // always succeeded would hide exactly the regression the guarded write exists
+      // to prevent — a finished run overwriting a user's cancel.
+      //
+      // Compared against the literal 'cancelled' rather than ModelStatus.Cancelled
+      // because a vi.hoisted factory is evaluated before this module's imports are
+      // initialised, so the enum binding is not yet readable here.
+      updateStatusUnlessCancelled: vi.fn(async (id: unknown, status: unknown) => {
+        const current = (await findById(id)) as { status?: string } | null;
+        if (current?.status === 'cancelled') return false;
+        guardedWrites.push(String(status));
+        return true;
+      }),
+      guardedWrites,
+    };
+  },
+);
 
 vi.mock('../../../../infrastructure/engines/index.js', () => ({
   EngineType: { FireSTARR: 'firestarr' },
@@ -54,6 +78,7 @@ vi.mock('../../../../infrastructure/database/index.js', () => ({
   getModelRepository: vi.fn(() => ({
     findById,
     save,
+    updateStatusUnlessCancelled,
     find: vi.fn(),
     updateStatus: vi.fn(async () => undefined),
     getConfigJson: vi.fn(async () => null),
