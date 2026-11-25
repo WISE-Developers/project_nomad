@@ -41,8 +41,8 @@ function deps(over: Partial<ExecuteDeps> = {}): ExecuteDeps {
   return {
     execute: vi.fn(async () => undefined),
     getStatus: vi.fn(async () => status('completed')),
-    completeJob: vi.fn(async () => undefined),
-    failJob: vi.fn(async () => undefined),
+    completeJob: vi.fn(async () => true),
+    failJob: vi.fn(async () => true),
     markModelCompleted: vi.fn(async () => undefined),
     markModelFailed: vi.fn(async () => undefined),
     harvestResults: vi.fn(async () => undefined),

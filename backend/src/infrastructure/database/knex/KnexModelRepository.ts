@@ -234,6 +234,15 @@ export class KnexModelRepository implements IModelRepository {
     return updated;
   }
 
+  async updateStatusUnlessCancelled(id: FireModelId, status: ModelStatus): Promise<boolean> {
+    const written = await this.knex(this.tableName)
+      .where({ id })
+      .whereNot({ status: ModelStatus.Cancelled })
+      .update({ status, updated_at: new Date().toISOString() });
+
+    return written > 0;
+  }
+
   async delete(id: FireModelId): Promise<boolean> {
     const deleted = await this.knex(this.tableName)
       .where({ id })

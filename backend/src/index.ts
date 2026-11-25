@@ -17,7 +17,11 @@ import {
   unhonouredIdentityMiddleware,
   requireIdentityOnWrites,
 } from './api/index.js';
-import { initDatabase, initializeRepositories, getJobRepository } from './infrastructure/database/index.js';
+import { initDatabase, initializeRepositories } from './infrastructure/database/index.js';
+import { getJobQueue } from './infrastructure/services/JobQueue.js';
+import { getFireSTARRExecutor } from './infrastructure/execution/index.js';
+import { recoverAfterRestart } from './application/services/startupRecovery.js';
+import { requireComposeProjectName } from './infrastructure/execution/composeProjectName.js';
 import { getBundleStore } from './infrastructure/export/index.js';
 import { logger } from './infrastructure/logging/index.js';
 import { initSentry, setupSentryErrorHandler } from './infrastructure/observability/sentry.js';
@@ -51,12 +55,13 @@ async function initializeDatabaseLayer(): Promise<void> {
   initializeRepositories();
   logger.startup('Repositories initialized');
 
-  // Startup recovery: mark interrupted jobs as failed
-  const jobRepo = getJobRepository();
-  const count = await jobRepo.markRunningAsFailed();
-  if (count > 0) {
-    logger.startup(`Marked ${count} interrupted jobs as failed`);
-  }
+  // Startup recovery: remove leftover engine containers, then fail interrupted jobs and
+  // settle their models. Throws (and startServer exits) if the containers cannot be removed.
+  await recoverAfterRestart({
+    killLeftoverEngines: () => getFireSTARRExecutor().killLeftovers(),
+    jobQueue: getJobQueue(),
+    log: (message) => logger.startup(message),
+  });
 
   logger.startup('Database ready');
 }
@@ -329,6 +334,12 @@ async function startServer(): Promise<void> {
     // while every health check stays green. (#332)
     const homeTimezone = EnvironmentService.getInstance().getHomeTimezone();
     logger.startup(`Home time zone: ${homeTimezone}`);
+
+    // Same rule for the compose project in Docker mode: no default, because a guessed name
+    // shared by two deployments on one Docker host lets each one's startup sweep remove the
+    // other's runs. Checked before anything touches the database or Docker.
+    const composeProject = requireComposeProjectName(process.env);
+    if (composeProject) logger.startup(`Compose project: ${composeProject}`);
 
     // Same rule, same reason: a service that cannot say what version it is
     // should not serve. Throws rather than reporting a placeholder.

@@ -151,6 +151,15 @@ export interface IModelRepository {
   updateStatus(id: FireModelId, status: ModelStatus): Promise<FireModel>;
 
   /**
+   * Sets the status unless the stored model is cancelled, in one conditional UPDATE.
+   * The background run writes the model only through this, so a cancel that has
+   * already recorded itself is never overwritten by the run it stopped.
+   *
+   * @returns true if the row was written
+   */
+  updateStatusUnlessCancelled(id: FireModelId, status: ModelStatus): Promise<boolean>;
+
+  /**
    * Deletes a fire model and its results.
    *
    * @param id - Model ID

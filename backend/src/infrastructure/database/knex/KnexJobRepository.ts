@@ -110,6 +110,24 @@ export class KnexJobRepository implements IJobRepository {
     return job;
   }
 
+  async updateIfActive(job: Job): Promise<boolean> {
+    await this.ensureResultIdsColumn();
+
+    const written = await this.knex(this.tableName)
+      .where({ id: job.id })
+      .whereIn('status', [JobStatus.Pending, JobStatus.Running])
+      .update({
+        status: job.status,
+        progress: job.progress,
+        started_at: job.startedAt?.toISOString() ?? null,
+        completed_at: job.completedAt?.toISOString() ?? null,
+        error: job.error ?? null,
+        result_ids: job.resultIds.length > 0 ? JSON.stringify(job.resultIds) : null,
+      });
+
+    return written > 0;
+  }
+
   async findById(id: JobId): Promise<Job | null> {
     await this.ensureResultIdsColumn();
 
@@ -169,13 +187,13 @@ export class KnexJobRepository implements IJobRepository {
     return row !== undefined;
   }
 
-  async markRunningAsFailed(): Promise<number> {
+  async failInterrupted(): Promise<number> {
     const result = await this.knex(this.tableName)
-      .where({ status: JobStatus.Running })
+      .whereIn('status', [JobStatus.Pending, JobStatus.Running])
       .update({
         status: JobStatus.Failed,
         completed_at: new Date().toISOString(),
-        error: 'Server restarted while job was running',
+        error: 'Server restarted before the job finished',
       });
 
     return result;

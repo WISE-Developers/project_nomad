@@ -132,10 +132,12 @@ export interface IFireModelingEngine {
    * This is an asynchronous operation that may take minutes to hours.
    *
    * @param modelId - ID of the previously initialized model
+   * @param options.signal - The run's cancel signal. Once it has fired, no engine
+   *   process may start for this run.
    * @returns Promise resolving when execution starts (not completes)
    * @throws If model was not initialized or execution fails to start
    */
-  execute(modelId: FireModelId): Promise<void>;
+  execute(modelId: FireModelId, options?: { signal?: AbortSignal }): Promise<void>;
 
   /**
    * Gets the current execution status of a model.
@@ -155,10 +157,13 @@ export interface IFireModelingEngine {
   getResults(modelId: FireModelId): Promise<ModelResult[]>;
 
   /**
-   * Cancels a running model execution.
+   * Stops any engine process for this model and CONFIRMS it has stopped.
+   *
+   * Resolves only once nothing is left running for the model (for FireSTARR: no container
+   * by its name). Rejects when that cannot be confirmed; callers must then treat the run
+   * as still going. Resolves at once when nothing was running.
    *
    * @param modelId - ID of the model to cancel
-   * @returns Promise resolving when cancellation is complete
    */
   cancel(modelId: FireModelId): Promise<void>;
 

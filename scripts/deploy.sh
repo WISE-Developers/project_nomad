@@ -6,6 +6,7 @@
 #   ./scripts/deploy.sh --dry-run    # show what would happen
 #   ./scripts/deploy.sh --branch dev
 #   ./scripts/deploy.sh --build-local  # build the image here (offline installs)
+#   ./scripts/deploy.sh --ignore-running-jobs  # deploy anyway, KILLING jobs in flight
 #
 # WHY THIS EXISTS
 #
@@ -33,10 +34,28 @@ SERVICE="nomad"
 BUILD_LOCAL=false
 APP_IMAGE_REPO="ghcr.io/wise-developers/project_nomad/nomad"
 
+# #572. A deploy recreates the container, so every run in flight dies with it and
+# startup recovery then marks those jobs failed — correctly, they did fail, but
+# the operator's model is gone and the record blames nothing they can see. The
+# override exists because a wedged job or a run nobody wants any more is a real
+# case; it is loud, and it names what it is about to kill.
+IGNORE_RUNNING_JOBS=false
+
+# Captured BEFORE the loop below consumes them (#575).
+#
+# The loop runs at TOP LEVEL and `shift`s, so by the time `main "$@"` runs at the
+# bottom of this file there are no positional parameters left. The self-update
+# re-exec therefore passed NOTHING and every flag reverted to its default —
+# `BRANCH` to `main`, which deployed a branch the operator never asked for and
+# reported success. The comment at that re-exec already claimed "Arguments pass
+# through"; this is what makes that true.
+ORIGINAL_ARGV=("$@")
+
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY_RUN=true; shift ;;
     --build-local) BUILD_LOCAL=true; shift ;;
+    --ignore-running-jobs) IGNORE_RUNNING_JOBS=true; shift ;;
     --branch)  BRANCH="${2:?--branch needs a value}"; shift 2 ;;
     --service) SERVICE="${2:?--service needs a value}"; shift 2 ;;
     -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
@@ -293,6 +312,81 @@ await_version() {
     return 1
 }
 
+# Refuse to deploy when a required `.env` key is missing or blank, and NAME it
+# (#571).
+#
+# Before this existed the deploy pulled, tagged, recreated, and only THEN did
+# the backend exit 1 on the missing key — with the site down and nothing earlier
+# reporting an error. The runbook's "add new required keys before recreating"
+# was the only protection, and it was a step a human had to remember.
+#
+# WHERE THIS LIST COMES FROM. The backend announces every required key as
+#     throw new Error('Required environment variable "KEY" is not set...')
+# in EnvironmentService.getRequired, getFuelNoDataValue and JsonlUsageLogger.
+# scripts/__tests__/deploy_env_preflight.test.sh greps that convention and FAILS
+# when the backend names a key this function has never heard of, so the list
+# cannot rot quietly while the backend moves.
+#
+# NOT EVERY REQUIRED KEY IS UNCONDITIONAL, and demanding them all would be worse
+# than no preflight: NOMAD_FUEL_NODATA_VALUE is required only on the WCS fuel
+# path and the default is local, so an unconditional demand would refuse every
+# deploy of a deployment that never uses it. COMPOSE_PROJECT_NAME is required
+# only in docker mode; binary mode labels and sweeps no containers.
+#
+# BLANK COUNTS AS MISSING, because the backend treats it that way. A preflight
+# that accepts a blank disagrees with the thing it is protecting.
+preflight_env() {
+    local env_file="${1:-.env}"
+    local always="NOMAD_HOME_TIMEZONE NOMAD_USAGE_LOG_PATH NOMAD_USAGE_LOG_MAX_BYTES"
+    local missing="" k value mode fuel
+
+    if [ ! -f "$env_file" ]; then
+        print_error "REFUSING TO DEPLOY: no $env_file to check."
+        print_error "The backend exits 1 without its required keys. See section 4 of the"
+        print_error "deployment runbook, and Documentation/Nomad/upgrading.md."
+        return 1
+    fi
+
+    # The LAST assignment wins, matching how a shell sources the file. Stripping
+    # whitespace is only for the emptiness test, never for the value itself.
+    for k in $always; do
+        value="$(sed -n "s/^${k}=//p" "$env_file" | tail -1 | tr -d '[:space:]')"
+        [ -n "$value" ] || missing="$missing $k"
+    done
+
+    # Docker mode only. Unset defaults to docker, which is the compose default.
+    mode="$(sed -n 's/^FIRESTARR_EXECUTION_MODE=//p' "$env_file" | tail -1 | tr -d '[:space:]')"
+    [ -n "$mode" ] || mode="docker"
+    if [ "$mode" = "docker" ]; then
+        value="$(sed -n 's/^COMPOSE_PROJECT_NAME=//p' "$env_file" | tail -1 | tr -d '[:space:]')"
+        [ -n "$value" ] || missing="$missing COMPOSE_PROJECT_NAME"
+    fi
+
+    # WCS fuel path only. Unset defaults to local, where no action is needed.
+    fuel="$(sed -n 's/^NOMAD_FUEL_SOURCE=//p' "$env_file" | tail -1 | tr -d '[:space:]')"
+    [ -n "$fuel" ] || fuel="local"
+    if [ "$fuel" != "local" ]; then
+        value="$(sed -n 's/^NOMAD_FUEL_NODATA_VALUE=//p' "$env_file" | tail -1 | tr -d '[:space:]')"
+        [ -n "$value" ] || missing="$missing NOMAD_FUEL_NODATA_VALUE"
+    fi
+
+    if [ -n "$missing" ]; then
+        print_error "REFUSING TO DEPLOY: required .env keys are missing or blank."
+        for k in $missing; do
+            print_error "  missing or blank: $k"
+        done
+        print_error ""
+        print_error "The backend exits 1 at startup without these, so recreating the container"
+        print_error "now would take the site down. Nothing has been pulled, tagged or recreated."
+        print_error "Add them to $env_file first — see Documentation/Nomad/upgrading.md and"
+        print_error "section 3 of the deployment runbook for the safe-edit procedure."
+        return 1
+    fi
+
+    print_success "Required .env keys present (mode=$mode, fuel=$fuel)"
+    return 0
+}
+
 main() {
     refuse_root || exit 1
 
@@ -330,6 +424,11 @@ main() {
         print_info "[dry-run] would: git pull --ff-only origin $BRANCH"
         git fetch -q origin "$BRANCH"
         print_info "would move $before -> $(git rev-parse --short "origin/$BRANCH")"
+        # Report what would be refused rather than refusing silently (#571).
+        # This runs the PRE-PULL key list, since the pull has not happened; the
+        # real deploy re-checks with the pulled list after the self-update.
+        preflight_env ".env" || print_warning "[dry-run] the real deploy would REFUSE above"
+        preflight_jobs ".env" || print_warning "[dry-run] the real deploy would REFUSE above"
         return 0
     fi
 
@@ -367,10 +466,229 @@ main() {
        && [ "$script_sha_before" != "$script_sha_after" ]; then
         print_info "deploy.sh changed in this pull — re-running the new version"
         export NOMAD_DEPLOY_REEXEC=1
-        exec "$SCRIPT_PATH" "$@"
+        exec "$SCRIPT_PATH" ${ORIGINAL_ARGV[@]+"${ORIGINAL_ARGV[@]}"}
     fi
 
-    # Tag the image we are replacing so rollback is one command.
+    # Refuse before anything is tagged or recreated (#571). Placed AFTER the pull
+    # and after the self-update re-exec on purpose: newly required keys arrive
+    # WITH the pull, so a preflight before it can only know the old version's
+    # requirements, and the re-exec guarantees this is the pulled copy's list.
+    preflight_env ".env" || exit 1
+
+    # The other half of the pre-deploy checklist (#572). Beside preflight_env and
+    # before anything is tagged or recreated, so a refusal leaves the running
+    # site untouched.
+    preflight_jobs ".env" || exit 1
+
+    
+# The statuses Job.isTerminalStatus names, from
+# backend/src/domain/entities/Job.ts. Anything else is in flight.
+#
+# DERIVED, NOT GUESSED: scripts/__tests__/deploy_running_jobs.test.sh reads the
+# definition out of Job.ts and FAILS when these two disagree, because a list
+# retyped into a shell script drifts and the drift is invisible until a deploy
+# kills a job this should have refused over.
+JOB_TERMINAL_STATUSES="'completed','failed','cancelled'"
+
+# Read one key out of an env file using ONLY bash builtins.
+#
+# No sed, no grep, deliberately: this has to keep working when the running-jobs
+# check is being exercised with a stripped PATH, and the "no sqlite tool at all"
+# path must refuse for that reason rather than fall over reading its config.
+# LAST assignment wins, matching how a shell sources the file and how
+# preflight_env reads it.
+env_value() {
+    local key="$1" file="$2" line last=""
+    [ -f "$file" ] || return 0
+    while IFS= read -r line || [ -n "$line" ]; do
+        case "$line" in
+            "${key}="*) last="${line#*=}" ;;
+        esac
+    done < "$file"
+    printf '%s' "$last"
+}
+
+# Run one read-only query against a SQLite database.
+#
+# Prefers the sqlite3 CLI and falls back to python3's sqlite3 module, because
+# neither is guaranteed: the CIFFC demo has the CLI, the rehearsal box has only
+# python3. Returns 2 when NEITHER exists, which is a refusal and not a zero —
+# a check that cannot run must never report "no jobs".
+sqlite_query() {
+    local db="$1" sql="$2"
+    if command -v sqlite3 >/dev/null 2>&1; then
+        sqlite3 "$db" "$sql" 2>/dev/null || return 1
+    elif command -v python3 >/dev/null 2>&1; then
+        python3 -c 'import sqlite3,sys
+con = sqlite3.connect("file:" + sys.argv[1] + "?mode=ro", uri=True)
+print("\n".join(str(r[0]) for r in con.execute(sys.argv[2])))' "$db" "$sql" 2>/dev/null || return 1
+    else
+        return 2
+    fi
+}
+
+# Let --ignore-running-jobs past a FAIL-CLOSED refusal, loudly.
+#
+# Every refusal in preflight_jobs tells the operator to re-run with this flag, so
+# the flag has to actually work on those paths — otherwise the message is a
+# promise the code does not keep, and an operator on an unsupported database
+# could never deploy at all. What it must NOT do is pretend the check ran: the
+# whole point of refusing on an unverified database is honesty about what was
+# measured, and that honesty has to survive the override.
+ignore_jobs_override() {
+    if [ "$IGNORE_RUNNING_JOBS" != true ]; then
+        return 1
+    fi
+    print_warning "--ignore-running-jobs: proceeding although the running-jobs check"
+    print_warning "DID NOT RUN. Nothing has verified that no job is in flight, and"
+    print_warning "recreating the container kills anything that is."
+    return 0
+}
+
+# Refuse to recreate the container while any job is pending or running, NAME the
+# jobs, and require --ignore-running-jobs to proceed anyway (#572).
+#
+# FAIL CLOSED, because an empty result and a zero are the same bytes. Every
+# failure below refuses: a missing database, an unreadable one, no sqlite tool,
+# an unsupported client, and — the one a naive implementation gets wrong — a
+# non-terminal count that reads 0 while the TOTAL cannot be read. "0 in flight"
+# is only trustworthy beside a plausible total, so the total is the positive
+# control and it is asserted, not assumed.
+#
+# SQLITE ONLY, ON PURPOSE. No deployment runs Postgres today, so an unsupported
+# client is refused and named rather than skipped. A check silently inert on an
+# untested database is the guard-that-cannot-fire shape in a different costume,
+# and it would read green on exactly the deployment nobody has rehearsed. ACN
+# with a SQLite client IS supported, because knexConfig.ts:69-73 resolves it to
+# the same file SAN uses.
+preflight_jobs() {
+    local env_file="${1:-.env}"
+
+    if [ ! -f "$env_file" ]; then
+        ignore_jobs_override && return 0
+        print_error "REFUSING TO DEPLOY: no $env_file, so job state cannot be checked."
+        print_error "A deploy recreates the container and kills every run in flight."
+        print_error "Re-run with --ignore-running-jobs to deploy without this check."
+        return 1
+    fi
+
+    local mode client db data_path
+    mode="$(env_value NOMAD_DEPLOYMENT_MODE "$env_file")"
+
+    # Unset means SAN — EnvironmentService.getDeploymentMode returns 'SAN' when
+    # the key is absent, so this must agree or it would check the wrong thing.
+    case "$mode" in
+        ""|[Ss][Aa][Nn]) mode=SAN ;;
+        [Aa][Cc][Nn])    mode=ACN ;;
+        *)
+            ignore_jobs_override && return 0
+            print_error "REFUSING TO DEPLOY: NOMAD_DEPLOYMENT_MODE=\"$mode\" is not SAN or ACN."
+            print_error "The backend refuses to start on this value, so the deploy stops here."
+            return 1 ;;
+    esac
+
+    db=""
+    if [ "$mode" = "ACN" ]; then
+        client="$(env_value NOMAD_DB_CLIENT "$env_file")"
+        [ -n "$client" ] || client="pg"   # knexConfig.ts:66 defaults to pg
+        case "$client" in
+            sqlite3|better-sqlite3)
+                db="$(env_value NOMAD_DB_NAME "$env_file")" ;;
+            *)
+                ignore_jobs_override && return 0
+                print_error "REFUSING TO DEPLOY: the running-jobs check does not support this database."
+                print_error "  NOMAD_DB_CLIENT=$client (NOMAD_DEPLOYMENT_MODE=ACN)"
+                print_error ""
+                print_error "Only SQLite is implemented, because no deployment runs anything else"
+                print_error "today and an unverified check is worse than a missing one: it would"
+                print_error "report \"no jobs running\" on a database it has never read."
+                print_error ""
+                print_error "Check by hand that no job is pending or running, then re-run with"
+                print_error "  --ignore-running-jobs"
+                return 1 ;;
+        esac
+    fi
+
+    if [ -z "$db" ]; then
+        # knexConfig.ts getSqlitePath(): NOMAD_DATA_PATH || FIRESTARR_DATASET_PATH || './data'
+        data_path="$(env_value NOMAD_DATA_PATH "$env_file")"
+        [ -n "$data_path" ] || data_path="$(env_value FIRESTARR_DATASET_PATH "$env_file")"
+        [ -n "$data_path" ] || data_path="./data"
+        db="${data_path}/nomad.db"
+    fi
+
+    if [ ! -f "$db" ]; then
+        ignore_jobs_override && return 0
+        print_error "REFUSING TO DEPLOY: no database at $db, so job state cannot be checked."
+        print_error "An absent database and an empty one are indistinguishable here, and a"
+        print_error "deploy that assumes the empty case kills whatever was running."
+        return 1
+    fi
+
+    local inflight_count total rc
+    rc=0
+    inflight_count="$(sqlite_query "$db" \
+        "select count(*) from jobs where status not in ($JOB_TERMINAL_STATUSES);")" || rc=$?
+    if [ "$rc" = "2" ]; then
+        ignore_jobs_override && return 0
+        print_error "REFUSING TO DEPLOY: no sqlite3 and no python3 on this host, so job"
+        print_error "state cannot be read. This is a refusal, not a zero."
+        print_error "Install either, or re-run with --ignore-running-jobs."
+        return 1
+    fi
+    if [ "$rc" != "0" ] || [ -z "$inflight_count" ]; then
+        ignore_jobs_override && return 0
+        print_error "REFUSING TO DEPLOY: could not read job state from $db."
+        print_error "The query failed, and a failed query is not an answer of zero."
+        print_error "Re-run with --ignore-running-jobs only after checking by hand."
+        return 1
+    fi
+
+    # THE POSITIVE CONTROL. Without it, "0 in flight" out of a broken query path
+    # reads exactly like a safe deploy.
+    rc=0
+    total="$(sqlite_query "$db" "select count(*) from jobs;")" || rc=$?
+    case "$total" in
+        ''|*[!0-9]*) rc=1 ;;
+    esac
+    if [ "$rc" != "0" ]; then
+        ignore_jobs_override && return 0
+        print_error "REFUSING TO DEPLOY: the job count read $inflight_count in flight, but the"
+        print_error "total number of jobs could NOT be read from $db."
+        print_error "That makes the first number meaningless — a query path that cannot count"
+        print_error "every row cannot be trusted to have counted the running ones."
+        return 1
+    fi
+
+    if [ "$inflight_count" = "0" ]; then
+        print_success "No jobs pending or running ($total job(s) total)"
+        return 0
+    fi
+
+    local listing
+    listing="$(sqlite_query "$db" \
+        "select '  ' || id || '  status=' || status || '  model=' || coalesce(model_id,'?') || '  started=' || coalesce(started_at,'(not started)') from jobs where status not in ($JOB_TERMINAL_STATUSES);")" \
+        || listing="  (the jobs could not be listed, but $inflight_count is in flight)"
+
+    if [ "$IGNORE_RUNNING_JOBS" = true ]; then
+        print_warning "--ignore-running-jobs: recreating the container will KILL these $inflight_count job(s):"
+        printf '%s\n' "$listing"
+        print_warning "Startup recovery will mark them failed. Proceeding because you asked."
+        return 0
+    fi
+
+    print_error "REFUSING TO DEPLOY: $inflight_count job(s) pending or running of $total total."
+    printf '%s\n' "$listing"
+    print_error ""
+    print_error "Recreating the container kills these runs, and startup recovery then marks"
+    print_error "them failed — the operator's model is gone and the record shows a failure"
+    print_error "they cannot explain. Nothing has been pulled, tagged or recreated."
+    print_error ""
+    print_error "Wait for them, cancel them, or re-run with --ignore-running-jobs."
+    return 1
+}
+
+# Tag the image we are replacing so rollback is one command.
     #
     # The tag names the version the OUTGOING image contains, read out of the
     # image itself — not the version being deployed to. See #437: this used the

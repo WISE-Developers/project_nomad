@@ -10,6 +10,12 @@ import { Result } from '../common/index.js';
  */
 export interface IJobQueue {
   /**
+   * Startup recovery: fails every pending or running job and settles the models they
+   * left queued or running. Call once at startup, before the server listens.
+   */
+  initialize(): Promise<void>;
+
+  /**
    * Creates a new job for a model execution request.
    *
    * @param modelId - The model to execute

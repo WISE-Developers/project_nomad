@@ -249,6 +249,7 @@ export function ModelList({
     { value: 'running', label: 'Running' },
     { value: 'queued', label: 'Queued' },
     { value: 'failed', label: 'Failed' },
+    { value: 'cancelled', label: 'Cancelled' },
     { value: 'draft', label: 'Draft' },
   ];
 

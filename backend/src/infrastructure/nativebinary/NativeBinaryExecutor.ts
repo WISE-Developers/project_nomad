@@ -17,6 +17,7 @@ import {
 import { Result } from '../../application/common/index.js';
 import { EngineError } from '../../domain/errors/index.js';
 import { EngineType } from '../../domain/entities/index.js';
+import { stopChildProcess } from '../execution/stopChildProcess.js';
 
 /** Default timeout: 4 hours */
 const DEFAULT_TIMEOUT_MS = 4 * 60 * 60 * 1000;
@@ -46,29 +47,22 @@ export class NativeBinaryExecutor implements IContainerExecutor {
   }
 
   /**
-   * Cancel a running job by its ID.
-   * Sends SIGTERM followed by SIGKILL after grace period.
-   * @returns true if process was found and killed, false otherwise
+   * Stops the FireSTARR process started for `jobId` and resolves once it has exited.
+   * Rejects if it survives SIGKILL. Resolves at once when nothing is running for it.
    */
-  cancelJob(jobId: string): boolean {
+  /**
+   * Binary mode starts no containers, so there are none to sweep. A FireSTARR process
+   * orphaned by a backend crash has no name to find it by; that is not covered.
+   */
+  async killLeftovers(): Promise<string[]> {
+    return [];
+  }
+
+  async cancel(jobId: string): Promise<void> {
     const child = this.activeProcesses.get(jobId);
-    if (!child) {
-      console.log(`[NativeBinaryExecutor] No active process found for job ${jobId}`);
-      return false;
-    }
-
-    console.log(`[NativeBinaryExecutor] Cancelling job ${jobId}, sending SIGTERM`);
-    child.kill('SIGTERM');
-
-    // Force kill after grace period if still running
-    setTimeout(() => {
-      if (this.activeProcesses.has(jobId)) {
-        console.log(`[NativeBinaryExecutor] Grace period expired for ${jobId}, sending SIGKILL`);
-        child.kill('SIGKILL');
-      }
-    }, KILL_GRACE_PERIOD_MS);
-
-    return true;
+    if (!child) return;
+    console.log(`[NativeBinaryExecutor] Cancelling job ${jobId}`);
+    await stopChildProcess(child, KILL_GRACE_PERIOD_MS, `FireSTARR process for job ${jobId}`);
   }
 
   /**
@@ -115,6 +109,12 @@ export class NativeBinaryExecutor implements IContainerExecutor {
       let killed = false;
       let timeoutHandle: NodeJS.Timeout | undefined;
       let killHandle: NodeJS.Timeout | undefined;
+
+      // Checked in the same synchronous block as the spawn below (see DockerExecutor).
+      if (options.signal?.aborted) {
+        resolve(Result.fail(EngineError.cancelled(EngineType.FireSTARR)));
+        return;
+      }
 
       // For native binary, working directory is the first arg if it's a path
       // FireSTARR expects: firestarr <output_dir> <date> <lat> <lon> <time> [options]

@@ -22,6 +22,7 @@ import { getModelRepository, getResultRepository } from '../../infrastructure/da
 import { getEngine } from '../../infrastructure/engines/index.js';
 import { getJobQueue } from '../../infrastructure/services/JobQueue.js';
 import { executeAndFinalizeModel } from '../../application/services/executeAndFinalizeModel.js';
+import { getRunRegistry } from '../../application/services/runRegistry.js';
 import { buildExecutionOptions } from '../../application/execution/buildExecutionOptions.js';
 import type { ExecutionOptions } from '../../application/interfaces/IFireModelingEngine.js';
 import {
@@ -428,15 +429,25 @@ export async function submitModelForExecution({
       }
       const job = jobResult.value;
 
-      // Start execution in background with lifecycle management
-      jobQueue.updateStatus(job.id, JobStatus.Running).catch(() => {});
+      // Registered before the next await, so a cancel can always find this run.
+      const run = getRunRegistry().register(job.id, createFireModelId(modelId));
+
+      // AWAITED (finding F4 of verification/job-lifecycle). This was fired with
+      // `.catch(() => {})` and never awaited, so nothing ordered it against the
+      // finalizer's Completed/Failed write: on a slow database and a fast engine failure,
+      // the late "running" write landed last and the finished job said running forever.
+      // Refused when a cancel already took the job, and then nothing is launched.
+      if (!(await jobQueue.updateStatus(job.id, JobStatus.Running)).success) {
+        run.release();
+        return engineFailed('The job was cancelled before it started.');
+      }
 
       // The MODEL is running too, not only the job (#514), and it is recorded BEFORE the
       // execution is launched. This replaces a `ModelStatus.Queued` write that used to sit
       // after the `void executeAndFinalizeModel(...)` call below — which was both the wrong
       // value once execution had begun and a race, since nothing ordered it against the
-      // finalizer's own Completed/Failed write.
-      await repo.updateStatus(createFireModelId(modelId), ModelStatus.Running);
+      // finalizer's own Completed/Failed write. Never over a cancel's write.
+      await repo.updateStatusUnlessCancelled(createFireModelId(modelId), ModelStatus.Running);
 
       // The engine's reported state decides the outcome, not whether the
       // promise resolved. This previously treated execute() resolving as
@@ -446,20 +457,17 @@ export async function submitModelForExecution({
       // failed. Both now go through the same finalizer as the HTTP routes.
       void executeAndFinalizeModel({
         execute: async () => {
-          await engine.execute(createFireModelId(modelId));
+          await engine.execute(createFireModelId(modelId), { signal: run.signal });
         },
         getStatus: () => engine.getStatus(createFireModelId(modelId)),
-        completeJob: async () => {
-          await jobQueue.complete(job.id);
-        },
-        failJob: async (reason) => {
-          await jobQueue.fail(job.id, reason);
-        },
+        stoppedByCancel: () => run.stoppedByCancel(),
+        completeJob: async () => (await jobQueue.complete(job.id)).success,
+        failJob: async (reason) => (await jobQueue.fail(job.id, reason)).success,
         markModelCompleted: async () => {
-          await repo.updateStatus(createFireModelId(modelId), ModelStatus.Completed);
+          await repo.updateStatusUnlessCancelled(createFireModelId(modelId), ModelStatus.Completed);
         },
         markModelFailed: async () => {
-          await repo.updateStatus(createFireModelId(modelId), ModelStatus.Failed);
+          await repo.updateStatusUnlessCancelled(createFireModelId(modelId), ModelStatus.Failed);
         },
         harvestResults: async () => {
           const results = await engine.getResults(createFireModelId(modelId));
@@ -469,7 +477,7 @@ export async function submitModelForExecution({
           }
         },
         warn: (message) => console.warn(`[MCP] ${message} (model ${modelId})`),
-      });
+      }).finally(() => run.release());
 
       return {
         content: [{
