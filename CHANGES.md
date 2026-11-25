@@ -4,10 +4,15 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.70.0
+## v0.71.0
 
 ### 2026-11-25
 
+- [`5c12e92`](https://github.com/WISE-Developers/project_nomad/commit/5c12e92dc9968b8f50b5819285a6393fa4cda281) Merge pull request #581 from WISE-Developers/dev — *Franco Nogarin, 10:13*
+- [`819443f`](https://github.com/WISE-Developers/project_nomad/commit/819443f9c435c0e5023680cdc9236543fa27a20a) chore: dev v0.70.1 [release-bot] — *github-actions[bot], 15:25*
+- [`94bec55`](https://github.com/WISE-Developers/project_nomad/commit/94bec557e5f9341234227a9faa07893bc645ae98) Merge fix/572-helpers-nested-in-main into dev — *Franco Nogarin, 09:25*
+- [`5e64432`](https://github.com/WISE-Developers/project_nomad/commit/5e644321439d3d509a1e1c128834db91a068e6db) #572 helpers were defined inside main, so no deploy could run — *Franco Nogarin, 09:25*
+- [`0684292`](https://github.com/WISE-Developers/project_nomad/commit/06842929a5db7d586ace27c4b721f259853c7252) chore: release v0.70.0 [release-bot] — *github-actions[bot], 14:19*
 - [`4f8765c`](https://github.com/WISE-Developers/project_nomad/commit/4f8765cdd74814f4dd0ebc30b2ffddf1383531fb) Merge pull request #579 from WISE-Developers/dev — *Franco Nogarin, 08:18*
 - [`9673310`](https://github.com/WISE-Developers/project_nomad/commit/9673310dda04b7b90febbe2cdd7abc1b8dce88ac) chore: dev v0.69.1 [release-bot] — *github-actions[bot], 13:52*
 - [`85c8983`](https://github.com/WISE-Developers/project_nomad/commit/85c898353c7ed50dcc719aa8eda51863536fcb71) docs: v0.69.0 was never released, and dev is now protected from deletion — *Franco Nogarin, 07:52*
