@@ -4,10 +4,14 @@ Auto-generated from git history. Do not edit manually.
 
 ---
 
-## v0.69.0
+## v0.70.0
 
 ### 2026-11-25
 
+- [`4f8765c`](https://github.com/WISE-Developers/project_nomad/commit/4f8765cdd74814f4dd0ebc30b2ffddf1383531fb) Merge pull request #579 from WISE-Developers/dev — *Franco Nogarin, 08:18*
+- [`9673310`](https://github.com/WISE-Developers/project_nomad/commit/9673310dda04b7b90febbe2cdd7abc1b8dce88ac) chore: dev v0.69.1 [release-bot] — *github-actions[bot], 13:52*
+- [`85c8983`](https://github.com/WISE-Developers/project_nomad/commit/85c898353c7ed50dcc719aa8eda51863536fcb71) docs: v0.69.0 was never released, and dev is now protected from deletion — *Franco Nogarin, 07:52*
+- [`7a3685c`](https://github.com/WISE-Developers/project_nomad/commit/7a3685cefe418c2ff459fe6ada6e96c70de23e7c) chore: release v0.69.0 [release-bot] — *github-actions[bot], 13:30*
 - [`ba8477e`](https://github.com/WISE-Developers/project_nomad/commit/ba8477e8e7c7a8d11c1fd606932f2531637b326e) Merge pull request #576 from WISE-Developers/dev — *Franco Nogarin, 07:29*
 - [`20b1886`](https://github.com/WISE-Developers/project_nomad/commit/20b18862dfde2bc50d78551f438facdcdf987152) chore: dev v0.68.4 [release-bot] — *github-actions[bot], 13:03*
 - [`ab050e7`](https://github.com/WISE-Developers/project_nomad/commit/ab050e7b054048346dbe4675c1e3ca2d56340ec3) #572: --ignore-running-jobs gets past the fail-closed refusals it is advertised on — *Franco Nogarin, 07:03*
