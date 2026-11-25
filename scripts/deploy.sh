@@ -33,6 +33,16 @@ SERVICE="nomad"
 BUILD_LOCAL=false
 APP_IMAGE_REPO="ghcr.io/wise-developers/project_nomad/nomad"
 
+# Captured BEFORE the loop below consumes them (#575).
+#
+# The loop runs at TOP LEVEL and `shift`s, so by the time `main "$@"` runs at the
+# bottom of this file there are no positional parameters left. The self-update
+# re-exec therefore passed NOTHING and every flag reverted to its default —
+# `BRANCH` to `main`, which deployed a branch the operator never asked for and
+# reported success. The comment at that re-exec already claimed "Arguments pass
+# through"; this is what makes that true.
+ORIGINAL_ARGV=("$@")
+
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY_RUN=true; shift ;;
@@ -446,7 +456,7 @@ main() {
        && [ "$script_sha_before" != "$script_sha_after" ]; then
         print_info "deploy.sh changed in this pull — re-running the new version"
         export NOMAD_DEPLOY_REEXEC=1
-        exec "$SCRIPT_PATH" "$@"
+        exec "$SCRIPT_PATH" ${ORIGINAL_ARGV[@]+"${ORIGINAL_ARGV[@]}"}
     fi
 
     # Refuse before anything is tagged or recreated (#571). Placed AFTER the pull
