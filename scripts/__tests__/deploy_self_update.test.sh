@@ -55,12 +55,26 @@ else
   bad "guard is not exported — the child process cannot see it and will loop"
 fi
 
-# 5. Arguments must survive, or --dry-run silently becomes a real deploy.
-if grep -qE 'exec .*"\$@"' "$DEPLOY"; then
-  ok "passes the original arguments through"
-else
-  bad "arguments dropped on re-exec — --dry-run would become a real deploy"
-fi
+# 5. REMOVED (#575). This asserted that arguments survive the re-exec by
+#    grepping for the literal text `exec .*"$@"`, and reported "passes the
+#    original arguments through" when it matched.
+#
+#    THE SPELLING IT DEMANDED WAS THE BUG. The option-parse loop runs at top
+#    level and `shift`s, so `$@` is empty by the time main() reaches the exec —
+#    the matched text passed nothing and every flag reverted to its default,
+#    BRANCH to `main`. The assertion was green from the day it was written while
+#    the property it named was false, and it went RED when the property became
+#    true. It tested a SHAPE and reported a BEHAVIOUR.
+#
+#    A text match cannot tell these apart, because both spellings are a plausible
+#    `exec` line and the difference lives in what `$@` CONTAINS at that point —
+#    which only running the thing can reveal.
+#
+#    Covered instead by scripts/__tests__/deploy_reexec_argv.test.sh, which runs
+#    the real script with a fake `git` whose `pull` rewrites deploy.sh (the only
+#    way to make this branch fire) and asserts on the branch the script reports
+#    on each pass. It also carries a precondition assertion that the re-exec
+#    actually fired, so it cannot pass vacuously the way this one did.
 
 # 6. If hashing is unavailable the check cannot run — that must be SAID, not
 #    skipped quietly. A silently disabled mechanism leaves the next person
