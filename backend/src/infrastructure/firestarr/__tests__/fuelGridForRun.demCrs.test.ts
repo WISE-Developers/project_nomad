@@ -48,6 +48,15 @@ function deps(over: Partial<FuelGridForRunDeps> = {}): FuelGridForRunDeps {
     // The dataset is NAD83, so this is the realistic default and the one the old code
     // could not produce. Cases that need the other datum override it.
     readRasterEpsg: vi.fn().mockResolvedValue(26911),
+    // #563 step 2: the DEM is cut to the warped fuel grid's own measured window.
+    readRasterGrid: vi.fn().mockResolvedValue({
+      originX: 412300,
+      originY: 6755900,
+      width: 203,
+      height: 211,
+      pixelW: 100,
+      pixelH: 100,
+    }),
     fetchCoverage: vi.fn().mockResolvedValue('/data/fuel-cache/cov.tif'),
     readGridValues: vi.fn().mockResolvedValue([1, 2, 101, 0]),
     toEpsg3978: vi.fn().mockResolvedValue({ x: 570705, y: 6743438 }),

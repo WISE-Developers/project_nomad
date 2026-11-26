@@ -112,6 +112,63 @@ export async function readRasterEpsg(path: string): Promise<number> {
   }
 }
 
+/** A raster's origin, pixel size and dimensions — everything alignment is judged on. */
+export interface RasterGrid {
+  readonly originX: number;
+  readonly originY: number;
+  readonly width: number;
+  readonly height: number;
+  readonly pixelW: number;
+  readonly pixelH: number;
+}
+
+/**
+ * The geotransform and size of a raster, for snapping a DEM onto a fuel grid (#563).
+ *
+ * `pixelH` IS RETURNED POSITIVE. GDAL's geoTransform[5] is normally NEGATIVE, because
+ * row order runs north to south, and passing that straight through would compute the
+ * window's southern edge by ADDING height — placing the clip one full grid north of the
+ * fuel and producing `FATAL: Grids are not aligned` from code that looked arithmetically
+ * fine. The sign is normalised here, once, rather than at each use.
+ *
+ * REFUSES A ROTATED RASTER rather than ignoring the rotation terms. geoTransform[2] and
+ * [4] are zero for every north-up grid; non-zero means the pixel axes are not aligned
+ * with the CRS axes, and an origin-plus-size window does not describe such a raster at
+ * all. Silently dropping them would clip confidently to the wrong ground.
+ */
+export async function readRasterGrid(path: string): Promise<RasterGrid> {
+  const gdal = (await import('gdal-async')).default;
+  const ds = await gdal.openAsync(path);
+  try {
+    const gt = ds.geoTransform;
+    if (!gt) {
+      throw new Error(
+        `${path} has no geotransform, so it has no origin or cell size to align to. ` +
+          'Refusing rather than assuming one.'
+      );
+    }
+    if (gt[2] !== 0 || gt[4] !== 0) {
+      throw new Error(
+        `${path} is a rotated raster (geotransform shear terms ${gt[2]}, ${gt[4]}). An ` +
+          'origin-and-size window cannot describe it, so clipping a DEM to it would ' +
+          'produce a confident raster over the wrong ground.'
+      );
+    }
+    const { x, y } = ds.rasterSize;
+    return {
+      originX: gt[0],
+      originY: gt[3],
+      width: x,
+      height: y,
+      pixelW: Math.abs(gt[1]),
+      // Normalised positive. See the header — this sign has a failure attached to it.
+      pixelH: Math.abs(gt[5]),
+    };
+  } finally {
+    ds.close();
+  }
+}
+
 /**
  * Runs `gdalwarp` with a prepared argv.
  *

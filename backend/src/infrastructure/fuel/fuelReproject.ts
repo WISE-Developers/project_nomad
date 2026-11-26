@@ -136,6 +136,107 @@ export function buildFuelWarpArgs({
   ];
 }
 
+export interface DemClipRequest {
+  readonly sourcePath: string;
+  readonly targetPath: string;
+  /** The EPSG the fuel grid was warped into. The DEM must land in the same one. */
+  readonly targetEpsg: number;
+  /** The warped fuel grid's geotransform, read off the grid itself. */
+  readonly originX: number;
+  readonly originY: number;
+  readonly width: number;
+  readonly height: number;
+  readonly pixelW: number;
+  readonly pixelH: number;
+}
+
+/**
+ * The argv for clipping and SNAPPING a DEM onto a fuel grid's exact window (#563).
+ *
+ * WHY THIS EXISTS. FireSTARR takes a raster root, not a fuel file, and a root holding
+ * fuel alone makes it exit 139 with no FATAL line, no log and zero bytes on either
+ * stream — a silence indistinguishable from any other crash. Fuel and DEM at different
+ * extents instead gives `FATAL: Grids are not aligned`. At identical origin and size
+ * that message disappears. So the DEM is not merely copied in; it is cut to the fuel
+ * window.
+ *
+ * `-te` WITH `-ts`, AND DELIBERATELY NOT `-tr`. Bounds plus a cell size can resolve to a
+ * pixel count one off through floating point, and one cell of disagreement IS
+ * `Grids are not aligned`. Stating the pixel dimensions outright removes the arithmetic
+ * from the question.
+ *
+ * BILINEAR, AND THIS IS THE OPPOSITE OF THE FUEL RULE ABOVE — on purpose, for the same
+ * reason. Fuel is a CLASSIFIED raster whose pixel is a `grid_value`, so averaging it
+ * produces numbers that are not fuels and nearest is the only safe kernel. A DEM is a
+ * CONTINUOUS surface, where nearest gives a blocky elevation field that is wrong in a
+ * way no guard here would notice. Both mistakes are silent, so the two kernels are
+ * asserted together in one test rather than separately.
+ */
+export function buildDemClipArgs({
+  sourcePath,
+  targetPath,
+  targetEpsg,
+  originX,
+  originY,
+  width,
+  height,
+  pixelW,
+  pixelH,
+}: DemClipRequest): string[] {
+  if (!Number.isInteger(targetEpsg) || targetEpsg <= 0) {
+    throw new Error(
+      `invalid target EPSG ${targetEpsg} for the DEM clip: must be a positive integer code.`
+    );
+  }
+  for (const [name, value] of [
+    ['width', width],
+    ['height', height],
+  ] as const) {
+    if (!Number.isInteger(value) || value <= 0) {
+      throw new Error(
+        `invalid ${name} ${value} for the DEM clip: must be a positive whole number of ` +
+          'pixels. It is read off the warped fuel grid, so a bad value here means the grid ' +
+          'was not measured — refusing rather than clipping to a guess.'
+      );
+    }
+  }
+  for (const [name, value] of [
+    ['pixelW', pixelW],
+    ['pixelH', pixelH],
+  ] as const) {
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new Error(`invalid ${name} ${value} for the DEM clip: must be a positive size.`);
+    }
+  }
+  // Derived from the fuel grid's own origin and extent, never restated by a caller:
+  // two independent descriptions of one window is how they come to disagree.
+  const minX = originX;
+  const maxY = originY;
+  const maxX = originX + width * pixelW;
+  const minY = originY - height * pixelH;
+  return [
+    '-t_srs',
+    `EPSG:${targetEpsg}`,
+    '-te',
+    String(minX),
+    String(minY),
+    String(maxX),
+    String(maxY),
+    '-ts',
+    String(width),
+    String(height),
+    // Continuous surface. See the header: the fuel grid takes `near` and must not take
+    // this, and this must not take `near`.
+    '-r',
+    'bilinear',
+    '-ot',
+    'Float32',
+    '-overwrite',
+    sourcePath,
+    targetPath,
+  ];
+}
+
 /**
  * Fails when reprojection produced a FUEL CLASS the source did not contain.
  *

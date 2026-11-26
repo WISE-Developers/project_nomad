@@ -33,7 +33,13 @@ import {
   LocalFuelGridMissingError,
   type FuelGridForRun,
 } from './fuelGridForRun.js';
-import { toEpsg3978, readGridValues, warp, readRasterEpsg } from '../fuel/fuelGdalAdapter.js';
+import {
+  toEpsg3978,
+  readGridValues,
+  warp,
+  readRasterEpsg,
+  readRasterGrid,
+} from '../fuel/fuelGdalAdapter.js';
 import { EnvironmentService } from '../config/EnvironmentService.js';
 
 /**
@@ -451,6 +457,7 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
             findCompanionDem: (latitude, longitude, year) =>
               this.findCompanionDemForCoordinates(latitude, longitude, year),
             readRasterEpsg,
+            readRasterGrid,
             toEpsg3978,
             readGridValues,
             warp,

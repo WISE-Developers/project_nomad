@@ -46,6 +46,15 @@ function deps(over: Partial<FuelGridForRunDeps> = {}): FuelGridForRunDeps {
     // is required to disagree.
     findCompanionDem: vi.fn().mockResolvedValue('/ds/generated/grid/100m/default/dem_11_0.tif'),
     readRasterEpsg: vi.fn().mockResolvedValue(32611),
+    // #563 step 2: the DEM is cut to the warped fuel grid's own measured window.
+    readRasterGrid: vi.fn().mockResolvedValue({
+      originX: 412300,
+      originY: 6755900,
+      width: 203,
+      height: 211,
+      pixelW: 100,
+      pixelH: 100,
+    }),
     fetchCoverage: vi.fn().mockResolvedValue('/data/fuel-cache/cov.tif'),
     readGridValues: vi.fn().mockResolvedValue([1, 2, 101, 0]),
     toEpsg3978: vi.fn().mockResolvedValue({ x: 570705, y: 6743438 }),
@@ -107,7 +116,20 @@ describe('resolveFuelGridForRun — wcs, opt-in (#282, D1/D2/D4)', () => {
     expect(result.gridPath).toMatch(/\.tif$/);
     expect(d.findLocalGrid).not.toHaveBeenCalled();
     expect(d.fetchCoverage).toHaveBeenCalledTimes(1);
-    expect(d.warp).toHaveBeenCalledTimes(1);
+    // #563 step 2: the WCS branch now runs gdalwarp TWICE — the fuel reprojection and
+    // the DEM clip snapped onto it. This replaced a bare `toHaveBeenCalledTimes(1)`.
+    //
+    // NAMED RATHER THAN COUNTED, because the count alone never said WHICH warp it meant:
+    // it would have passed just as happily on two fuel warps and no DEM, which is
+    // precisely the state FireSTARR answers with exit 139 and no output at all. The
+    // count is kept alongside so a THIRD warp appearing later fails here instead of
+    // slipping in unexamined.
+    const warpTargets = (d.warp as ReturnType<typeof vi.fn>).mock.calls.map(
+      (c) => (c[0] as string[])[(c[0] as string[]).length - 1]
+    );
+    expect(warpTargets.filter((t) => t.endsWith('fuel_11_0.tif'))).toHaveLength(1);
+    expect(warpTargets.filter((t) => t.endsWith('dem_11_0.tif'))).toHaveLength(1);
+    expect(d.warp).toHaveBeenCalledTimes(2);
   });
 
   it('requests a window centred on the ignition in projected metres', async () => {

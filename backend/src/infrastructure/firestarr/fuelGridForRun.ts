@@ -36,8 +36,16 @@
  *      confident raster full of values that are not fuels;
  *   3. the domain check runs AFTER the warp, because inventing a class is precisely what
  *      a non-nearest kernel does to a classified raster;
- *   4. the REPROJECTED path is what is returned, never the EPSG:3978 download — handing
+ *   4. the DEM is cut AFTER the fuel warp, because the window it must match is the
+ *      WARPED grid's, measured off that grid — the EPSG:3978 coverage is a different
+ *      CRS on a different extent, and snapping to it gives two grids that disagree
+ *      while every step reports success;
+ *   5. the REPROJECTED path is what is returned, never the EPSG:3978 download — handing
  *      back the latter is a path that ran and a fire in the wrong place.
+ *
+ * AND BEFORE ANY OF IT: the companion DEM is located and its CRS read, because a run
+ * with no DEM cannot be aligned however the coverage turns out, and discovering that
+ * after fetching a 20 km window charges the operator for the lesson.
  *
  * WHAT THIS MODULE DOES NOT ESTABLISH: that the grid is spatially correct. Every step
  * above can pass on a flipped, shifted or wrong-zone raster. That is Step 3b of the
@@ -49,7 +57,11 @@ import { resolveFuelSource, fuelProducerLabel } from '../fuel/fuelSource.js';
 import { fetchFuelCoverage, type FuelCoverageFetch } from '../fuel/fuelWcsClient.js';
 import { loadDecodeFuelLut } from '../fuel/fuelDecodeLut.js';
 import { assertCanonicalGridValues } from '../fuel/fuelGridLut.js';
-import { buildFuelWarpArgs, assertClassDomainPreserved } from '../fuel/fuelReproject.js';
+import {
+  buildFuelWarpArgs,
+  buildDemClipArgs,
+  assertClassDomainPreserved,
+} from '../fuel/fuelReproject.js';
 
 /**
  * The local selector found no grid covering the ignition.
@@ -146,6 +158,21 @@ export interface FuelGridForRunDeps {
    * engine actually pairs the fuel with, instead of against a constant of ours.
    */
   readonly readRasterEpsg?: (path: string) => Promise<number>;
+  /**
+   * A raster's origin, cell size and pixel dimensions (#563 step 2).
+   *
+   * Read off the WARPED fuel grid so the DEM can be cut to that exact window. The
+   * fetched coverage is the wrong raster to measure — different CRS, different extent —
+   * and snapping to it yields two grids that disagree with every step reporting success.
+   */
+  readonly readRasterGrid?: (path: string) => Promise<{
+    originX: number;
+    originY: number;
+    width: number;
+    height: number;
+    pixelW: number;
+    pixelH: number;
+  }>;
   readonly fetchCoverage?: (request: FuelCoverageFetch) => Promise<string>;
   /** Every distinct pixel value in a raster, for the guards. */
   readonly readGridValues?: (path: string) => Promise<number[]>;
@@ -212,14 +239,16 @@ export async function resolveFuelGridForRun(
   // #563 Step 1, and it runs BEFORE the download for the same reason the nil does: a run
   // with no companion DEM cannot be aligned however the coverage turns out, and finding
   // that out after fetching a 20 km window charges the operator for the lesson.
-  if (!deps.findCompanionDem || !deps.readRasterEpsg) {
+  if (!deps.findCompanionDem || !deps.readRasterEpsg || !deps.readRasterGrid) {
     throw new Error(
-      'the WCS fuel source needs findCompanionDem and readRasterEpsg: FireSTARR requires a ' +
-        'DEM co-registered with the fuel grid, and the reprojection target is read off that ' +
-        'DEM rather than composed from the UTM zone. Refusing rather than warping to a CRS ' +
-        'nothing verified.'
+      'the WCS fuel source needs findCompanionDem, readRasterEpsg and readRasterGrid: ' +
+        'FireSTARR requires a DEM co-registered with the fuel grid, the reprojection target ' +
+        'is read off that DEM rather than composed from the UTM zone, and the DEM is cut to ' +
+        "the warped grid's own measured window. Refusing rather than warping to a CRS " +
+        'nothing verified, or handing the engine a root it dies on with no output.'
     );
   }
+  const readRasterGrid = deps.readRasterGrid;
   const demPath = await deps.findCompanionDem(
     request.latitude,
     request.longitude,
@@ -263,8 +292,13 @@ export async function resolveFuelGridForRun(
   // `default` rather than the model year so the engine finds it whatever year is asked
   // for — the window was cut for THIS run's ignition, so there is no other year it could
   // be. The `_0` suffix is the zone's own central meridian (zone * 6 - 183), which is
-  // what reprojecting to utmEpsgForZone always produces; a `_5` half-zone grid cannot
-  // arise from this path.
+  // the zone's own central meridian and what a full-zone UTM reprojection produces; a
+  // `_5` half-zone grid cannot arise from this path.
+  //
+  // CORRECTED FOR #563: this comment used to justify the `_0` by "what reprojecting to
+  // utmEpsgForZone always produces". The warp no longer calls utmEpsgForZone at all —
+  // the target CRS is read off the companion DEM — so the old wording pointed at code
+  // that had stopped existing. The `_0` still holds, for the reason now stated.
   const fuelRasterRoot = join(request.workingDir, 'fuelgrid');
   const targetDir = join(fuelRasterRoot, 'default');
   const targetPath = join(targetDir, `fuel_${request.utmZone}_0.tif`);
@@ -288,7 +322,32 @@ export async function resolveFuelGridForRun(
   // except the nil, which the fill above legitimately introduces.
   assertDomain(sourceValues, await readGridValues(targetPath), nil);
 
-  // Step 4: the reprojected grid, never the download — and the root the engine must be
+  // Step 4 (#563): THE DEM, CUT TO THE FUEL GRID'S OWN WINDOW.
+  //
+  // Measured off the WARPED grid, never the fetched coverage: the coverage is EPSG:3978
+  // on a different extent, and snapping the DEM to it would produce two rasters that
+  // disagree while every step above reported success.
+  //
+  // The engine needs both in one root. Fuel alone is exit 139 with no output at all;
+  // fuel and DEM at different extents is `FATAL: Grids are not aligned`.
+  const fuelGrid = await readRasterGrid(targetPath);
+  const demTargetPath = join(targetDir, `dem_${request.utmZone}_0.tif`);
+  await warp(
+    buildDemClipArgs({
+      sourcePath: demPath,
+      targetPath: demTargetPath,
+      // The same CRS the fuel was warped into, which came from this very DEM.
+      targetEpsg,
+      originX: fuelGrid.originX,
+      originY: fuelGrid.originY,
+      width: fuelGrid.width,
+      height: fuelGrid.height,
+      pixelW: fuelGrid.pixelW,
+      pixelH: fuelGrid.pixelH,
+    })
+  );
+
+  // Step 5: the reprojected grid, never the download — and the root the engine must be
   // pointed at, without which none of the above reaches the fire.
   return { gridPath: targetPath, producer, source: 'wcs', fuelRasterRoot };
 }
