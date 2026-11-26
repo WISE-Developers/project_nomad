@@ -27,7 +27,9 @@ import { buildFuelWarpArgs, assertClassDomainPreserved } from '../fuelReproject.
  * absent. Fixing only the first would have silenced the symptom and left the second.
  */
 describe('reprojection fill and the declared nil (#282)', () => {
-  const base = { sourcePath: '/in.tif', targetPath: '/out.tif', utmZone: 11, resolutionM: 100 };
+  // #563: `utmZone: 11` became `targetEpsg: 32611` — the same code zone 11 composed, so
+  // no assertion in this file changes. Nothing here asserts the CRS; it is all nil fill.
+  const base = { sourcePath: '/in.tif', targetPath: '/out.tif', targetEpsg: 32611, resolutionM: 100 };
 
   it('tells gdalwarp the declared nil to fill with, rather than letting it choose', () => {
     const args = buildFuelWarpArgs({ ...base, nilValue: -9999 });

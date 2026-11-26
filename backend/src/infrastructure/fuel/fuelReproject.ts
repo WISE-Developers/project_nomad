@@ -51,7 +51,23 @@ export function utmEpsgForZone(zone: number): number {
 export interface FuelWarpRequest {
   readonly sourcePath: string;
   readonly targetPath: string;
-  readonly utmZone: number;
+  /**
+   * The EPSG code to reproject INTO, stated by the caller.
+   *
+   * IT IS NOT DERIVED FROM A ZONE HERE, AND THAT IS THE POINT (#563). This field used
+   * to be `utmZone`, and the warp composed `32600 + zone` — WGS84 / UTM. The installed
+   * dataset is NAD83 / UTM (`26900 + zone`) for both fuel and DEM, verified on zones 10
+   * and 11, so FireSTARR answered `Grids are not aligned`.
+   *
+   * What makes this worth a comment rather than a one-line fix: #282's D9 check asserted
+   * the produced grid's CRS equalled `utmEpsgForZone(zone)` and PASSED, because it
+   * compared our code against our own constant while the constant disagreed with the
+   * data the engine pairs the fuel against. Taking the code as a parameter moves the
+   * decision to the caller, which reads it off the companion DEM — so alignment is
+   * asserted against the thing alignment is with, and no constant of ours can agree
+   * with itself again.
+   */
+  readonly targetEpsg: number;
   /** Cell size in metres. Stated explicitly; there is deliberately no default. */
   readonly resolutionM: number;
   /**
@@ -82,7 +98,7 @@ export interface FuelWarpRequest {
 export function buildFuelWarpArgs({
   sourcePath,
   targetPath,
-  utmZone,
+  targetEpsg,
   resolutionM,
   nilValue,
 }: FuelWarpRequest): string[] {
@@ -92,10 +108,16 @@ export function buildFuelWarpArgs({
         'There is no default: a default would silently change the grid a fire model runs on.',
     );
   }
-  const epsg = utmEpsgForZone(utmZone);
+  if (!Number.isInteger(targetEpsg) || targetEpsg <= 0) {
+    throw new Error(
+      `invalid target EPSG ${targetEpsg}: must be a positive integer code. ` +
+        'Refusing rather than warping: gdalwarp reports an unusable -t_srs and a missing ' +
+        'file with the same exit code, so a bad code here surfaces later as something else.',
+    );
+  }
   return [
     '-t_srs',
-    `EPSG:${epsg}`,
+    `EPSG:${targetEpsg}`,
     '-tr',
     String(resolutionM),
     String(resolutionM),

@@ -14,6 +14,23 @@ declare module 'gdal-async' {
     static fromEPSG(epsg: number): SpatialReference;
     static fromProj4(proj4: string): SpatialReference;
     toWKT(): string;
+    /**
+     * The authority name and code for a node — "EPSG" and e.g. "26911" at the root.
+     *
+     * ADDED FOR #563, and the signatures are copied from the library's own declaration
+     * at `node_modules/gdal-async/lib/index.d.ts:9873` and `:9884` (gdal-async 3.12.3),
+     * not invented to fit the call site.
+     *
+     * A WARNING FOR WHOEVER READS THIS NEXT, because it cost real time: this file
+     * `declare module 'gdal-async'`, which SHADOWS the package's own complete types. So
+     * `tsc` validates calls against THIS hand-written subset, and a method that exists
+     * in the real library reads as "does not exist on type 'SpatialReference'". The
+     * compiler is agreeing with our stub rather than checking us against GDAL. If a
+     * member you know is real is rejected, grep the library's `lib/index.d.ts` and add
+     * it here with its true signature.
+     */
+    getAuthorityName(target_key?: string | null): string;
+    getAuthorityCode(target_key?: string | null): string;
   }
 
   // CoordinateTransformation

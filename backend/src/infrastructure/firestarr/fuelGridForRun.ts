@@ -121,6 +121,31 @@ export interface FuelGridForRunDeps {
   ) => Promise<string | undefined>;
   /** WGS84 to the coverage's native EPSG:3978, in projected metres. */
   readonly toEpsg3978: (latitude: number, longitude: number) => Promise<{ x: number; y: number }>;
+  /**
+   * The installed dataset's DEM tile covering the ignition, or undefined if none does.
+   *
+   * SEPARATE FROM `findLocalGrid` ON PURPOSE (#563). The WCS branch must not obtain
+   * FUEL locally — there is no fallback between sources, in either direction — but it
+   * does need elevation, because FireSTARR segfaults on a raster root holding fuel
+   * alone: exit 139, no FATAL line, no log, zero bytes on stdout and stderr. That
+   * silence is indistinguishable from a crash for any other reason, which is why this
+   * dependency is named rather than inherited.
+   *
+   * SO THE WCS FUEL SOURCE DOES NOT STAND ALONE. It still requires the local dataset
+   * for a DEM, and a WCS run outside local coverage cannot be aligned at all.
+   */
+  readonly findCompanionDem?: (
+    latitude: number,
+    longitude: number,
+    modelYear: number
+  ) => Promise<string | undefined>;
+  /**
+   * A raster's declared EPSG code. Rejects when the raster declares none.
+   *
+   * Reading it off the DEM is what makes alignment assertable against the raster the
+   * engine actually pairs the fuel with, instead of against a constant of ours.
+   */
+  readonly readRasterEpsg?: (path: string) => Promise<number>;
   readonly fetchCoverage?: (request: FuelCoverageFetch) => Promise<string>;
   /** Every distinct pixel value in a raster, for the guards. */
   readonly readGridValues?: (path: string) => Promise<number[]>;
@@ -184,6 +209,36 @@ export async function resolveFuelGridForRun(
   // Step 1 of the order above: required configuration, before anything is downloaded.
   const nil = deps.nilValue();
 
+  // #563 Step 1, and it runs BEFORE the download for the same reason the nil does: a run
+  // with no companion DEM cannot be aligned however the coverage turns out, and finding
+  // that out after fetching a 20 km window charges the operator for the lesson.
+  if (!deps.findCompanionDem || !deps.readRasterEpsg) {
+    throw new Error(
+      'the WCS fuel source needs findCompanionDem and readRasterEpsg: FireSTARR requires a ' +
+        'DEM co-registered with the fuel grid, and the reprojection target is read off that ' +
+        'DEM rather than composed from the UTM zone. Refusing rather than warping to a CRS ' +
+        'nothing verified.'
+    );
+  }
+  const demPath = await deps.findCompanionDem(
+    request.latitude,
+    request.longitude,
+    request.modelYear
+  );
+  if (!demPath) {
+    throw new Error(
+      `no companion DEM in the installed dataset covers ${request.latitude}, ` +
+        `${request.longitude} for model year ${request.modelYear}. The WCS serves fuel only, ` +
+        'so elevation still comes from the local dataset — the WCS fuel source does not stand ' +
+        'alone. Refusing rather than handing the engine fuel alone, which segfaults with no ' +
+        'output at all.'
+    );
+  }
+  // Thrown through, not caught: an unreadable CRS is a refusal, never a default. A
+  // default here would put a fire on ground nothing verified while every artefact in the
+  // run said the WCS had been used.
+  const targetEpsg = await deps.readRasterEpsg(demPath);
+
   const centre = await deps.toEpsg3978(request.latitude, request.longitude);
   const half = request.windowM / 2;
   const coveragePath = await fetchCoverage({
@@ -218,7 +273,8 @@ export async function resolveFuelGridForRun(
     buildFuelWarpArgs({
       sourcePath: coveragePath,
       targetPath,
-      utmZone: request.utmZone,
+      // Read off the companion DEM, never composed from the zone (#563).
+      targetEpsg,
       resolutionM: request.resolutionM,
       // The fill for the corners the rotated footprint leaves uncovered. Told to
       // gdalwarp rather than left to it: unguided it writes 0 and declares no NoData,

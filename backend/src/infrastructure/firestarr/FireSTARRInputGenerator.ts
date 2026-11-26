@@ -33,7 +33,7 @@ import {
   LocalFuelGridMissingError,
   type FuelGridForRun,
 } from './fuelGridForRun.js';
-import { toEpsg3978, readGridValues, warp } from '../fuel/fuelGdalAdapter.js';
+import { toEpsg3978, readGridValues, warp, readRasterEpsg } from '../fuel/fuelGdalAdapter.js';
 import { EnvironmentService } from '../config/EnvironmentService.js';
 
 /**
@@ -106,6 +106,52 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
    * @param modelYear - Model year for year-specific fuel lookup
    * @returns Path to matching fuel grid, or undefined if not found
    */
+  /**
+   * The installed dataset's DEM tile co-registered with the fuel tile covering the
+   * ignition, or undefined when there is none (#563).
+   *
+   * The dataset ships `dem_{zone}_{half}.tif` beside every `fuel_{zone}_{half}.tif` on
+   * identical CRS, origin and size — for zone 11 both EPSG:26911 at (300000, 9400000),
+   * 100 m. So the covering fuel tile's own name identifies the DEM, and the fuel
+   * selector is reused HERE, inside the dataset layer, purely to answer "which tile
+   * covers this point".
+   *
+   * THE PATH IS STATTED, NOT ASSUMED. A renamed file would otherwise be handed on as a
+   * path that exists in a string and nowhere else, and FireSTARR's answer to a missing
+   * DEM is exit 139 with no output at all — the one failure that looks like every other
+   * failure.
+   *
+   * WHAT THIS IS NOT: a fuel fallback for the WCS branch. The value returned is only
+   * ever used as elevation; `resolveFuelGridForRun` takes it through a separate named
+   * dependency and a test asserts the fuel selector stays uncalled on that branch.
+   */
+  async findCompanionDemForCoordinates(
+    latitude: number,
+    longitude: number,
+    modelYear: number
+  ): Promise<string | undefined> {
+    const fuelTile = await this.findFuelGridForCoordinates(latitude, longitude, modelYear);
+    if (!fuelTile) {
+      return undefined;
+    }
+    const demTile = fuelTile.replace(/(^|[/\\])fuel_([^/\\]*)$/, '$1dem_$2');
+    if (demTile === fuelTile) {
+      console.warn(
+        `[FireSTARRInputGenerator] fuel tile ${fuelTile} does not match the ` +
+          'fuel_*.tif naming the DEM companion is derived from, so no DEM can be located'
+      );
+      return undefined;
+    }
+    if (!existsSync(demTile)) {
+      console.warn(
+        `[FireSTARRInputGenerator] no companion DEM at ${demTile}, beside the fuel tile ` +
+          'covering the ignition. FireSTARR cannot run on fuel alone.'
+      );
+      return undefined;
+    }
+    return demTile;
+  }
+
   async findFuelGridForCoordinates(
     latitude: number,
     longitude: number,
@@ -399,6 +445,12 @@ export class FireSTARRInputGenerator implements IInputGenerator<FireSTARRParams>
           {
             findLocalGrid: (latitude, longitude, year) =>
               this.findFuelGridForCoordinates(latitude, longitude, year),
+            // #563: the WCS serves fuel only, and FireSTARR segfaults on a raster root
+            // holding fuel alone. Elevation comes from the installed dataset, which is
+            // why the WCS fuel source does not stand alone.
+            findCompanionDem: (latitude, longitude, year) =>
+              this.findCompanionDemForCoordinates(latitude, longitude, year),
+            readRasterEpsg,
             toEpsg3978,
             readGridValues,
             warp,

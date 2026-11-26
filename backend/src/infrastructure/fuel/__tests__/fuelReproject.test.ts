@@ -50,9 +50,12 @@ describe('utmEpsgForZone', () => {
 });
 
 describe('buildFuelWarpArgs', () => {
-  const base = { sourcePath: '/in/fuel.tif', targetPath: '/out/fuel_utm.tif', utmZone: 11, resolutionM: 100 };
+  // #563: `utmZone: 11` became `targetEpsg: 32611`. 32611 is exactly what zone 11
+  // composed, so every assertion below keeps its original expected value — the caller
+  // now STATES the code instead of the warp deriving it.
+  const base = { sourcePath: '/in/fuel.tif', targetPath: '/out/fuel_utm.tif', targetEpsg: 32611, resolutionM: 100 };
 
-  it('warps to the zone EPSG at the requested cell size', () => {
+  it('warps to the target EPSG it is given, at the requested cell size', () => {
     const args = buildFuelWarpArgs(base);
     expect(args).toContain('-t_srs');
     expect(args[args.indexOf('-t_srs') + 1]).toBe('EPSG:32611');
@@ -119,7 +122,7 @@ describe.skipIf(!HAVE_GDAL)('reprojecting a real fuel grid with GDAL', () => {
     try {
       const out = join(dir, 'utm.tif');
       execFileSync('gdalwarp', buildFuelWarpArgs({
-        sourcePath: SOURCE, targetPath: out, utmZone: 11, resolutionM: 100,
+        sourcePath: SOURCE, targetPath: out, targetEpsg: 32611, resolutionM: 100,
       }), { stdio: 'ignore' });
       expect(existsSync(out)).toBe(true);
 
@@ -144,7 +147,7 @@ describe.skipIf(!HAVE_GDAL)('reprojecting a real fuel grid with GDAL', () => {
     try {
       const out = join(dir, 'bilinear.tif');
       const args = buildFuelWarpArgs({
-        sourcePath: SOURCE, targetPath: out, utmZone: 11, resolutionM: 100,
+        sourcePath: SOURCE, targetPath: out, targetEpsg: 32611, resolutionM: 100,
       });
       const bad = args.map((a, i) => (args[i - 1] === '-r' ? 'bilinear' : a));
       execFileSync('gdalwarp', bad, { stdio: 'ignore' });

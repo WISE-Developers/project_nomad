@@ -38,6 +38,14 @@ const REQUEST = {
 function deps(over: Partial<FuelGridForRunDeps> = {}): FuelGridForRunDeps {
   return {
     findLocalGrid: vi.fn().mockResolvedValue(LOCAL_GRID),
+    // #563: the WCS branch now requires a companion DEM and reads the reprojection
+    // target off it. Stubbed at 32611 — exactly what `32600 + zone` composed for zone 11
+    // — so every existing assertion in this file keeps its original expected value and
+    // this change is signature-only. The DEM/datum behaviour itself is proven in
+    // fuelGridForRun.demCrs.test.ts, where the stub returns NAD83 and the pair of cases
+    // is required to disagree.
+    findCompanionDem: vi.fn().mockResolvedValue('/ds/generated/grid/100m/default/dem_11_0.tif'),
+    readRasterEpsg: vi.fn().mockResolvedValue(32611),
     fetchCoverage: vi.fn().mockResolvedValue('/data/fuel-cache/cov.tif'),
     readGridValues: vi.fn().mockResolvedValue([1, 2, 101, 0]),
     toEpsg3978: vi.fn().mockResolvedValue({ x: 570705, y: 6743438 }),
@@ -171,7 +179,7 @@ describe('resolveFuelGridForRun — wcs, opt-in (#282, D1/D2/D4)', () => {
     expect(d.warp).not.toHaveBeenCalled();
   });
 
-  it('reprojects to the run UTM zone at the stated resolution, nearest-neighbour', async () => {
+  it("reprojects to the companion DEM's CRS at the stated resolution, nearest-neighbour", async () => {
     const d = deps();
     await resolveFuelGridForRun(REQUEST, d, WCS_ENV);
 

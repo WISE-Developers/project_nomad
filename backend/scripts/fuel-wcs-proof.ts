@@ -46,9 +46,17 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { resolveFuelGridForRun } from '../src/infrastructure/firestarr/fuelGridForRun.js';
-import { utmEpsgForZone } from '../src/infrastructure/fuel/fuelReproject.js';
+// #563: utmEpsgForZone is deliberately NOT imported any more. This script's 3b(i) check
+// asserted the produced grid's CRS equalled utmEpsgForZone(UTM_ZONE) and PASSED, while
+// FireSTARR answered `Grids are not aligned` — it compared our code against our own
+// constant. The expected CRS is now read off the companion DEM, which is the raster
+// alignment is actually with, so the check can disagree with us.
 import { buildGetCoverageUrl } from '../src/infrastructure/fuel/fuelWcsClient.js';
-import { toEpsg3978, readGridValues } from '../src/infrastructure/fuel/fuelGdalAdapter.js';
+import {
+  toEpsg3978,
+  readGridValues,
+  readRasterEpsg,
+} from '../src/infrastructure/fuel/fuelGdalAdapter.js';
 import { EnvironmentService } from '../src/infrastructure/config/EnvironmentService.js';
 import { fetchFuelCoverage } from '../src/infrastructure/fuel/fuelWcsClient.js';
 
@@ -62,6 +70,14 @@ const SOURCE_CELL_M = 100;
 const UNIFORM_RADIUS_CELLS = 2;
 
 const WORK = process.env.NOMAD_PROOF_DIR;
+/**
+ * The dataset DEM tile co-registered with the fuel tile covering the ignition (#563).
+ *
+ * Required, with no default. It decides the CRS the fuel grid is warped into, and it is
+ * what 3b(i) now compares the produced grid against — so a default here would restore
+ * the exact defect this script exists to have caught.
+ */
+const PROOF_DEM = process.env.NOMAD_PROOF_DEM;
 const GDAL_IMAGE = process.env.NOMAD_PROOF_GDAL_IMAGE ?? 'nomad-dev:integrated';
 
 type Json = Record<string, unknown>;
@@ -160,6 +176,13 @@ function uniformAround(
 
 async function main(): Promise<void> {
   if (!WORK) throw new Error('NOMAD_PROOF_DIR must name a directory inside a container mount');
+  if (!PROOF_DEM) {
+    throw new Error(
+      'NOMAD_PROOF_DEM must name the dataset DEM tile co-registered with the fuel tile ' +
+        'covering the ignition (dem_11_0.tif for this run). Checked here, before anything ' +
+        'is fetched: it decides the CRS the fuel is warped into and the CRS 3b(i) asserts.'
+    );
+  }
   await mkdir(WORK, { recursive: true });
 
   // ---- 3a: the path ran -----------------------------------------------------------
@@ -180,6 +203,20 @@ async function main(): Promise<void> {
       findLocalGrid: () => {
         throw new Error('the wcs path must not consult the local selector');
       },
+      // #563: elevation, and the reprojection target, both come from the installed
+      // dataset's DEM. Named by the operator rather than discovered, because this script
+      // runs against a mounted dataset whose root it is not otherwise told.
+      findCompanionDem: async () => {
+        if (!PROOF_DEM) {
+          throw new Error(
+            'NOMAD_PROOF_DEM must name the dataset DEM tile co-registered with the fuel ' +
+              'tile covering the ignition (dem_11_0.tif for this run). There is no ' +
+              'default: the DEM decides the CRS the fuel is warped into.'
+          );
+        }
+        return PROOF_DEM;
+      },
+      readRasterEpsg,
       toEpsg3978,
       readGridValues,
       warp: containerWarp,
@@ -204,7 +241,11 @@ async function main(): Promise<void> {
 
   // ---- 3b(i): georeferencing, asserted ---------------------------------------------
   const grid = await openRaster(resolved.gridPath);
-  const expectedEpsg = utmEpsgForZone(UTM_ZONE);
+  // READ OFF THE COMPANION DEM, NEVER COMPOSED FROM THE ZONE (#563). This single line is
+  // the difference between a check that tests us and a check that agrees with us: the
+  // previous form asserted grid.epsg === utmEpsgForZone(UTM_ZONE) and passed on a grid
+  // the engine refused to align.
+  const expectedEpsg = await readRasterEpsg(PROOF_DEM);
   const ignitionUtm = await (async () => {
     const gdal = (await import('gdal-async')).default;
     const wgs84 = gdal.SpatialReference.fromProj4('+proj=longlat +datum=WGS84 +no_defs');

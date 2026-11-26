@@ -67,6 +67,52 @@ export async function readGridValues(path: string): Promise<number[]> {
 }
 
 /**
+ * A raster's DECLARED EPSG code (#563).
+ *
+ * This exists so the reprojection target is read off the raster FireSTARR pairs the fuel
+ * with — the companion DEM — rather than composed from a UTM zone by code of ours.
+ * #282's D9 check asserted the produced grid's CRS equalled `utmEpsgForZone(zone)` and
+ * PASSED, while the engine answered `Grids are not aligned`: it compared our code against
+ * our own constant. The installed dataset is NAD83 / UTM (26900 + zone), verified on
+ * zones 10 and 11.
+ *
+ * THROWS RATHER THAN RETURNING A FALLBACK, in all three ways this can be unreadable: no
+ * spatial reference at all, no authority code, and an authority that is not EPSG. A
+ * number returned on a guess would be warped to confidently and land nowhere, and every
+ * artefact in the run would still say the WCS had been used.
+ */
+export async function readRasterEpsg(path: string): Promise<number> {
+  const gdal = (await import('gdal-async')).default;
+  const ds = await gdal.openAsync(path);
+  try {
+    const srs = ds.srs;
+    if (!srs) {
+      throw new Error(
+        `${path} declares no spatial reference, so there is no CRS to align the fuel grid ` +
+          'to. Refusing rather than assuming one.'
+      );
+    }
+    const authority = srs.getAuthorityName(null);
+    const code = srs.getAuthorityCode(null);
+    if (authority !== 'EPSG' || !code) {
+      throw new Error(
+        `${path} declares its CRS as ${authority ?? 'an unnamed authority'}:` +
+          `${code ?? 'no code'}, not an EPSG code. Refusing rather than guessing one: ` +
+          'gdalwarp would accept a wrong -t_srs and produce a confident raster in the ' +
+          'wrong place.'
+      );
+    }
+    const epsg = Number(code);
+    if (!Number.isInteger(epsg) || epsg <= 0) {
+      throw new Error(`${path} declares EPSG code "${code}", which is not a positive integer.`);
+    }
+    return epsg;
+  } finally {
+    ds.close();
+  }
+}
+
+/**
  * Runs `gdalwarp` with a prepared argv.
  *
  * Non-zero exit carries stderr into the message. GDAL reports a projection refusal and a
