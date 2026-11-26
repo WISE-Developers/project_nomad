@@ -1,18 +1,27 @@
 /**
- * Condition 3's last piece: a real fire, on the WCS-sourced grid.
+ * Writes the weather file for condition 3's last piece. IT DOES NOT RUN THE ENGINE.
  *
- * Everything else in Step 3 proves the GRID is right and that the engine would be
- * pointed at it. This runs the engine against that raster root and reads what it says.
+ * WHAT THIS SCRIPT ACTUALLY DOES: builds 72 hours of hourly weather, validates it
+ * against the FireSTARR contract, and writes `weather.csv` into `NOMAD_PROOF_DIR`. That
+ * is all. It starts no container and invokes no engine.
  *
- * THE SIGNAL THAT MATTERS IS NOT "EXIT 0". FireSTARR's own failure for a raster root it
- * cannot use is "Could not find an environment to use for (lat, lon)" — that exact
- * message is why `--raster-root` was added in #520. So the question this asks is whether
- * the engine FOUND an environment in our reprojected grid. A run that gets past that has
- * consumed the grid; a run that does not has been handed a file it cannot read, whatever
- * every other artefact says.
+ * THIS HEADER USED TO CLAIM OTHERWISE — "this runs the engine against that raster root
+ * and reads what it says" — and it never did (#563). Corrected 2026-11-26, because a
+ * header describing work the body does not do is worse than no header: it reads as
+ * evidence that the end-to-end run exists, and the one thing #563 must not claim is
+ * that a real fire has run on a WCS-sourced grid.
  *
- * The weather file is written by the production writer, not hand-rolled, because a
- * hand-made CSV that the engine rejects would look exactly like a fuel problem.
+ * SO THE ENGINE INVOCATION IS STILL TO BE WRITTEN, and when it is, this is the signal to
+ * assert. FireSTARR's own failure for a raster root it cannot use is "Could not find an
+ * environment to use for (lat, lon)" — that exact message is why `--raster-root` was
+ * added in #520. The question is whether the engine FOUND an environment in the
+ * reprojected grid, NOT whether it exited 0: a run that exits non-zero after finding its
+ * environment has consumed the grid, and a run that exits 0 without one has not.
+ *
+ * The weather is written by the production writer AND checked by the production
+ * validator, because a CSV the engine rejects looks exactly like a fuel problem. This
+ * file used the writer without the validator and produced precisely that confusion — a
+ * `FATAL: map::at` that was read as a fuel fault for days. See the note on START.
  */
 
 import { join } from 'node:path';
