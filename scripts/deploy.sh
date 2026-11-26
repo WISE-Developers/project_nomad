@@ -394,6 +394,9 @@ preflight_env() {
 # definition out of Job.ts and FAILS when these two disagree, because a list
 # retyped into a shell script drifts and the drift is invisible until a deploy
 # kills a job this should have refused over.
+# The container-side data directory compose mounts into. Named once: preflight_jobs
+# locates the host database by finding which host path is mounted HERE (#582).
+CONTAINER_DATA_DIR="/appl/data"
 JOB_TERMINAL_STATUSES="'completed','failed','cancelled'"
 
 # Read one key out of an env file using ONLY bash builtins.
@@ -516,10 +519,54 @@ preflight_jobs() {
     fi
 
     if [ -z "$db" ]; then
-        # knexConfig.ts getSqlitePath(): NOMAD_DATA_PATH || FIRESTARR_DATASET_PATH || './data'
-        data_path="$(env_value NOMAD_DATA_PATH "$env_file")"
-        [ -n "$data_path" ] || data_path="$(env_value FIRESTARR_DATASET_PATH "$env_file")"
-        [ -n "$data_path" ] || data_path="./data"
+        # THE HOST PATH COMES FROM WHAT IS ACTUALLY MOUNTED, NOT FROM A HOST-READ
+        # CONTAINER VARIABLE (#582).
+        #
+        # This used to apply knexConfig.ts's getSqlitePath() rule — NOMAD_DATA_PATH ||
+        # FIRESTARR_DATASET_PATH || './data' — to the HOST .env. That rule runs INSIDE
+        # the container, where those keys hold container paths; on the host the same keys
+        # hold compose MOUNT SOURCES. Inside the container the value is /appl/data on
+        # every box because compose overrides it, so the host value is never the
+        # backend's path.
+        #
+        # It read green on the demo only because that box has both keys set to the same
+        # directory as the mount. A box where they differ gave either a refusal of a
+        # healthy deployment, or — the dangerous half — a PASS read off an unrelated
+        # nomad.db, printing "No jobs pending or running" about the wrong database and
+        # then recreating the container over whatever was really running.
+        local exec_mode mount_src
+        exec_mode="$(env_value FIRESTARR_EXECUTION_MODE "$env_file")"
+        # Unset defaults to docker, which is the compose default and matches preflight_env.
+        [ -n "$exec_mode" ] || exec_mode="docker"
+
+        if [ "$exec_mode" = "docker" ]; then
+            # The mount is the ground truth and it is one command. Correct on a box where
+            # the keys agree with the mount AND on one where they do not, with no
+            # coincidence required.
+            mount_src="$(docker inspect "$SERVICE" \
+                --format "{{range .Mounts}}{{if eq .Destination \"$CONTAINER_DATA_DIR\"}}{{.Source}}{{end}}{{end}}" \
+                2>/dev/null)" || mount_src=""
+            if [ -z "$mount_src" ]; then
+                ignore_jobs_override && return 0
+                print_error "REFUSING TO DEPLOY: could not read the $CONTAINER_DATA_DIR mount source from"
+                print_error "container \"$SERVICE\", so the database location is unknown."
+                print_error ""
+                print_error "Falling back to the host .env here is what #582 was: those keys are mount"
+                print_error "SOURCES, and interpreting them as the backend's path can land on a stale"
+                print_error "nomad.db and report \"no jobs\" about the wrong database."
+                print_error ""
+                print_error "Start the container, or check by hand and re-run with --ignore-running-jobs."
+                return 1
+            fi
+            data_path="$mount_src"
+        else
+            # Binary mode has no container and no mount, and THERE the host value really
+            # is the backend's path — which is precisely why the two cases must not share
+            # one derivation.
+            data_path="$(env_value NOMAD_DATA_PATH "$env_file")"
+            [ -n "$data_path" ] || data_path="$(env_value FIRESTARR_DATASET_PATH "$env_file")"
+            [ -n "$data_path" ] || data_path="./data"
+        fi
         db="${data_path}/nomad.db"
     fi
 

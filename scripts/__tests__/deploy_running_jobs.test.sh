@@ -105,6 +105,10 @@ drive() {
   sed -n '/^sqlite_query() {/,/^}/p' "$DEPLOY" >> "$d/helpers.sh"
   sed -n '/^ignore_jobs_override() {/,/^}/p' "$DEPLOY" >> "$d/helpers.sh"
   grep '^JOB_TERMINAL_STATUSES=' "$DEPLOY"     >> "$d/helpers.sh"
+  # #582: preflight_jobs now also reads SERVICE and CONTAINER_DATA_DIR, both defined at
+  # top level in deploy.sh. Without them every case dies on an unbound variable under
+  # set -u, which looks like a refusal and would pass the refusal cases for the wrong reason.
+  grep '^CONTAINER_DATA_DIR=' "$DEPLOY"        >> "$d/helpers.sh"
   {
     echo 'set -u'
     echo 'print_error()   { echo "$*"; }'
@@ -112,6 +116,7 @@ drive() {
     echo 'print_info()    { echo "$*"; }'
     echo 'print_success() { echo "$*"; }'
     echo 'DRY_RUN=false'
+    echo 'SERVICE=${SERVICE:-nomad}'
     echo 'IGNORE_RUNNING_JOBS=${IGNORE_RUNNING_JOBS:-false}'
     cat "$d/helpers.sh"
     cat "$d/fn.sh"
@@ -157,7 +162,7 @@ ok "deploy.sh defines ${FN}() at top level"
 
 # ---- 1. clean database: proceed -------------------------------------------
 make_db "$tmp/clean.db" "j1|m1|completed|2026-11-25T09:00:00Z" "j2|m1|failed|2026-11-25T09:10:00Z"
-write_env "$tmp/env.clean" "NOMAD_DEPLOYMENT_MODE=SAN" "NOMAD_DATA_PATH=$tmp/clean_dir"
+write_env "$tmp/env.clean" "FIRESTARR_EXECUTION_MODE=binary" "NOMAD_DEPLOYMENT_MODE=SAN" "NOMAD_DATA_PATH=$tmp/clean_dir"
 mkdir -p "$tmp/clean_dir"; cp "$tmp/clean.db" "$tmp/clean_dir/nomad.db"
 r="$(drive "$tmp/env.clean")"; st="${r%%|*}"; out="${r#*|}"
 [ "$st" = "0" ] && ok "no non-terminal jobs lets the deploy proceed" \
@@ -168,7 +173,7 @@ for pair in "pending:a PENDING" "running:a RUNNING"; do
   s="${pair%%:*}"; label="${pair#*:}"
   mkdir -p "$tmp/d_$s"
   make_db "$tmp/d_$s/nomad.db" "job-$s-1|model-7|$s|2026-11-25T09:30:00Z" "j9|m2|completed|x"
-  write_env "$tmp/env.$s" "NOMAD_DEPLOYMENT_MODE=SAN" "NOMAD_DATA_PATH=$tmp/d_$s"
+  write_env "$tmp/env.$s" "FIRESTARR_EXECUTION_MODE=binary" "NOMAD_DEPLOYMENT_MODE=SAN" "NOMAD_DATA_PATH=$tmp/d_$s"
   r="$(drive "$tmp/env.$s")"; st="${r%%|*}"; out="${r#*|}"
   if [ "$st" != "0" ] && printf '%s' "$out" | grep -q "job-$s-1"; then
     ok "$label job is refused and NAMED"
@@ -184,7 +189,7 @@ make_db "$tmp/d_many/nomad.db" \
   "job-bbb|m2|running|2026-11-25T09:05:00Z" \
   "job-ccc|m3|pending|2026-11-25T09:06:00Z" \
   "job-ddd|m4|completed|x"
-write_env "$tmp/env.many" "NOMAD_DEPLOYMENT_MODE=SAN" "NOMAD_DATA_PATH=$tmp/d_many"
+write_env "$tmp/env.many" "FIRESTARR_EXECUTION_MODE=binary" "NOMAD_DEPLOYMENT_MODE=SAN" "NOMAD_DATA_PATH=$tmp/d_many"
 r="$(drive "$tmp/env.many")"; st="${r%%|*}"; out="${r#*|}"
 named=0
 for j in job-aaa job-bbb job-ccc; do printf '%s' "$out" | grep -q "$j" && named=$((named+1)); done
@@ -201,7 +206,7 @@ fi
 
 # ---- 5. a query that ERRORS refuses --------------------------------------
 mkdir -p "$tmp/d_bad"; printf 'this is not a database at all' > "$tmp/d_bad/nomad.db"
-write_env "$tmp/env.bad" "NOMAD_DEPLOYMENT_MODE=SAN" "NOMAD_DATA_PATH=$tmp/d_bad"
+write_env "$tmp/env.bad" "FIRESTARR_EXECUTION_MODE=binary" "NOMAD_DEPLOYMENT_MODE=SAN" "NOMAD_DATA_PATH=$tmp/d_bad"
 r="$(drive "$tmp/env.bad")"; st="${r%%|*}"; out="${r#*|}"
 if [ "$st" != "0" ] && printf '%s' "$out" | grep -qiE 'could not|cannot|unable|fail'; then
   ok "a query that ERRORS refuses and says the check could not run"
@@ -210,7 +215,7 @@ else
 fi
 
 # ---- 6. a MISSING database refuses ---------------------------------------
-write_env "$tmp/env.missing" "NOMAD_DEPLOYMENT_MODE=SAN" "NOMAD_DATA_PATH=$tmp/does-not-exist"
+write_env "$tmp/env.missing" "FIRESTARR_EXECUTION_MODE=binary" "NOMAD_DEPLOYMENT_MODE=SAN" "NOMAD_DATA_PATH=$tmp/does-not-exist"
 r="$(drive "$tmp/env.missing")"; st="${r%%|*}"; out="${r#*|}"
 [ "$st" != "0" ] && ok "a MISSING database refuses" \
   || bad "a MISSING database refuses" "status=$st out=$out"
@@ -243,7 +248,7 @@ echo "Error: unable to open database" >&2
 exit 1
 FAKEPY
 chmod +x "$tmp/fakebin/python3"
-write_env "$tmp/env.ctl" "NOMAD_DEPLOYMENT_MODE=SAN" "NOMAD_DATA_PATH=$tmp/d_ctl"
+write_env "$tmp/env.ctl" "FIRESTARR_EXECUTION_MODE=binary" "NOMAD_DEPLOYMENT_MODE=SAN" "NOMAD_DATA_PATH=$tmp/d_ctl"
 r="$(drive "$tmp/env.ctl" "$tmp/fakebin")"; st="${r%%|*}"; out="${r#*|}"
 if [ "$st" != "0" ]; then
   ok "an unreadable TOTAL refuses even when non-terminal reads 0"
@@ -254,7 +259,7 @@ fi
 
 # ---- 8. no sqlite tool at all refuses ------------------------------------
 mkdir -p "$tmp/emptybin"
-write_env "$tmp/env.notool" "NOMAD_DEPLOYMENT_MODE=SAN" "NOMAD_DATA_PATH=$tmp/d_many"
+write_env "$tmp/env.notool" "FIRESTARR_EXECUTION_MODE=binary" "NOMAD_DEPLOYMENT_MODE=SAN" "NOMAD_DATA_PATH=$tmp/d_many"
 d="$tmp/run"; rm -rf "$d"; mkdir -p "$d"
 sed -n "/^${FN}() {/,/^}/p" "$DEPLOY" > "$d/fn.sh"
 sed -n '/^env_value() {/,/^}/p'    "$DEPLOY" >  "$d/helpers.sh"
@@ -335,7 +340,7 @@ else
 fi
 
 # ---- 13. an unsupported database client is refused AND NAMED -----------
-write_env "$tmp/env.pg" "NOMAD_DEPLOYMENT_MODE=ACN" "NOMAD_DB_CLIENT=pg"
+write_env "$tmp/env.pg" "FIRESTARR_EXECUTION_MODE=binary" "NOMAD_DEPLOYMENT_MODE=ACN" "NOMAD_DB_CLIENT=pg"
 r="$(drive "$tmp/env.pg")"; st="${r%%|*}"; out="${r#*|}"
 if [ "$st" != "0" ] && printf '%s' "$out" | grep -q 'pg'; then
   ok "an unsupported database client is refused and NAMED"
@@ -343,13 +348,13 @@ else
   bad "an unsupported database client is refused and NAMED" "status=$st out=$out"
 fi
 # ACN defaults to pg when the key is absent — that must refuse too.
-write_env "$tmp/env.acn" "NOMAD_DEPLOYMENT_MODE=ACN"
+write_env "$tmp/env.acn" "FIRESTARR_EXECUTION_MODE=binary" "NOMAD_DEPLOYMENT_MODE=ACN"
 r="$(drive "$tmp/env.acn")"; st="${r%%|*}"
 [ "$st" != "0" ] && ok "ACN with no client set refuses (it defaults to pg)" \
   || bad "ACN with no client set refuses (it defaults to pg)" "status=$st"
 # ACN *with* sqlite is supported by knexConfig.ts:69-73, so it must NOT refuse.
 mkdir -p "$tmp/d_acnlite"; cp "$tmp/clean.db" "$tmp/d_acnlite/nomad.db"
-write_env "$tmp/env.acnlite" "NOMAD_DEPLOYMENT_MODE=ACN" "NOMAD_DB_CLIENT=better-sqlite3" "NOMAD_DATA_PATH=$tmp/d_acnlite"
+write_env "$tmp/env.acnlite" "FIRESTARR_EXECUTION_MODE=binary" "NOMAD_DEPLOYMENT_MODE=ACN" "NOMAD_DB_CLIENT=better-sqlite3" "NOMAD_DATA_PATH=$tmp/d_acnlite"
 r="$(drive "$tmp/env.acnlite")"; st="${r%%|*}"
 [ "$st" = "0" ] && ok "ACN with a SQLite client is checked, not refused" \
   || bad "ACN with a SQLite client is checked, not refused" "status=$st — knexConfig.ts:69-73 supports it"
@@ -385,7 +390,7 @@ ok "CONTROL: all three still refuse without the override"
 # other two ways, and "no jobs" from the wrong file is the guard not firing.
 mkdir -p "$tmp/d_fs"
 make_db "$tmp/d_fs/nomad.db" "job-fsfallback|m1|running|2026-11-25T09:00:00Z"
-write_env "$tmp/env.fs" "NOMAD_DEPLOYMENT_MODE=SAN" "FIRESTARR_DATASET_PATH=$tmp/d_fs"
+write_env "$tmp/env.fs" "FIRESTARR_EXECUTION_MODE=binary" "NOMAD_DEPLOYMENT_MODE=SAN" "FIRESTARR_DATASET_PATH=$tmp/d_fs"
 r="$(drive "$tmp/env.fs")"; st="${r%%|*}"; out="${r#*|}"
 if [ "$st" != "0" ] && printf '%s' "$out" | grep -q 'job-fsfallback'; then
   ok "the SQLite path falls back to FIRESTARR_DATASET_PATH"
@@ -393,7 +398,7 @@ else
   bad "the SQLite path falls back to FIRESTARR_DATASET_PATH" "status=$st out=$out"
 fi
 # NOMAD_DATA_PATH must WIN over FIRESTARR_DATASET_PATH, as in knexConfig.ts.
-write_env "$tmp/env.both" "NOMAD_DEPLOYMENT_MODE=SAN" "NOMAD_DATA_PATH=$tmp/clean_dir" "FIRESTARR_DATASET_PATH=$tmp/d_fs"
+write_env "$tmp/env.both" "FIRESTARR_EXECUTION_MODE=binary" "NOMAD_DEPLOYMENT_MODE=SAN" "NOMAD_DATA_PATH=$tmp/clean_dir" "FIRESTARR_DATASET_PATH=$tmp/d_fs"
 r="$(drive "$tmp/env.both")"; st="${r%%|*}"
 [ "$st" = "0" ] && ok "NOMAD_DATA_PATH takes precedence over FIRESTARR_DATASET_PATH" \
   || bad "NOMAD_DATA_PATH takes precedence over FIRESTARR_DATASET_PATH" "status=$st — read the wrong database"
