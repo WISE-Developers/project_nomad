@@ -106,7 +106,29 @@ PY
 
 run_dry() {
     local root="$1"
-    ( cd "$root" && bash scripts/deploy.sh --dry-run 2>&1 )
+    # A FAKE `docker` IS REQUIRED HERE, AND LEAVING IT OUT MADE THIS GUARD
+    # NON-DETERMINISTIC (#582).
+    #
+    # preflight_jobs now locates the database by asking Docker which host path is
+    # mounted at the container's data directory. With nothing faked, this test passed
+    # when a local Docker daemon happened to be responding and FAILED when it was not —
+    # identical code, different verdict, and the failure read as "preflight_jobs did not
+    # report its success line". A real-file guard whose result depends on the developer's
+    # colima state is not a guard.
+    #
+    # It answers the mount inspect with this fixture's own data directory and stays silent
+    # for anything else, so the dry run reaches the running-jobs success line on the SAME
+    # path a real deploy would take.
+    mkdir -p "$root/fakebin"
+    cat > "$root/fakebin/docker" <<EOF
+#!/usr/bin/env bash
+case "\$1" in
+  inspect) printf '%s' "$root/data"; exit 0 ;;
+esac
+exit 0
+EOF
+    chmod +x "$root/fakebin/docker"
+    ( cd "$root" && PATH="$root/fakebin:$PATH" bash scripts/deploy.sh --dry-run 2>&1 )
 }
 
 # ---- 1. the real file runs ---------------------------------------------------
