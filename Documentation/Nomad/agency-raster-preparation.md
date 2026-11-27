@@ -10,7 +10,7 @@
 | Requirement | Fuel grid | Elevation grid |
 |---|---|---|
 | Format | GeoTIFF, **tiled** | GeoTIFF, **tiled** |
-| File name | must match `fuel*.tif` | same name with `fuel` replaced by `dem` (`fuel_11.tif` → `dem_11.tif`) |
+| File name | must match `fuel*.tif` | same name with `fuel` replaced by `dem` (`fuel_11_0.tif` → `dem_11_0.tif`) |
 | Data type | Unsigned integer, ≤16-bit (`UInt16`) | Signed integer, ≤16-bit (`Int16`), metres |
 | NoData | **must be set** (the run fails if it's missing); `0` is the convention | must be set (`0`, `32767` or `-32768` all appear in practice) |
 | Values | must be `grid_value` codes in `fuel.lut` | whole metres |
@@ -21,6 +21,8 @@
 **How the engine finds grids.** It looks under `RASTER_ROOT` (from `settings.ini`, default `./grid`) for the first folder that exists, in this order: `<root>/<model year>/`, then `<root>/default/`, then `<root>/`. It takes every `fuel*.tif` in that folder, skips any whose projection doesn't match the perimeter (when one is supplied), and picks the grid where the ignition point sits **furthest from an edge**. It then reads a window of up to 4096 × 4096 cells (about 410 km at 100 m) around the ignition.
 
 So you can drop in any number of overlapping grids, and the engine chooses the best one per fire.
+
+**The `{zone}_{half}` suffix is required, not cosmetic.** Nomad sorts the candidate grids by the central meridian implied by each name, parsed with `fuel_(\d+)_(\d+)`, so a name like `fuel_11.tif` fails that match, is assigned 999 and sorts last — in overlapping zones a farther grid can then be chosen with no signal.
 
 ## 2. The projection rule (where most agency grids fail)
 
@@ -46,24 +48,24 @@ Mixedwood percentages are carried in the code itself: `4xx` = M-1, `5xx` = M-2, 
 ```bash
 CO="-co TILED=YES -co BLOCKXSIZE=256 -co BLOCKYSIZE=256 -co COMPRESS=LZW"
 gdalwarp -t_srs EPSG:26911 -tr 100 100 -tap -r near \
-  -ot UInt16 -dstnodata 0 $CO  agency_fuel.tif  fuel_11.tif
+  -ot UInt16 -dstnodata 0 $CO  agency_fuel.tif  fuel_11_0.tif
 ```
 
 **Step 3. Reproject the DEM onto exactly the same grid.** Take the extent from the new fuel grid so the two match pixel for pixel. Use bilinear resampling for elevation:
 ```bash
-read xmin ymin xmax ymax < <(gdalinfo -json fuel_11.tif | python3 -c \
+read xmin ymin xmax ymax < <(gdalinfo -json fuel_11_0.tif | python3 -c \
  "import json,sys;c=json.load(sys.stdin)['cornerCoordinates'];print(c['lowerLeft'][0],c['lowerLeft'][1],c['upperRight'][0],c['upperRight'][1])")
 gdalwarp -t_srs EPSG:26911 -te $xmin $ymin $xmax $ymax -tr 100 100 -r bilinear \
-  -ot Int16 -dstnodata -32768 $CO  agency_dem.tif  dem_11.tif
+  -ot Int16 -dstnodata -32768 $CO  agency_dem.tif  dem_11_0.tif
 ```
 
 **Step 4. Lay out the files.**
 ```
 <RASTER_ROOT>/          (Project Nomad: ${FIRESTARR_DATASET_PATH}/generated/grid/100m/)
 ├── default/            used for any model year with no year folder
-│   ├── fuel_10.tif  dem_10.tif
-│   ├── fuel_11.tif  dem_11.tif
-│   └── fuel_12.tif  dem_12.tif
+│   ├── fuel_10_0.tif  dem_10_0.tif
+│   ├── fuel_11_0.tif  dem_11_0.tif
+│   └── fuel_12_0.tif  dem_12_0.tif
 └── 2026/               optional: used for 2026 fires; overrides default/
 ```
 Under Nomad's convention, a year folder holds the fuels *for* that season, so its fuel vintage is the year before. A `2026/` folder holds end-of-2025 fuels.
@@ -72,13 +74,13 @@ Under Nomad's convention, a year folder holds the fuels *for* that season, so it
 
 Check each pair:
 ```bash
-gdalinfo fuel_11.tif | grep -E "Block=|NoData|Size is|Pixel Size|Origin"
-gdalinfo dem_11.tif  | grep -E "Block=|NoData|Size is|Pixel Size|Origin"
+gdalinfo fuel_11_0.tif | grep -E "Block=|NoData|Size is|Pixel Size|Origin"
+gdalinfo dem_11_0.tif  | grep -E "Block=|NoData|Size is|Pixel Size|Origin"
 ```
 - `Block=256x256` (or any square tile): the grid is tiled. If you see `Block=NNNNx1`, it's striped and will fail.
 - `NoData Value=` is present in both.
 - `Size is`, `Pixel Size` and `Origin` are **identical** between fuel and DEM.
-- `gdalinfo -hist fuel_11.tif` shows only codes that exist in your `fuel.lut`.
+- `gdalinfo -hist fuel_11_0.tif` shows only codes that exist in your `fuel.lut`.
 
 Then do a smoke test: run one ignition per zone, well inside the grid, and confirm `firestarr.log` ends with `Total simulation time was`.
 
